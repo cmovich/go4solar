@@ -8,6 +8,9 @@ import { MfaSetup } from './MfaSetup'
 
 export const metadata: Metadata = { title: 'Two-factor login' }
 
+// Depends on the visitor's session: never prerendered at build time.
+export const dynamic = 'force-dynamic'
+
 export default async function MfaPage() {
   // Staff only; a consumer never sees this page.
   const { aal } = await requireRole(...STAFF_ROLES)

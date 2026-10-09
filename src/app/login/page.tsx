@@ -12,6 +12,9 @@ import { LoginForm } from './LoginForm'
 
 export const metadata: Metadata = { title: 'Sign in' }
 
+// Depends on the visitor's session: never prerendered at build time.
+export const dynamic = 'force-dynamic'
+
 export default async function LoginPage({
   searchParams,
 }: {

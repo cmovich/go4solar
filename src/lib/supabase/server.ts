@@ -9,8 +9,10 @@ import { publicSupabaseEnv } from './env'
  * Runs as the logged-in user (RLS applies). Create a new one per request.
  */
 export async function createClient() {
-  const { url, anonKey } = publicSupabaseEnv()
+  // Read cookies first: it marks the page as dynamic, so the build never tries to
+  // prerender it (and never needs the env vars at build time).
   const cookieStore = await cookies()
+  const { url, anonKey } = publicSupabaseEnv()
 
   return createServerClient<Database>(url, anonKey, {
     cookies: {

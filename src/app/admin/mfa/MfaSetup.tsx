@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useRef, useState, useTransition } from 'react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -23,7 +23,10 @@ type State =
  */
 export function MfaSetup() {
   const router = useRouter()
-  const supabase = createClient()
+  // Created lazily, in effects and handlers only: nothing touches Supabase during server
+  // rendering or the build's trial render.
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null)
+  const getSupabase = () => (supabaseRef.current ??= createClient())
   const [state, setState] = useState<State>({ step: 'loading' })
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -33,7 +36,7 @@ export function MfaSetup() {
     let cancelled = false
 
     async function prepare() {
-      const { data: factors, error: listError } = await supabase.auth.mfa.listFactors()
+      const { data: factors, error: listError } = await getSupabase().auth.mfa.listFactors()
       if (listError) return setState({ step: 'error', message: listError.message })
 
       // `factors.totp` holds verified authenticators only; `factors.all` includes unverified ones.
@@ -41,14 +44,12 @@ export function MfaSetup() {
       if (verified) return setState({ step: 'verify', factorId: verified.id })
 
       // Clear half-finished enrolments so we always show one fresh QR code.
-      const stale = factors.all.filter(
-        (f) => f.factor_type === 'totp' && f.status === 'unverified',
-      )
+      const stale = factors.all.filter((f) => f.factor_type === 'totp' && f.status === 'unverified')
       for (const factor of stale) {
-        await supabase.auth.mfa.unenroll({ factorId: factor.id })
+        await getSupabase().auth.mfa.unenroll({ factorId: factor.id })
       }
 
-      const { data, error: enrolError } = await supabase.auth.mfa.enroll({
+      const { data, error: enrolError } = await getSupabase().auth.mfa.enroll({
         factorType: 'totp',
         friendlyName: 'Go4Solar authenticator',
       })
@@ -67,14 +68,12 @@ export function MfaSetup() {
     return () => {
       cancelled = true
     }
-    // The client is created once per mount; this effect must run once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function submit(factorId: string) {
     setError(null)
     startTransition(async () => {
-      const { error: verifyError } = await supabase.auth.mfa.challengeAndVerify({
+      const { error: verifyError } = await getSupabase().auth.mfa.challengeAndVerify({
         factorId,
         code: code.trim(),
       })

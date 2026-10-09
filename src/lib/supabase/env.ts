@@ -1,3 +1,8 @@
+/** True when both public Supabase variables are set. */
+export function hasSupabaseEnv(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+}
+
 /** Public Supabase settings, safe for the browser. Throws early if they are missing. */
 export function publicSupabaseEnv(): { url: string; anonKey: string } {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL

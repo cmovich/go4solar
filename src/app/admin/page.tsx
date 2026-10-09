@@ -7,6 +7,9 @@ import { signOut } from '../login/actions'
 
 export const metadata: Metadata = { title: 'Back office' }
 
+// Depends on the visitor's session: never prerendered at build time.
+export const dynamic = 'force-dynamic'
+
 // Placeholder. Prompt 8 adds the real admin shell (sidebar, pages by role).
 export default async function AdminPage() {
   const { user, role } = await requireStaffWithMfa()
