@@ -47,7 +47,7 @@ Semako plans in Claude web chat ("the brain"). You, Claude Code, execute ("the h
 | Framework | Next.js 15, App Router, React Server Components where natural |
 | Language | TypeScript, `strict: true`, no `any` (use `unknown` + narrowing) |
 | Database / auth / storage | Supabase (Postgres, Auth, Row Level Security, Storage) via `@supabase/ssr` |
-| Styling | Tailwind CSS + shadcn/ui |
+| Styling | Tailwind CSS v4 (brand colours and font in `@theme` in `src/app/globals.css`, no `tailwind.config`) + shadcn/ui (preset nova, Radix) |
 | Forms / validation | react-hook-form + zod (one zod schema per form, shared by client and server) |
 | Tests | Vitest (unit, `src/**/*.test.ts`), Playwright (end-to-end, `e2e/`) |
 | Charts | Recharts |
@@ -165,6 +165,10 @@ to the `outbox` table and shown at `/admin/outbox`.
 | `brand-orange` | `#F47B20` | accents, CTA highlights, "Calculate my load" |
 | `brand-gold` | `#FFC94D` | taglines on dark green |
 | `brand-mist` | `#F4F8F5` | soft backgrounds, alternating rows |
+
+These tokens live in `@theme` in `src/app/globals.css` (`--color-brand-*`) and are used as Tailwind
+classes: `bg-brand-green`, `text-brand-dark`, `border-brand-mist`, etc. shadcn's `--primary` is set to
+brand green there too.
 
 Logo: `public/brand/go4solar-logo.png` (transparent PNG). Font: Inter. Mobile-first; most visitors use phones
 on slow networks — keep pages light (target < 3 s on 3G for the landing page).
