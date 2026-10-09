@@ -183,5 +183,6 @@ on slow networks — keep pages light (target < 3 s on 3G for the landing page).
 | Date | Prompt | What was done | Notes / follow-ups |
 | --- | --- | --- | --- |
 | 2026-10-09 | — | CLAUDE.md, PRD and Phase 1 plan added | Next: Prompt 1 |
+| 2026-10-09 | 1 | Repo started from scratch (old app was deleted): git init, `main` pushed to github.com/cmovich/go4solar, branch `phase-1`. Next.js 15.5 App Router + TS strict (`noUncheckedIndexedAccess`), Tailwind v4, shadcn/ui (radix, neutral, CSS vars, `--primary` = brand green), brand colours as `brand-*` tokens, Inter latin+latin-ext via next/font, `src/config/site.ts`, TDD `src/lib/money.ts` (13 tests), Vitest + Playwright + Prettier, `e2e/smoke.spec.ts`, `.env.example`, placeholder home page | Tailwind v4 has no `tailwind.config.ts`: brand colours and fonts live in `@theme` in `src/app/globals.css`. shadcn CLI now uses presets (`nova`), so style "default" no longer exists. `next lint` prints a deprecation warning (removed in Next 16); switch `check` to `eslint .` when upgrading. Vercel not connected yet — Semako to import the GitHub repo. |
 
-**Next prompt to run:** Prompt 1 — Repo audit and foundations.
+**Next prompt to run:** Prompt 2 — Supabase, roles and login.
