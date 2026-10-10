@@ -18,8 +18,14 @@ vi.mock('next/navigation', () => ({
   },
 }))
 
-const { STAFF_ROLES, isStaffRole, requireRole, requireStaffWithMfa, requireUser } =
-  await import('./roles')
+const {
+  STAFF_ROLES,
+  isStaffRole,
+  requireRole,
+  requireStaffWithMfa,
+  requireUser,
+  requireVerifiedEmail,
+} = await import('./roles')
 
 const anon: SessionInfo = { user: null, role: null, aal: null }
 const consumer: SessionInfo = {
@@ -116,5 +122,24 @@ describe('requireStaffWithMfa', () => {
     await expect(requireStaffWithMfa()).resolves.toEqual(staffWithMfa)
     getSessionInfo.mockResolvedValue(superAdminWithMfa)
     await expect(requireStaffWithMfa()).resolves.toEqual(superAdminWithMfa)
+  })
+})
+
+describe('requireVerifiedEmail', () => {
+  it('sends an anonymous visitor to /login', async () => {
+    getSessionInfo.mockResolvedValue(anon)
+    expect(await redirectOf(() => requireVerifiedEmail())).toBe('/login?next=%2Fapp%2Fapply')
+  })
+
+  it('sends a user with an unverified email back to the application to verify it', async () => {
+    getSessionInfo.mockResolvedValue({ ...consumer, emailVerified: false })
+    expect(await redirectOf(() => requireVerifiedEmail())).toBe('/app/apply?verify=email')
+    getSessionInfo.mockResolvedValue(consumer) // field missing = not verified
+    expect(await redirectOf(() => requireVerifiedEmail())).toBe('/app/apply?verify=email')
+  })
+
+  it('lets a verified user through', async () => {
+    getSessionInfo.mockResolvedValue({ ...consumer, emailVerified: true })
+    await expect(requireVerifiedEmail()).resolves.toMatchObject({ emailVerified: true })
   })
 })

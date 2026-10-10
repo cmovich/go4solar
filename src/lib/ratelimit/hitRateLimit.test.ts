@@ -25,12 +25,12 @@ describe.skipIf(!hasDb)('hit_rate_limit (database)', () => {
     }
     expect(results.slice(0, 10).every(Boolean)).toBe(true)
     expect(results[10]).toBe(false)
-  }, 30_000)
+  }, 90_000)
 
   it('keys are independent', async () => {
     expect(await hitRateLimit(`${key}:other`, 1, '1 hour')).toBe(true)
     expect(await hitRateLimit(`${key}:other`, 1, '1 hour')).toBe(false)
     const { createAdminClient } = await import('@/lib/supabase/admin')
     await createAdminClient().from('rate_limits').delete().eq('key', `${key}:other`)
-  }, 30_000)
+  }, 90_000)
 })

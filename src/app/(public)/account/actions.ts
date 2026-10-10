@@ -3,6 +3,7 @@
 import { headers } from 'next/headers'
 import { z } from 'zod'
 
+import { sendEmailVerification, siteOrigin } from '@/lib/auth/emailVerification'
 import { getSessionInfo } from '@/lib/auth/session'
 import { OTP_TTL_MS, checkOtp, generateOtpCode, hashOtp } from '@/lib/otp/otp'
 import { sendOtpSms } from '@/lib/quotes/messages'
@@ -87,7 +88,10 @@ export async function createAccount(input: unknown): Promise<Result> {
   if (signInError)
     return { ok: false, error: 'Account created, but sign-in failed. Please sign in.' }
 
-  return sendCodeTo(ctx.lead.phone_e164, (await supabase.auth.getUser()).data.user?.id ?? null)
+  const userId = (await supabase.auth.getUser()).data.user?.id ?? null
+  // Non-blocking: sign-up continues whether or not the email goes out.
+  if (userId) await sendEmailVerification(userId, parsed.data.email, siteOrigin(await headers()))
+  return sendCodeTo(ctx.lead.phone_e164, userId)
 }
 
 async function sendCodeTo(phone: string, userId: string | null): Promise<Result> {

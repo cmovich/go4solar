@@ -1,75 +1,10 @@
-import { createClient } from '@supabase/supabase-js'
-import { config } from 'dotenv'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
-config({ path: '.env.local', quiet: true })
-const hasDb = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+import { hasDb, latestOtpFor, throughDetails as details } from './helpers'
 
-function freshPhone(): string {
-  return `080${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`
-}
-
-/** Reads the latest code the mock messaging provider "sent" (it lands in the outbox). */
-async function latestOtpFor(e164: string): Promise<string> {
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: { persistSession: false },
-    },
-  )
-  for (let i = 0; i < 20; i++) {
-    const { data } = await admin
-      .from('outbox')
-      .select('payload')
-      .eq('template', 'otp_code')
-      .eq('to', e164)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    const text = (data?.payload as { text?: string } | null)?.text ?? ''
-    const m = /\b(\d{6})\b/.exec(text)
-    if (m?.[1]) return m[1]
-    await new Promise((r) => setTimeout(r, 500))
-  }
-  throw new Error('no OTP in the outbox')
-}
-
-async function throughDetails(page: Page, phone: string, email: string) {
-  await page.goto('/calculate')
-  await page.getByRole('button', { name: 'Lighting' }).click()
-  await page.getByRole('button', { name: /^LED bulb/ }).click()
-  await page.getByRole('button', { name: 'Kitchen Appliances' }).click()
-  await page.getByRole('button', { name: /^Fridge/ }).click()
-  // Live mode: the calculator leads into the details flow.
-  await page.getByRole('link', { name: 'See my solar plans' }).click()
-  await page.waitForURL(/\/get-started/)
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByRole('button', { name: 'Get quotes' }).click()
-  await expect(page.getByLabel('Phone number')).toBeVisible({ timeout: 5000 })
-  await page.getByLabel('Phone number').fill(phone)
-  await page.getByRole('button', { name: 'Next' }).click()
-  await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 5000 })
-  await page.getByLabel('Email address').fill(email)
-  await page.getByRole('button', { name: 'Next' }).click()
-  await expect(page.getByLabel('First name')).toBeVisible({ timeout: 5000 })
-  await page.getByLabel('First name').fill('Chidi')
-  await page.getByLabel('Surname').fill('Eze')
-  await page.getByLabel('State of installation').selectOption('Lagos')
-  await page.getByLabel('Local government area').fill('Ikeja')
-  await page.getByRole('checkbox').check()
-  await page.getByRole('button', { name: 'Next' }).click()
-  await page.getByRole('button', { name: /My home/ }).click({ timeout: 15000 })
-  await expect(page.getByRole('heading', { name: 'What do you pay for power today?' })).toBeVisible(
-    { timeout: 20000 },
-  )
-  await page.getByRole('button', { name: 'Petrol generator' }).click()
-  await page.getByLabel('How much do you spend on generator fuel in a typical week?').fill('12000')
-  await page
-    .getByLabel('How much do you spend on electricity (grid) bills in a typical week?')
-    .fill('4200')
-  await page.getByRole('button', { name: 'Next' }).click()
-}
+const freshPhone = () => `080${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`
+const throughDetails = (page: Parameters<typeof details>[0], phone: string, email: string) =>
+  details(page, { phone, email, type: 'individual' })
 
 test.describe('live mode: plans → account → phone code → application', () => {
   test.skip(!hasDb, 'needs Supabase env')
@@ -113,13 +48,14 @@ test.describe('live mode: plans → account → phone code → application', () 
     await page.getByRole('button', { name: 'Create account and send code' }).click()
 
     // Code from the outbox (mock messaging).
-    await expect(page.getByLabel('6-digit code')).toBeVisible({ timeout: 20000 })
+    await expect(page.getByLabel('6-digit code')).toBeVisible({ timeout: 45000 })
     await page.getByLabel('6-digit code').fill(await latestOtpFor(e164))
     await page.getByRole('button', { name: 'Verify my phone' }).click()
 
     await page.waitForURL(/\/app\/apply/, { timeout: 20000 })
-    await expect(page.getByRole('heading', { name: 'Next: verify your identity' })).toBeVisible()
-    await expect(page.getByTestId('chosen-quote')).toContainText('Comfort plan')
+    // The application wizard opens at "Confirm your details" for the chosen Comfort quote.
+    await expect(page.getByRole('heading', { name: 'Confirm your details' })).toBeVisible()
+    await expect(page.getByText(/Comfort · G4S-/)).toBeVisible()
   })
 
   test('a wrong code is rejected', async ({ page }) => {
@@ -130,7 +66,7 @@ test.describe('live mode: plans → account → phone code → application', () 
     await page.waitForURL(/\/account\?quote=/)
     await page.getByLabel('Create a password').fill('Solar-Plan-2026!')
     await page.getByRole('button', { name: 'Create account and send code' }).click()
-    await expect(page.getByLabel('6-digit code')).toBeVisible({ timeout: 20000 })
+    await expect(page.getByLabel('6-digit code')).toBeVisible({ timeout: 45000 })
     const real = await latestOtpFor(`+234${phone.slice(1)}`)
     await page.getByLabel('6-digit code').fill(real === '000000' ? '111111' : '000000')
     await page.getByRole('button', { name: 'Verify my phone' }).click()

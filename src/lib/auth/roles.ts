@@ -36,3 +36,14 @@ export async function requireStaffWithMfa(): Promise<SessionInfo> {
   if (info.aal !== 'aal2') redirect('/admin/mfa')
   return info
 }
+
+/**
+ * A signed-in user whose email has been confirmed through our verification link. Required before
+ * the Terms/signature step (Prompt 11); otherwise back to the application with a prompt to verify.
+ */
+export async function requireVerifiedEmail(next = '/app/apply'): Promise<SessionInfo> {
+  const info = await getSessionInfo()
+  if (!info.user) redirect(loginUrl(next))
+  if (!info.emailVerified) redirect('/app/apply?verify=email')
+  return info
+}

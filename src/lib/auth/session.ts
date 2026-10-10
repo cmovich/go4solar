@@ -10,6 +10,8 @@ export type SessionInfo = {
   user: { id: string; email: string | null } | null
   role: AppRole | null
   aal: Aal | null
+  /** Email confirmed through our own verification link (profiles.email_verified_at). */
+  emailVerified?: boolean
 }
 
 /**
@@ -24,7 +26,7 @@ export async function getSessionInfo(): Promise<SessionInfo> {
   if (!user) return { user: null, role: null, aal: null }
 
   const [{ data: profile }, { data: mfa }] = await Promise.all([
-    supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+    supabase.from('profiles').select('role, email_verified_at').eq('id', user.id).maybeSingle(),
     supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
   ])
 
@@ -33,5 +35,6 @@ export async function getSessionInfo(): Promise<SessionInfo> {
     user: { id: user.id, email: user.email ?? null },
     role: profile?.role ?? null,
     aal: level === 'aal2' ? 'aal2' : level === 'aal1' ? 'aal1' : null,
+    emailVerified: Boolean(profile?.email_verified_at),
   }
 }

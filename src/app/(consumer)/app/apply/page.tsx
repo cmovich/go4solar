@@ -1,59 +1,40 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
+import { ApplyWizard } from '@/components/apply/ApplyWizard'
+import { ensureApplication, wizardState } from '@/lib/applications/server'
 import { requireUser } from '@/lib/auth/roles'
-import { formatNaira } from '@/lib/money'
-import { PLAN_LABELS } from '@/lib/quotes/buildEstimate'
-import { quoteReference } from '@/lib/quotes/quote'
-import type { Plan } from '@/lib/sizing/types'
-import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Your application' }
 export const dynamic = 'force-dynamic'
 
-/** Placeholder until Prompt 10 builds the application wizard. */
-export default async function ApplyPage() {
+/** The application wizard (resumes at the first unfinished step). */
+export default async function ApplyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ email?: string; verify?: string }>
+}) {
   const { user } = await requireUser('/app/apply')
-  const supabase = await createClient()
-  const { data: quote } = await supabase
-    .from('quotes')
-    .select('id, plan, tenure, deposit_share, result, status')
-    .eq('owner_id', user!.id)
-    .eq('status', 'chosen')
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  const result = (quote?.result ?? null) as {
-    systemPrice?: number
-    monthly?: number
-    deposit?: number
-  } | null
-
+  const app = await ensureApplication(user!.id)
+  if (!app) redirect('/get-started')
+  const state = await wizardState(app)
+  const sp = await searchParams
   return (
-    <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
-      <p className="text-brand-green text-sm font-semibold tracking-wide uppercase">
-        Phone verified
-      </p>
-      <h1 className="text-brand-dark mt-2 text-3xl font-bold">Next: verify your identity</h1>
-      <p className="text-muted-foreground mt-3">
-        Your account is ready. The next step is a quick identity check (NIN, BVN and a face check),
-        then your guarantor. This part of the app opens soon.
-      </p>
-      {quote && result && (
-        <div className="bg-brand-mist mt-6 rounded-2xl p-5" data-testid="chosen-quote">
-          <p className="text-brand-dark font-semibold">
-            {PLAN_LABELS[quote.plan as Plan]} plan · {quoteReference(quote.id)}
-          </p>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {formatNaira(result.deposit ?? 0)} upfront, then {formatNaira(result.monthly ?? 0)} a
-            month for {quote.tenure} months. Total amount payable{' '}
-            {formatNaira(result.systemPrice ?? 0)} · 0% interest.
-          </p>
-        </div>
+    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      {sp.email === 'verified' && (
+        <p
+          className="bg-brand-mist text-brand-green mb-4 rounded-md px-4 py-2 text-sm font-semibold"
+          role="status"
+        >
+          Thank you — your email is confirmed.
+        </p>
       )}
-      <Link href="/" className="text-brand-blue mt-8 inline-block text-sm underline">
-        Back to home
-      </Link>
+      {sp.verify === 'email' && (
+        <p className="mb-4 rounded-md bg-amber-50 px-4 py-2 text-sm text-amber-900" role="status">
+          Please confirm your email (use the link we sent) before signing your agreement.
+        </p>
+      )}
+      <ApplyWizard state={state} />
     </main>
   )
 }

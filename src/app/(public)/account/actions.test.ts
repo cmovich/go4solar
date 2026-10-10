@@ -66,6 +66,10 @@ function fakeAdmin() {
   }
   return { from }
 }
+vi.mock('@/lib/auth/emailVerification', () => ({
+  sendEmailVerification: async () => {},
+  siteOrigin: () => 'http://localhost:3000',
+}))
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => fakeAdmin() }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({}) }))
 

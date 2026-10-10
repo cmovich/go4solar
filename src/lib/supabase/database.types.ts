@@ -44,6 +44,110 @@ export type Database = {
         }
         Relationships: []
       }
+      applications: {
+        Row: {
+          affordability: Json | null
+          applicant_type: string
+          assigned_funder_id: string | null
+          biometric_consent_at: string | null
+          business: Json | null
+          consumer_id: string
+          created_at: string
+          credit_flags: Json
+          employment: Json | null
+          entered_by: string | null
+          guarantor: Json | null
+          id: string
+          income_range: string | null
+          install_address: Json | null
+          map_pin: unknown
+          next_of_kin: Json | null
+          personal: Json
+          quote_id: string | null
+          status: Database['public']['Enums']['application_status']
+          steps: Json
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          affordability?: Json | null
+          applicant_type?: string
+          assigned_funder_id?: string | null
+          biometric_consent_at?: string | null
+          business?: Json | null
+          consumer_id: string
+          created_at?: string
+          credit_flags?: Json
+          employment?: Json | null
+          entered_by?: string | null
+          guarantor?: Json | null
+          id?: string
+          income_range?: string | null
+          install_address?: Json | null
+          map_pin?: unknown
+          next_of_kin?: Json | null
+          personal?: Json
+          quote_id?: string | null
+          status?: Database['public']['Enums']['application_status']
+          steps?: Json
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          affordability?: Json | null
+          applicant_type?: string
+          assigned_funder_id?: string | null
+          biometric_consent_at?: string | null
+          business?: Json | null
+          consumer_id?: string
+          created_at?: string
+          credit_flags?: Json
+          employment?: Json | null
+          entered_by?: string | null
+          guarantor?: Json | null
+          id?: string
+          income_range?: string | null
+          install_address?: Json | null
+          map_pin?: unknown
+          next_of_kin?: Json | null
+          personal?: Json
+          quote_id?: string | null
+          status?: Database['public']['Enums']['application_status']
+          steps?: Json
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'applications_assigned_funder_id_fkey'
+            columns: ['assigned_funder_id']
+            isOneToOne: false
+            referencedRelation: 'funders'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'applications_consumer_id_fkey'
+            columns: ['consumer_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'applications_entered_by_fkey'
+            columns: ['entered_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'applications_quote_id_fkey'
+            columns: ['quote_id']
+            isOneToOne: false
+            referencedRelation: 'quotes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -177,6 +281,78 @@ export type Database = {
         }
         Relationships: []
       }
+      documents: {
+        Row: {
+          application_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          owner_id: string
+          storage_path: string
+        }
+        Insert: {
+          application_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          owner_id: string
+          storage_path: string
+        }
+        Update: {
+          application_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          owner_id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'documents_application_id_fkey'
+            columns: ['application_id']
+            isOneToOne: false
+            referencedRelation: 'applications'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'documents_owner_id_fkey'
+            columns: ['owner_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      email_verifications: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          token_hash: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          token_hash: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          token_hash?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       funders: {
         Row: {
           annual_rate: number
@@ -252,6 +428,45 @@ export type Database = {
           size_band?: Database['public']['Enums']['size_band']
           state?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      kyc_checks: {
+        Row: {
+          attempt: number
+          created_at: string
+          id: string
+          kind: Database['public']['Enums']['kyc_kind']
+          provider: string
+          provider_ref: string | null
+          result_summary: Json
+          status: Database['public']['Enums']['kyc_status']
+          subject_id: string
+          subject_type: Database['public']['Enums']['kyc_subject']
+        }
+        Insert: {
+          attempt?: number
+          created_at?: string
+          id?: string
+          kind: Database['public']['Enums']['kyc_kind']
+          provider: string
+          provider_ref?: string | null
+          result_summary?: Json
+          status?: Database['public']['Enums']['kyc_status']
+          subject_id: string
+          subject_type: Database['public']['Enums']['kyc_subject']
+        }
+        Update: {
+          attempt?: number
+          created_at?: string
+          id?: string
+          kind?: Database['public']['Enums']['kyc_kind']
+          provider?: string
+          provider_ref?: string | null
+          result_summary?: Json
+          status?: Database['public']['Enums']['kyc_status']
+          subject_id?: string
+          subject_type?: Database['public']['Enums']['kyc_subject']
         }
         Relationships: []
       }
@@ -376,6 +591,7 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          email_verified_at: string | null
           full_name: string | null
           id: string
           phone_e164: string | null
@@ -385,6 +601,7 @@ export type Database = {
         Insert: {
           created_at?: string
           email?: string | null
+          email_verified_at?: string | null
           full_name?: string | null
           id: string
           phone_e164?: string | null
@@ -394,6 +611,7 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string | null
+          email_verified_at?: string | null
           full_name?: string | null
           id?: string
           phone_e164?: string | null
@@ -864,11 +1082,16 @@ export type Database = {
         | 'laundry'
         | 'water_outdoor'
         | 'business'
+      application_status:
+        'draft' | 'submitted' | 'under_review' | 'approved' | 'declined' | 'more_info'
       component_category: 'panels' | 'battery' | 'inverter' | 'accessories'
       component_source: 'oem' | 'vendor'
       funder_kind: 'external' | 'own_fund'
       funder_method: 'flat' | 'reducing'
       funder_status: 'active' | 'paused'
+      kyc_kind: 'nin' | 'bvn' | 'liveness' | 'face_match' | 'address' | 'cac'
+      kyc_status: 'pending' | 'passed' | 'failed' | 'manual_review'
+      kyc_subject: 'consumer' | 'guarantor' | 'installer' | 'vendor' | 'business'
       outbox_channel: 'sms' | 'whatsapp' | 'email'
       quote_status: 'draft' | 'chosen' | 'expired'
       ready_when: 'now' | '30_days' | 'later'
@@ -1016,11 +1239,22 @@ export const Constants = {
         'water_outdoor',
         'business',
       ],
+      application_status: [
+        'draft',
+        'submitted',
+        'under_review',
+        'approved',
+        'declined',
+        'more_info',
+      ],
       component_category: ['panels', 'battery', 'inverter', 'accessories'],
       component_source: ['oem', 'vendor'],
       funder_kind: ['external', 'own_fund'],
       funder_method: ['flat', 'reducing'],
       funder_status: ['active', 'paused'],
+      kyc_kind: ['nin', 'bvn', 'liveness', 'face_match', 'address', 'cac'],
+      kyc_status: ['pending', 'passed', 'failed', 'manual_review'],
+      kyc_subject: ['consumer', 'guarantor', 'installer', 'vendor', 'business'],
       outbox_channel: ['sms', 'whatsapp', 'email'],
       quote_status: ['draft', 'chosen', 'expired'],
       ready_when: ['now', '30_days', 'later'],

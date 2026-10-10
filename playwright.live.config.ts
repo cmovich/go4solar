@@ -11,9 +11,11 @@ const env = 'NEXT_DIST_DIR=.next-live NEXT_PUBLIC_LAUNCH_MODE=live'
 export default defineConfig({
   testDir: './e2e/live',
   globalSetup: './e2e/global-setup.ts',
+  // One at a time: each test makes many calls to the remote database and KYC mocks.
+  workers: 1,
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
-  timeout: 120_000,
+  timeout: 240_000,
   use: { baseURL: `http://localhost:${port}`, trace: 'on-first-retry' },
   projects: [{ name: 'desktop-live', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
