@@ -26,7 +26,7 @@ test.describe('load calculator', () => {
     await expect(page.getByTestId('total-running')).toHaveText('250 W')
     await expect(page.getByTestId('total-surge')).toHaveText('550 W')
     // 100 W × 6 h + 150 W × 24 h × 0.4 = 0.6 + 1.44 kWh
-    await expect(page.getByTestId('total-kwh')).toHaveText('2.04 kWh/day')
+    await expect(page.getByTestId('total-kwh')).toHaveText('2.04 kWh')
 
     // The next step is available once there are items.
     await expect(page.getByRole('link', { name: 'See my solar plans' })).toBeVisible()

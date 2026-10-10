@@ -29,9 +29,9 @@ export function TotalsBar({ totals }: { totals: LoadTotals }) {
           </dd>
         </div>
         <div className="px-2 text-center">
-          <dt className="text-muted-foreground text-xs">Energy</dt>
+          <dt className="text-muted-foreground text-xs">Energy per day</dt>
           <dd className="text-brand-dark text-lg font-bold tabular-nums" data-testid="total-kwh">
-            {totals.dailyKwh.toFixed(2)} kWh/day
+            {totals.dailyKwh.toFixed(2)} kWh
           </dd>
         </div>
       </dl>
