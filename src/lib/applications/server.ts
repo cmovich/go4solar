@@ -31,6 +31,8 @@ export type Personal = {
   lga?: string
   dob?: string
   ninLast4?: string
+  /** Keyed hash (never the NIN itself), to check a guarantor is someone else. */
+  ninHash?: string | null
   bvnLast4?: string
 }
 export type BusinessDetails = Partial<BusinessInput> & {
@@ -66,6 +68,12 @@ export type WizardState = {
   } | null
   affordability: Record<string, unknown> | null
   missing: string[]
+}
+
+function withoutHash(p: Personal): Personal {
+  const rest = { ...p }
+  delete rest.ninHash
+  return rest
 }
 
 const KINDS: KycKind[] = ['nin', 'bvn', 'cac', 'liveness']
@@ -176,7 +184,7 @@ export async function wizardState(app: ApplicationRow): Promise<WizardState> {
     applicantType: type,
     steps,
     current: nextStep(type, steps),
-    personal: (app.personal ?? {}) as Personal,
+    personal: withoutHash((app.personal ?? {}) as Personal),
     business,
     employment: (app.employment ?? null) as Record<string, unknown> | null,
     nextOfKin: (app.next_of_kin ?? null) as Record<string, unknown> | null,

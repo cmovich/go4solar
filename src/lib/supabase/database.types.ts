@@ -8,6 +8,128 @@ export type Database = {
   }
   public: {
     Tables: {
+      agreement_templates: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          body_md: string
+          created_at: string
+          effective_from: string
+          id: string
+          status: Database['public']['Enums']['template_status']
+          type: Database['public']['Enums']['agreement_type']
+          version: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          body_md: string
+          created_at?: string
+          effective_from?: string
+          id?: string
+          status?: Database['public']['Enums']['template_status']
+          type: Database['public']['Enums']['agreement_type']
+          version: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          body_md?: string
+          created_at?: string
+          effective_from?: string
+          id?: string
+          status?: Database['public']['Enums']['template_status']
+          type?: Database['public']['Enums']['agreement_type']
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'agreement_templates_approved_by_fkey'
+            columns: ['approved_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      agreements: {
+        Row: {
+          application_id: string | null
+          content_sha256: string
+          created_at: string
+          id: string
+          ip: string | null
+          otp_verified_at: string
+          pdf_path: string
+          pdf_sha256: string
+          signature_path: string
+          signed_at: string
+          signer_name: string
+          signer_title: string | null
+          subject_id: string
+          template_id: string
+          type: Database['public']['Enums']['agreement_type']
+          typed_name: string
+          user_agent: string | null
+          version: number
+        }
+        Insert: {
+          application_id?: string | null
+          content_sha256: string
+          created_at?: string
+          id?: string
+          ip?: string | null
+          otp_verified_at: string
+          pdf_path: string
+          pdf_sha256: string
+          signature_path: string
+          signed_at?: string
+          signer_name: string
+          signer_title?: string | null
+          subject_id: string
+          template_id: string
+          type: Database['public']['Enums']['agreement_type']
+          typed_name: string
+          user_agent?: string | null
+          version: number
+        }
+        Update: {
+          application_id?: string | null
+          content_sha256?: string
+          created_at?: string
+          id?: string
+          ip?: string | null
+          otp_verified_at?: string
+          pdf_path?: string
+          pdf_sha256?: string
+          signature_path?: string
+          signed_at?: string
+          signer_name?: string
+          signer_title?: string | null
+          subject_id?: string
+          template_id?: string
+          type?: Database['public']['Enums']['agreement_type']
+          typed_name?: string
+          user_agent?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'agreements_application_id_fkey'
+            columns: ['application_id']
+            isOneToOne: false
+            referencedRelation: 'applications'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'agreements_template_id_fkey'
+            columns: ['template_id']
+            isOneToOne: false
+            referencedRelation: 'agreement_templates'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       appliance_library: {
         Row: {
           active: boolean
@@ -404,6 +526,84 @@ export type Database = {
         }
         Relationships: []
       }
+      guarantees: {
+        Row: {
+          application_id: string
+          biometric_consent_at: string | null
+          created_at: string
+          decline_reason: string | null
+          details: Json
+          email: string
+          expires_at: string
+          guarantor_profile_id: string | null
+          id: string
+          name: string
+          nin_hash: string | null
+          nin_last4: string | null
+          phone: string
+          relationship: string | null
+          status: Database['public']['Enums']['guarantee_status']
+          steps: Json
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          biometric_consent_at?: string | null
+          created_at?: string
+          decline_reason?: string | null
+          details?: Json
+          email: string
+          expires_at: string
+          guarantor_profile_id?: string | null
+          id?: string
+          name: string
+          nin_hash?: string | null
+          nin_last4?: string | null
+          phone: string
+          relationship?: string | null
+          status?: Database['public']['Enums']['guarantee_status']
+          steps?: Json
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          biometric_consent_at?: string | null
+          created_at?: string
+          decline_reason?: string | null
+          details?: Json
+          email?: string
+          expires_at?: string
+          guarantor_profile_id?: string | null
+          id?: string
+          name?: string
+          nin_hash?: string | null
+          nin_last4?: string | null
+          phone?: string
+          relationship?: string | null
+          status?: Database['public']['Enums']['guarantee_status']
+          steps?: Json
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'guarantees_application_id_fkey'
+            columns: ['application_id']
+            isOneToOne: false
+            referencedRelation: 'applications'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'guarantees_guarantor_profile_id_fkey'
+            columns: ['guarantor_profile_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       installation_costs: {
         Row: {
           amount: number
@@ -783,6 +983,42 @@ export type Database = {
           },
         ]
       }
+      signature_otps: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          phone_e164: string
+          subject_id: string
+          subject_type: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          phone_e164: string
+          subject_id: string
+          subject_type: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone_e164?: string
+          subject_id?: string
+          subject_type?: string
+        }
+        Relationships: []
+      }
       staff_permissions: {
         Row: {
           created_at: string
@@ -1063,6 +1299,7 @@ export type Database = {
       my_role: { Args: never; Returns: Database['public']['Enums']['app_role'] }
     }
     Enums: {
+      agreement_type: 'consumer' | 'guarantor' | 'installer' | 'vendor'
       app_role:
         | 'consumer'
         | 'guarantor'
@@ -1089,6 +1326,7 @@ export type Database = {
       funder_kind: 'external' | 'own_fund'
       funder_method: 'flat' | 'reducing'
       funder_status: 'active' | 'paused'
+      guarantee_status: 'invited' | 'in_progress' | 'signed' | 'declined' | 'expired'
       kyc_kind: 'nin' | 'bvn' | 'liveness' | 'face_match' | 'address' | 'cac'
       kyc_status: 'pending' | 'passed' | 'failed' | 'manual_review'
       kyc_subject: 'consumer' | 'guarantor' | 'installer' | 'vendor' | 'business'
@@ -1096,6 +1334,7 @@ export type Database = {
       quote_status: 'draft' | 'chosen' | 'expired'
       ready_when: 'now' | '30_days' | 'later'
       size_band: 'small' | 'medium' | 'large'
+      template_status: 'draft' | 'approved'
       waitlist_status: 'incomplete' | 'complete'
     }
     CompositeTypes: {
@@ -1218,6 +1457,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      agreement_type: ['consumer', 'guarantor', 'installer', 'vendor'],
       app_role: [
         'consumer',
         'guarantor',
@@ -1252,6 +1492,7 @@ export const Constants = {
       funder_kind: ['external', 'own_fund'],
       funder_method: ['flat', 'reducing'],
       funder_status: ['active', 'paused'],
+      guarantee_status: ['invited', 'in_progress', 'signed', 'declined', 'expired'],
       kyc_kind: ['nin', 'bvn', 'liveness', 'face_match', 'address', 'cac'],
       kyc_status: ['pending', 'passed', 'failed', 'manual_review'],
       kyc_subject: ['consumer', 'guarantor', 'installer', 'vendor', 'business'],
@@ -1259,6 +1500,7 @@ export const Constants = {
       quote_status: ['draft', 'chosen', 'expired'],
       ready_when: ['now', '30_days', 'later'],
       size_band: ['small', 'medium', 'large'],
+      template_status: ['draft', 'approved'],
       waitlist_status: ['incomplete', 'complete'],
     },
   },

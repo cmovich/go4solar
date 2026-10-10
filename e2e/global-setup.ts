@@ -31,7 +31,9 @@ export default async function globalSetup() {
   await admin
     .from('rate_limits')
     .delete()
-    .or('key.like.waitlist:%,key.like.vision:%,key.like.otp-send:%,key.like.otp-verify:%')
+    .or(
+      'key.like.waitlist:%,key.like.vision:%,key.like.otp-send:%,key.like.otp-verify:%,key.like.sig-otp:%,key.like.sig-verify:%',
+    )
 
   // 1. user
   let userId: string | undefined

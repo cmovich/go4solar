@@ -4,7 +4,7 @@ const LIVENESS_MS = 2000
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /**
- * Realistic mock: NIN 11111111111 passes, 00000000000 fails; BVN 22222222222 passes;
+ * Realistic mock: NINs starting with 1 (e.g. 11111111111) pass, 00000000000 fails; BVN 22222222222 passes;
  * CAC RC123456 (or 1234567) passes; liveness passes 2 s after the session starts.
  */
 export const mockKycProvider: KycProvider = {
@@ -12,7 +12,7 @@ export const mockKycProvider: KycProvider = {
 
   async verifyNin({ nin }) {
     await wait(400)
-    const ok = nin === '11111111111'
+    const ok = /^1\d{10}$/.test(nin)
     return ok
       ? {
           status: 'passed',

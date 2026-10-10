@@ -13,6 +13,10 @@ describe('KYC provider contract (mock adapter)', () => {
     expect(r.providerRef).toBeTruthy()
   })
 
+  it('any other NIN starting with 1 passes (so a guarantor can differ from the applicant)', async () => {
+    expect((await kyc.verifyNin({ nin: '12345678901', ...person })).status).toBe('passed')
+  })
+
   it('NIN 00000000000 fails', async () => {
     expect((await kyc.verifyNin({ nin: '00000000000', ...person })).status).toBe('failed')
   })

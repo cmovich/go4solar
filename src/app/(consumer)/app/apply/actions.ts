@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { z } from 'zod'
 
 import {
@@ -23,8 +24,11 @@ import {
   type BusinessDetails,
   type Personal,
 } from '@/lib/applications/server'
+import { inviteGuarantor, type GuarantorContact } from '@/lib/agreements/server'
+import { ninIdentityHash } from '@/lib/agreements/tokens'
+import { siteOrigin } from '@/lib/auth/emailVerification'
 import { getSessionInfo } from '@/lib/auth/session'
-import { normalisePhoneNG } from '@/lib/money'
+import { formatNaira, normalisePhoneNG } from '@/lib/money'
 import { isNgStateId } from '@/lib/nigeria/states'
 import type { QuoteResult } from '@/lib/pricing/types'
 import { getKycProvider } from '@/lib/providers/kyc'
@@ -322,7 +326,13 @@ export async function verifyNin(input: unknown): Promise<Result<{ status: string
   if (status === 'failed') return { ok: false, error: attemptsMessage(decision.attempt) }
   await update(
     o.app.id,
-    { personal: { ...personal, ninLast4: p.data.nin.slice(-4) } as Json },
+    {
+      personal: {
+        ...personal,
+        ninLast4: p.data.nin.slice(-4),
+        ninHash: identityHash(p.data.nin),
+      } as Json,
+    },
     { nin: true },
     o.app.steps,
   )
@@ -648,5 +658,41 @@ export async function finishReview(): Promise<Result<{ missing: string[] }>> {
     { review: true },
     o.app.steps,
   )
+  await inviteGuarantorOnce(o.app)
   return { ok: true, missing: [] }
+}
+
+/** Send the guarantor their link once the application is complete (resends happen on the sign page). */
+async function inviteGuarantorOnce(app: ApplicationRow) {
+  const admin = createAdminClient()
+  const { count } = await admin
+    .from('guarantees')
+    .select('id', { count: 'exact', head: true })
+    .eq('application_id', app.id)
+  const g = app.guarantor as GuarantorContact | null
+  if (count || !g?.email || !app.quote_id) return
+  const { data: quote } = await admin
+    .from('quotes')
+    .select('tenure, result')
+    .eq('id', app.quote_id)
+    .single()
+  if (!quote?.tenure) return
+  const personal = app.personal as Personal
+  await inviteGuarantor({
+    applicationId: app.id,
+    contact: { name: g.name, phone: g.phone, email: g.email, relationship: g.relationship ?? '' },
+    applicantName: [personal.firstName, personal.surname].filter(Boolean).join(' '),
+    monthly: formatNaira((quote.result as unknown as QuoteResult).monthly),
+    tenure: quote.tenure,
+    origin: siteOrigin(await headers()),
+  })
+}
+
+/** Keyed NIN hash for the guarantor ≠ applicant check; null if the secret is not configured. */
+function identityHash(nin: string): string | null {
+  try {
+    return ninIdentityHash(nin)
+  } catch {
+    return null
+  }
 }

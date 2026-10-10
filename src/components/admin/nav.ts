@@ -1,6 +1,7 @@
 import {
   BookOpenText,
   ClipboardList,
+  FileSignature,
   Hammer,
   LayoutDashboard,
   ListChecks,
@@ -49,6 +50,7 @@ export const NAV: readonly NavItem[] = [
     icon: Plug,
     roles: ['super_admin', 'operations', 'content'],
   },
+  { href: '/admin/agreements', label: 'Agreements', icon: FileSignature, roles: ['super_admin'] },
   { href: '/admin/staff', label: 'Staff', icon: Users, roles: ['super_admin'] },
   {
     href: '/admin/outbox',

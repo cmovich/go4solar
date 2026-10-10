@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import {
   PDF,
   PNG,
+  freshPhone,
   hasDb,
   latestOutboxText,
   newPerson,
@@ -52,11 +53,46 @@ async function identityAndAddress(page: Page) {
   await page.getByRole('button', { name: 'Save address' }).click()
 }
 
-async function guarantorAndReview(page: Page) {
+type Guarantor = { phone: string; email: string }
+
+function newGuarantor(): Guarantor {
+  const phone = freshPhone()
+  return { phone, email: `e2e-guarantor-${phone}@go4solar.test` }
+}
+
+const e164 = (phone: string) => `+234${phone.slice(1)}`
+
+/** Scroll the agreement to the end, tick every box, draw a signature, get the SMS code, sign. */
+async function readTickDrawAndSign(page: Page, phone: string) {
+  const send = page.getByRole('button', { name: 'Send my signing code' })
+  await page.getByRole('checkbox').first().waitFor()
+  for (const box of await page.getByRole('checkbox').all()) await box.check()
+  const canvas = page.getByTestId('signature-canvas')
+  await canvas.scrollIntoViewIfNeeded()
+  const b = (await canvas.boundingBox())!
+  await page.mouse.move(b.x + 30, b.y + b.height / 2)
+  await page.mouse.down()
+  for (let i = 1; i <= 20; i++)
+    await page.mouse.move(b.x + 30 + i * 12, b.y + b.height / 2 + (i % 2 ? -15 : 15))
+  await page.mouse.up()
+  // Not read to the end yet: signing stays blocked.
+  await expect(send).toBeDisabled()
+  await expect(page.getByText('Read the agreement to the end to sign.')).toBeVisible()
+  await page.getByTestId('agreement-scroll').evaluate((el) => el.scrollTo(0, el.scrollHeight))
+  await expect(send).toBeEnabled()
+  await send.click()
+  const sms = await latestOutboxText('signature_code', e164(phone))
+  const code = /\b(\d{6})\b/.exec(sms)?.[1]
+  expect(code).toBeTruthy()
+  await page.getByLabel(/Enter the 6-digit code/).fill(code!)
+  await page.getByRole('button', { name: 'Sign the agreement' }).click()
+}
+
+async function guarantorAndReview(page: Page, g: Guarantor = newGuarantor()) {
   await step(page, 'guarantor')
   await page.getByLabel('Full name').fill('Ngozi Eze')
-  await page.getByLabel('Phone').fill('08099990000')
-  await page.getByLabel('Email').fill('ngozi@go4solar.test')
+  await page.getByLabel('Phone').fill(g.phone)
+  await page.getByLabel('Email').fill(g.email)
   await page.getByLabel('Relationship to you').fill('Sister')
   await page.getByRole('button', { name: 'Save' }).click()
 
@@ -111,7 +147,68 @@ test.describe('live mode: application wizard with mock KYC', () => {
     await page.getByLabel('Relationship to you').fill('Brother')
     await page.getByRole('button', { name: 'Save' }).click()
 
-    await guarantorAndReview(page)
+    const g = newGuarantor()
+    await guarantorAndReview(page, g)
+
+    // ---- Terms: summary from the stored quote, full agreement, ticks, signature, phone code.
+    await page.getByRole('link', { name: 'Read and sign' }).click()
+    await page.waitForURL(/\/app\/apply\/sign/)
+    await expect(page.getByTestId('sign-summary')).toContainText('Total amount payable')
+    await expect(page.getByTestId('sign-summary')).toContainText('No interest')
+    await expect(page.getByText('DRAFT — lawyer review required').first()).toBeVisible()
+    await readTickDrawAndSign(page, p.phone)
+    await expect(page.getByTestId('signed-done')).toBeVisible({ timeout: 60000 })
+    await expect(page.getByTestId('signed-done')).toContainText(
+      /Document fingerprint: [0-9a-f]{64}/,
+    )
+    expect(await latestOutboxText('agreement_signed', p.email)).toMatch(/fingerprint/i)
+
+    // ---- Guarantor opens the link from the outbox (no account).
+    const invite = await latestOutboxText('guarantor_invite', g.email)
+    const inviteLink = /(https?:\/\/\S+\/guarantee\/[A-Za-z0-9_-]+)/.exec(invite)?.[1]
+    expect(inviteLink).toBeTruthy()
+    const gp = await page.context().browser()!.newPage()
+    await gp.goto(inviteLink!.replace(/^https?:\/\/[^/]+/, 'http://localhost:3100'))
+    await expect(gp.getByTestId('guarantee-summary')).toContainText('Monthly payment')
+    await gp.getByRole('button', { name: 'Yes, continue' }).click()
+
+    // The applicant's own NIN is refused before any lookup.
+    await gp.getByLabel('First name (as on your NIN)').fill('Ngozi')
+    await gp.getByLabel('Surname').fill('Eze')
+    await gp.getByLabel('Date of birth').fill('1988-03-02')
+    await gp.getByLabel('NIN (11 digits)').fill('11111111111')
+    await gp.getByRole('button', { name: 'Check my NIN' }).click()
+    await expect(gp.getByText('The applicant cannot be their own guarantor.')).toBeVisible({
+      timeout: 20000,
+    })
+    await gp
+      .getByLabel('NIN (11 digits)')
+      .fill(`1${String(Math.floor(Math.random() * 1e10)).padStart(10, '0')}`)
+    await gp.getByRole('button', { name: 'Check my NIN' }).click()
+
+    await gp.getByRole('checkbox').check({ timeout: 20000 })
+    await gp.getByRole('button', { name: 'Continue' }).click()
+    await gp.getByRole('button', { name: 'Start the face check' }).click({ timeout: 20000 })
+    await gp.getByLabel('Home address').fill('4 Admiralty Way, Lekki', { timeout: 30000 })
+    await gp.getByLabel('State').selectOption('Lagos')
+    await gp.getByLabel('Work').selectOption('employed')
+    await gp.getByLabel('Monthly income').selectOption('250k_500k')
+    await gp.getByRole('button', { name: 'Continue to the guarantee' }).click()
+
+    await expect(gp.getByRole('heading', { name: 'Read and sign the guarantee' })).toBeVisible({
+      timeout: 20000,
+    })
+    await readTickDrawAndSign(gp, g.phone)
+    await expect(gp.getByTestId('guarantee-signed')).toBeVisible({ timeout: 60000 })
+
+    // The same link cannot be used again.
+    await gp.reload()
+    await expect(gp.getByTestId('guarantee-problem')).toContainText('You have already signed')
+    await gp.close()
+
+    // The customer sees it.
+    await page.reload()
+    await expect(page.getByTestId('guarantor-status')).toContainText('They have signed')
   })
 
   test('business: CAC (needs certificate + director tick) → owner KYC → business statements → guarantor → review', async ({

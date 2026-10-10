@@ -3,6 +3,8 @@ import path from 'node:path'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  // tsconfig keeps JSX for Next ("preserve"); component tests need it compiled here.
+  oxc: { jsx: { runtime: 'automatic' } },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, 'src'),

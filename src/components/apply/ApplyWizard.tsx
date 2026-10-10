@@ -1,6 +1,7 @@
 'use client'
 
 import { CheckCircle2, Loader2, ScanFace } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState, useTransition } from 'react'
 
@@ -1038,9 +1039,11 @@ function ReviewStep({ state, act, pending }: StepProps) {
         <div className="border-brand-green rounded-2xl border-2 p-5" data-testid="next-sign">
           <p className="text-brand-dark text-lg font-bold">Next: sign your agreement</p>
           <p className="text-muted-foreground mt-1 text-sm">
-            We will message your guarantor, then you read and sign the agreement and pay the
-            deposit. We&apos;ll let you know as soon as that step opens.
+            We have sent your guarantor a link. Now read and sign your payment plan agreement.
           </p>
+          <Button asChild className={`${primary} bg-brand-green hover:bg-brand-dark mt-4`}>
+            <Link href="/app/apply/sign">Read and sign</Link>
+          </Button>
         </div>
       ) : (
         <Button
