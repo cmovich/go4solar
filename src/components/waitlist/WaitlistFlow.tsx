@@ -32,7 +32,13 @@ const slide = {
   exit: (dir: number) => ({ x: dir > 0 ? '-60%' : '60%', opacity: 0 }),
 }
 
-export function WaitlistFlow({ library }: { library: LibraryItem[] }) {
+export function WaitlistFlow({
+  library,
+  messagingLive,
+}: {
+  library: LibraryItem[]
+  messagingLive: boolean
+}) {
   const [step, setStep] = useState<Step>(1)
   const [dir, setDir] = useState(1)
   const [items, setItems] = useState<LoadItem[]>([])
@@ -150,7 +156,7 @@ export function WaitlistFlow({ library }: { library: LibraryItem[] }) {
               onDone={() => go(9)}
             />
           )}
-          {step === 9 && <ThankYouStep firstName={firstName} />}
+          {step === 9 && <ThankYouStep firstName={firstName} messagingLive={messagingLive} />}
         </motion.div>
       </AnimatePresence>
     </div>

@@ -592,7 +592,14 @@ export function ContributionStep({
 }
 
 // ------------------------------------------------------------- 9. Thank you
-export function ThankYouStep({ firstName }: { firstName: string }) {
+export function ThankYouStep({
+  firstName,
+  messagingLive,
+}: {
+  firstName: string
+  /** True only when MESSAGING_PROVIDER is live: then a copy really was sent. */
+  messagingLive: boolean
+}) {
   return (
     <div className="bg-brand-mist rounded-2xl p-8 text-center" role="status">
       <p className="text-brand-dark text-2xl font-bold sm:text-3xl">Thank you, {firstName}.</p>
@@ -600,7 +607,9 @@ export function ThankYouStep({ firstName }: { firstName: string }) {
         You are on the Go4Solar waiting list. We will notify you within the next 7 days.
       </p>
       <p className="text-muted-foreground mt-4 text-sm">
-        A copy of your estimate is on its way to your email and WhatsApp.
+        {messagingLive
+          ? "We've sent a copy of your estimate to your email and WhatsApp."
+          : 'We will contact you on WhatsApp within the next 7 days.'}
       </p>
     </div>
   )

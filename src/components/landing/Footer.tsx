@@ -3,20 +3,9 @@ import Link from 'next/link'
 
 import { siteConfig } from '@/config/site'
 import { normalisePhoneNG } from '@/lib/money'
+import { whatsappHref } from '@/lib/whatsapp'
 
 import { Band, Container } from './Band'
-
-/** wa.me link from NEXT_PUBLIC_WHATSAPP_NUMBER, falling back to the first office line. */
-function whatsappHref(): string {
-  const raw = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || siteConfig.phones[0]
-  let e164: string
-  try {
-    e164 = normalisePhoneNG(raw)
-  } catch {
-    e164 = `+${raw.replace(/\D/g, '')}`
-  }
-  return `https://wa.me/${e164.replace('+', '')}`
-}
 
 function telHref(phone: string): string {
   try {
@@ -69,7 +58,11 @@ export function Footer() {
 
           <div className="flex flex-col items-start gap-4 md:items-end">
             <a
-              href={whatsappHref()}
+              href={whatsappHref(
+                process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '',
+                undefined,
+                siteConfig.phones[0],
+              )}
               target="_blank"
               rel="noopener noreferrer"
               className="focus-visible:ring-brand-gold inline-flex h-12 items-center gap-2 rounded-lg bg-[#25D366] px-5 text-base font-semibold text-white transition-colors hover:bg-[#1ebe5b] focus-visible:ring-2 focus-visible:outline-none"
