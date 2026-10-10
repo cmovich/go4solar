@@ -71,7 +71,6 @@ export function Hero() {
             <div className="mt-8">
               <Link
                 href="/calculate"
-                prefetch={false}
                 className="bg-brand-orange hover:bg-brand-orange/90 focus-visible:ring-brand-gold focus-visible:ring-offset-brand-dark inline-flex h-14 w-full items-center justify-center rounded-lg px-8 text-lg font-semibold text-white shadow-lg shadow-black/20 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto"
               >
                 Calculate my load

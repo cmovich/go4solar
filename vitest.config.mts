@@ -4,7 +4,11 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   resolve: {
-    alias: { '@': path.resolve(import.meta.dirname, 'src') },
+    alias: {
+      '@': path.resolve(import.meta.dirname, 'src'),
+      // `server-only` throws outside a Server Component bundle; stub it in tests.
+      'server-only': path.resolve(import.meta.dirname, 'src/test/server-only.ts'),
+    },
   },
   test: {
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],

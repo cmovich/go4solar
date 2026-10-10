@@ -8,6 +8,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      appliance_library: {
+        Row: {
+          active: boolean
+          category: Database['public']['Enums']['appliance_category']
+          default_hours: number
+          default_watts: number
+          duty_cycle: number
+          id: string
+          name: string
+          sort: number
+          surge_factor: number
+        }
+        Insert: {
+          active?: boolean
+          category: Database['public']['Enums']['appliance_category']
+          default_hours: number
+          default_watts: number
+          duty_cycle?: number
+          id?: string
+          name: string
+          sort?: number
+          surge_factor?: number
+        }
+        Update: {
+          active?: boolean
+          category?: Database['public']['Enums']['appliance_category']
+          default_hours?: number
+          default_watts?: number
+          duty_cycle?: number
+          id?: string
+          name?: string
+          sort?: number
+          surge_factor?: number
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -109,6 +145,24 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          count: number
+          key: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          key: string
+          window_start: string
+        }
+        Update: {
+          count?: number
+          key?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       settings: {
         Row: {
           key: string
@@ -184,6 +238,10 @@ export type Database = {
         Args: { target: Database['public']['Enums']['app_role'] }
         Returns: boolean
       }
+      hit_rate_limit: {
+        Args: { p_key: string; p_limit: number; p_window: string }
+        Returns: boolean
+      }
       is_staff: { Args: never; Returns: boolean }
       my_role: { Args: never; Returns: Database['public']['Enums']['app_role'] }
     }
@@ -199,6 +257,14 @@ export type Database = {
         | 'collections'
         | 'finance'
         | 'content'
+      appliance_category:
+        | 'lighting'
+        | 'tv_electronics'
+        | 'kitchen'
+        | 'cooling'
+        | 'laundry'
+        | 'water_outdoor'
+        | 'business'
       outbox_channel: 'sms' | 'whatsapp' | 'email'
     }
     CompositeTypes: {
@@ -332,6 +398,15 @@ export const Constants = {
         'collections',
         'finance',
         'content',
+      ],
+      appliance_category: [
+        'lighting',
+        'tv_electronics',
+        'kitchen',
+        'cooling',
+        'laundry',
+        'water_outdoor',
+        'business',
       ],
       outbox_channel: ['sms', 'whatsapp', 'email'],
     },
