@@ -140,6 +140,7 @@ export async function saveNameStep(input: unknown): Promise<ActionResult<{ estim
       settings.minDepositShare,
       settings,
     )
+    estimate = { ...estimate, pricedAt: new Date().toISOString() }
   } catch (err) {
     const message =
       err instanceof Error && err.name === 'LoadTooLargeError'
@@ -256,7 +257,10 @@ export async function completeWaitlist(
   const advice = current
     ? {
         monthlySpend: current.monthlySpend,
-        recommendedTenure: recommendTenure(monthlyByTenure(chosen, estimate.pricingRateByTenure), current.monthlySpend),
+        recommendedTenure: recommendTenure(
+          monthlyByTenure(chosen, estimate.pricingRateByTenure),
+          current.monthlySpend,
+        ),
         co2AvoidedKgPerYear: co2Avoided(plan, current),
       }
     : null

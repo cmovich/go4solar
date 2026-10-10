@@ -1,6 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion, type PanInfo } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 
 import { Calculator } from '@/components/calculator/Calculator'
@@ -59,6 +60,7 @@ export function WaitlistFlow({
   const [current, setCurrent] = useState<CurrentEnergy | null>(null)
   const [plan, setPlan] = useState<Plan | null>(null)
   const [pausing, setPausing] = useState(false)
+  const router = useRouter()
 
   const go = useCallback(
     (next: Step) => {
@@ -159,7 +161,9 @@ export function WaitlistFlow({
               leadId={leadId}
               onSaved={(c) => {
                 setCurrent(c)
-                go(10)
+                // Live mode: the priced plans, tenure choice and account step live on /plans.
+                if (launchMode === 'live') router.push(`/plans?estimate=${leadId}`)
+                else go(10)
               }}
             />
           )}

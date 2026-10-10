@@ -27,7 +27,7 @@ export function Results({
   onContinue?: () => void
 }) {
   // Prelaunch: the waiting list reads the same saved items. Live: straight to the plans.
-  const nextHref = launchMode === 'prelaunch' ? '/waitlist' : '/plans'
+  const nextHref = launchMode === 'prelaunch' ? '/waitlist' : '/get-started'
 
   return (
     <section className="mt-10" aria-labelledby="results-heading">

@@ -10,9 +10,10 @@
     "format": "prettier --write .",
     "check": "tsc --noEmit && next lint && vitest run",
     "test": "vitest",
-    "e2e": "playwright test",
+    "e2e": "playwright test && playwright test -c playwright.live.config.ts",
     "make-admin": "tsx scripts/make-super-admin.ts",
-    "db:types": "supabase gen types typescript --linked --schema public > src/lib/supabase/database.types.ts"
+    "db:types": "supabase gen types typescript --linked --schema public > src/lib/supabase/database.types.ts",
+    "e2e:live": "playwright test -c playwright.live.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

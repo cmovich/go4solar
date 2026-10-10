@@ -28,7 +28,10 @@ export default async function globalSetup() {
   })
 
   // Local runs all share one IP: reset the per-IP quotas so repeated runs are not rate-limited.
-  await admin.from('rate_limits').delete().or('key.like.waitlist:%,key.like.vision:%')
+  await admin
+    .from('rate_limits')
+    .delete()
+    .or('key.like.waitlist:%,key.like.vision:%,key.like.otp-send:%,key.like.otp-verify:%')
 
   // 1. user
   let userId: string | undefined

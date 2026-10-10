@@ -5,6 +5,8 @@ const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${port}`
 
 export default defineConfig({
   testDir: './e2e',
+  // Live-mode specs need their own build: see playwright.live.config.ts.
+  testIgnore: '**/live/**',
   // Creates the staff test user (with MFA) used by the admin tests; no-op without Supabase env.
   globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,

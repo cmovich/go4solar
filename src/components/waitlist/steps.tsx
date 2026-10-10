@@ -894,8 +894,7 @@ export function ThankYouStep({
   launchMode: LaunchMode
 }) {
   const router = useRouter()
-  // Prelaunch: home after a few seconds. Live: straight on to the application.
-  // TODO(Prompts 9–10): replace /plans?estimate= with the real application route once it exists.
+  // Prelaunch: home after a few seconds. (Live mode leaves the flow for /plans after the energy screen.)
   const next = launchMode === 'live' ? `/plans?estimate=${leadId}` : '/'
 
   useEffect(() => {

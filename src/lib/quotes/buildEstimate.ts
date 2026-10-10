@@ -39,6 +39,8 @@ export type Estimate = {
   /** Pricing rate per tenure at the time of the estimate (for the tenure comparison). */
   pricingRateByTenure: Record<TenureMonths, number>
   plans: Record<Plan, PlanEstimate>
+  /** When the estimate was priced (ISO). Set by the server action that stores it. */
+  pricedAt?: string
 }
 
 export type RepricedPlan = PlanEstimate & {

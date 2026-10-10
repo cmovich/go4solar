@@ -85,6 +85,35 @@ export type Database = {
           },
         ]
       }
+      cash_referrals: {
+        Row: {
+          created_at: string
+          id: string
+          quote_id: string
+          vendor_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          quote_id: string
+          vendor_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          quote_id?: string
+          vendor_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cash_referrals_quote_id_fkey'
+            columns: ['quote_id']
+            isOneToOne: false
+            referencedRelation: 'quotes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       category_margins: {
         Row: {
           category: Database['public']['Enums']['component_category']
@@ -280,6 +309,39 @@ export type Database = {
         }
         Relationships: []
       }
+      phone_otps: {
+        Row: {
+          attempts: number
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          phone_e164: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          phone_e164: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone_e164?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pricing_rates: {
         Row: {
           default_buffer: number
@@ -340,6 +402,84 @@ export type Database = {
         }
         Relationships: []
       }
+      quotes: {
+        Row: {
+          anon_token_hash: string
+          applicant_type: string | null
+          created_at: string
+          deposit_share: number
+          energy: Json | null
+          id: string
+          load_items: Json
+          load_totals: Json
+          owner_id: string | null
+          plan: string
+          result: Json
+          state: string
+          status: Database['public']['Enums']['quote_status']
+          system_size: Json
+          tenure: number | null
+          updated_at: string
+          valid_until: string
+          waitlist_id: string | null
+        }
+        Insert: {
+          anon_token_hash: string
+          applicant_type?: string | null
+          created_at?: string
+          deposit_share: number
+          energy?: Json | null
+          id?: string
+          load_items: Json
+          load_totals: Json
+          owner_id?: string | null
+          plan: string
+          result: Json
+          state: string
+          status?: Database['public']['Enums']['quote_status']
+          system_size: Json
+          tenure?: number | null
+          updated_at?: string
+          valid_until: string
+          waitlist_id?: string | null
+        }
+        Update: {
+          anon_token_hash?: string
+          applicant_type?: string | null
+          created_at?: string
+          deposit_share?: number
+          energy?: Json | null
+          id?: string
+          load_items?: Json
+          load_totals?: Json
+          owner_id?: string | null
+          plan?: string
+          result?: Json
+          state?: string
+          status?: Database['public']['Enums']['quote_status']
+          system_size?: Json
+          tenure?: number | null
+          updated_at?: string
+          valid_until?: string
+          waitlist_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'quotes_owner_id_fkey'
+            columns: ['owner_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'quotes_waitlist_id_fkey'
+            columns: ['waitlist_id']
+            isOneToOne: false
+            referencedRelation: 'waitlist_consumers'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       rate_limits: {
         Row: {
           count: number
@@ -357,6 +497,44 @@ export type Database = {
           window_start?: string
         }
         Relationships: []
+      }
+      reminders: {
+        Row: {
+          channel: Database['public']['Enums']['outbox_channel']
+          created_at: string
+          due_at: string
+          id: string
+          quote_id: string
+          sent_at: string | null
+          to: string
+        }
+        Insert: {
+          channel: Database['public']['Enums']['outbox_channel']
+          created_at?: string
+          due_at: string
+          id?: string
+          quote_id: string
+          sent_at?: string | null
+          to: string
+        }
+        Update: {
+          channel?: Database['public']['Enums']['outbox_channel']
+          created_at?: string
+          due_at?: string
+          id?: string
+          quote_id?: string
+          sent_at?: string | null
+          to?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'reminders_quote_id_fkey'
+            columns: ['quote_id']
+            isOneToOne: false
+            referencedRelation: 'quotes'
+            referencedColumns: ['id']
+          },
+        ]
       }
       settings: {
         Row: {
@@ -692,6 +870,7 @@ export type Database = {
       funder_method: 'flat' | 'reducing'
       funder_status: 'active' | 'paused'
       outbox_channel: 'sms' | 'whatsapp' | 'email'
+      quote_status: 'draft' | 'chosen' | 'expired'
       ready_when: 'now' | '30_days' | 'later'
       size_band: 'small' | 'medium' | 'large'
       waitlist_status: 'incomplete' | 'complete'
@@ -843,6 +1022,7 @@ export const Constants = {
       funder_method: ['flat', 'reducing'],
       funder_status: ['active', 'paused'],
       outbox_channel: ['sms', 'whatsapp', 'email'],
+      quote_status: ['draft', 'chosen', 'expired'],
       ready_when: ['now', '30_days', 'later'],
       size_band: ['small', 'medium', 'large'],
       waitlist_status: ['incomplete', 'complete'],

@@ -110,13 +110,11 @@ export async function updateStaff(input: unknown): Promise<Result> {
   const { error } = await admin.from('profiles').update({ role: d.role }).eq('id', d.profileId)
   if (error) return { ok: false, error: error.message }
   if (d.assistedEntry && !hadAssisted) {
-    await admin
-      .from('staff_permissions')
-      .upsert({
-        profile_id: d.profileId,
-        permission: 'assisted_entry',
-        granted_by: session.user!.id,
-      })
+    await admin.from('staff_permissions').upsert({
+      profile_id: d.profileId,
+      permission: 'assisted_entry',
+      granted_by: session.user!.id,
+    })
   } else if (!d.assistedEntry && hadAssisted) {
     await admin
       .from('staff_permissions')
