@@ -18,10 +18,13 @@ export function Results({
   totals,
   hasItems,
   launchMode,
+  onContinue,
 }: {
   totals: LoadTotals
   hasItems: boolean
   launchMode: LaunchMode
+  /** When given, a Continue button replaces the link (waiting-list flow). */
+  onContinue?: () => void
 }) {
   // Prelaunch: the waiting list reads the same saved items. Live: straight to the plans.
   const nextHref = launchMode === 'prelaunch' ? '/waitlist' : '/plans'
@@ -63,7 +66,15 @@ export function Results({
       )}
 
       <div className="mt-8">
-        {hasItems ? (
+        {hasItems && onContinue ? (
+          <button
+            type="button"
+            onClick={onContinue}
+            className="bg-brand-orange hover:bg-brand-orange/90 focus-visible:ring-brand-green inline-flex h-14 w-full items-center justify-center rounded-lg px-8 text-lg font-semibold text-white shadow-lg transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto"
+          >
+            Continue
+          </button>
+        ) : hasItems ? (
           <Link
             href={nextHref}
             prefetch={false}

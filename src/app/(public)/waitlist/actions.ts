@@ -1,0 +1,216 @@
+'use server'
+
+import { headers } from 'next/headers'
+
+import { computeLoadTotals } from '@/lib/load/totals'
+import type { LoadItem } from '@/lib/load/types'
+import { buildEstimate, repriceEstimate, type Estimate } from '@/lib/quotes/buildEstimate'
+import { clientIp } from '@/lib/ratelimit/clientIp'
+import { hitRateLimit } from '@/lib/ratelimit/hitRateLimit'
+import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
+import type { Plan } from '@/lib/sizing/types'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { sendWaitlistConfirmation } from '@/lib/waitlist/messages'
+import {
+  contributionStepSchema,
+  emailStepSchema,
+  nameStepSchema,
+  phoneStepSchema,
+  planStepSchema,
+} from '@/lib/waitlist/schema'
+import { currentVisitorHash, getOrCreateVisitorToken } from '@/lib/waitlist/token'
+
+type ActionResult<T = object> =
+  ({ ok: true } & T) | { ok: false; error: string; field?: string }
+
+const SUBMITS_PER_HOUR = 20
+
+function firstIssue(err: { issues: { path: PropertyKey[]; message: string }[] }): {
+  error: string
+  field?: string
+} {
+  const issue = err.issues[0]
+  return { error: issue?.message ?? 'Please check your details', field: issue?.path[0]?.toString() }
+}
+
+/** Loads the visitor's own row (matching token hash) or returns null. */
+async function ownRow(id: string) {
+  const hash = await currentVisitorHash()
+  if (!hash) return null
+  const { data } = await createAdminClient()
+    .from('waitlist_consumers')
+    .select('*')
+    .eq('id', id)
+    .eq('visitor_token_hash', hash)
+    .maybeSingle()
+  return data
+}
+
+/** Step 4: phone + WhatsApp. Creates the (incomplete) lead and sets the visitor cookie. */
+export async function savePhoneStep(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const parsed = phoneStepSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
+  const { phone, whatsapp, sameAsPhone, items } = parsed.data
+
+  const ip = clientIp(await headers())
+  if (!(await hitRateLimit(`waitlist:${ip}`, SUBMITS_PER_HOUR, '1 hour'))) {
+    return {
+      ok: false,
+      error: 'Too many sign-ups from your connection. Please try again in an hour.',
+    }
+  }
+
+  let totals
+  try {
+    totals = computeLoadTotals(items)
+  } catch {
+    return { ok: false, error: 'Please check the appliances on your list.', field: 'items' }
+  }
+
+  const admin = createAdminClient()
+  const { hash } = await getOrCreateVisitorToken()
+
+  // Same phone already on the list? Link it so admin sees the duplicate; never block.
+  const { data: existing } = await admin
+    .from('waitlist_consumers')
+    .select('id')
+    .eq('phone_e164', phone)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  const { data, error } = await admin
+    .from('waitlist_consumers')
+    .insert({
+      status: 'incomplete',
+      visitor_token_hash: hash,
+      phone_e164: phone,
+      whatsapp_e164: sameAsPhone ? phone : (whatsapp ?? null),
+      load_items: items,
+      load_totals: totals,
+      duplicate_of: existing?.id ?? null,
+    })
+    .select('id')
+    .single()
+  if (error) {
+    console.error('[waitlist] insert failed:', error.message)
+    return { ok: false, error: 'Something went wrong saving your number. Please try again.' }
+  }
+  return { ok: true, id: data.id }
+}
+
+/** Step 5: email. */
+export async function saveEmailStep(input: unknown): Promise<ActionResult> {
+  const parsed = emailStepSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
+  const row = await ownRow(parsed.data.id)
+  if (!row) return { ok: false, error: 'Your session expired. Please start again.' }
+
+  const { error } = await createAdminClient()
+    .from('waitlist_consumers')
+    .update({ email: parsed.data.email })
+    .eq('id', row.id)
+  if (error) return { ok: false, error: 'Could not save your email. Please try again.' }
+  return { ok: true }
+}
+
+/** Step 6: name, state, LGA, consent. Builds and stores the three estimates at 20%. */
+export async function saveNameStep(input: unknown): Promise<ActionResult<{ estimate: Estimate }>> {
+  const parsed = nameStepSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
+  const row = await ownRow(parsed.data.id)
+  if (!row) return { ok: false, error: 'Your session expired. Please start again.' }
+
+  const settings = await getQuoteSettings()
+  let estimate: Estimate
+  try {
+    estimate = buildEstimate(
+      computeLoadTotals(row.load_items as LoadItem[]),
+      parsed.data.state,
+      settings.minDepositShare,
+      settings,
+    )
+  } catch (err) {
+    const message =
+      err instanceof Error && err.name === 'LoadTooLargeError'
+        ? 'Your load is larger than our standard systems. We will contact you about a custom quote.'
+        : 'We could not size a system for this load. Please check your appliances.'
+    return { ok: false, error: message }
+  }
+
+  const { error } = await createAdminClient()
+    .from('waitlist_consumers')
+    .update({
+      first_name: parsed.data.firstName,
+      surname: parsed.data.surname,
+      state: parsed.data.state,
+      lga: parsed.data.lga,
+      consent: true,
+      consent_at: new Date().toISOString(),
+      estimate,
+    })
+    .eq('id', row.id)
+  if (error) return { ok: false, error: 'Could not save your details. Please try again.' }
+  return { ok: true, estimate }
+}
+
+/** Step 7: chosen plan. */
+export async function savePlanStep(input: unknown): Promise<ActionResult> {
+  const parsed = planStepSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
+  const row = await ownRow(parsed.data.id)
+  if (!row) return { ok: false, error: 'Your session expired. Please start again.' }
+
+  const { error } = await createAdminClient()
+    .from('waitlist_consumers')
+    .update({ chosen_plan: parsed.data.plan })
+    .eq('id', row.id)
+  if (error) return { ok: false, error: 'Could not save your choice. Please try again.' }
+  return { ok: true }
+}
+
+/** Step 8 → 9: contribution and readiness. Completes the sign-up and sends the confirmation. */
+export async function completeWaitlist(
+  input: unknown,
+): Promise<ActionResult<{ firstName: string }>> {
+  const parsed = contributionStepSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
+  const row = await ownRow(parsed.data.id)
+  if (!row) return { ok: false, error: 'Your session expired. Please start again.' }
+  if (!row.estimate || !row.chosen_plan || !row.first_name) {
+    return { ok: false, error: 'Please choose a plan first.' }
+  }
+
+  const estimate = row.estimate as unknown as Estimate
+  const plan = row.chosen_plan as Plan
+  const chosen = repriceEstimate(estimate, plan, parsed.data.depositShare)
+  const snapshot = {
+    ...estimate,
+    chosen: { ...chosen, plan, depositShare: parsed.data.depositShare },
+  }
+
+  const { error } = await createAdminClient()
+    .from('waitlist_consumers')
+    .update({
+      status: 'complete',
+      deposit_share: parsed.data.depositShare,
+      ready_when: parsed.data.readyWhen,
+      estimate: snapshot,
+    })
+    .eq('id', row.id)
+  if (error) return { ok: false, error: 'Could not finish your sign-up. Please try again.' }
+
+  await sendWaitlistConfirmation({
+    firstName: row.first_name,
+    phoneE164: row.phone_e164,
+    whatsappE164: row.whatsapp_e164,
+    email: row.email,
+    plan,
+    depositShare: parsed.data.depositShare,
+    systemPrice: chosen.quote.systemPrice,
+    deposit: chosen.quote.deposit,
+    monthly: chosen.quote.monthly,
+    tenureMonths: chosen.quote.snapshot.tenureMonths,
+  })
+  return { ok: true, firstName: row.first_name }
+}

@@ -228,6 +228,193 @@ export type Database = {
           },
         ]
       }
+      waitlist_consumers: {
+        Row: {
+          chosen_plan: string | null
+          consent: boolean
+          consent_at: string | null
+          created_at: string
+          deposit_share: number | null
+          duplicate_of: string | null
+          email: string | null
+          entered_by: string | null
+          entry_channel: string | null
+          estimate: Json | null
+          first_name: string | null
+          id: string
+          lga: string | null
+          load_items: Json
+          load_totals: Json
+          phone_e164: string
+          ready_when: Database['public']['Enums']['ready_when'] | null
+          state: string | null
+          status: Database['public']['Enums']['waitlist_status']
+          surname: string | null
+          updated_at: string
+          visitor_token_hash: string
+          whatsapp_e164: string | null
+        }
+        Insert: {
+          chosen_plan?: string | null
+          consent?: boolean
+          consent_at?: string | null
+          created_at?: string
+          deposit_share?: number | null
+          duplicate_of?: string | null
+          email?: string | null
+          entered_by?: string | null
+          entry_channel?: string | null
+          estimate?: Json | null
+          first_name?: string | null
+          id?: string
+          lga?: string | null
+          load_items?: Json
+          load_totals?: Json
+          phone_e164: string
+          ready_when?: Database['public']['Enums']['ready_when'] | null
+          state?: string | null
+          status?: Database['public']['Enums']['waitlist_status']
+          surname?: string | null
+          updated_at?: string
+          visitor_token_hash: string
+          whatsapp_e164?: string | null
+        }
+        Update: {
+          chosen_plan?: string | null
+          consent?: boolean
+          consent_at?: string | null
+          created_at?: string
+          deposit_share?: number | null
+          duplicate_of?: string | null
+          email?: string | null
+          entered_by?: string | null
+          entry_channel?: string | null
+          estimate?: Json | null
+          first_name?: string | null
+          id?: string
+          lga?: string | null
+          load_items?: Json
+          load_totals?: Json
+          phone_e164?: string
+          ready_when?: Database['public']['Enums']['ready_when'] | null
+          state?: string | null
+          status?: Database['public']['Enums']['waitlist_status']
+          surname?: string | null
+          updated_at?: string
+          visitor_token_hash?: string
+          whatsapp_e164?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'waitlist_consumers_duplicate_of_fkey'
+            columns: ['duplicate_of']
+            isOneToOne: false
+            referencedRelation: 'waitlist_consumers'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'waitlist_consumers_entered_by_fkey'
+            columns: ['entered_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      waitlist_exports: {
+        Row: {
+          created_at: string
+          exported_by: string | null
+          id: string
+          kind: string
+          row_count: number
+        }
+        Insert: {
+          created_at?: string
+          exported_by?: string | null
+          id?: string
+          kind: string
+          row_count?: number
+        }
+        Update: {
+          created_at?: string
+          exported_by?: string | null
+          id?: string
+          kind?: string
+          row_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'waitlist_exports_exported_by_fkey'
+            columns: ['exported_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      waitlist_installers: {
+        Row: {
+          business_name: string | null
+          cac_registered: boolean
+          consent: boolean
+          consent_at: string | null
+          created_at: string
+          email: string | null
+          entered_by: string | null
+          id: string
+          installations_completed: number | null
+          lgas: string | null
+          name: string
+          phone_e164: string
+          states: string[]
+          whatsapp_e164: string | null
+          years_in_business: number | null
+        }
+        Insert: {
+          business_name?: string | null
+          cac_registered?: boolean
+          consent?: boolean
+          consent_at?: string | null
+          created_at?: string
+          email?: string | null
+          entered_by?: string | null
+          id?: string
+          installations_completed?: number | null
+          lgas?: string | null
+          name: string
+          phone_e164: string
+          states?: string[]
+          whatsapp_e164?: string | null
+          years_in_business?: number | null
+        }
+        Update: {
+          business_name?: string | null
+          cac_registered?: boolean
+          consent?: boolean
+          consent_at?: string | null
+          created_at?: string
+          email?: string | null
+          entered_by?: string | null
+          id?: string
+          installations_completed?: number | null
+          lgas?: string | null
+          name?: string
+          phone_e164?: string
+          states?: string[]
+          whatsapp_e164?: string | null
+          years_in_business?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'waitlist_installers_entered_by_fkey'
+            columns: ['entered_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -266,6 +453,8 @@ export type Database = {
         | 'water_outdoor'
         | 'business'
       outbox_channel: 'sms' | 'whatsapp' | 'email'
+      ready_when: 'now' | '30_days' | 'later'
+      waitlist_status: 'incomplete' | 'complete'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -409,6 +598,8 @@ export const Constants = {
         'business',
       ],
       outbox_channel: ['sms', 'whatsapp', 'email'],
+      ready_when: ['now', '30_days', 'later'],
+      waitlist_status: ['incomplete', 'complete'],
     },
   },
 } as const

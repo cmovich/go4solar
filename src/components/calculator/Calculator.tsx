@@ -44,9 +44,12 @@ function safeTotals(items: LoadItem[]): LoadTotals {
 export function Calculator({
   library,
   launchMode,
+  onContinue,
 }: {
   library: LibraryItem[]
   launchMode: LaunchMode
+  /** Waiting-list mode: replaces the "See my solar plans" link with a Continue button. */
+  onContinue?: (items: LoadItem[]) => void
 }) {
   const [items, setItems] = useState<LoadItem[]>([])
   const [hydrated, setHydrated] = useState(false)
@@ -115,7 +118,12 @@ export function Calculator({
         <HeavyLoadWarning items={totals.heavyItems} />
       </section>
 
-      <Results totals={totals} hasItems={items.length > 0} launchMode={launchMode} />
+      <Results
+        totals={totals}
+        hasItems={items.length > 0}
+        launchMode={launchMode}
+        onContinue={onContinue ? () => onContinue(items) : undefined}
+      />
 
       <TotalsBar totals={totals} />
 

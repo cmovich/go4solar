@@ -1,0 +1,43 @@
+import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer'
+import { NextResponse } from 'next/server'
+import { createElement, type ReactElement } from 'react'
+
+import { requireStaffWithMfa } from '@/lib/auth/roles'
+import { WaitlistReport } from '@/lib/pdf/WaitlistReport'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { headline, listConsumers } from '@/lib/waitlist/admin'
+
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
+/** Staff only. Funder-ready PDF: summary + chart, then every complete sign-up. */
+export async function GET() {
+  const session = await requireStaffWithMfa()
+  const [stats, leads] = await Promise.all([headline(), listConsumers({ tab: 'complete' })])
+  const generatedAt = new Date()
+
+  const buffer = await renderToBuffer(
+    createElement(WaitlistReport, {
+      stats,
+      leads,
+      generatedAt,
+    }) as unknown as ReactElement<DocumentProps>,
+  )
+
+  await createAdminClient()
+    .from('waitlist_exports')
+    .insert({
+      kind: 'pdf',
+      row_count: leads.length,
+      exported_by: session.user?.id ?? null,
+    })
+
+  const stamp = generatedAt.toISOString().slice(0, 10)
+  return new NextResponse(new Uint8Array(buffer), {
+    headers: {
+      'content-type': 'application/pdf',
+      'content-disposition': `attachment; filename="go4solar-waiting-list-${stamp}.pdf"`,
+      'cache-control': 'no-store',
+    },
+  })
+}
