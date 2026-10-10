@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 
+import { GENERATOR_LABELS, GENERATOR_TYPES } from '@/lib/energy/currentSpend'
 import { STATE_GROUPS, stateLabel } from '@/lib/nigeria/states'
 import { PLANS, PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import type { ConsumerFilters } from '@/lib/waitlist/admin'
@@ -29,7 +30,7 @@ export function WaitlistFilters({
     e.preventDefault()
     const f = new FormData(e.currentTarget)
     const params = new URLSearchParams({ tab })
-    for (const key of ['type', 'state', 'band', 'plan', 'ready', 'from', 'to']) {
+    for (const key of ['type', 'gen', 'state', 'band', 'plan', 'ready', 'from', 'to']) {
       const v = String(f.get(key) ?? '')
       if (v) params.set(key, v)
     }
@@ -50,6 +51,17 @@ export function WaitlistFilters({
           {APPLICANT_TYPES.map((t) => (
             <option key={t} value={t}>
               {APPLICANT_TYPE_LABELS[t]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="text-xs">
+        Generator
+        <select name="gen" defaultValue={filters.gen ?? ''} className={`${select} mt-1 block`}>
+          <option value="">All</option>
+          {GENERATOR_TYPES.map((g) => (
+            <option key={g} value={g}>
+              {GENERATOR_LABELS[g]}
             </option>
           ))}
         </select>

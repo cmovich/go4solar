@@ -239,6 +239,7 @@ export type Database = {
           deposit_share: number | null
           duplicate_of: string | null
           email: string | null
+          energy: Json | null
           entered_by: string | null
           entry_channel: string | null
           estimate: Json | null
@@ -266,6 +267,7 @@ export type Database = {
           deposit_share?: number | null
           duplicate_of?: string | null
           email?: string | null
+          energy?: Json | null
           entered_by?: string | null
           entry_channel?: string | null
           estimate?: Json | null
@@ -293,6 +295,7 @@ export type Database = {
           deposit_share?: number | null
           duplicate_of?: string | null
           email?: string | null
+          energy?: Json | null
           entered_by?: string | null
           entry_channel?: string | null
           estimate?: Json | null

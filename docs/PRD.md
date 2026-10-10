@@ -151,7 +151,7 @@ Go4Solar sends a link (WhatsApp, email, social media). The flow asks for one thi
 4. **Phone number** screen (swipe in): phone number for calls, with a WhatsApp number below and a "same as phone" tick.
 5. Short loading pause, then the **email** screen, then another short pause.
 6. **Name** screen: first name and surname, plus state and LGA of installation. The state is a dropdown of all 36 states + FCT ("Abuja (FCT)"): Abuja (FCT), Kaduna and Lagos first, then a divider, then the rest A–Z; LGA is free text. Non-launch states are priced with the "Other" installation tier so demand everywhere is measured. Plus a consent tick to be contacted ("I agree that Go4Solar may contact me by phone, WhatsApp and email about my solar plan, and store my details as described in the Privacy Policy."), stored with a timestamp.
-7. **"Who is this solar for?"** — My home / My business. A business adds one screen: business name, business type (shop, office, school, clinic/hospital, hotel, restaurant, workshop/factory, church/mosque, farm, other), CAC number (optional), contact person's role, number of staff, operating hours per day and days per week, and current monthly spend on generator fuel and on electricity bills (₦).
+7. **"Who is this solar for?"** — My home / My business. A business adds one screen: business name, business type (shop, office, school, clinic/hospital, hotel, restaurant, workshop/factory, church/mosque, farm, other), CAC number (optional), contact person's role, number of staff, operating hours per day and days per week. Both pathways then get the **current energy spend** screen (see the section below) before the plans.
 8. **"Here are your plans, \[First name\]"**: the three plans (Essential, Comfort, 24-Hour Independence), each marked **Estimate** and priced at the 20% starting deposit. The user taps one.
 9. **Contribution** screen for the chosen plan: "How much can you pay upfront?" A slider runs from 20% to 95%. As it moves up, the total cost, the upfront amount and the monthly payment update live, with a line such as "You save ₦202,500 by paying 50%." The user also answers "When can you pay this?" (Now / Within 30 days / Later).
 10. Taps **Next** and sees: "Thank you, \[First name\]. We will get back to you within the next 7 days." Customers never see the words "waiting list"; admin screens may. When messaging is live a copy goes to their email and WhatsApp (the screen says so); in mock mode it says "We will contact you on WhatsApp within the next 7 days." In prelaunch the screen shows for about 5 seconds and then returns to the home page (with a "Back to home" button); in live mode it continues to the application.
@@ -162,6 +162,28 @@ Go4Solar sends a link (WhatsApp, email, social media). The flow asks for one thi
 - The record is saved after each screen. If someone leaves after giving a phone number, admin still sees them as an **incomplete lead** and can follow up.
 - No account, NIN, BVN, KYC or payment is collected at this stage. Duplicate phone numbers are flagged to admin, not blocked.
 - Prices use the live pricing settings, so the waiting-list estimates match what users will see at launch.
+
+### Current energy spend, carbon savings and repayment advice
+
+After "Who is this solar for?" (and the business screen), one screen — the same for homes and businesses — asks four questions about what the customer pays for power today. Money boxes show naira formatting as you type, and every money question has an "I don't know" tick (stored as null; no advice is shown when either spend is unknown).
+
+1. **What kind of generator do you run?** None · Petrol · Diesel · Both petrol and diesel.
+2. **How much do you spend on generator fuel in a typical week?** (₦)
+3. **How much do you spend on electricity (grid) bills in a typical week?** (₦)
+4. **If both:** roughly what share of your fuel money goes on petrol? (slider, default 50%)
+
+**What the engine computes** (`src/lib/energy/currentSpend.ts`, admin-editable settings):
+
+- Monthly spend today = (weekly fuel + weekly grid) × 52 ÷ 12.
+- Litres per year = yearly fuel spend ÷ price per litre (petrol and diesel priced separately; "both" splits the spend by the petrol share, 50/50 by default).
+- Fuel CO₂ per year = litres × emission factor (diesel 2.66 kg/L, petrol 2.31 kg/L).
+- Grid kWh per year = yearly grid spend ÷ tariff per kWh; grid CO₂ = kWh × grid factor (0.40 kg/kWh, **unverified** until confirmed against a published Nigerian grid factor).
+- CO₂ avoided by a plan = all the fuel CO₂ (every plan replaces the generator) plus the grid CO₂ for the 24-Hour Independence plan only.
+- Recommended tenure = the shortest of 3, 6, 9 or 12 months whose monthly payment is at or below today's monthly spend ("Pays for itself"). If even 12 months is above it, the app suggests a higher deposit instead.
+
+**On the plan cards:** "You spend ₦X a month on power today" beside the plan's monthly payment and "then ₦0"; a "Pays for itself over N months" badge; and "Avoids about N tonnes of CO₂ a year".
+
+**Admin:** headline cards add "CO₂ avoided per year (tonnes)" and "Average monthly energy spend"; a generator-type filter and column; the funder PDF summary adds total CO₂ avoided by state and by segment (homes / businesses), with a footnote listing the fuel prices, tariff and emission factors used and flagging any that are sample or unverified. Fuel prices, the grid tariff and the emission factors live in settings (`energy`) and are edited in the admin pricing screens.
 
 ### Installer waiting-list flow
 

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Calculator } from '@/components/calculator/Calculator'
 import type { LaunchMode } from '@/config/site'
 import type { LibraryItem } from '@/lib/calculator/store'
+import type { CurrentEnergy } from '@/lib/energy/currentSpend'
 import type { LoadItem } from '@/lib/load/types'
 import type { Estimate } from '@/lib/quotes/buildEstimate'
 import type { Plan } from '@/lib/sizing/types'
@@ -14,6 +15,7 @@ import {
   BusinessStep,
   ContributionStep,
   EmailStep,
+  EnergyStep,
   NameStep,
   PhoneStep,
   PlansStep,
@@ -26,12 +28,12 @@ import {
 
 /**
  * 1 calculator · 2 totals · 3 preparing · 4 phone · 5 email · 6 name/state · 7 who is it for ·
- * 8 business details (business only) · 9 plans · 10 contribution · 11 thank you
+ * 8 business details (business only) · 9 energy spend · 10 plans · 11 contribution · 12 thank you
  */
-export type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11
+export type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
 
 /** Screens the visitor can swipe back from (never past a saved step's validation). */
-const SWIPE_BACK: Partial<Record<Step, Step>> = { 2: 1, 4: 2, 5: 4, 6: 5, 7: 6, 8: 7, 10: 9 }
+const SWIPE_BACK: Partial<Record<Step, Step>> = { 2: 1, 4: 2, 5: 4, 6: 5, 7: 6, 8: 7, 9: 7, 11: 10 }
 
 const slide = {
   enter: (dir: number) => ({ x: dir > 0 ? '60%' : '-60%', opacity: 0 }),
@@ -54,6 +56,7 @@ export function WaitlistFlow({
   const [leadId, setLeadId] = useState<string | null>(null)
   const [name, setName] = useState<NameValues | null>(null)
   const [estimate, setEstimate] = useState<Estimate | null>(null)
+  const [current, setCurrent] = useState<CurrentEnergy | null>(null)
   const [plan, setPlan] = useState<Plan | null>(null)
   const [pausing, setPausing] = useState(false)
 
@@ -94,7 +97,7 @@ export function WaitlistFlow({
 
   return (
     <div className="relative overflow-x-hidden">
-      {step >= 4 && step <= 11 && <Progress step={step} />}
+      {step >= 4 && step <= 12 && <Progress step={step} />}
       <AnimatePresence mode="wait" custom={dir} initial={false}>
         <motion.div
           key={step}
@@ -151,27 +154,37 @@ export function WaitlistFlow({
           {step === 8 && leadId && (
             <BusinessStep leadId={leadId} onBack={() => go(7)} onSaved={() => go(9)} />
           )}
-          {step === 9 && leadId && estimate && (
-            <PlansStep
+          {step === 9 && leadId && (
+            <EnergyStep
               leadId={leadId}
-              firstName={firstName}
-              estimate={estimate}
-              onChosen={(p) => {
-                setPlan(p)
+              onSaved={(c) => {
+                setCurrent(c)
                 go(10)
               }}
             />
           )}
-          {step === 10 && leadId && estimate && plan && (
+          {step === 10 && leadId && estimate && (
+            <PlansStep
+              leadId={leadId}
+              firstName={firstName}
+              estimate={estimate}
+              current={current}
+              onChosen={(p) => {
+                setPlan(p)
+                go(11)
+              }}
+            />
+          )}
+          {step === 11 && leadId && estimate && plan && (
             <ContributionStep
               leadId={leadId}
               estimate={estimate}
               plan={plan}
-              onBack={() => go(9)}
-              onDone={() => go(11)}
+              onBack={() => go(10)}
+              onDone={() => go(12)}
             />
           )}
-          {step === 11 && leadId && (
+          {step === 12 && leadId && (
             <ThankYouStep
               firstName={firstName}
               leadId={leadId}
@@ -186,7 +199,7 @@ export function WaitlistFlow({
 }
 
 function Progress({ step }: { step: Step }) {
-  const screens: Step[] = [4, 5, 6, 7, 9, 10, 11]
+  const screens: Step[] = [4, 5, 6, 7, 9, 10, 11, 12]
   return (
     <ol className="mb-6 flex items-center gap-2" aria-label="Progress">
       {screens.map((s) => (

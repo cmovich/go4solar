@@ -1,7 +1,12 @@
 import type { LoadTotals } from '@/lib/load/types'
 import { isLaunchState, type NgStateId } from '@/lib/nigeria/states'
 import { priceQuote } from '@/lib/pricing/price'
-import type { QuoteLineInput, QuoteResult } from '@/lib/pricing/types'
+import {
+  TENURES,
+  type QuoteLineInput,
+  type QuoteResult,
+  type TenureMonths,
+} from '@/lib/pricing/types'
 import type { PriceList, QuoteSettings } from '@/lib/settings/schemas'
 import { sizeSystem } from '@/lib/sizing/size'
 import type { Plan, SystemSize } from '@/lib/sizing/types'
@@ -157,4 +162,24 @@ export function repriceEstimate(
   const quote = at(depositShare)
   const atMin = depositShare === snap.minDepositShare ? quote : at(snap.minDepositShare)
   return { ...base, quote, savingVsMin: atMin.systemPrice - quote.systemPrice }
+}
+
+/** Monthly payment for a plan at each tenure, at the deposit it was priced with. */
+export function monthlyByTenure(
+  plan: PlanEstimate,
+  tenures: readonly TenureMonths[] = TENURES,
+): { tenureMonths: TenureMonths; monthly: number }[] {
+  const snap = plan.quote.snapshot
+  return tenures.map((tenureMonths) => ({
+    tenureMonths,
+    monthly: priceQuote({
+      lines: snap.lines,
+      installCost: snap.installCost,
+      marginByCategory: snap.marginByCategory,
+      pricingRateAnnual: snap.pricingRateAnnual,
+      tenureMonths,
+      depositShare: snap.depositShare,
+      minDepositShare: snap.minDepositShare,
+    }).monthly,
+  }))
 }

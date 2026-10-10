@@ -14,6 +14,7 @@ import {
 
 import { formatNaira, formatPercent } from '@/lib/money'
 import { PLAN_LABELS } from '@/lib/quotes/buildEstimate'
+import type { EnergySettings } from '@/lib/settings/schemas'
 import type { ConsumerLead, Headline } from '@/lib/waitlist/admin'
 import { READY_WHEN_LABELS, STATE_LABELS } from '@/lib/waitlist/schema'
 
@@ -157,6 +158,8 @@ function Footer() {
   )
 }
 
+const tonnes = (kg: number) => (kg / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })
+
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-GB', {
     timeZone: 'Africa/Lagos',
@@ -169,10 +172,12 @@ export function WaitlistReport({
   stats,
   leads,
   generatedAt,
+  energy,
 }: {
   stats: Headline
   leads: ConsumerLead[]
   generatedAt: Date
+  energy: EnergySettings
 }) {
   const when = generatedAt.toLocaleString('en-GB', {
     timeZone: 'Africa/Lagos',
@@ -205,6 +210,19 @@ export function WaitlistReport({
       label: 'Ready to pay now',
       value: String(stats.readyNow),
       hint: `${stats.installers} installers registered`,
+    },
+    {
+      label: 'CO₂ avoided per year',
+      value: `${tonnes(stats.co2AvoidedKgPerYear)} tonnes`,
+      hint: 'Chosen plans, energy spend known',
+    },
+    {
+      label: 'Average monthly energy spend',
+      value:
+        stats.averageMonthlyEnergySpend === null
+          ? '—'
+          : formatNaira(stats.averageMonthlyEnergySpend),
+      hint: 'Generator fuel + grid bills today',
     },
   ]
 
@@ -246,7 +264,8 @@ export function WaitlistReport({
                 />
               </View>
               <Text style={s.chartValue}>
-                {b.count} ({stats.total ? Math.round((b.count / stats.total) * 100) : 0}%)
+                {b.count} ({stats.total ? Math.round((b.count / stats.total) * 100) : 0}%) ·{' '}
+                {tonnes(b.co2AvoidedKg)} t CO₂
               </Text>
             </View>
           ))
@@ -262,7 +281,8 @@ export function WaitlistReport({
               <Text style={s.cardValue}>{stats.byType[k].count}</Text>
               <Text style={s.cardHint}>
                 {formatNaira(stats.byType[k].systemValue)} system value ·{' '}
-                {formatNaira(stats.byType[k].financingNeeded)} financing
+                {formatNaira(stats.byType[k].financingNeeded)} financing ·{' '}
+                {tonnes(stats.byType[k].co2AvoidedKg)} t CO₂/yr
               </Text>
             </View>
           ))}
@@ -279,6 +299,15 @@ export function WaitlistReport({
           sign-up&apos;s own choice between 20% and 95%.{' '}
           {stats.sample ? 'Prices are SAMPLE values pending the final price list. ' : ''}
           Consent to be contacted was given by every complete sign-up.
+        </Text>
+        <Text style={s.note}>
+          Carbon figures use: petrol {formatNaira(energy.fuelPricePerLitre.petrol)}/L and diesel{' '}
+          {formatNaira(energy.fuelPricePerLitre.diesel)}/L{energy.sample ? ' (SAMPLE prices)' : ''};
+          emission factors petrol {energy.emissionFactorKgPerLitre.petrol} kg CO₂/L, diesel{' '}
+          {energy.emissionFactorKgPerLitre.diesel} kg CO₂/L; grid{' '}
+          {formatNaira(energy.grid.tariffPerKwh)}/kWh at {energy.grid.factorKgPerKwh} kg CO₂/kWh
+          {energy.grid.verified ? '' : ' (UNVERIFIED grid factor)'}. Every plan avoids the generator
+          fuel; only 24-Hour Independence also avoids the grid.
         </Text>
       </Page>
 

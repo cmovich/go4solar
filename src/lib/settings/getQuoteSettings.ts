@@ -6,6 +6,7 @@ import { hasSupabaseEnv, publicSupabaseEnv } from '@/lib/supabase/env'
 
 import {
   DEFAULT_QUOTE_SETTINGS,
+  energySettingsSchema,
   priceListSchema,
   pricingSettingsSchema,
   sizingSettingsSchema,
@@ -27,7 +28,7 @@ export async function getQuoteSettings(): Promise<QuoteSettings> {
   const { data, error } = await supabase
     .from('settings')
     .select('key, value')
-    .in('key', ['sizing', 'price_list', 'pricing', 'min_deposit_share'])
+    .in('key', ['sizing', 'price_list', 'pricing', 'min_deposit_share', 'energy'])
   if (error) {
     console.error('[settings] could not read settings:', error.message)
     return DEFAULT_QUOTE_SETTINGS
@@ -49,6 +50,7 @@ export async function getQuoteSettings(): Promise<QuoteSettings> {
       byKey.min_deposit_share,
       DEFAULT_QUOTE_SETTINGS.minDepositShare,
     ),
+    energy: pick('energy', energySettingsSchema, byKey.energy, DEFAULT_QUOTE_SETTINGS.energy),
   }
 }
 

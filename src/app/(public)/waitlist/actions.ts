@@ -4,7 +4,13 @@ import { headers } from 'next/headers'
 
 import { computeLoadTotals } from '@/lib/load/totals'
 import type { LoadItem } from '@/lib/load/types'
-import { buildEstimate, repriceEstimate, type Estimate } from '@/lib/quotes/buildEstimate'
+import { co2Avoided, currentEnergy, recommendTenure } from '@/lib/energy/currentSpend'
+import {
+  buildEstimate,
+  monthlyByTenure,
+  repriceEstimate,
+  type Estimate,
+} from '@/lib/quotes/buildEstimate'
 import { clientIp } from '@/lib/ratelimit/clientIp'
 import { hitRateLimit } from '@/lib/ratelimit/hitRateLimit'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
@@ -15,9 +21,11 @@ import {
   applicantStepSchema,
   contributionStepSchema,
   emailStepSchema,
+  energyStepSchema,
   nameStepSchema,
   phoneStepSchema,
   planStepSchema,
+  type EnergyRecord,
 } from '@/lib/waitlist/schema'
 import { currentVisitorHash, getOrCreateVisitorToken } from '@/lib/waitlist/token'
 
@@ -174,7 +182,46 @@ export async function saveApplicantStep(input: unknown): Promise<ActionResult> {
   return { ok: true }
 }
 
-/** Step 9: chosen plan. */
+/** Step 9: current energy spend (both pathways). Stores the answers and the computed figures. */
+export async function saveEnergyStep(
+  input: unknown,
+): Promise<ActionResult<{ current: EnergyRecord['current'] }>> {
+  const parsed = energyStepSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
+  const row = await ownRow(parsed.data.id)
+  if (!row) return EXPIRED
+
+  const { generator, weeklyFuelNaira, weeklyGridNaira, petrolShare } = parsed.data
+  const known = weeklyFuelNaira !== null && weeklyGridNaira !== null
+  const current = known
+    ? currentEnergy(
+        {
+          generator,
+          weeklyFuelNaira,
+          weeklyGridNaira,
+          fuelMix: petrolShare === undefined ? undefined : { petrolShare },
+        },
+        (await getQuoteSettings()).energy,
+      )
+    : null
+  const energy: EnergyRecord = {
+    source: 'weekly',
+    generator,
+    weeklyFuelNaira,
+    weeklyGridNaira,
+    petrolShare: petrolShare ?? null,
+    current,
+  }
+
+  const { error } = await createAdminClient()
+    .from('waitlist_consumers')
+    .update({ energy })
+    .eq('id', row.id)
+  if (error) return { ok: false, error: 'Could not save those answers. Please try again.' }
+  return { ok: true, current }
+}
+
+/** Step 10: chosen plan. */
 export async function savePlanStep(input: unknown): Promise<ActionResult> {
   const parsed = planStepSchema.safeParse(input)
   if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
@@ -189,7 +236,7 @@ export async function savePlanStep(input: unknown): Promise<ActionResult> {
   return { ok: true }
 }
 
-/** Step 10 → 11: contribution and readiness. Completes the sign-up and sends the confirmation. */
+/** Step 11 → 12: contribution and readiness. Completes the sign-up and sends the confirmation. */
 export async function completeWaitlist(
   input: unknown,
 ): Promise<ActionResult<{ id: string; firstName: string }>> {
@@ -204,9 +251,18 @@ export async function completeWaitlist(
   const estimate = row.estimate as unknown as Estimate
   const plan = row.chosen_plan as Plan
   const chosen = repriceEstimate(estimate, plan, parsed.data.depositShare)
+  // Repayment and carbon advice for the chosen plan, when the energy answers are known.
+  const current = (row.energy as EnergyRecord | null)?.current ?? null
+  const advice = current
+    ? {
+        monthlySpend: current.monthlySpend,
+        recommendedTenure: recommendTenure(monthlyByTenure(chosen), current.monthlySpend),
+        co2AvoidedKgPerYear: co2Avoided(plan, current),
+      }
+    : null
   const snapshot = {
     ...estimate,
-    chosen: { ...chosen, plan, depositShare: parsed.data.depositShare },
+    chosen: { ...chosen, plan, depositShare: parsed.data.depositShare, advice },
   }
 
   const { error } = await createAdminClient()

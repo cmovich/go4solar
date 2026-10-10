@@ -6,7 +6,15 @@ import type { Plan } from '@/lib/sizing/types'
 import type { Database } from '@/lib/supabase/database.types'
 import { createClient } from '@/lib/supabase/server'
 
-import { DEPOSIT_BANDS, depositBandOf, type ApplicantType, type BusinessInput } from './schema'
+import { co2Avoided, type GeneratorType } from '@/lib/energy/currentSpend'
+
+import {
+  DEPOSIT_BANDS,
+  depositBandOf,
+  type ApplicantType,
+  type BusinessInput,
+  type EnergyRecord,
+} from './schema'
 
 type ConsumerRow = Database['public']['Tables']['waitlist_consumers']['Row']
 type InstallerRow = Database['public']['Tables']['waitlist_installers']['Row']
@@ -26,6 +34,13 @@ export type ConsumerLead = {
   consentAt: string | null
   applicantType: ApplicantType | null
   business: BusinessInput | null
+  generator: GeneratorType | null
+  /** What they pay for power today, per month (null when unknown). */
+  monthlySpend: number | null
+  energyWeeklyFuel: number | null
+  energyWeeklyGrid: number | null
+  /** CO₂ the chosen plan avoids per year, kg (null when unknown or no plan). */
+  co2AvoidedKg: number | null
   loadItems: LoadItem[]
   loadTotals: Partial<LoadTotals>
   plan: Plan | null
@@ -50,6 +65,7 @@ export type ConsumerFilters = {
   plan?: string
   ready?: string
   type?: string
+  gen?: string
   from?: string
   to?: string
 }
@@ -66,6 +82,8 @@ function decode(row: ConsumerRow, names: Map<string, string>): ConsumerLead {
     row.applicant_type === 'individual' || row.applicant_type === 'business'
       ? row.applicant_type
       : null
+  const energy = (row.energy as EnergyRecord | null) ?? null
+  const plan = (row.chosen_plan as Plan | null) ?? null
   return {
     id: row.id,
     status: row.status,
@@ -80,6 +98,11 @@ function decode(row: ConsumerRow, names: Map<string, string>): ConsumerLead {
     consentAt: row.consent_at,
     applicantType: type,
     business: type === 'business' ? ((row.business as BusinessInput | null) ?? null) : null,
+    generator: energy?.generator ?? null,
+    monthlySpend: energy?.current?.monthlySpend ?? null,
+    energyWeeklyFuel: energy?.weeklyFuelNaira ?? null,
+    energyWeeklyGrid: energy?.weeklyGridNaira ?? null,
+    co2AvoidedKg: energy?.current && plan ? co2Avoided(plan, energy.current) : null,
     loadItems: (row.load_items as LoadItem[]) ?? [],
     loadTotals: (row.load_totals as Partial<LoadTotals>) ?? {},
     plan: (row.chosen_plan as Plan | null) ?? null,
@@ -121,6 +144,7 @@ export async function listConsumers(filters: ConsumerFilters): Promise<ConsumerL
   if (filters.type === 'individual' || filters.type === 'business') {
     q = q.eq('applicant_type', filters.type)
   }
+  if (filters.gen) q = q.eq('energy->>generator', filters.gen)
   if (filters.from) q = q.gte('created_at', filters.from)
   if (filters.to) q = q.lte('created_at', `${filters.to}T23:59:59.999Z`)
   const band = DEPOSIT_BANDS.find((b) => b.id === filters.band)
@@ -137,13 +161,14 @@ export type Segment = {
   systemValue: number
   depositsPledged: number
   financingNeeded: number
+  co2AvoidedKg: number
 }
 
 export type Headline = {
   total: number
   complete: number
   incomplete: number
-  byState: { state: string; count: number }[]
+  byState: { state: string; count: number; co2AvoidedKg: number }[]
   /** Complete sign-ups split by who the solar is for. */
   byType: { individual: Segment; business: Segment; unknown: Segment }
   systemValue: number
@@ -153,6 +178,9 @@ export type Headline = {
   readyNow: number
   installers: number
   sample: boolean
+  /** Complete sign-ups with known energy answers. */
+  co2AvoidedKgPerYear: number
+  averageMonthlyEnergySpend: number | null
 }
 
 function segment(leads: ConsumerLead[]): Segment {
@@ -161,6 +189,7 @@ function segment(leads: ConsumerLead[]): Segment {
     systemValue: leads.reduce((s, l) => s + (l.systemPrice ?? 0), 0),
     depositsPledged: leads.reduce((s, l) => s + (l.deposit ?? 0), 0),
     financingNeeded: leads.reduce((s, l) => s + (l.financing ?? 0), 0),
+    co2AvoidedKg: leads.reduce((s, l) => s + (l.co2AvoidedKg ?? 0), 0),
   }
 }
 
@@ -175,11 +204,16 @@ export async function headline(): Promise<Headline> {
   const leads = rows.map((r) => decode(r, new Map()))
   const complete = leads.filter((l) => l.status === 'complete')
 
-  const byStateMap = new Map<string, number>()
+  const byStateMap = new Map<string, { count: number; co2AvoidedKg: number }>()
   for (const l of leads) {
     const key = l.state ?? 'Not given'
-    byStateMap.set(key, (byStateMap.get(key) ?? 0) + 1)
+    const cur = byStateMap.get(key) ?? { count: 0, co2AvoidedKg: 0 }
+    byStateMap.set(key, {
+      count: cur.count + 1,
+      co2AvoidedKg: cur.co2AvoidedKg + (l.status === 'complete' ? (l.co2AvoidedKg ?? 0) : 0),
+    })
   }
+  const spends = complete.map((l) => l.monthlySpend).filter((v): v is number => v !== null)
   const deposits = complete.map((l) => l.depositShare).filter((d): d is number => d !== null)
   const all = segment(complete)
 
@@ -188,7 +222,7 @@ export async function headline(): Promise<Headline> {
     complete: complete.length,
     incomplete: leads.length - complete.length,
     byState: [...byStateMap.entries()]
-      .map(([state, count]) => ({ state, count }))
+      .map(([state, v]) => ({ state, ...v }))
       .sort((a, b) => b.count - a.count),
     byType: {
       individual: segment(complete.filter((l) => l.applicantType === 'individual')),
@@ -204,6 +238,10 @@ export async function headline(): Promise<Headline> {
     readyNow: complete.filter((l) => l.readyWhen === 'now').length,
     installers: installers ?? 0,
     sample: complete.some((l) => l.sample),
+    co2AvoidedKgPerYear: all.co2AvoidedKg,
+    averageMonthlyEnergySpend: spends.length
+      ? Math.round(spends.reduce((a, b) => a + b, 0) / spends.length)
+      : null,
   }
 }
 

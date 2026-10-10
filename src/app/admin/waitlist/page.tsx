@@ -34,6 +34,7 @@ export default async function WaitlistAdminPage({
     plan: one(sp.plan),
     ready: one(sp.ready),
     type: one(sp.type),
+    gen: one(sp.gen),
     from: one(sp.from),
     to: one(sp.to),
   }

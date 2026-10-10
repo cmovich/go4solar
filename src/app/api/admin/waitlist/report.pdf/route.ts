@@ -4,6 +4,7 @@ import { createElement, type ReactElement } from 'react'
 
 import { requireStaffWithMfa } from '@/lib/auth/roles'
 import { WaitlistReport } from '@/lib/pdf/WaitlistReport'
+import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { headline, listConsumers } from '@/lib/waitlist/admin'
 
@@ -13,7 +14,11 @@ export const runtime = 'nodejs'
 /** Staff only. Funder-ready PDF: summary + chart, then every complete sign-up. */
 export async function GET() {
   const session = await requireStaffWithMfa()
-  const [stats, leads] = await Promise.all([headline(), listConsumers({ tab: 'complete' })])
+  const [stats, leads, settings] = await Promise.all([
+    headline(),
+    listConsumers({ tab: 'complete' }),
+    getQuoteSettings(),
+  ])
   const generatedAt = new Date()
 
   const buffer = await renderToBuffer(
@@ -21,6 +26,7 @@ export async function GET() {
       stats,
       leads,
       generatedAt,
+      energy: settings.energy,
     }) as unknown as ReactElement<DocumentProps>,
   )
 

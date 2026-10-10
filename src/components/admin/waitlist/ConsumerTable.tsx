@@ -9,6 +9,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { GENERATOR_LABELS } from '@/lib/energy/currentSpend'
 import { CATEGORY_LABELS } from '@/lib/load/categories'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { PLAN_LABELS } from '@/lib/quotes/buildEstimate'
@@ -52,6 +53,7 @@ export function ConsumerTable({ rows }: { rows: ConsumerLead[] }) {
                 'Phone',
                 'State',
                 'Plan',
+                'Power today',
                 'Deposit',
                 'Monthly',
                 'Total',
@@ -103,6 +105,14 @@ export function ConsumerTable({ rows }: { rows: ConsumerLead[] }) {
                 <td className="px-3 py-2 whitespace-nowrap">{stateLabelOf(r.state)}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.plan ? PLAN_LABELS[r.plan] : '—'}
+                </td>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  {r.generator ? GENERATOR_LABELS[r.generator] : '—'}
+                  {r.monthlySpend !== null && (
+                    <span className="text-muted-foreground block text-xs tabular-nums">
+                      {formatNaira(r.monthlySpend)} / month
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap tabular-nums">
                   {r.depositShare !== null
@@ -181,6 +191,23 @@ export function ConsumerTable({ rows }: { rows: ConsumerLead[] }) {
                       : 'Customer (self)'
                   }
                 />
+                <Row k="Generator" v={open.generator ? GENERATOR_LABELS[open.generator] : '—'} />
+                <Row
+                  k="Energy spend today"
+                  v={
+                    open.monthlySpend !== null
+                      ? `${formatNaira(open.monthlySpend)} / month`
+                      : 'Not known'
+                  }
+                />
+                <Row
+                  k="CO₂ avoided"
+                  v={
+                    open.co2AvoidedKg !== null
+                      ? `${(open.co2AvoidedKg / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })} t / year`
+                      : '—'
+                  }
+                />
                 {open.duplicateOf && <Row k="Duplicate of" v={open.duplicateOf} />}
                 {open.sample && <Row k="Prices" v="SAMPLE" />}
               </dl>
@@ -197,14 +224,6 @@ export function ConsumerTable({ rows }: { rows: ConsumerLead[] }) {
                     <Row
                       k="Hours"
                       v={`${open.business.hoursPerDay} h/day · ${open.business.daysPerWeek} days/week`}
-                    />
-                    <Row
-                      k="Generator fuel"
-                      v={`${formatNaira(open.business.generatorSpendMonthly)} / month`}
-                    />
-                    <Row
-                      k="Electricity bills"
-                      v={`${formatNaira(open.business.electricitySpendMonthly)} / month`}
                     />
                   </dl>
                 </div>

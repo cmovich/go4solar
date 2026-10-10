@@ -48,11 +48,44 @@ async function throughNameStep(page: Page, phone: string, state: string) {
 }
 
 /** Screens 9–11: plans → contribution → thank you (then the prelaunch redirect home). */
-async function finishFromPlans(page: Page) {
+/** Screen 9: current energy spend. Known answers → advice on the plan cards; unknown → none. */
+async function fillEnergy(page: Page, known: boolean) {
+  await expect(page.getByRole('heading', { name: 'What do you pay for power today?' })).toBeVisible(
+    {
+      timeout: 10000,
+    },
+  )
+  if (known) {
+    await page.getByRole('button', { name: 'Petrol generator' }).click()
+    await page
+      .getByLabel('How much do you spend on generator fuel in a typical week?')
+      .fill('12000')
+    await page
+      .getByLabel('How much do you spend on electricity (grid) bills in a typical week?')
+      .fill('4200')
+    await expect(
+      page.getByLabel('How much do you spend on generator fuel in a typical week?'),
+    ).toHaveValue('12,000')
+  } else {
+    await page.getByRole('button', { name: 'No generator' }).click()
+    await page.getByRole('checkbox', { name: "I don't know" }).check()
+  }
+  await page.getByRole('button', { name: 'Next' }).click()
+}
+
+async function finishFromPlans(page: Page, expectAdvice: boolean) {
   await expect(page.getByRole('heading', { name: 'Here are your plans, Amaka' })).toBeVisible({
     timeout: 15000,
   })
   await expect(page.getByText('Estimate', { exact: true })).toHaveCount(3)
+  if (expectAdvice) {
+    await expect(page.getByTestId('plan-advice')).toHaveCount(3)
+    await expect(page.getByTestId('plan-advice').first()).toContainText('₦70,200')
+    await expect(page.getByTestId('plan-advice').first()).toContainText('a month on power today')
+    await expect(page.getByTestId('plan-advice').first()).toContainText('Avoids about')
+  } else {
+    await expect(page.getByTestId('plan-advice')).toHaveCount(0)
+  }
   await page.getByRole('button', { name: /Comfort/ }).click()
 
   await expect(page.getByRole('heading', { name: 'How much can you pay upfront?' })).toBeVisible()
@@ -115,7 +148,8 @@ test.describe('solar plan sign-up (waiting list)', () => {
   test('individual pathway: home → plans → contribution → thank you → home', async ({ page }) => {
     await throughNameStep(page, freshPhone(), 'Lagos')
     await page.getByRole('button', { name: /My home/ }).click()
-    await finishFromPlans(page)
+    await fillEnergy(page, true)
+    await finishFromPlans(page, true)
   })
 
   test('business pathway in a non-launch state: business details → plans → thank you', async ({
@@ -130,10 +164,9 @@ test.describe('solar plan sign-up (waiting list)', () => {
     await page.getByLabel('Number of staff').fill('4')
     await page.getByLabel('Operating hours per day').fill('12')
     await page.getByLabel('Days per week').fill('6')
-    await page.getByLabel('Generator fuel per month (₦)').fill('180000')
-    await page.getByLabel('Electricity bills per month (₦)').fill('40000')
     await page.getByRole('button', { name: 'Next' }).click()
-    await finishFromPlans(page)
+    await fillEnergy(page, false)
+    await finishFromPlans(page, false)
   })
 
   test('leaving after the phone number leaves an incomplete lead that admin can see and export', async ({

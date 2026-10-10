@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { CATEGORY_IDS, type CategoryId } from '@/lib/load/types'
 import { LIMITS } from '@/lib/load/totals'
 import { InvalidPhoneError, normalisePhoneNG } from '@/lib/money'
+import { GENERATOR_TYPES, type CurrentEnergy, type GeneratorType } from '@/lib/energy/currentSpend'
 import { NG_STATE_IDS, stateLabel, type NgStateId } from '@/lib/nigeria/states'
 
 /** Exact consent wording (notes before Prompt 7). Shown on screen and stored with a timestamp. */
@@ -111,8 +112,6 @@ const stateSchema = z.enum(NG_STATE_IDS as [NgStateId, ...NgStateId[]], {
   error: 'Choose your state',
 })
 
-const naira = z.number().min(0).max(1_000_000_000)
-
 /** Business pathway answers (stored as jsonb). */
 export const businessSchema = z.object({
   businessName: z.string().trim().min(2, 'Enter the business name').max(120),
@@ -122,8 +121,6 @@ export const businessSchema = z.object({
   staffCount: z.number().int().min(0).max(100000),
   hoursPerDay: z.number().min(0).max(24),
   daysPerWeek: z.number().int().min(1).max(7),
-  generatorSpendMonthly: naira,
-  electricitySpendMonthly: naira,
 })
 export type BusinessInput = z.infer<typeof businessSchema>
 
@@ -187,6 +184,28 @@ export const installerSchema = z.object({
 
 export type InstallerInput = z.infer<typeof installerSchema>
 
+// Energy-spend screen (both pathways). "I don't know" → null; advice is only shown when both known.
+export const energyStepSchema = z.object({
+  id: z.uuid(),
+  generator: z.enum(GENERATOR_TYPES, { error: 'Tell us what kind of generator you run' }),
+  weeklyFuelNaira: z.number().min(0).max(100_000_000).nullable(),
+  weeklyGridNaira: z.number().min(0).max(100_000_000).nullable(),
+  petrolShare: z.number().min(0).max(1).optional(),
+})
+export type EnergyStepInput = z.infer<typeof energyStepSchema>
+/** Same answers without the row id (assisted entry). */
+export const energyAnswersSchema = energyStepSchema.omit({ id: true })
+
+/** What is stored in waitlist_consumers.energy. */
+export type EnergyRecord = {
+  source: 'weekly' | 'business_monthly'
+  generator: GeneratorType | null
+  weeklyFuelNaira: number | null
+  weeklyGridNaira: number | null
+  petrolShare: number | null
+  current: CurrentEnergy | null
+}
+
 /** Staff "add on behalf of customer" form: all the consumer steps in one go. */
 export const assistedEntrySchema = z.object({
   items: loadItemsSchema,
@@ -204,6 +223,7 @@ export const assistedEntrySchema = z.object({
   depositShare: z.number().min(0.2).max(0.95),
   readyWhen: z.enum(READY_WHEN),
   entryChannel: z.enum(ENTRY_CHANNELS),
+  energy: energyAnswersSchema.optional(),
 })
 
 export type AssistedEntryInput = z.infer<typeof assistedEntrySchema>

@@ -7,7 +7,7 @@ import { NG_STATE_IDS } from '@/lib/nigeria/states'
 import { priceQuote } from '@/lib/pricing/price'
 import { DEFAULT_QUOTE_SETTINGS, SAMPLE_PRICE_LIST } from '@/lib/settings/schemas'
 
-import { PLANS, buildEstimate, repriceEstimate } from './buildEstimate'
+import { PLANS, buildEstimate, monthlyByTenure, repriceEstimate } from './buildEstimate'
 
 const totals = computeLoadTotals(sampleHomeItems) // 480 W, 780 W surge, 3.72 kWh/day
 const s = DEFAULT_QUOTE_SETTINGS
@@ -173,5 +173,17 @@ describe('repriceEstimate — contribution slider', () => {
     const at50 = repriceEstimate(est, 'comfort', 0.5)
     expect(at50.savingVsMin).toBe(est.plans.comfort.quote.systemPrice - at50.quote.systemPrice)
     expect(repriceEstimate(est, 'comfort', 0.2).savingVsMin).toBe(0)
+  })
+})
+
+describe('monthlyByTenure', () => {
+  it('prices the chosen plan at 3/6/9/12 months; shorter tenures cost more per month', () => {
+    const est = buildEstimate(totals, 'Lagos', 0.2, s)
+    const rows = monthlyByTenure(est.plans.comfort)
+    expect(rows.map((r) => r.tenureMonths)).toEqual([3, 6, 9, 12])
+    expect(rows[3]?.monthly).toBe(est.plans.comfort.quote.monthly)
+    for (let i = 1; i < rows.length; i++) {
+      expect(rows[i]!.monthly).toBeLessThan(rows[i - 1]!.monthly)
+    }
   })
 })

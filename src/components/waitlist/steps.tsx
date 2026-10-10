@@ -11,7 +11,16 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
+import { NairaInput } from './NairaInput'
 import type { LaunchMode } from '@/config/site'
+import {
+  GENERATOR_LABELS,
+  GENERATOR_TYPES,
+  co2Avoided,
+  recommendTenure,
+  type CurrentEnergy,
+  type GeneratorType,
+} from '@/lib/energy/currentSpend'
 import { computeLoadTotals } from '@/lib/load/totals'
 import type { LoadItem } from '@/lib/load/types'
 import { formatNaira, formatPercent } from '@/lib/money'
@@ -19,6 +28,7 @@ import { STATE_GROUPS, stateLabel, type NgStateId } from '@/lib/nigeria/states'
 import {
   PLANS,
   PLAN_LABELS,
+  monthlyByTenure,
   repriceEstimate,
   type Estimate,
   type PlanEstimate,
@@ -32,6 +42,7 @@ import {
   READY_WHEN_LABELS,
   businessSchema,
   emailStepSchema,
+  energyStepSchema,
   nameStepSchema,
   phoneStepSchema,
   type ApplicantType,
@@ -41,6 +52,7 @@ import {
   completeWaitlist,
   saveApplicantStep,
   saveEmailStep,
+  saveEnergyStep,
   saveNameStep,
   savePhoneStep,
   savePlanStep,
@@ -465,8 +477,6 @@ export function BusinessStep({
       staffCount: num('staffCount'),
       hoursPerDay: num('hoursPerDay'),
       daysPerWeek: num('daysPerWeek'),
-      generatorSpendMonthly: num('generatorSpendMonthly'),
-      electricitySpendMonthly: num('electricitySpendMonthly'),
     }
     const check = businessSchema.safeParse(business)
     if (!check.success) return setError(check.error.issues[0]?.message ?? 'Check the details')
@@ -557,28 +567,6 @@ export function BusinessStep({
             className={field}
           />
         </div>
-        <div>
-          <Label htmlFor="generatorSpendMonthly">Generator fuel per month (₦)</Label>
-          <Input
-            id="generatorSpendMonthly"
-            name="generatorSpendMonthly"
-            type="number"
-            inputMode="numeric"
-            min={0}
-            className={field}
-          />
-        </div>
-        <div>
-          <Label htmlFor="electricitySpendMonthly">Electricity bills per month (₦)</Label>
-          <Input
-            id="electricitySpendMonthly"
-            name="electricitySpendMonthly"
-            type="number"
-            inputMode="numeric"
-            min={0}
-            className={field}
-          />
-        </div>
       </div>
       <ErrorBox message={error} />
       <Button type="submit" className={primary} disabled={pending}>
@@ -600,16 +588,38 @@ const PLAN_BLURB: Record<Plan, string> = {
     'About 15 hours of backup at full load: runs through the night without grid or generator.',
 }
 
+export type PlanAdvice = {
+  monthlySpend: number
+  recommendedTenure: number | null
+  co2AvoidedKgPerYear: number
+}
+
+/** Repayment and carbon advice for one plan, from the energy answers (null when unknown). */
+export function adviceFor(
+  estimate: PlanEstimate,
+  current: CurrentEnergy | null,
+): PlanAdvice | null {
+  if (!current) return null
+  return {
+    monthlySpend: current.monthlySpend,
+    recommendedTenure: recommendTenure(monthlyByTenure(estimate), current.monthlySpend),
+    co2AvoidedKgPerYear: co2Avoided(estimate.plan, current),
+  }
+}
+
 export function PlanCard({
   estimate,
   onChoose,
   busy,
+  advice,
 }: {
   estimate: PlanEstimate
   onChoose?: () => void
   busy?: boolean
+  advice?: PlanAdvice | null
 }) {
   const { plan, size, quote } = estimate
+  const tonnes = advice ? Math.round(advice.co2AvoidedKgPerYear / 100) / 10 : null
   const Tag = onChoose ? 'button' : 'div'
   return (
     <Tag
@@ -652,6 +662,35 @@ export function PlanCard({
         {formatNaira(quote.deposit)} upfront ({formatPercent(quote.snapshot.depositShare)}) · total{' '}
         {formatNaira(quote.systemPrice)} · 0% interest
       </p>
+      {advice && (
+        <div
+          className="bg-brand-mist mt-3 space-y-1 rounded-lg p-3 text-sm"
+          data-testid="plan-advice"
+        >
+          <p>
+            You spend <strong>{formatNaira(advice.monthlySpend)}</strong> a month on power today ·
+            this plan is <strong>{formatNaira(quote.monthly)}</strong> a month, then{' '}
+            {formatNaira(0)}.
+          </p>
+          {advice.recommendedTenure !== null ? (
+            <p className="text-brand-green font-semibold">
+              <span className="bg-brand-green mr-1 rounded-full px-2 py-0.5 text-xs text-white uppercase">
+                Pays for itself
+              </span>
+              over {advice.recommendedTenure} months at what you pay today.
+            </p>
+          ) : (
+            <p className="text-muted-foreground">
+              A higher upfront contribution would bring the monthly below what you pay today.
+            </p>
+          )}
+          {tonnes !== null && tonnes > 0 && (
+            <p className="text-brand-dark">
+              Avoids about {tonnes} tonne{tonnes === 1 ? '' : 's'} of CO₂ a year.
+            </p>
+          )}
+        </div>
+      )}
       {onChoose && <p className="text-brand-blue mt-3 text-sm font-semibold">Choose this plan →</p>}
     </Tag>
   )
@@ -661,11 +700,13 @@ export function PlansStep({
   leadId,
   firstName,
   estimate,
+  current,
   onChosen,
 }: {
   leadId: string
   firstName: string
   estimate: Estimate
+  current: CurrentEnergy | null
   onChosen: (plan: Plan) => void
 }) {
   const [error, setError] = useState<string | null>(null)
@@ -698,6 +739,7 @@ export function PlansStep({
             estimate={estimate.plans[p]}
             onChoose={() => choose(p)}
             busy={pending}
+            advice={adviceFor(estimate.plans[p], current)}
           />
         ))}
       </div>
@@ -876,5 +918,113 @@ export function ThankYouStep({
         </Link>
       </Button>
     </div>
+  )
+}
+
+// -------------------------------------------------------- 9. Energy spend
+export function EnergyStep({
+  leadId,
+  onSaved,
+}: {
+  leadId: string
+  onSaved: (current: CurrentEnergy | null) => void
+}) {
+  const [generator, setGenerator] = useState<GeneratorType | null>(null)
+  const [fuel, setFuel] = useState<number | null>(null)
+  const [grid, setGrid] = useState<number | null>(null)
+  const [petrolPct, setPetrolPct] = useState(50)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, start] = useTransition()
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    const input = {
+      id: leadId,
+      generator,
+      weeklyFuelNaira: generator === 'none' ? 0 : fuel,
+      weeklyGridNaira: grid,
+      petrolShare: generator === 'both' ? petrolPct / 100 : undefined,
+    }
+    const check = energyStepSchema.safeParse(input)
+    if (!check.success) return setError(check.error.issues[0]?.message ?? 'Check your answers')
+    start(async () => {
+      const r = await saveEnergyStep(check.data)
+      if (r.ok) onSaved(r.current)
+      else setError(r.error)
+    })
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-6" noValidate>
+      <Heading
+        title="What do you pay for power today?"
+        lead="So we can show what you save and which plan pays for itself."
+      />
+
+      <fieldset>
+        <legend className="text-sm font-medium">What kind of generator do you run?</legend>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {GENERATOR_TYPES.map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => setGenerator(g)}
+              aria-pressed={generator === g}
+              className={`min-h-12 rounded-lg border-2 px-3 text-sm font-semibold transition-colors ${
+                generator === g
+                  ? 'border-brand-green bg-brand-green text-white'
+                  : 'border-brand-mist text-brand-dark hover:border-brand-green bg-white'
+              }`}
+            >
+              {GENERATOR_LABELS[g]}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      {generator && generator !== 'none' && (
+        <NairaInput
+          id="weeklyFuel"
+          label="How much do you spend on generator fuel in a typical week?"
+          value={fuel}
+          onChange={setFuel}
+        />
+      )}
+
+      {generator === 'both' && (
+        <div>
+          <Label htmlFor="petrolShare">Roughly what share of your fuel money goes on petrol?</Label>
+          <div className="mt-2 flex items-center gap-3">
+            <Slider
+              id="petrolShare"
+              className="flex-1"
+              min={0}
+              max={100}
+              step={5}
+              value={[petrolPct]}
+              onValueChange={(v) => setPetrolPct(v[0] ?? 50)}
+              aria-label="Petrol share of fuel spend"
+            />
+            <span className="text-brand-dark w-12 text-right text-sm font-semibold tabular-nums">
+              {petrolPct}%
+            </span>
+          </div>
+        </div>
+      )}
+
+      <NairaInput
+        id="weeklyGrid"
+        label="How much do you spend on electricity (grid) bills in a typical week?"
+        value={grid}
+        onChange={setGrid}
+        hint="Prepaid top-ups or your bill, whichever you pay."
+      />
+
+      <ErrorBox message={error} />
+      <Button type="submit" className={primary} disabled={pending || generator === null}>
+        {pending ? 'Saving…' : 'Next'}
+      </Button>
+    </form>
   )
 }

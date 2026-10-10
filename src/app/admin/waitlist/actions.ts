@@ -4,13 +4,14 @@ import { revalidatePath } from 'next/cache'
 
 import { requireStaffWithMfa } from '@/lib/auth/roles'
 import { computeLoadTotals } from '@/lib/load/totals'
-import { buildEstimate, repriceEstimate } from '@/lib/quotes/buildEstimate'
+import { co2Avoided, currentEnergy, recommendTenure } from '@/lib/energy/currentSpend'
+import { buildEstimate, monthlyByTenure, repriceEstimate } from '@/lib/quotes/buildEstimate'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { lastExportAt } from '@/lib/waitlist/admin'
 import { sendWaitlistConfirmation } from '@/lib/waitlist/messages'
-import { assistedEntrySchema } from '@/lib/waitlist/schema'
+import { assistedEntrySchema, type EnergyRecord } from '@/lib/waitlist/schema'
 
 type StaffActionResult<T = Record<string, never>> =
   ({ ok: true } & T) | { ok: false; error: string; field?: string }
@@ -98,6 +99,37 @@ export async function assistedEntry(input: unknown): Promise<StaffActionResult<{
     return { ok: false, error: 'This load is outside our standard systems.' }
   }
   const chosen = repriceEstimate(estimate, d.plan, d.depositShare)
+  const answers = d.energy
+  const current =
+    answers && answers.weeklyFuelNaira !== null && answers.weeklyGridNaira !== null
+      ? currentEnergy(
+          {
+            generator: answers.generator,
+            weeklyFuelNaira: answers.weeklyFuelNaira,
+            weeklyGridNaira: answers.weeklyGridNaira,
+            fuelMix:
+              answers.petrolShare === undefined ? undefined : { petrolShare: answers.petrolShare },
+          },
+          settings.energy,
+        )
+      : null
+  const energy: EnergyRecord | null = answers
+    ? {
+        source: 'weekly',
+        generator: answers.generator,
+        weeklyFuelNaira: answers.weeklyFuelNaira,
+        weeklyGridNaira: answers.weeklyGridNaira,
+        petrolShare: answers.petrolShare ?? null,
+        current,
+      }
+    : null
+  const advice = current
+    ? {
+        monthlySpend: current.monthlySpend,
+        recommendedTenure: recommendTenure(monthlyByTenure(chosen), current.monthlySpend),
+        co2AvoidedKgPerYear: co2Avoided(d.plan, current),
+      }
+    : null
 
   const admin = createAdminClient()
   const { data: existing } = await admin
@@ -124,12 +156,16 @@ export async function assistedEntry(input: unknown): Promise<StaffActionResult<{
       consent_at: new Date().toISOString(),
       applicant_type: d.applicantType,
       business: d.applicantType === 'business' ? (d.business ?? null) : null,
+      energy,
       load_items: d.items,
       load_totals: totals,
       chosen_plan: d.plan,
       deposit_share: d.depositShare,
       ready_when: d.readyWhen,
-      estimate: { ...estimate, chosen: { ...chosen, plan: d.plan, depositShare: d.depositShare } },
+      estimate: {
+        ...estimate,
+        chosen: { ...chosen, plan: d.plan, depositShare: d.depositShare, advice },
+      },
       duplicate_of: existing?.id ?? null,
       entered_by: session.user!.id,
       entry_channel: d.entryChannel,

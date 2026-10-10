@@ -25,10 +25,23 @@ export function HeadlineCards({ stats }: { stats: Headline }) {
       value: stats.averageDepositShare === null ? '—' : formatPercent(stats.averageDepositShare, 1),
     },
     { label: 'Ready "now"', value: String(stats.readyNow), hint: 'Can pay upfront today' },
+    {
+      label: 'CO₂ avoided per year',
+      value: `${(stats.co2AvoidedKgPerYear / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })} tonnes`,
+      hint: 'Chosen plans, where energy spend is known',
+    },
+    {
+      label: 'Average monthly energy spend',
+      value:
+        stats.averageMonthlyEnergySpend === null
+          ? '—'
+          : formatNaira(stats.averageMonthlyEnergySpend),
+      hint: 'Generator fuel + grid bills today',
+    },
   ]
   return (
     <div className="mt-6 space-y-4">
-      <dl className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {cards.map((c) => (
           <div key={c.label} className="bg-brand-mist rounded-xl p-4">
             <dt className="text-muted-foreground text-xs">{c.label}</dt>

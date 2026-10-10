@@ -105,6 +105,7 @@ export type QuoteSettings = {
   priceList: PriceList
   pricing: PricingSettings
   minDepositShare: number
+  energy: EnergySettings
 }
 
 export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
@@ -112,4 +113,34 @@ export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
   priceList: SAMPLE_PRICE_LIST,
   pricing: SAMPLE_PRICING,
   minDepositShare: 0.2,
+  get energy() {
+    return DEFAULT_ENERGY_SETTINGS
+  },
+}
+
+/** Fuel prices, emission factors and grid figures for the energy-spend advice (settings.energy). */
+export const energySettingsSchema = z.object({
+  /** True while the fuel prices / tariff are placeholder values. */
+  sample: z.boolean().default(false),
+  fuelPricePerLitre: z.object({ petrol: z.number().positive(), diesel: z.number().positive() }),
+  emissionFactorKgPerLitre: z.object({
+    petrol: z.number().positive(),
+    diesel: z.number().positive(),
+  }),
+  grid: z.object({
+    tariffPerKwh: z.number().positive(),
+    factorKgPerKwh: z.number().positive(),
+    /** False until the grid factor is confirmed against a published Nigerian figure. */
+    verified: z.boolean().default(false),
+  }),
+})
+
+export type EnergySettings = z.infer<typeof energySettingsSchema>
+
+/** Mirror of the row seeded in 0005_energy.sql. Prices SAMPLE; grid factor UNVERIFIED. */
+export const DEFAULT_ENERGY_SETTINGS: EnergySettings = {
+  sample: true,
+  fuelPricePerLitre: { petrol: 1000, diesel: 1200 },
+  emissionFactorKgPerLitre: { petrol: 2.31, diesel: 2.66 },
+  grid: { tariffPerKwh: 210, factorKgPerKwh: 0.4, verified: false },
 }

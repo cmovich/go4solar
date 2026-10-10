@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { StateSelect } from '@/components/waitlist/steps'
 import type { LibraryItem } from '@/lib/calculator/store'
+import { GENERATOR_LABELS, GENERATOR_TYPES } from '@/lib/energy/currentSpend'
 import type { LoadItem } from '@/lib/load/types'
 import type { NgStateId } from '@/lib/nigeria/states'
 import { PLANS, PLAN_LABELS } from '@/lib/quotes/buildEstimate'
@@ -77,8 +78,6 @@ export function AssistedEntryForm({ library }: { library: LibraryItem[] }) {
             staffCount: num('staffCount'),
             hoursPerDay: num('hoursPerDay'),
             daysPerWeek: num('daysPerWeek'),
-            generatorSpendMonthly: num('generatorSpendMonthly'),
-            electricitySpendMonthly: num('electricitySpendMonthly'),
           }
         : undefined
     const input = {
@@ -97,6 +96,11 @@ export function AssistedEntryForm({ library }: { library: LibraryItem[] }) {
       depositShare: pct / 100,
       readyWhen: str('readyWhen'),
       entryChannel: str('entryChannel'),
+      energy: {
+        generator: str('generator'),
+        weeklyFuelNaira: str('weeklyFuelNaira') === '' ? null : num('weeklyFuelNaira'),
+        weeklyGridNaira: str('weeklyGridNaira') === '' ? null : num('weeklyGridNaira'),
+      },
     }
     start(async () => {
       const r = await assistedEntry(input)
@@ -235,43 +239,54 @@ export function AssistedEntryForm({ library }: { library: LibraryItem[] }) {
                 className={field}
               />
             </div>
-            <div>
-              <Label htmlFor="generatorSpendMonthly">Generator fuel per month (₦)</Label>
-              <Input
-                id="generatorSpendMonthly"
-                name="generatorSpendMonthly"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                className={field}
-              />
-            </div>
-            <div>
-              <Label htmlFor="electricitySpendMonthly">Electricity bills per month (₦)</Label>
-              <Input
-                id="electricitySpendMonthly"
-                name="electricitySpendMonthly"
-                type="number"
-                inputMode="numeric"
-                min={0}
-                className={field}
-              />
-            </div>
           </div>
         )}
       </section>
 
       <section>
-        <h2 className="text-brand-dark text-lg font-semibold">Step 4 · Plan and contribution</h2>
+        <h2 className="text-brand-dark text-lg font-semibold">Step 4 · Power today</h2>
+        <div className="mt-3 grid gap-4 sm:grid-cols-3">
+          <div>
+            <Label htmlFor="generator">Generator</Label>
+            <select id="generator" name="generator" className={select} defaultValue="none">
+              {GENERATOR_TYPES.map((g) => (
+                <option key={g} value={g}>
+                  {GENERATOR_LABELS[g]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <Label htmlFor="weeklyFuelNaira">Fuel per week (₦, blank = unknown)</Label>
+            <Input
+              id="weeklyFuelNaira"
+              name="weeklyFuelNaira"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              className={field}
+            />
+          </div>
+          <div>
+            <Label htmlFor="weeklyGridNaira">Grid bills per week (₦, blank = unknown)</Label>
+            <Input
+              id="weeklyGridNaira"
+              name="weeklyGridNaira"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              className={field}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-brand-dark text-lg font-semibold">Step 5 · Plan and contribution</h2>
         <div className="mt-3 grid gap-4 sm:grid-cols-3">
           <div>
             <Label htmlFor="plan">Plan</Label>
-            <select
-              id="plan"
-              name="plan"
-              className={select}
-              defaultValue="comfort"
-            >
+            <select id="plan" name="plan" className={select} defaultValue="comfort">
               {PLANS.map((p) => (
                 <option key={p} value={p}>
                   {PLAN_LABELS[p]}
@@ -306,7 +321,7 @@ export function AssistedEntryForm({ library }: { library: LibraryItem[] }) {
       </section>
 
       <section>
-        <h2 className="text-brand-dark text-lg font-semibold">Step 5 · How did this come in?</h2>
+        <h2 className="text-brand-dark text-lg font-semibold">Step 6 · How did this come in?</h2>
         <select
           name="entryChannel"
           className={`${select} sm:max-w-xs`}
