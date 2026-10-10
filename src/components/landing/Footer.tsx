@@ -33,13 +33,13 @@ export function Footer() {
       <Container>
         <div className="grid gap-10 md:grid-cols-3">
           <div>
-            <span className="inline-flex rounded-md bg-white px-3 py-1.5">
+            <span className="inline-flex rounded-lg bg-white px-4 py-2">
               <Image
                 src="/brand/go4solar-logo.png"
                 alt={siteConfig.name}
-                width={150}
-                height={48}
-                className="h-9 w-auto"
+                width={300}
+                height={96}
+                className="h-16 w-auto sm:h-[4.5rem]"
               />
             </span>
             <p className="mt-4 text-sm text-white/75">

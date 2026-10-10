@@ -2,13 +2,17 @@ import { formatNaira } from '@/lib/money'
 
 import { Container, SectionHeading } from './Band'
 
-// Illustrative figures only (PRD pricing illustration: 20% deposit, 12 months).
+// Illustrative figures only (PRD pricing illustration: 20% deposit, 12 months), compared over 2 years.
+const compareMonths = 24
 const generatorMonthly = 180000
 const planMonthly = 165017
 const planMonths = 12
 const planDeposit = 495050
 const planTotalInstalments = 1980198
+
+const generatorTotal = generatorMonthly * compareMonths
 const planTotalPayable = planDeposit + planTotalInstalments
+const saving = generatorTotal - planTotalPayable
 
 export function Savings() {
   return (
@@ -30,12 +34,10 @@ export function Savings() {
               <span className="text-muted-foreground text-lg font-medium"> every month</span>
             </p>
             <p className="text-muted-foreground mt-3 text-base">
-              About {formatNaira(generatorMonthly)} every month for fuel and servicing — and it
-              never stops.
+              Fuel and servicing, month after month — and it never stops.
             </p>
-            <p className="mt-6 text-sm font-medium text-red-700">
-              Over {planMonths} months: {formatNaira(generatorMonthly * planMonths)}, then it keeps
-              going.
+            <p className="mt-6 text-sm font-semibold text-red-700">
+              Over 2 years: {formatNaira(generatorTotal)} — and it keeps going.
             </p>
           </article>
 
@@ -54,9 +56,7 @@ export function Savings() {
               </span>
             </p>
             <p className="text-muted-foreground mt-3 text-base">
-              {formatNaira(planMonthly)} a month for {planMonths} months (total{' '}
-              {formatNaira(planTotalInstalments)} after a {formatNaira(planDeposit)} deposit), then{' '}
-              {formatNaira(0)}.
+              after a {formatNaira(planDeposit)} deposit, then {formatNaira(0)}
             </p>
             <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -68,7 +68,10 @@ export function Savings() {
                 <dd className="text-brand-dark font-semibold">{formatNaira(planTotalPayable)}</dd>
               </div>
             </dl>
-            <p className="text-brand-green mt-6 text-sm font-semibold">
+            <p className="bg-brand-green/10 text-brand-dark mt-6 rounded-lg px-4 py-3 text-base font-semibold">
+              Over 2 years you save {formatNaira(saving)} — and you own the system.
+            </p>
+            <p className="text-brand-green mt-4 text-sm font-semibold">
               0% interest · one fixed price, no hidden charges
             </p>
           </article>

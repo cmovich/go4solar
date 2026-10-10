@@ -19,6 +19,11 @@ test.describe('landing page', () => {
     const cta = page.getByRole('link', { name: 'Calculate my load' })
     await expect(cta).toBeVisible()
     await expect(cta).toHaveAttribute('href', '/calculate')
+
+    // The example-plan card is desktop only; phones rely on the badges.
+    const card = page.getByText('Comfort plan')
+    if (test.info().project.name === 'mobile') await expect(card).toBeHidden()
+    else await expect(card).toBeVisible()
   })
 
   test('has every section in order and the partner links', async ({ page }) => {
@@ -39,14 +44,21 @@ test.describe('landing page', () => {
       'href',
       '/partners/vendor',
     )
-    await expect(page.getByText('Customer stories coming soon').first()).toBeVisible()
+    // Track-record tiles
+    await expect(page.getByText('₦30M+')).toBeVisible()
+    await expect(page.getByText('in solar financing')).toBeVisible()
   })
 
   test('savings example shows the total amount payable beside 0% interest', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByText('Example', { exact: true })).toBeVisible()
-    await expect(page.getByText('₦165,017').first()).toBeVisible()
-    await expect(page.getByText('₦2,475,248')).toBeVisible()
+    const savings = page.locator('section', { hasText: 'Savings comparison' })
+    await expect(savings.getByText('Example', { exact: true })).toBeVisible()
+    await expect(savings.getByText('₦165,017').first()).toBeVisible()
+    await expect(savings.getByText('₦2,475,248')).toBeVisible()
+    await expect(page.getByText('Over 2 years: ₦4,320,000 — and it keeps going.')).toBeVisible()
+    await expect(
+      page.getByText('Over 2 years you save ₦1,844,752 — and you own the system.'),
+    ).toBeVisible()
   })
 
   test('FAQ opens and mentions the late fee', async ({ page }) => {
