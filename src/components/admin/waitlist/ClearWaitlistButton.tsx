@@ -17,7 +17,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-import { clearWaitlist } from '@/app/admin/waitlist/actions'
+import { clearWaitlist } from '@/app/admin/(shell)/waitlist/actions'
 
 /** Super admin only. Disabled until an export was downloaded in the last 24 h; then type CLEAR. */
 export function ClearWaitlistButton({

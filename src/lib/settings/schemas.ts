@@ -25,6 +25,14 @@ export const sizingSettingsSchema = z.object({
   pshByState: z.record(z.string(), z.number().positive()).optional(),
 }) satisfies z.ZodType<SizingSettings>
 
+export const SIZE_BANDS = ['small', 'medium', 'large'] as const
+export type SizeBand = (typeof SIZE_BANDS)[number]
+const installByBandSchema = z.object({
+  small: z.number().nonnegative(),
+  medium: z.number().nonnegative(),
+  large: z.number().nonnegative(),
+})
+
 const costed = {
   sku: z.string().min(1),
   name: z.string().min(1),
@@ -40,11 +48,12 @@ export const priceListSchema = z.object({
   accessoriesByKva: z
     .array(z.object({ maxKva: z.number().positive(), unitCost: z.number().nonnegative() }))
     .min(1),
+  /** Installation + logistics per launch state (and Other), per inverter size band. */
   installByState: z.object({
-    FCT: z.number().nonnegative(),
-    Kaduna: z.number().nonnegative(),
-    Lagos: z.number().nonnegative(),
-    Other: z.number().nonnegative(),
+    FCT: installByBandSchema,
+    Kaduna: installByBandSchema,
+    Lagos: installByBandSchema,
+    Other: installByBandSchema,
   }),
 })
 
@@ -52,7 +61,15 @@ export type PriceList = z.infer<typeof priceListSchema>
 
 export const pricingSettingsSchema = z.object({
   sample: z.boolean().default(false),
+  /** The 12-month pricing rate (what the waiting-list estimate uses). */
   pricingRateAnnual: z.number().min(0).max(2),
+  /** Pricing rate per tenure = expected funder rate + spread + default buffer. */
+  pricingRateByTenure: z.object({
+    3: z.number().min(0).max(2),
+    6: z.number().min(0).max(2),
+    9: z.number().min(0).max(2),
+    12: z.number().min(0).max(2),
+  }),
   marginByCategory: z.object({
     panels: z.number().min(0),
     battery: z.number().min(0),
@@ -63,7 +80,7 @@ export const pricingSettingsSchema = z.object({
 
 export type PricingSettings = z.infer<typeof pricingSettingsSchema>
 
-/** Mirror of the SAMPLE rows seeded in 0003_waitlist.sql (used by tests and as a fallback). */
+/** Mirror of the SAMPLE rows seeded in 0006_pricing.sql (used by tests and as a fallback). */
 export const SAMPLE_PRICE_LIST: PriceList = {
   sample: true,
   currency: 'NGN',
@@ -91,12 +108,18 @@ export const SAMPLE_PRICE_LIST: PriceList = {
     { maxKva: 7.5, unitCost: 180000 },
     { maxKva: 20, unitCost: 300000 },
   ],
-  installByState: { FCT: 150000, Kaduna: 150000, Lagos: 200000, Other: 200000 },
+  installByState: {
+    FCT: { small: 150000, medium: 225000, large: 300000 },
+    Kaduna: { small: 150000, medium: 225000, large: 300000 },
+    Lagos: { small: 200000, medium: 300000, large: 400000 },
+    Other: { small: 200000, medium: 300000, large: 400000 },
+  },
 }
 
 export const SAMPLE_PRICING: PricingSettings = {
   sample: true,
   pricingRateAnnual: 0.24,
+  pricingRateByTenure: { 3: 0.24, 6: 0.24, 9: 0.24, 12: 0.24 },
   marginByCategory: { panels: 0.125, battery: 0.125, inverter: 0.125, accessories: 0.125 },
 }
 

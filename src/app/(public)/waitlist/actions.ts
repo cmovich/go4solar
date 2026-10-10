@@ -256,7 +256,7 @@ export async function completeWaitlist(
   const advice = current
     ? {
         monthlySpend: current.monthlySpend,
-        recommendedTenure: recommendTenure(monthlyByTenure(chosen), current.monthlySpend),
+        recommendedTenure: recommendTenure(monthlyByTenure(chosen, estimate.pricingRateByTenure), current.monthlySpend),
         co2AvoidedKgPerYear: co2Avoided(plan, current),
       }
     : null

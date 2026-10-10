@@ -116,6 +116,7 @@ async function loginAsStaff(page: Page) {
   await page.getByLabel('6-digit code').fill(totp(process.env.E2E_STAFF_TOTP_SECRET!))
   await page.getByRole('button', { name: 'Verify' }).click()
   await page.waitForURL(/\/admin$/)
+  await expect(page.getByRole('heading', { name: 'Back office' })).toBeVisible()
 }
 
 test.describe('solar plan sign-up (waiting list)', () => {

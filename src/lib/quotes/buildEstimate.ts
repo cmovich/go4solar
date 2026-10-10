@@ -1,6 +1,7 @@
 import type { LoadTotals } from '@/lib/load/types'
 import { isLaunchState, type NgStateId } from '@/lib/nigeria/states'
 import { priceQuote } from '@/lib/pricing/price'
+import { installBandFor } from '@/lib/pricing/tables'
 import {
   TENURES,
   type QuoteLineInput,
@@ -35,6 +36,8 @@ export type Estimate = {
   tenureMonths: typeof ESTIMATE_TENURE
   /** True when sample (placeholder) prices were used. */
   sample: boolean
+  /** Pricing rate per tenure at the time of the estimate (for the tenure comparison). */
+  pricingRateByTenure: Record<TenureMonths, number>
   plans: Record<Plan, PlanEstimate>
 }
 
@@ -43,9 +46,19 @@ export type RepricedPlan = PlanEstimate & {
   savingVsMin: number
 }
 
-/** Installation and logistics: launch states have their own price; everywhere else is "Other". */
-export function installCostFor(state: NgStateId, priceList: PriceList): number {
-  return isLaunchState(state) ? priceList.installByState[state] : priceList.installByState.Other
+/**
+ * Installation and logistics: launch states have their own price, everywhere else is "Other";
+ * within a state the amount depends on the inverter size band.
+ */
+export function installCostFor(
+  state: NgStateId,
+  inverterKva: number,
+  priceList: PriceList,
+): number {
+  const byBand = isLaunchState(state)
+    ? priceList.installByState[state]
+    : priceList.installByState.Other
+  return byBand[installBandFor(inverterKva)]
 }
 
 /** Equipment lines for a sized system, from the admin price list. */
@@ -95,14 +108,15 @@ export function linesFor(size: SystemSize, priceList: PriceList): QuoteLineInput
 function priceLines(
   lines: QuoteLineInput[],
   state: NgStateId,
+  inverterKva: number,
   depositShare: number,
   s: QuoteSettings,
 ): QuoteResult {
   return priceQuote({
     lines,
-    installCost: installCostFor(state, s.priceList),
+    installCost: installCostFor(state, inverterKva, s.priceList),
     marginByCategory: s.pricing.marginByCategory,
-    pricingRateAnnual: s.pricing.pricingRateAnnual,
+    pricingRateAnnual: s.pricing.pricingRateByTenure[ESTIMATE_TENURE],
     tenureMonths: ESTIMATE_TENURE,
     depositShare,
     minDepositShare: s.minDepositShare,
@@ -122,7 +136,13 @@ export function buildEstimate(
   const plans = Object.fromEntries(
     PLANS.map((plan) => {
       const size = sizeSystem(totals, plan, s.sizing)
-      const quote = priceLines(linesFor(size, s.priceList), state, depositShare, s)
+      const quote = priceLines(
+        linesFor(size, s.priceList),
+        state,
+        size.inverterKva,
+        depositShare,
+        s,
+      )
       return [plan, { plan, size, quote }]
     }),
   ) as Record<Plan, PlanEstimate>
@@ -133,6 +153,7 @@ export function buildEstimate(
     depositShare,
     tenureMonths: ESTIMATE_TENURE,
     sample: s.priceList.sample || s.pricing.sample,
+    pricingRateByTenure: { ...s.pricing.pricingRateByTenure },
     plans,
   }
 }
@@ -164,9 +185,13 @@ export function repriceEstimate(
   return { ...base, quote, savingVsMin: atMin.systemPrice - quote.systemPrice }
 }
 
-/** Monthly payment for a plan at each tenure, at the deposit it was priced with. */
+/**
+ * Monthly payment for a plan at each tenure, at the deposit it was priced with. Uses the
+ * per-tenure pricing rates captured in the estimate when given (else the snapshot's rate).
+ */
 export function monthlyByTenure(
   plan: PlanEstimate,
+  rates?: Record<TenureMonths, number>,
   tenures: readonly TenureMonths[] = TENURES,
 ): { tenureMonths: TenureMonths; monthly: number }[] {
   const snap = plan.quote.snapshot
@@ -176,7 +201,7 @@ export function monthlyByTenure(
       lines: snap.lines,
       installCost: snap.installCost,
       marginByCategory: snap.marginByCategory,
-      pricingRateAnnual: snap.pricingRateAnnual,
+      pricingRateAnnual: rates?.[tenureMonths] ?? snap.pricingRateAnnual,
       tenureMonths,
       depositShare: snap.depositShare,
       minDepositShare: snap.minDepositShare,

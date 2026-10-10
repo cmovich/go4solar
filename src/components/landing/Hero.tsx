@@ -6,17 +6,13 @@ import { formatNaira } from '@/lib/money'
 
 import { Band, Container } from './Band'
 
-// PRD worked example: Comfort plan for the sample home, 20% deposit, 12 months.
-const examplePlan = {
-  rows: [
-    { label: 'Inverter', value: '1 kVA' },
-    { label: 'Battery', value: '7.5 kWh' },
-    { label: 'Panels', value: '5 × 550 W' },
-    { label: 'Backup', value: 'about 11 hours at full load' },
-  ],
-  monthly: 165017,
-  months: 12,
-  total: 2475248,
+export type HeroExample = {
+  rows: { label: string; value: string }[]
+  monthly: number
+  months: number
+  total: number
+  /** True while the price list still holds SAMPLE rows. */
+  sample: boolean
 }
 
 const badges = [
@@ -25,7 +21,7 @@ const badges = [
   { title: 'From 20% deposit', line: 'The rest in up to 12 monthly payments' },
 ]
 
-export function Hero() {
+export function Hero({ example }: { example: HeroExample }) {
   return (
     <Band angled accent>
       <Container>
@@ -104,7 +100,7 @@ export function Hero() {
             </p>
             <p className="mt-1 text-2xl font-bold">Comfort plan</p>
             <dl className="mt-4 divide-y divide-black/5 text-sm">
-              {examplePlan.rows.map((r) => (
+              {example.rows.map((r) => (
                 <div key={r.label} className="flex justify-between py-2">
                   <dt className="text-muted-foreground">{r.label}</dt>
                   <dd className="font-semibold">{r.value}</dd>
@@ -112,14 +108,15 @@ export function Hero() {
               ))}
             </dl>
             <p className="mt-5 text-3xl font-bold tracking-tight">
-              {formatNaira(examplePlan.monthly)}
+              {formatNaira(example.monthly)}
               <span className="text-muted-foreground text-base font-medium">
                 {' '}
-                / month for {examplePlan.months} months
+                / month for {example.months} months
               </span>
             </p>
             <p className="text-muted-foreground mt-2 text-sm font-medium">
-              Total {formatNaira(examplePlan.total)} · 0% interest
+              Total {formatNaira(example.total)} · 0% interest
+              {example.sample ? ' · sample prices' : ''}
             </p>
           </aside>
         </div>

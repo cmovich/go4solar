@@ -33,6 +33,7 @@ import {
   type Estimate,
   type PlanEstimate,
 } from '@/lib/quotes/buildEstimate'
+import type { TenureMonths } from '@/lib/pricing/types'
 import type { Plan } from '@/lib/sizing/types'
 import {
   BUSINESS_TYPES,
@@ -598,11 +599,12 @@ export type PlanAdvice = {
 export function adviceFor(
   estimate: PlanEstimate,
   current: CurrentEnergy | null,
+  rates?: Record<TenureMonths, number>,
 ): PlanAdvice | null {
   if (!current) return null
   return {
     monthlySpend: current.monthlySpend,
-    recommendedTenure: recommendTenure(monthlyByTenure(estimate), current.monthlySpend),
+    recommendedTenure: recommendTenure(monthlyByTenure(estimate, rates), current.monthlySpend),
     co2AvoidedKgPerYear: co2Avoided(estimate.plan, current),
   }
 }
@@ -739,7 +741,7 @@ export function PlansStep({
             estimate={estimate.plans[p]}
             onChoose={() => choose(p)}
             busy={pending}
-            advice={adviceFor(estimate.plans[p], current)}
+            advice={adviceFor(estimate.plans[p], current, estimate.pricingRateByTenure)}
           />
         ))}
       </div>

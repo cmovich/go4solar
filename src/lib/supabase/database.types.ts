@@ -85,6 +85,147 @@ export type Database = {
           },
         ]
       }
+      category_margins: {
+        Row: {
+          category: Database['public']['Enums']['component_category']
+          margin: number
+          sample: boolean
+          updated_at: string
+        }
+        Insert: {
+          category: Database['public']['Enums']['component_category']
+          margin: number
+          sample?: boolean
+          updated_at?: string
+        }
+        Update: {
+          category?: Database['public']['Enums']['component_category']
+          margin?: number
+          sample?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      components: {
+        Row: {
+          active: boolean
+          category: Database['public']['Enums']['component_category']
+          created_at: string
+          id: string
+          name: string
+          sample: boolean
+          sku: string
+          source: Database['public']['Enums']['component_source']
+          stock_sizes: Json
+          unit_cost: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category: Database['public']['Enums']['component_category']
+          created_at?: string
+          id?: string
+          name: string
+          sample?: boolean
+          sku: string
+          source?: Database['public']['Enums']['component_source']
+          stock_sizes?: Json
+          unit_cost: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: Database['public']['Enums']['component_category']
+          created_at?: string
+          id?: string
+          name?: string
+          sample?: boolean
+          sku?: string
+          source?: Database['public']['Enums']['component_source']
+          stock_sizes?: Json
+          unit_cost?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      funders: {
+        Row: {
+          annual_rate: number
+          balance_available: number
+          created_at: string
+          id: string
+          kind: Database['public']['Enums']['funder_kind']
+          max_amount: number | null
+          max_tenure: number
+          method: Database['public']['Enums']['funder_method']
+          min_amount: number
+          name: string
+          sample: boolean
+          status: Database['public']['Enums']['funder_status']
+          updated_at: string
+          upfront_fee_share: number
+        }
+        Insert: {
+          annual_rate: number
+          balance_available?: number
+          created_at?: string
+          id?: string
+          kind?: Database['public']['Enums']['funder_kind']
+          max_amount?: number | null
+          max_tenure?: number
+          method?: Database['public']['Enums']['funder_method']
+          min_amount?: number
+          name: string
+          sample?: boolean
+          status?: Database['public']['Enums']['funder_status']
+          updated_at?: string
+          upfront_fee_share?: number
+        }
+        Update: {
+          annual_rate?: number
+          balance_available?: number
+          created_at?: string
+          id?: string
+          kind?: Database['public']['Enums']['funder_kind']
+          max_amount?: number | null
+          max_tenure?: number
+          method?: Database['public']['Enums']['funder_method']
+          min_amount?: number
+          name?: string
+          sample?: boolean
+          status?: Database['public']['Enums']['funder_status']
+          updated_at?: string
+          upfront_fee_share?: number
+        }
+        Relationships: []
+      }
+      installation_costs: {
+        Row: {
+          amount: number
+          id: string
+          sample: boolean
+          size_band: Database['public']['Enums']['size_band']
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          id?: string
+          sample?: boolean
+          size_band: Database['public']['Enums']['size_band']
+          state: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          id?: string
+          sample?: boolean
+          size_band?: Database['public']['Enums']['size_band']
+          state?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       outbox: {
         Row: {
           channel: Database['public']['Enums']['outbox_channel']
@@ -112,6 +253,60 @@ export type Database = {
           status?: string
           template?: string
           to?: string
+        }
+        Relationships: []
+      }
+      overheads: {
+        Row: {
+          fixed_amount: number
+          month: string
+          per_system_amount: number
+          sample: boolean
+          updated_at: string
+        }
+        Insert: {
+          fixed_amount?: number
+          month: string
+          per_system_amount?: number
+          sample?: boolean
+          updated_at?: string
+        }
+        Update: {
+          fixed_amount?: number
+          month?: string
+          per_system_amount?: number
+          sample?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pricing_rates: {
+        Row: {
+          default_buffer: number
+          expected_funder_rate: number
+          pricing_rate: number | null
+          sample: boolean
+          spread: number
+          tenure_months: number
+          updated_at: string
+        }
+        Insert: {
+          default_buffer: number
+          expected_funder_rate: number
+          pricing_rate?: number | null
+          sample?: boolean
+          spread: number
+          tenure_months: number
+          updated_at?: string
+        }
+        Update: {
+          default_buffer?: number
+          expected_funder_rate?: number
+          pricing_rate?: number | null
+          sample?: boolean
+          spread?: number
+          tenure_months?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -227,6 +422,36 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      unit_costs: {
+        Row: {
+          fee_per_instalment: number
+          id: number
+          kyc_per_loan: number
+          loss_provision_share: number
+          min_net_margin_share: number
+          sample: boolean
+          updated_at: string
+        }
+        Insert: {
+          fee_per_instalment?: number
+          id?: number
+          kyc_per_loan?: number
+          loss_provision_share?: number
+          min_net_margin_share?: number
+          sample?: boolean
+          updated_at?: string
+        }
+        Update: {
+          fee_per_instalment?: number
+          id?: number
+          kyc_per_loan?: number
+          loss_provision_share?: number
+          min_net_margin_share?: number
+          sample?: boolean
+          updated_at?: string
+        }
+        Relationships: []
       }
       waitlist_consumers: {
         Row: {
@@ -461,8 +686,14 @@ export type Database = {
         | 'laundry'
         | 'water_outdoor'
         | 'business'
+      component_category: 'panels' | 'battery' | 'inverter' | 'accessories'
+      component_source: 'oem' | 'vendor'
+      funder_kind: 'external' | 'own_fund'
+      funder_method: 'flat' | 'reducing'
+      funder_status: 'active' | 'paused'
       outbox_channel: 'sms' | 'whatsapp' | 'email'
       ready_when: 'now' | '30_days' | 'later'
+      size_band: 'small' | 'medium' | 'large'
       waitlist_status: 'incomplete' | 'complete'
     }
     CompositeTypes: {
@@ -606,8 +837,14 @@ export const Constants = {
         'water_outdoor',
         'business',
       ],
+      component_category: ['panels', 'battery', 'inverter', 'accessories'],
+      component_source: ['oem', 'vendor'],
+      funder_kind: ['external', 'own_fund'],
+      funder_method: ['flat', 'reducing'],
+      funder_status: ['active', 'paused'],
       outbox_channel: ['sms', 'whatsapp', 'email'],
       ready_when: ['now', '30_days', 'later'],
+      size_band: ['small', 'medium', 'large'],
       waitlist_status: ['incomplete', 'complete'],
     },
   },

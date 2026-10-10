@@ -2,21 +2,9 @@ import { redirect } from 'next/navigation'
 
 import { getSessionInfo, type AppRole, type SessionInfo } from './session'
 
-/** Back-office roles. Everyone else (consumer, guarantor, installer, vendor) is a customer or partner. */
-export const STAFF_ROLES = [
-  'super_admin',
-  'credit_officer',
-  'operations',
-  'collections',
-  'finance',
-  'content',
-] as const satisfies readonly AppRole[]
+import { isStaffRole } from './staffRoles'
 
-export type StaffRole = (typeof STAFF_ROLES)[number]
-
-export function isStaffRole(role: AppRole | null | undefined): role is StaffRole {
-  return role != null && (STAFF_ROLES as readonly string[]).includes(role)
-}
+export { STAFF_ROLES, isStaffRole, type StaffRole } from './staffRoles'
 
 function loginUrl(next?: string): string {
   return next ? `/login?next=${encodeURIComponent(next)}` : '/login'

@@ -126,7 +126,10 @@ export async function assistedEntry(input: unknown): Promise<StaffActionResult<{
   const advice = current
     ? {
         monthlySpend: current.monthlySpend,
-        recommendedTenure: recommendTenure(monthlyByTenure(chosen), current.monthlySpend),
+        recommendedTenure: recommendTenure(
+          monthlyByTenure(chosen, estimate.pricingRateByTenure),
+          current.monthlySpend,
+        ),
         co2AvoidedKgPerYear: co2Avoided(d.plan, current),
       }
     : null

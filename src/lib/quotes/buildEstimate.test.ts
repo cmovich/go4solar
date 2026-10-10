@@ -187,3 +187,47 @@ describe('monthlyByTenure', () => {
     }
   })
 })
+
+describe('settings changes and stored estimates', () => {
+  it('a sizing change alters the next estimate but never a stored one', () => {
+    const before = buildEstimate(totals, 'Lagos', 0.2, s)
+    const stored = structuredClone(before) // what the database holds
+    const changed = {
+      ...s,
+      sizing: {
+        ...s.sizing,
+        chargeHours: 4,
+        backupHours: { ...s.sizing.backupHours, comfort: 12 },
+      },
+    }
+    const after = buildEstimate(totals, 'Lagos', 0.2, changed)
+    // New estimates follow the new settings…
+    expect(after.plans.comfort.size.batteryKwh).toBeGreaterThan(
+      before.plans.comfort.size.batteryKwh,
+    )
+    expect(after.plans.comfort.size.panelCount).toBeGreaterThan(
+      before.plans.comfort.size.panelCount,
+    )
+    // …while the stored one, re-priced for the slider, still uses its own snapshot.
+    const repriced = repriceEstimate(stored, 'comfort', 0.5)
+    expect(repriced.size).toEqual(before.plans.comfort.size)
+    expect(repriced.quote.snapshot.lines).toEqual(before.plans.comfort.quote.snapshot.lines)
+    expect(stored).toEqual(before)
+  })
+
+  it('a price or margin change alters the next estimate but never a stored one', () => {
+    const before = buildEstimate(totals, 'Lagos', 0.2, s)
+    const dearer = {
+      ...s,
+      priceList: { ...s.priceList, panel: { ...s.priceList.panel, unitCost: 200000 } },
+      pricing: { ...s.pricing, marginByCategory: { ...s.pricing.marginByCategory, panels: 0.3 } },
+    }
+    const after = buildEstimate(totals, 'Lagos', 0.2, dearer)
+    expect(after.plans.comfort.quote.systemPrice).toBeGreaterThan(
+      before.plans.comfort.quote.systemPrice,
+    )
+    expect(repriceEstimate(before, 'comfort', 0.2).quote.systemPrice).toBe(
+      before.plans.comfort.quote.systemPrice,
+    )
+  })
+})

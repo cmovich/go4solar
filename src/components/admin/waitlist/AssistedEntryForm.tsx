@@ -28,7 +28,7 @@ import {
   type ApplicantType,
 } from '@/lib/waitlist/schema'
 
-import { assistedEntry } from '@/app/admin/waitlist/actions'
+import { assistedEntry } from '@/app/admin/(shell)/waitlist/actions'
 
 const field = 'mt-1 h-11 text-base'
 const select = 'border-input mt-1 h-11 w-full rounded-md border bg-white px-3 text-base'
