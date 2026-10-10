@@ -36,6 +36,6 @@ export type SystemSize = {
   panelKw: number
   /** Hours the battery lasts with every item switched on (1 dp). */
   backupHoursFullLoad: number
-  /** Hours the battery lasts at the user's real average draw (1 dp). */
-  realisticBackupHours: number
+  /** Hours the battery lasts at the user's real average draw (1 dp); null when daily kWh is 0. */
+  realisticBackupHours: number | null
 }

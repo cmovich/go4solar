@@ -76,6 +76,14 @@ describe('sizeSystem — rules', () => {
     expect(sizeSystem(tiny, 'essential', 'Lagos', s).batteryKwh).toBe(s.batteryStepKwh)
   })
 
+  it('all items 0 h/day → realisticBackupHours null (never Infinity)', () => {
+    const noHours = computeLoadTotals(sampleHomeItems.map((i) => ({ ...i, hoursPerDay: 0 })))
+    expect(noHours.dailyKwh).toBe(0)
+    const size = sizeSystem(noHours, 'essential', 'Lagos', s)
+    expect(size.realisticBackupHours).toBeNull()
+    expect(size.backupHoursFullLoad).toBe(3.8)
+  })
+
   it('throws LoadEmptyError when nothing is on the list', () => {
     expect(() => sizeSystem(computeLoadTotals([]), 'essential', 'Lagos', s)).toThrow(LoadEmptyError)
   })

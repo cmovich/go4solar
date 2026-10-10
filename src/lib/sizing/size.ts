@@ -76,7 +76,9 @@ export function sizeSystem(
   // Backup: the honest full-load figure and the realistic one from the user's own hours.
   const usableKwh = batteryKwh * usableShare
   const backupHoursFullLoad = round1((usableKwh * 1000) / totals.runningW)
-  const realisticBackupHours = round1(usableKwh / (totals.dailyKwh / 24))
+  // No hours entered → no average draw to divide by; the UI shows "—" for null.
+  const realisticBackupHours =
+    totals.dailyKwh > 0 ? round1(usableKwh / (totals.dailyKwh / 24)) : null
 
   return { inverterKva, batteryKwh, panelCount, panelKw, backupHoursFullLoad, realisticBackupHours }
 }
