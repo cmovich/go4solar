@@ -1,5 +1,5 @@
 import type { InstallerLead } from '@/lib/waitlist/admin'
-import { STATE_LABELS } from '@/lib/waitlist/schema'
+import { INSTALLER_STATE_LABELS } from '@/lib/waitlist/schema'
 
 const date = (iso: string) =>
   new Date(iso).toLocaleString('en-NG', {
@@ -44,8 +44,9 @@ export function InstallerTable({ rows }: { rows: InstallerLead[] }) {
               <td className="px-3 py-2 whitespace-nowrap tabular-nums">{r.phone_e164}</td>
               <td className="px-3 py-2 whitespace-nowrap">{r.email ?? '—'}</td>
               <td className="px-3 py-2 whitespace-nowrap">
-                {r.states.map((s) => (STATE_LABELS as Record<string, string>)[s] ?? s).join(', ') ||
-                  '—'}
+                {r.states
+                  .map((s) => (INSTALLER_STATE_LABELS as Record<string, string>)[s] ?? s)
+                  .join(', ') || '—'}
               </td>
               <td className="max-w-56 truncate px-3 py-2">{r.lgas ?? '—'}</td>
               <td className="px-3 py-2 text-right tabular-nums">{r.years_in_business ?? '—'}</td>

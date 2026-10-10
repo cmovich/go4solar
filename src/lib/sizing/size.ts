@@ -1,6 +1,6 @@
 import type { LoadTotals } from '@/lib/load/types'
 
-import type { Plan, SizingSettings, SizingState, SystemSize } from './types'
+import type { Plan, SizingSettings, SystemSize } from './types'
 
 export class LoadEmptyError extends Error {
   constructor() {
@@ -29,22 +29,23 @@ function pickStockedSize(neededKva: number, stocked: number[]): number | null {
   return sorted.find((kva) => kva >= neededKva) ?? null
 }
 
-/** Round up to a whole number of battery modules, never less than one. */
-function roundUpToStep(kwh: number, step: number): number {
-  return Math.max(1, Math.ceil(kwh / step - 1e-9)) * step
+/**
+ * Round up to a whole number of battery modules, never less than one. The ratio is rounded to
+ * 6 dp first so an exact multiple (e.g. 10 / 2.5 = 4.0000000001) is not pushed up a module.
+ */
+export function roundUpToStep(kwh: number, step: number): number {
+  const modules = Math.ceil(Math.round((kwh / step) * 1e6) / 1e6)
+  return Math.max(1, modules) * step
 }
 
 /**
- * Standard off-grid sizing (PRD Feature 4 → Sizing logic).
- * Essential/comfort size the battery for N hours at full load; independence sizes it for the
- * night share of the user's real daily energy, so a 24-hour quote stays affordable.
+ * Off-grid sizing (PRD Feature 4 → Sizing logic, as revised in the waitlist review):
+ *  - inverter: max(headroom × running, surge) / power factor → next stocked kVA
+ *  - battery:  running load × the plan's backup hours, through DoD and inverter efficiency,
+ *              rounded up to whole modules (same rule for all three plans)
+ *  - panels:   run the load AND refill the battery within the charge window, after derating
  */
-export function sizeSystem(
-  totals: LoadTotals,
-  plan: Plan,
-  state: SizingState,
-  s: SizingSettings,
-): SystemSize {
+export function sizeSystem(totals: LoadTotals, plan: Plan, s: SizingSettings): SystemSize {
   if (totals.runningW <= 0) throw new LoadEmptyError()
 
   // Inverter: enough for running load with headroom, and for the biggest start-up surge.
@@ -57,20 +58,12 @@ export function sizeSystem(
 
   // Battery: usable energy = capacity × DoD × inverter efficiency.
   const usableShare = s.dod * s.inverterEfficiency
-  const rawBatteryKwh =
-    plan === 'independence'
-      ? (totals.dailyKwh * s.nightShare) / usableShare
-      : (totals.runningW * s.backupHours[plan]) / (1000 * usableShare)
+  const rawBatteryKwh = (totals.runningW * s.backupHours[plan]) / (1000 * usableShare)
   const batteryKwh = roundUpToStep(rawBatteryKwh, s.batteryStepKwh)
 
-  // Panels: daytime energy plus a full battery recharge, after derating.
-  const psh = s.pshByState[state]
-  const harvestPerKw = psh * s.panelDerate
-  const neededKw =
-    plan === 'independence'
-      ? totals.dailyKwh / harvestPerKw
-      : (totals.dailyKwh * (1 - s.nightShare) + batteryKwh * s.dod) / harvestPerKw
-  const panelCount = Math.ceil((neededKw * 1000) / s.panelWatts - 1e-9)
+  // Panels: carry the running load and put a full battery back in chargeHours of sun.
+  const neededKw = (totals.runningW / 1000 + (batteryKwh * s.dod) / s.chargeHours) / s.panelDerate
+  const panelCount = Math.ceil(Math.round(((neededKw * 1000) / s.panelWatts) * 1e6) / 1e6)
   const panelKw = (panelCount * s.panelWatts) / 1000
 
   // Backup: the honest full-load figure and the realistic one from the user's own hours.

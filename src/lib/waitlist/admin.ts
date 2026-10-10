@@ -3,10 +3,10 @@ import 'server-only'
 import type { LoadItem, LoadTotals } from '@/lib/load/types'
 import type { Estimate, RepricedPlan } from '@/lib/quotes/buildEstimate'
 import type { Plan } from '@/lib/sizing/types'
-import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/lib/supabase/database.types'
+import { createClient } from '@/lib/supabase/server'
 
-import { DEPOSIT_BANDS, depositBandOf } from './schema'
+import { DEPOSIT_BANDS, depositBandOf, type ApplicantType, type BusinessInput } from './schema'
 
 type ConsumerRow = Database['public']['Tables']['waitlist_consumers']['Row']
 type InstallerRow = Database['public']['Tables']['waitlist_installers']['Row']
@@ -24,6 +24,8 @@ export type ConsumerLead = {
   state: string | null
   lga: string | null
   consentAt: string | null
+  applicantType: ApplicantType | null
+  business: BusinessInput | null
   loadItems: LoadItem[]
   loadTotals: Partial<LoadTotals>
   plan: Plan | null
@@ -47,6 +49,7 @@ export type ConsumerFilters = {
   band?: string
   plan?: string
   ready?: string
+  type?: string
   from?: string
   to?: string
 }
@@ -59,6 +62,10 @@ function decode(row: ConsumerRow, names: Map<string, string>): ConsumerLead {
   const est = (row.estimate as EstimateWithChosen | null) ?? null
   const chosen = est?.chosen ?? (row.chosen_plan && est ? est.plans[row.chosen_plan as Plan] : null)
   const quote = chosen?.quote ?? null
+  const type =
+    row.applicant_type === 'individual' || row.applicant_type === 'business'
+      ? row.applicant_type
+      : null
   return {
     id: row.id,
     status: row.status,
@@ -71,6 +78,8 @@ function decode(row: ConsumerRow, names: Map<string, string>): ConsumerLead {
     state: row.state,
     lga: row.lga,
     consentAt: row.consent_at,
+    applicantType: type,
+    business: type === 'business' ? ((row.business as BusinessInput | null) ?? null) : null,
     loadItems: (row.load_items as LoadItem[]) ?? [],
     loadTotals: (row.load_totals as Partial<LoadTotals>) ?? {},
     plan: (row.chosen_plan as Plan | null) ?? null,
@@ -109,6 +118,9 @@ export async function listConsumers(filters: ConsumerFilters): Promise<ConsumerL
   if (filters.state) q = q.eq('state', filters.state)
   if (filters.plan) q = q.eq('chosen_plan', filters.plan)
   if (filters.ready) q = q.eq('ready_when', filters.ready as 'now' | '30_days' | 'later')
+  if (filters.type === 'individual' || filters.type === 'business') {
+    q = q.eq('applicant_type', filters.type)
+  }
   if (filters.from) q = q.gte('created_at', filters.from)
   if (filters.to) q = q.lte('created_at', `${filters.to}T23:59:59.999Z`)
   const band = DEPOSIT_BANDS.find((b) => b.id === filters.band)
@@ -120,11 +132,20 @@ export async function listConsumers(filters: ConsumerFilters): Promise<ConsumerL
   return data.map((r) => decode(r, names))
 }
 
+export type Segment = {
+  count: number
+  systemValue: number
+  depositsPledged: number
+  financingNeeded: number
+}
+
 export type Headline = {
   total: number
   complete: number
   incomplete: number
   byState: { state: string; count: number }[]
+  /** Complete sign-ups split by who the solar is for. */
+  byType: { individual: Segment; business: Segment; unknown: Segment }
   systemValue: number
   depositsPledged: number
   financingNeeded: number
@@ -132,6 +153,15 @@ export type Headline = {
   readyNow: number
   installers: number
   sample: boolean
+}
+
+function segment(leads: ConsumerLead[]): Segment {
+  return {
+    count: leads.length,
+    systemValue: leads.reduce((s, l) => s + (l.systemPrice ?? 0), 0),
+    depositsPledged: leads.reduce((s, l) => s + (l.deposit ?? 0), 0),
+    financingNeeded: leads.reduce((s, l) => s + (l.financing ?? 0), 0),
+  }
 }
 
 /** The funder numbers (PRD "Admin waiting-list view"), over every complete sign-up. */
@@ -151,6 +181,7 @@ export async function headline(): Promise<Headline> {
     byStateMap.set(key, (byStateMap.get(key) ?? 0) + 1)
   }
   const deposits = complete.map((l) => l.depositShare).filter((d): d is number => d !== null)
+  const all = segment(complete)
 
   return {
     total: leads.length,
@@ -159,9 +190,14 @@ export async function headline(): Promise<Headline> {
     byState: [...byStateMap.entries()]
       .map(([state, count]) => ({ state, count }))
       .sort((a, b) => b.count - a.count),
-    systemValue: complete.reduce((s, l) => s + (l.systemPrice ?? 0), 0),
-    depositsPledged: complete.reduce((s, l) => s + (l.deposit ?? 0), 0),
-    financingNeeded: complete.reduce((s, l) => s + (l.financing ?? 0), 0),
+    byType: {
+      individual: segment(complete.filter((l) => l.applicantType === 'individual')),
+      business: segment(complete.filter((l) => l.applicantType === 'business')),
+      unknown: segment(complete.filter((l) => l.applicantType === null)),
+    },
+    systemValue: all.systemValue,
+    depositsPledged: all.depositsPledged,
+    financingNeeded: all.financingNeeded,
     averageDepositShare: deposits.length
       ? deposits.reduce((a, b) => a + b, 0) / deposits.length
       : null,

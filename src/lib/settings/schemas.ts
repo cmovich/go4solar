@@ -12,15 +12,17 @@ export const sizingSettingsSchema = z.object({
   inverterEfficiency: z.number().positive().max(1),
   panelDerate: z.number().positive().max(1),
   panelWatts: z.number().positive(),
-  nightShare: z.number().min(0).max(1),
-  backupHours: z.object({ essential: z.number().positive(), comfort: z.number().positive() }),
+  backupHours: z.object({
+    essential: z.number().positive(),
+    comfort: z.number().positive(),
+    independence: z.number().positive(),
+  }),
+  chargeHours: z.number().positive().max(24),
   inverterSizesKva: z.array(z.number().positive()).min(1),
   batteryStepKwh: z.number().positive(),
-  pshByState: z.object({
-    FCT: z.number().positive(),
-    Kaduna: z.number().positive(),
-    Lagos: z.number().positive(),
-  }),
+  // Unused by the sizing engine since the waitlist review; kept for later features.
+  nightShare: z.number().min(0).max(1).optional(),
+  pshByState: z.record(z.string(), z.number().positive()).optional(),
 }) satisfies z.ZodType<SizingSettings>
 
 const costed = {

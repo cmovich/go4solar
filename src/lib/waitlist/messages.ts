@@ -21,7 +21,7 @@ export type WaitlistConfirmation = {
 /** The copy that goes to the customer's email and WhatsApp (PRD step 9). */
 export function confirmationText(c: WaitlistConfirmation): string {
   return (
-    `Thank you, ${c.firstName}. You are on the Go4Solar waiting list. We will notify you within the next 7 days.\n\n` +
+    `Thank you, ${c.firstName}. We will get back to you within the next 7 days.\n\n` +
     `Your estimate: ${PLAN_LABELS[c.plan]} plan — total ${formatNaira(c.systemPrice)}, ` +
     `${formatNaira(c.deposit)} upfront (${formatPercent(c.depositShare)}) then ` +
     `${formatNaira(c.monthly)} a month for ${c.tenureMonths} months. 0% interest. ` +
@@ -48,7 +48,7 @@ export async function sendWaitlistConfirmation(c: WaitlistConfirmation): Promise
         channel: 'email',
         to: c.email,
         template: 'waitlist_confirmation',
-        payload: { ...payload, subject: 'You are on the Go4Solar waiting list' },
+        payload: { ...payload, subject: 'Your Go4Solar solar plan estimate' },
       }),
     )
   }

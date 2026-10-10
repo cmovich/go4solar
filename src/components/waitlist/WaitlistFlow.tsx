@@ -4,12 +4,14 @@ import { AnimatePresence, motion, type PanInfo } from 'framer-motion'
 import { useCallback, useEffect, useState } from 'react'
 
 import { Calculator } from '@/components/calculator/Calculator'
+import type { LaunchMode } from '@/config/site'
 import type { LibraryItem } from '@/lib/calculator/store'
 import type { LoadItem } from '@/lib/load/types'
 import type { Estimate } from '@/lib/quotes/buildEstimate'
 import type { Plan } from '@/lib/sizing/types'
 
 import {
+  BusinessStep,
   ContributionStep,
   EmailStep,
   NameStep,
@@ -18,13 +20,18 @@ import {
   PreparingStep,
   ThankYouStep,
   TotalsStep,
+  WhoForStep,
   type NameValues,
 } from './steps'
 
-export type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+/**
+ * 1 calculator · 2 totals · 3 preparing · 4 phone · 5 email · 6 name/state · 7 who is it for ·
+ * 8 business details (business only) · 9 plans · 10 contribution · 11 thank you
+ */
+export type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11
 
 /** Screens the visitor can swipe back from (never past a saved step's validation). */
-const SWIPE_BACK: Partial<Record<Step, Step>> = { 2: 1, 4: 2, 5: 4, 6: 5, 8: 7 }
+const SWIPE_BACK: Partial<Record<Step, Step>> = { 2: 1, 4: 2, 5: 4, 6: 5, 7: 6, 8: 7, 10: 9 }
 
 const slide = {
   enter: (dir: number) => ({ x: dir > 0 ? '60%' : '-60%', opacity: 0 }),
@@ -35,9 +42,11 @@ const slide = {
 export function WaitlistFlow({
   library,
   messagingLive,
+  launchMode,
 }: {
   library: LibraryItem[]
   messagingLive: boolean
+  launchMode: LaunchMode
 }) {
   const [step, setStep] = useState<Step>(1)
   const [dir, setDir] = useState(1)
@@ -85,7 +94,7 @@ export function WaitlistFlow({
 
   return (
     <div className="relative overflow-x-hidden">
-      {step >= 4 && step <= 9 && <Progress step={step} />}
+      {step >= 4 && step <= 11 && <Progress step={step} />}
       <AnimatePresence mode="wait" custom={dir} initial={false}>
         <motion.div
           key={step}
@@ -104,7 +113,7 @@ export function WaitlistFlow({
           {step === 1 && (
             <Calculator
               library={library}
-              launchMode="prelaunch"
+              launchMode={launchMode}
               onContinue={(list) => {
                 setItems(list)
                 go(2)
@@ -136,27 +145,40 @@ export function WaitlistFlow({
               }}
             />
           )}
-          {step === 7 && leadId && estimate && (
+          {step === 7 && leadId && (
+            <WhoForStep leadId={leadId} onSaved={(type) => go(type === 'business' ? 8 : 9)} />
+          )}
+          {step === 8 && leadId && (
+            <BusinessStep leadId={leadId} onBack={() => go(7)} onSaved={() => go(9)} />
+          )}
+          {step === 9 && leadId && estimate && (
             <PlansStep
               leadId={leadId}
               firstName={firstName}
               estimate={estimate}
               onChosen={(p) => {
                 setPlan(p)
-                go(8)
+                go(10)
               }}
             />
           )}
-          {step === 8 && leadId && estimate && plan && (
+          {step === 10 && leadId && estimate && plan && (
             <ContributionStep
               leadId={leadId}
               estimate={estimate}
               plan={plan}
-              onBack={() => go(7)}
-              onDone={() => go(9)}
+              onBack={() => go(9)}
+              onDone={() => go(11)}
             />
           )}
-          {step === 9 && <ThankYouStep firstName={firstName} messagingLive={messagingLive} />}
+          {step === 11 && leadId && (
+            <ThankYouStep
+              firstName={firstName}
+              leadId={leadId}
+              messagingLive={messagingLive}
+              launchMode={launchMode}
+            />
+          )}
         </motion.div>
       </AnimatePresence>
     </div>
@@ -164,7 +186,7 @@ export function WaitlistFlow({
 }
 
 function Progress({ step }: { step: Step }) {
-  const screens: Step[] = [4, 5, 6, 7, 8, 9]
+  const screens: Step[] = [4, 5, 6, 7, 9, 10, 11]
   return (
     <ol className="mb-6 flex items-center gap-2" aria-label="Progress">
       {screens.map((s) => (

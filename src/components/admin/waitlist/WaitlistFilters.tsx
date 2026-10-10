@@ -2,14 +2,15 @@
 
 import { useRouter } from 'next/navigation'
 
+import { STATE_GROUPS, stateLabel } from '@/lib/nigeria/states'
 import { PLANS, PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import type { ConsumerFilters } from '@/lib/waitlist/admin'
 import {
+  APPLICANT_TYPES,
+  APPLICANT_TYPE_LABELS,
   DEPOSIT_BANDS,
-  ESTIMATE_STATES,
   READY_WHEN,
   READY_WHEN_LABELS,
-  STATE_LABELS,
 } from '@/lib/waitlist/schema'
 
 const select = 'border-input h-10 rounded-md border bg-white px-2 text-sm'
@@ -28,7 +29,7 @@ export function WaitlistFilters({
     e.preventDefault()
     const f = new FormData(e.currentTarget)
     const params = new URLSearchParams({ tab })
-    for (const key of ['state', 'band', 'plan', 'ready', 'from', 'to']) {
+    for (const key of ['type', 'state', 'band', 'plan', 'ready', 'from', 'to']) {
       const v = String(f.get(key) ?? '')
       if (v) params.set(key, v)
     }
@@ -43,13 +44,28 @@ export function WaitlistFilters({
       aria-label="Filters"
     >
       <label className="text-xs">
+        Type
+        <select name="type" defaultValue={filters.type ?? ''} className={`${select} mt-1 block`}>
+          <option value="">All</option>
+          {APPLICANT_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {APPLICANT_TYPE_LABELS[t]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="text-xs">
         State
         <select name="state" defaultValue={filters.state ?? ''} className={`${select} mt-1 block`}>
           <option value="">All</option>
-          {ESTIMATE_STATES.map((s) => (
-            <option key={s} value={s}>
-              {STATE_LABELS[s]}
-            </option>
+          {STATE_GROUPS.map((g) => (
+            <optgroup key={g.label} label={g.label}>
+              {g.ids.map((s) => (
+                <option key={s} value={s}>
+                  {stateLabel(s)}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </label>

@@ -230,6 +230,8 @@ export type Database = {
       }
       waitlist_consumers: {
         Row: {
+          applicant_type: string | null
+          business: Json | null
           chosen_plan: string | null
           consent: boolean
           consent_at: string | null
@@ -255,6 +257,8 @@ export type Database = {
           whatsapp_e164: string | null
         }
         Insert: {
+          applicant_type?: string | null
+          business?: Json | null
           chosen_plan?: string | null
           consent?: boolean
           consent_at?: string | null
@@ -280,6 +284,8 @@ export type Database = {
           whatsapp_e164?: string | null
         }
         Update: {
+          applicant_type?: string | null
+          business?: Json | null
           chosen_plan?: string | null
           consent?: boolean
           consent_at?: string | null

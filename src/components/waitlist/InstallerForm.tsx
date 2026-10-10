@@ -6,11 +6,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { CONSENT_TEXT, ESTIMATE_STATES, STATE_LABELS } from '@/lib/waitlist/schema'
+import { CONSENT_TEXT, INSTALLER_STATES, INSTALLER_STATE_LABELS } from '@/lib/waitlist/schema'
 
 import { submitInstaller } from '@/app/(public)/partners/installer/actions'
 
-type StateId = (typeof ESTIMATE_STATES)[number]
+type StateId = (typeof INSTALLER_STATES)[number]
 
 export function InstallerForm() {
   const [done, setDone] = useState<string | null>(null)
@@ -107,7 +107,7 @@ export function InstallerForm() {
       <fieldset>
         <legend className="text-sm font-medium">States you serve</legend>
         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {ESTIMATE_STATES.map((id) => (
+          {INSTALLER_STATES.map((id) => (
             <label
               key={id}
               className="hover:bg-brand-mist flex min-h-11 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm"
@@ -118,7 +118,7 @@ export function InstallerForm() {
                 onChange={() => toggleState(id)}
                 className="accent-brand-green h-4 w-4"
               />
-              {STATE_LABELS[id]}
+              {INSTALLER_STATE_LABELS[id]}
             </label>
           ))}
         </div>

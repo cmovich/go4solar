@@ -33,6 +33,7 @@ export default async function WaitlistAdminPage({
     band: one(sp.band),
     plan: one(sp.plan),
     ready: one(sp.ready),
+    type: one(sp.type),
     from: one(sp.from),
     to: one(sp.to),
   }

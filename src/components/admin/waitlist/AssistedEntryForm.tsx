@@ -9,18 +9,22 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { StateSelect } from '@/components/waitlist/steps'
 import type { LibraryItem } from '@/lib/calculator/store'
 import type { LoadItem } from '@/lib/load/types'
+import type { NgStateId } from '@/lib/nigeria/states'
 import { PLANS, PLAN_LABELS } from '@/lib/quotes/buildEstimate'
-import type { Plan } from '@/lib/sizing/types'
 import {
+  APPLICANT_TYPES,
+  APPLICANT_TYPE_LABELS,
+  BUSINESS_TYPES,
+  BUSINESS_TYPE_LABELS,
   CONSENT_TEXT,
   ENTRY_CHANNELS,
   ENTRY_CHANNEL_LABELS,
-  ESTIMATE_STATES,
   READY_WHEN,
   READY_WHEN_LABELS,
-  STATE_LABELS,
+  type ApplicantType,
 } from '@/lib/waitlist/schema'
 
 import { assistedEntry } from '@/app/admin/waitlist/actions'
@@ -33,6 +37,8 @@ export function AssistedEntryForm({ library }: { library: LibraryItem[] }) {
   const router = useRouter()
   const [items, setItems] = useState<LoadItem[] | null>(null)
   const [consent, setConsent] = useState(false)
+  const [state, setState] = useState<NgStateId>('FCT')
+  const [applicantType, setApplicantType] = useState<ApplicantType>('individual')
   const [pct, setPct] = useState(20)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
@@ -60,6 +66,21 @@ export function AssistedEntryForm({ library }: { library: LibraryItem[] }) {
     setError(null)
     const f = new FormData(e.currentTarget)
     const str = (k: string) => String(f.get(k) ?? '').trim()
+    const num = (k: string) => (str(k) === '' ? Number.NaN : Number(str(k)))
+    const business =
+      applicantType === 'business'
+        ? {
+            businessName: str('businessName'),
+            businessType: str('businessType'),
+            cacNumber: str('cacNumber'),
+            contactRole: str('contactRole'),
+            staffCount: num('staffCount'),
+            hoursPerDay: num('hoursPerDay'),
+            daysPerWeek: num('daysPerWeek'),
+            generatorSpendMonthly: num('generatorSpendMonthly'),
+            electricitySpendMonthly: num('electricitySpendMonthly'),
+          }
+        : undefined
     const input = {
       items,
       phone: str('phone'),
@@ -67,9 +88,11 @@ export function AssistedEntryForm({ library }: { library: LibraryItem[] }) {
       email: str('email'),
       firstName: str('firstName'),
       surname: str('surname'),
-      state: str('state'),
+      state,
       lga: str('lga'),
       consent,
+      applicantType,
+      business,
       plan: str('plan'),
       depositShare: pct / 100,
       readyWhen: str('readyWhen'),
@@ -116,13 +139,7 @@ export function AssistedEntryForm({ library }: { library: LibraryItem[] }) {
           </div>
           <div>
             <Label htmlFor="state">State</Label>
-            <select id="state" name="state" className={select} defaultValue="FCT">
-              {ESTIMATE_STATES.map((s) => (
-                <option key={s} value={s}>
-                  {STATE_LABELS[s]}
-                </option>
-              ))}
-            </select>
+            <StateSelect id="state" value={state} onChange={setState} />
           </div>
           <div>
             <Label htmlFor="lga">LGA</Label>
@@ -140,7 +157,112 @@ export function AssistedEntryForm({ library }: { library: LibraryItem[] }) {
       </section>
 
       <section>
-        <h2 className="text-brand-dark text-lg font-semibold">Step 3 · Plan and contribution</h2>
+        <h2 className="text-brand-dark text-lg font-semibold">Step 3 · Who is the solar for?</h2>
+        <div className="mt-3 flex gap-2">
+          {APPLICANT_TYPES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setApplicantType(t)}
+              aria-pressed={applicantType === t}
+              className={`min-h-11 rounded-lg border-2 px-4 text-sm font-semibold ${
+                applicantType === t
+                  ? 'border-brand-green bg-brand-green text-white'
+                  : 'border-brand-mist text-brand-dark bg-white'
+              }`}
+            >
+              {t === 'individual' ? 'Home (individual)' : APPLICANT_TYPE_LABELS[t]}
+            </button>
+          ))}
+        </div>
+        {applicantType === 'business' && (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Label htmlFor="businessName">Business name</Label>
+              <Input id="businessName" name="businessName" className={field} />
+            </div>
+            <div>
+              <Label htmlFor="businessType">Type of business</Label>
+              <select id="businessType" name="businessType" className={select} defaultValue="shop">
+                {BUSINESS_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {BUSINESS_TYPE_LABELS[t]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="cacNumber">CAC number (optional)</Label>
+              <Input id="cacNumber" name="cacNumber" className={field} />
+            </div>
+            <div>
+              <Label htmlFor="contactRole">Contact person&apos;s role</Label>
+              <Input id="contactRole" name="contactRole" className={field} />
+            </div>
+            <div>
+              <Label htmlFor="staffCount">Number of staff</Label>
+              <Input
+                id="staffCount"
+                name="staffCount"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                className={field}
+              />
+            </div>
+            <div>
+              <Label htmlFor="hoursPerDay">Operating hours per day</Label>
+              <Input
+                id="hoursPerDay"
+                name="hoursPerDay"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                max={24}
+                step={0.5}
+                className={field}
+              />
+            </div>
+            <div>
+              <Label htmlFor="daysPerWeek">Days per week</Label>
+              <Input
+                id="daysPerWeek"
+                name="daysPerWeek"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={7}
+                className={field}
+              />
+            </div>
+            <div>
+              <Label htmlFor="generatorSpendMonthly">Generator fuel per month (₦)</Label>
+              <Input
+                id="generatorSpendMonthly"
+                name="generatorSpendMonthly"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                className={field}
+              />
+            </div>
+            <div>
+              <Label htmlFor="electricitySpendMonthly">Electricity bills per month (₦)</Label>
+              <Input
+                id="electricitySpendMonthly"
+                name="electricitySpendMonthly"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                className={field}
+              />
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="text-brand-dark text-lg font-semibold">Step 4 · Plan and contribution</h2>
         <div className="mt-3 grid gap-4 sm:grid-cols-3">
           <div>
             <Label htmlFor="plan">Plan</Label>
@@ -148,7 +270,7 @@ export function AssistedEntryForm({ library }: { library: LibraryItem[] }) {
               id="plan"
               name="plan"
               className={select}
-              defaultValue={'comfort' satisfies Plan}
+              defaultValue="comfort"
             >
               {PLANS.map((p) => (
                 <option key={p} value={p}>
@@ -184,7 +306,7 @@ export function AssistedEntryForm({ library }: { library: LibraryItem[] }) {
       </section>
 
       <section>
-        <h2 className="text-brand-dark text-lg font-semibold">Step 4 · How did this come in?</h2>
+        <h2 className="text-brand-dark text-lg font-semibold">Step 5 · How did this come in?</h2>
         <select
           name="entryChannel"
           className={`${select} sm:max-w-xs`}
@@ -205,7 +327,7 @@ export function AssistedEntryForm({ library }: { library: LibraryItem[] }) {
         </Alert>
       )}
       <Button type="submit" className="h-12 text-base" disabled={pending}>
-        {pending ? 'Saving…' : 'Save to waiting list'}
+        {pending ? 'Saving…' : 'Save customer'}
       </Button>
     </form>
   )

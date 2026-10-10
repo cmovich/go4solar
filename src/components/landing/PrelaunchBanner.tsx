@@ -8,7 +8,8 @@ export function PrelaunchBanner() {
   return (
     <div className="bg-brand-green text-center text-sm font-medium text-white">
       <Link href="/waitlist" prefetch={false} className="hover:bg-brand-green/90 block px-4 py-2">
-        Prelaunch: join the waiting list — we&apos;ll notify you within 7 days
+        Prelaunch: calculate your load and get your solar plan — we&apos;ll get back to you within 7
+        days
       </Link>
     </div>
   )

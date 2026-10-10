@@ -1,10 +1,6 @@
-import type { LaunchState } from '@/config/site'
-
 export type Plan = 'essential' | 'comfort' | 'independence'
 
-export type SizingState = LaunchState
-
-/** Sizing constants. Admin edits these; the seed values live in settings.sizing (0001_core.sql). */
+/** Sizing constants. Admin edits these; the seed values live in settings.sizing. */
 export type SizingSettings = {
   /** Inverter must carry this × running watts (1.25 = 25% headroom). */
   headroom: number
@@ -17,16 +13,20 @@ export type SizingSettings = {
   panelDerate: number
   /** Watts of one panel. */
   panelWatts: number
-  /** Share of daily energy used when there is no sun (independence plan). */
-  nightShare: number
-  /** Backup hours at full load promised by each plan. */
-  backupHours: { essential: number; comfort: number }
+  /** Hours at full running load each plan's battery must cover. */
+  backupHours: { essential: number; comfort: number; independence: number }
+  /** Hours of good sun in which the panels must run the load AND refill the battery. */
+  chargeHours: number
   /** Inverter sizes vendors actually stock, ascending. */
   inverterSizesKva: number[]
   /** Battery module size; results round up to a multiple of this. */
   batteryStepKwh: number
-  /** Peak sun hours per state. */
-  pshByState: Record<SizingState, number>
+  /**
+   * Kept for later (energy dashboard, per-state yield estimates); NOT used by sizeSystem since
+   * the waitlist review: panels are sized from the charge window, not from sun hours.
+   */
+  nightShare?: number
+  pshByState?: Record<string, number>
 }
 
 export type SystemSize = {

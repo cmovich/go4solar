@@ -122,6 +122,8 @@ export async function assistedEntry(input: unknown): Promise<StaffActionResult<{
       lga: d.lga,
       consent: true,
       consent_at: new Date().toISOString(),
+      applicant_type: d.applicantType,
+      business: d.applicantType === 'business' ? (d.business ?? null) : null,
       load_items: d.items,
       load_totals: totals,
       chosen_plan: d.plan,

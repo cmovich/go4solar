@@ -150,10 +150,11 @@ Go4Solar sends a link (WhatsApp, email, social media). The flow asks for one thi
 3. **"Preparing your quotes…"** loading screen with a short animation.
 4. **Phone number** screen (swipe in): phone number for calls, with a WhatsApp number below and a "same as phone" tick.
 5. Short loading pause, then the **email** screen, then another short pause.
-6. **Name** screen: first name and surname, plus state and LGA of installation (Abuja, Kaduna, Lagos, or "Other" to measure demand elsewhere) and a consent tick to be contacted.
-7. **"Here are your plans, \[First name\]"**: the three plans (Essential, Comfort, 24-Hour Independence), each marked **Estimate** and priced at the 20% starting deposit. The user taps one.
-8. **Contribution** screen for the chosen plan: "How much can you pay upfront?" A slider runs from 20% to 95%. As it moves up, the total cost, the upfront amount and the monthly payment update live, with a line such as "You save ₦202,500 by paying 50%." The user also answers "When can you pay this?" (Now / Within 30 days / Later).
-9. Taps **Next** and sees: "Thank you, \[First name\]. You are on the Go4Solar waiting list. We will notify you within the next 7 days." A copy goes to their email and WhatsApp.
+6. **Name** screen: first name and surname, plus state and LGA of installation. The state is a dropdown of all 36 states + FCT ("Abuja (FCT)"): Abuja (FCT), Kaduna and Lagos first, then a divider, then the rest A–Z; LGA is free text. Non-launch states are priced with the "Other" installation tier so demand everywhere is measured. Plus a consent tick to be contacted ("I agree that Go4Solar may contact me by phone, WhatsApp and email about my solar plan, and store my details as described in the Privacy Policy."), stored with a timestamp.
+7. **"Who is this solar for?"** — My home / My business. A business adds one screen: business name, business type (shop, office, school, clinic/hospital, hotel, restaurant, workshop/factory, church/mosque, farm, other), CAC number (optional), contact person's role, number of staff, operating hours per day and days per week, and current monthly spend on generator fuel and on electricity bills (₦).
+8. **"Here are your plans, \[First name\]"**: the three plans (Essential, Comfort, 24-Hour Independence), each marked **Estimate** and priced at the 20% starting deposit. The user taps one.
+9. **Contribution** screen for the chosen plan: "How much can you pay upfront?" A slider runs from 20% to 95%. As it moves up, the total cost, the upfront amount and the monthly payment update live, with a line such as "You save ₦202,500 by paying 50%." The user also answers "When can you pay this?" (Now / Within 30 days / Later).
+10. Taps **Next** and sees: "Thank you, \[First name\]. We will get back to you within the next 7 days." Customers never see the words "waiting list"; admin screens may. When messaging is live a copy goes to their email and WhatsApp (the screen says so); in mock mode it says "We will contact you on WhatsApp within the next 7 days." In prelaunch the screen shows for about 5 seconds and then returns to the home page (with a "Back to home" button); in live mode it continues to the application.
 
 **Design rules for this flow**
 
@@ -169,8 +170,8 @@ A separate link asks installers for: name, business name, phone, WhatsApp, email
 ### Admin waiting-list view
 
 - Headline numbers for funders: total sign-ups, sign-ups by state, total system value of selected plans, total deposits pledged, total financing needed, average deposit %, and how many said "Yes now".
-- Table of consumers and of installers with filters (state, deposit band, plan, readiness, date) and the full load list per consumer. Separate tabs for complete sign-ups and incomplete leads (left after giving a phone number), and an "Entered by" column for assisted entries.
-- **Download PDF:** a funder-ready report with a summary page (the headline numbers and a chart of sign-ups by state) followed by the list. Also **Download CSV** for staff use.
+- Table of consumers and of installers with filters (Individual/Business, state — every state with sign-ups, deposit band, plan, readiness, date) and the full load list per consumer, with the business answers in the row drawer. Separate tabs for complete sign-ups and incomplete leads (left after giving a phone number), and an "Entered by" column for assisted entries.
+- **Download PDF:** a funder-ready report with a summary page (the headline numbers, a chart of sign-ups by state, and a homes-versus-businesses split) followed by the list. Also **Download CSV** (including the business columns) for staff use.
 - **Clear waiting list before launch:** super admin only, requires export first and typing a confirmation word. A full clear cannot be undone.
 
 ### Consultant note
@@ -257,19 +258,20 @@ The engine uses standard off-grid sizing. Admin can change every constant.
 ```
 
 ```latex
-\text{Battery (kWh)} = \frac{P_{\text{running}} \times H_{\text{backup}}}{1000 \times \text{DoD} \times \eta_{\text{inverter}}}
+\text{Battery (kWh)} = \frac{P_{\text{running}} \times H_{\text{plan}}}{1000 \times \text{DoD} \times \eta_{\text{inverter}}}
 ```
 
 ```latex
-\text{Panels (kW)} = \frac{E_{\text{daily}} + E_{\text{battery recharge}}}{\text{PSH} \times 0.75}
+\text{Panels (kW)} = \frac{P_{\text{running}}/1000 + \text{Battery (kWh)} \times \text{DoD} / H_{\text{charge}}}{\text{derate}}
 ```
 
 - P running = total running watts; P surge = largest motor surge plus everything else running.
-- DoD (usable depth of discharge) = 0.8 for lithium (LiFePO4), 0.5 for lead-acid. Default to lithium; lead-acid only as an option.
-- Inverter efficiency = 0.9. Panel derate 0.75 covers heat, dust and wiring losses.
-- PSH (peak sun hours) by state, set by admin: roughly 4.5 in the south to 6 in the far north (approximate; confirm with NASA POWER data before launch).
-- Results round **up** to the next size actually stocked by vendors (for example 3.5 kVA, 5 kVA, 10 kVA; 5 kWh or 10 kWh battery modules).
-- For the 24-hour plan, battery covers the hours without sun using the user's real kWh per day, not full load for 24 hours. Full load for 24 hours would produce a quote several times too large and unaffordable.
+- H plan = backup hours at full running load, the same rule for every plan: Essential 3 h, Comfort 8 h, 24-Hour Independence 15 h (admin-editable). The battery is rounded **up** to whole modules (2.5 kWh steps), never less than one module.
+- Panels must run the load and refill a full battery within the charge window H charge = 7 hours of good sun (admin-editable), after the 0.75 derate for heat, dust and wiring. Panel sizing no longer uses peak sun hours or a night share; those settings stay for later features (energy dashboard, per-state yield).
+- DoD (usable depth of discharge) = 0.8 for lithium (LiFePO4), 0.5 for lead-acid. Default to lithium; lead-acid only as an option. Inverter efficiency = 0.9.
+- Results round **up** to the next size actually stocked by vendors (for example 3.5 kVA, 5 kVA, 10 kVA; 2.5 kWh battery modules).
+- Worked example (480 W running, 3.72 kWh/day): Essential 2.5 kWh · 2 × 550 W; Comfort 7.5 kWh · 4 × 550 W; 24-Hour Independence 10 kWh · 4 × 550 W. Battery, panel count and system price never decrease from Essential to Comfort to Independence.
+- Sizing does not depend on the state; only the installation and logistics price does (launch states have their own price, every other state uses the "Other" tier).
 
 ### Route B — Upload an installer's quote
 

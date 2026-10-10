@@ -239,9 +239,7 @@ export function WaitlistReport({
         ) : (
           stats.byState.map((b) => (
             <View key={b.state} style={s.chartRow}>
-              <Text style={s.chartLabel}>
-                {(STATE_LABELS as Record<string, string>)[b.state] ?? b.state}
-              </Text>
+              <Text style={s.chartLabel}>{STATE_LABELS[b.state] ?? b.state}</Text>
               <View style={s.chartTrack}>
                 <View
                   style={[s.chartBar, { width: `${Math.round((b.count / maxState) * 100)}%` }]}
@@ -253,6 +251,28 @@ export function WaitlistReport({
             </View>
           ))
         )}
+
+        <Text style={s.h2}>Homes and businesses</Text>
+        <View style={s.cards}>
+          {(['individual', 'business'] as const).map((k) => (
+            <View key={k} style={s.card}>
+              <Text style={s.cardLabel}>
+                {k === 'individual' ? 'Homes (individuals)' : 'Businesses'}
+              </Text>
+              <Text style={s.cardValue}>{stats.byType[k].count}</Text>
+              <Text style={s.cardHint}>
+                {formatNaira(stats.byType[k].systemValue)} system value ·{' '}
+                {formatNaira(stats.byType[k].financingNeeded)} financing
+              </Text>
+            </View>
+          ))}
+          {stats.byType.unknown.count > 0 ? (
+            <View style={s.card}>
+              <Text style={s.cardLabel}>Not stated</Text>
+              <Text style={s.cardValue}>{stats.byType.unknown.count}</Text>
+            </View>
+          ) : null}
+        </View>
 
         <Text style={s.note}>
           Estimates are priced at 12 months with 0% interest to the customer; the deposit is each
@@ -288,7 +308,7 @@ export function WaitlistReport({
               when: fmtDate(l.createdAt),
               name: [l.firstName, l.surname].filter(Boolean).join(' ') || '—',
               phone: l.phone,
-              state: l.state ? ((STATE_LABELS as Record<string, string>)[l.state] ?? l.state) : '—',
+              state: l.state ? (STATE_LABELS[l.state] ?? l.state) : '—',
               plan: l.plan ? PLAN_LABELS[l.plan] : '—',
               deposit:
                 l.depositShare !== null

@@ -1,4 +1,5 @@
 import type { LoadTotals } from '@/lib/load/types'
+import { isLaunchState, type NgStateId } from '@/lib/nigeria/states'
 import { priceQuote } from '@/lib/pricing/price'
 import type { QuoteLineInput, QuoteResult } from '@/lib/pricing/types'
 import type { PriceList, QuoteSettings } from '@/lib/settings/schemas'
@@ -13,9 +14,6 @@ export const PLAN_LABELS: Record<Plan, string> = {
   independence: '24-Hour Independence',
 }
 
-/** Where the system will be installed. 'Other' measures demand outside the launch states. */
-export type EstimateState = 'FCT' | 'Kaduna' | 'Lagos' | 'Other'
-
 export const ESTIMATE_TENURE = 12 as const
 
 export type PlanEstimate = {
@@ -26,7 +24,8 @@ export type PlanEstimate = {
 
 export type Estimate = {
   version: 1
-  state: EstimateState
+  /** State of installation (any of the 36 states or FCT). */
+  state: NgStateId
   depositShare: number
   tenureMonths: typeof ESTIMATE_TENURE
   /** True when sample (placeholder) prices were used. */
@@ -39,9 +38,9 @@ export type RepricedPlan = PlanEstimate & {
   savingVsMin: number
 }
 
-/** 'Other' is sized with FCT sun hours — the middle of the three launch states. */
-function sizingState(state: EstimateState): 'FCT' | 'Kaduna' | 'Lagos' {
-  return state === 'Other' ? 'FCT' : state
+/** Installation and logistics: launch states have their own price; everywhere else is "Other". */
+export function installCostFor(state: NgStateId, priceList: PriceList): number {
+  return isLaunchState(state) ? priceList.installByState[state] : priceList.installByState.Other
 }
 
 /** Equipment lines for a sized system, from the admin price list. */
@@ -90,13 +89,13 @@ export function linesFor(size: SystemSize, priceList: PriceList): QuoteLineInput
 
 function priceLines(
   lines: QuoteLineInput[],
-  state: EstimateState,
+  state: NgStateId,
   depositShare: number,
   s: QuoteSettings,
 ): QuoteResult {
   return priceQuote({
     lines,
-    installCost: s.priceList.installByState[state],
+    installCost: installCostFor(state, s.priceList),
     marginByCategory: s.pricing.marginByCategory,
     pricingRateAnnual: s.pricing.pricingRateAnnual,
     tenureMonths: ESTIMATE_TENURE,
@@ -106,18 +105,18 @@ function priceLines(
 }
 
 /**
- * The three waiting-list plans for a load: size each with the sizing engine, build equipment
- * lines from the price list, and price at 12 months. Pure: no database access.
+ * The three plans for a load: size each with the sizing engine, build equipment lines from the
+ * price list, and price at 12 months. Pure: no database access.
  */
 export function buildEstimate(
   totals: LoadTotals,
-  state: EstimateState,
+  state: NgStateId,
   depositShare: number,
   s: QuoteSettings,
 ): Estimate {
   const plans = Object.fromEntries(
     PLANS.map((plan) => {
-      const size = sizeSystem(totals, plan, sizingState(state), s.sizing)
+      const size = sizeSystem(totals, plan, s.sizing)
       const quote = priceLines(linesFor(size, s.priceList), state, depositShare, s)
       return [plan, { plan, size, quote }]
     }),
@@ -145,26 +144,17 @@ export function repriceEstimate(
 ): RepricedPlan {
   const base = estimate.plans[plan]
   const snap = base.quote.snapshot
-  const quote = priceQuote({
-    lines: snap.lines,
-    installCost: snap.installCost,
-    marginByCategory: snap.marginByCategory,
-    pricingRateAnnual: snap.pricingRateAnnual,
-    tenureMonths: snap.tenureMonths,
-    depositShare,
-    minDepositShare: snap.minDepositShare,
-  })
-  const atMin =
-    depositShare === snap.minDepositShare
-      ? quote
-      : priceQuote({
-          lines: snap.lines,
-          installCost: snap.installCost,
-          marginByCategory: snap.marginByCategory,
-          pricingRateAnnual: snap.pricingRateAnnual,
-          tenureMonths: snap.tenureMonths,
-          depositShare: snap.minDepositShare,
-          minDepositShare: snap.minDepositShare,
-        })
+  const at = (share: number) =>
+    priceQuote({
+      lines: snap.lines,
+      installCost: snap.installCost,
+      marginByCategory: snap.marginByCategory,
+      pricingRateAnnual: snap.pricingRateAnnual,
+      tenureMonths: snap.tenureMonths,
+      depositShare: share,
+      minDepositShare: snap.minDepositShare,
+    })
+  const quote = at(depositShare)
+  const atMin = depositShare === snap.minDepositShare ? quote : at(snap.minDepositShare)
   return { ...base, quote, savingVsMin: atMin.systemPrice - quote.systemPrice }
 }

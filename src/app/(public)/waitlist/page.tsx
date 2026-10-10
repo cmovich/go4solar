@@ -3,13 +3,13 @@ import Image from 'next/image'
 import Link from 'next/link'
 
 import { WaitlistFlow } from '@/components/waitlist/WaitlistFlow'
-import { siteConfig } from '@/config/site'
+import { launchMode, siteConfig } from '@/config/site'
 import { fetchApplianceLibrary } from '@/lib/appliances/library'
 
 export const metadata: Metadata = {
-  title: 'Join the waiting list',
+  title: 'Get your solar plan',
   description:
-    'Calculate your load, see three estimated solar plans with 0% interest, and join the Go4Solar waiting list. We notify you within 7 days.',
+    'Calculate your load and see three estimated solar plans with 0% interest. We get back to you within 7 days.',
 }
 
 export const revalidate = 3600
@@ -32,11 +32,15 @@ export default async function WaitlistPage() {
               />
             </span>
           </Link>
-          <span className="text-brand-gold text-sm font-semibold">Waiting list</span>
+          <span className="text-brand-gold text-sm font-semibold">Your solar plan</span>
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-        <WaitlistFlow library={library} messagingLive={process.env.MESSAGING_PROVIDER === 'live'} />
+        <WaitlistFlow
+          library={library}
+          messagingLive={process.env.MESSAGING_PROVIDER === 'live'}
+          launchMode={launchMode()}
+        />
       </main>
     </>
   )

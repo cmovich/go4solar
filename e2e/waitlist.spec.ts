@@ -18,6 +18,62 @@ async function addLedAndFridge(page: Page) {
   await expect(page.getByTestId('total-running')).toHaveText('160 W')
 }
 
+/** Screens 1–6: calculator → totals → preparing → phone → email → name/state. */
+async function throughNameStep(page: Page, phone: string, state: string) {
+  await page.goto('/waitlist')
+  await addLedAndFridge(page)
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('heading', { name: 'Your total load' })).toBeVisible()
+  await page.getByRole('button', { name: 'Get quotes' }).click()
+  await expect(page.getByText('Preparing your quotes…')).toBeVisible()
+  await expect(page.getByLabel('Phone number')).toBeVisible({ timeout: 5000 })
+
+  await page.getByLabel('Phone number').fill(phone)
+  await page.getByRole('button', { name: 'Next' }).click()
+
+  await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 5000 })
+  await page.getByLabel('Email address').fill(`e2e-${phone}@go4solar.test`)
+  await page.getByRole('button', { name: 'Next' }).click()
+
+  await expect(page.getByLabel('First name')).toBeVisible({ timeout: 5000 })
+  await page.getByLabel('First name').fill('Amaka')
+  await page.getByLabel('Surname').fill('Okoro')
+  await page.getByLabel('State of installation').selectOption(state)
+  await page.getByLabel('Local government area').fill('Ikeja')
+  await page.getByRole('checkbox').check()
+  await page.getByRole('button', { name: 'Next' }).click()
+  await expect(page.getByRole('heading', { name: 'Who is this solar for?' })).toBeVisible({
+    timeout: 15000,
+  })
+}
+
+/** Screens 9–11: plans → contribution → thank you (then the prelaunch redirect home). */
+async function finishFromPlans(page: Page) {
+  await expect(page.getByRole('heading', { name: 'Here are your plans, Amaka' })).toBeVisible({
+    timeout: 15000,
+  })
+  await expect(page.getByText('Estimate', { exact: true })).toHaveCount(3)
+  await page.getByRole('button', { name: /Comfort/ }).click()
+
+  await expect(page.getByRole('heading', { name: 'How much can you pay upfront?' })).toBeVisible()
+  const totalAt20 = await page.getByTestId('total-price').textContent()
+  await page.getByRole('slider').focus()
+  for (let i = 0; i < 30; i++) await page.keyboard.press('ArrowRight')
+  await expect(page.getByTestId('deposit-pct')).toHaveText('50%')
+  await expect(page.getByTestId('saving')).toContainText('You save ₦')
+  await expect(page.getByTestId('saving')).toContainText('by paying 50%')
+  expect(await page.getByTestId('total-price').textContent()).not.toBe(totalAt20)
+  await page.getByRole('button', { name: 'Now', exact: true }).click()
+  await page.getByRole('button', { name: 'Next' }).click()
+
+  await expect(page.getByText('Thank you, Amaka.')).toBeVisible({ timeout: 10000 })
+  await expect(page.getByText('We will get back to you within the next 7 days.')).toBeVisible()
+  await expect(page.getByText(/waiting list/i)).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Back to home' })).toBeVisible()
+  // Prelaunch: back to the landing page after ~5 s.
+  await page.waitForURL((u) => u.pathname === '/', { timeout: 10000 })
+}
+
 async function loginAsStaff(page: Page) {
   await page.goto('/login')
   await page.getByLabel('Email').fill(process.env.E2E_STAFF_EMAIL!)
@@ -29,66 +85,55 @@ async function loginAsStaff(page: Page) {
   await page.waitForURL(/\/admin$/)
 }
 
-test.describe('waiting list', () => {
-  // Nine screens plus a staff login: give each test more than the default 30 s.
+test.describe('solar plan sign-up (waiting list)', () => {
+  // Eleven screens plus a staff login: give each test more than the default 30 s.
   test.describe.configure({ timeout: 120_000 })
 
-  test('a visitor completes the whole flow', async ({ page }) => {
+  test('the state dropdown lists all 37 states with the launch states first', async ({ page }) => {
     const phone = freshPhone()
     await page.goto('/waitlist')
-
-    // 1. calculator → 2. totals → 3. preparing → 4. phone
     await addLedAndFridge(page)
     await page.getByRole('button', { name: 'Continue' }).click()
-    await expect(page.getByRole('heading', { name: 'Your total load' })).toBeVisible()
     await page.getByRole('button', { name: 'Get quotes' }).click()
-    await expect(page.getByText('Preparing your quotes…')).toBeVisible()
     await expect(page.getByLabel('Phone number')).toBeVisible({ timeout: 5000 })
-
     await page.getByLabel('Phone number').fill(phone)
     await page.getByRole('button', { name: 'Next' }).click()
-
-    // 5. email
     await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 5000 })
     await page.getByLabel('Email address').fill(`e2e-${phone}@go4solar.test`)
     await page.getByRole('button', { name: 'Next' }).click()
+    await expect(page.getByLabel('State of installation')).toBeVisible({ timeout: 5000 })
 
-    // 6. name
-    await expect(page.getByLabel('First name')).toBeVisible({ timeout: 5000 })
-    await page.getByLabel('First name').fill('Amaka')
-    await page.getByLabel('Surname').fill('Okoro')
-    await page.getByLabel('State of installation').selectOption('Lagos')
-    await page.getByLabel('Local government area').fill('Ikeja')
-    await page.getByRole('checkbox').check()
-    await page.getByRole('button', { name: 'See my plans' }).click()
+    const options = page.getByLabel('State of installation').locator('option')
+    await expect(options).toHaveCount(37)
+    await expect(options.nth(0)).toHaveText('Abuja (FCT)')
+    await expect(options.nth(1)).toHaveText('Kaduna')
+    await expect(options.nth(2)).toHaveText('Lagos')
+    await expect(options.nth(3)).toHaveText('Abia')
+    await expect(options.last()).toHaveText('Zamfara')
+  })
 
-    // 7. plans
-    await expect(page.getByRole('heading', { name: 'Here are your plans, Amaka' })).toBeVisible({
-      timeout: 15000,
-    })
-    await expect(page.getByText('Estimate', { exact: true })).toHaveCount(3)
-    await page.getByRole('button', { name: /Comfort/ }).click()
+  test('individual pathway: home → plans → contribution → thank you → home', async ({ page }) => {
+    await throughNameStep(page, freshPhone(), 'Lagos')
+    await page.getByRole('button', { name: /My home/ }).click()
+    await finishFromPlans(page)
+  })
 
-    // 8. contribution
-    await expect(page.getByRole('heading', { name: 'How much can you pay upfront?' })).toBeVisible()
-    const totalAt20 = await page.getByTestId('total-price').textContent()
-    const slider = page.getByRole('slider')
-    await slider.focus()
-    for (let i = 0; i < 30; i++) await page.keyboard.press('ArrowRight')
-    await expect(page.getByTestId('deposit-pct')).toHaveText('50%')
-    await expect(page.getByTestId('saving')).toContainText('You save ₦')
-    await expect(page.getByTestId('saving')).toContainText('by paying 50%')
-    expect(await page.getByTestId('total-price').textContent()).not.toBe(totalAt20)
-    await page.getByRole('button', { name: 'Now', exact: true }).click()
+  test('business pathway in a non-launch state: business details → plans → thank you', async ({
+    page,
+  }) => {
+    await throughNameStep(page, freshPhone(), 'Enugu')
+    await page.getByRole('button', { name: /My business/ }).click()
+    await expect(page.getByRole('heading', { name: 'Tell us about your business' })).toBeVisible()
+    await page.getByLabel('Business name').fill('Amaka Stores')
+    await page.getByLabel('Type of business').selectOption('shop')
+    await page.getByLabel('Your role').fill('Owner')
+    await page.getByLabel('Number of staff').fill('4')
+    await page.getByLabel('Operating hours per day').fill('12')
+    await page.getByLabel('Days per week').fill('6')
+    await page.getByLabel('Generator fuel per month (₦)').fill('180000')
+    await page.getByLabel('Electricity bills per month (₦)').fill('40000')
     await page.getByRole('button', { name: 'Next' }).click()
-
-    // 9. thank you
-    await expect(page.getByText('Thank you, Amaka.')).toBeVisible({ timeout: 10000 })
-    await expect(
-      page.getByText(
-        'You are on the Go4Solar waiting list. We will notify you within the next 7 days.',
-      ),
-    ).toBeVisible()
+    await finishFromPlans(page)
   })
 
   test('leaving after the phone number leaves an incomplete lead that admin can see and export', async ({
@@ -124,6 +169,10 @@ test.describe('waiting list', () => {
     await staff.keyboard.press('Escape')
     await expect(staff.getByRole('dialog')).toBeHidden()
 
+    // The business filter and the state dropdown exist on the admin page.
+    await expect(staff.getByLabel('Type')).toBeVisible()
+    await expect(staff.getByLabel('State').locator('option')).toHaveCount(38) // All + 37
+
     // CSV export contains the row (fetched with the staff session's cookies).
     await expect(staff.getByRole('link', { name: 'Download CSV' })).toHaveAttribute(
       'href',
@@ -135,6 +184,7 @@ test.describe('waiting list', () => {
     const csv = await res.text()
     expect(csv).toContain('consumer,incomplete')
     expect(csv).toContain(e164)
+    expect(csv).toContain('applicant_type,business_name')
 
     // PDF report renders (brand fonts and logo embedded) and has a summary page plus the list.
     const pdf = await staff.request.get('/api/admin/waitlist/report.pdf', { timeout: 90_000 })

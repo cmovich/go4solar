@@ -12,6 +12,7 @@ import type { Plan } from '@/lib/sizing/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendWaitlistConfirmation } from '@/lib/waitlist/messages'
 import {
+  applicantStepSchema,
   contributionStepSchema,
   emailStepSchema,
   nameStepSchema,
@@ -20,8 +21,7 @@ import {
 } from '@/lib/waitlist/schema'
 import { currentVisitorHash, getOrCreateVisitorToken } from '@/lib/waitlist/token'
 
-type ActionResult<T = object> =
-  ({ ok: true } & T) | { ok: false; error: string; field?: string }
+type ActionResult<T = object> = ({ ok: true } & T) | { ok: false; error: string; field?: string }
 
 const SUBMITS_PER_HOUR = 20
 
@@ -45,6 +45,8 @@ async function ownRow(id: string) {
     .maybeSingle()
   return data
 }
+
+const EXPIRED = { ok: false, error: 'Your session expired. Please start again.' } as const
 
 /** Step 4: phone + WhatsApp. Creates the (incomplete) lead and sets the visitor cookie. */
 export async function savePhoneStep(input: unknown): Promise<ActionResult<{ id: string }>> {
@@ -104,7 +106,7 @@ export async function saveEmailStep(input: unknown): Promise<ActionResult> {
   const parsed = emailStepSchema.safeParse(input)
   if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
   const row = await ownRow(parsed.data.id)
-  if (!row) return { ok: false, error: 'Your session expired. Please start again.' }
+  if (!row) return EXPIRED
 
   const { error } = await createAdminClient()
     .from('waitlist_consumers')
@@ -114,12 +116,12 @@ export async function saveEmailStep(input: unknown): Promise<ActionResult> {
   return { ok: true }
 }
 
-/** Step 6: name, state, LGA, consent. Builds and stores the three estimates at 20%. */
+/** Step 6: name, state, LGA, consent. Builds and stores the three estimates at the minimum deposit. */
 export async function saveNameStep(input: unknown): Promise<ActionResult<{ estimate: Estimate }>> {
   const parsed = nameStepSchema.safeParse(input)
   if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
   const row = await ownRow(parsed.data.id)
-  if (!row) return { ok: false, error: 'Your session expired. Please start again.' }
+  if (!row) return EXPIRED
 
   const settings = await getQuoteSettings()
   let estimate: Estimate
@@ -154,12 +156,30 @@ export async function saveNameStep(input: unknown): Promise<ActionResult<{ estim
   return { ok: true, estimate }
 }
 
-/** Step 7: chosen plan. */
+/** Steps 7–8: who the solar is for, plus the business details on the business pathway. */
+export async function saveApplicantStep(input: unknown): Promise<ActionResult> {
+  const parsed = applicantStepSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
+  const row = await ownRow(parsed.data.id)
+  if (!row) return EXPIRED
+
+  const { error } = await createAdminClient()
+    .from('waitlist_consumers')
+    .update({
+      applicant_type: parsed.data.applicantType,
+      business: parsed.data.applicantType === 'business' ? parsed.data.business : null,
+    })
+    .eq('id', row.id)
+  if (error) return { ok: false, error: 'Could not save those details. Please try again.' }
+  return { ok: true }
+}
+
+/** Step 9: chosen plan. */
 export async function savePlanStep(input: unknown): Promise<ActionResult> {
   const parsed = planStepSchema.safeParse(input)
   if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
   const row = await ownRow(parsed.data.id)
-  if (!row) return { ok: false, error: 'Your session expired. Please start again.' }
+  if (!row) return EXPIRED
 
   const { error } = await createAdminClient()
     .from('waitlist_consumers')
@@ -169,14 +189,14 @@ export async function savePlanStep(input: unknown): Promise<ActionResult> {
   return { ok: true }
 }
 
-/** Step 8 → 9: contribution and readiness. Completes the sign-up and sends the confirmation. */
+/** Step 10 → 11: contribution and readiness. Completes the sign-up and sends the confirmation. */
 export async function completeWaitlist(
   input: unknown,
-): Promise<ActionResult<{ firstName: string }>> {
+): Promise<ActionResult<{ id: string; firstName: string }>> {
   const parsed = contributionStepSchema.safeParse(input)
   if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
   const row = await ownRow(parsed.data.id)
-  if (!row) return { ok: false, error: 'Your session expired. Please start again.' }
+  if (!row) return EXPIRED
   if (!row.estimate || !row.chosen_plan || !row.first_name) {
     return { ok: false, error: 'Please choose a plan first.' }
   }
@@ -212,5 +232,5 @@ export async function completeWaitlist(
     monthly: chosen.quote.monthly,
     tenureMonths: chosen.quote.snapshot.tenureMonths,
   })
-  return { ok: true, firstName: row.first_name }
+  return { ok: true, id: row.id, firstName: row.first_name }
 }

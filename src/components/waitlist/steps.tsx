@@ -1,7 +1,9 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
-import { useMemo, useState, useTransition } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -9,9 +11,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
+import type { LaunchMode } from '@/config/site'
 import { computeLoadTotals } from '@/lib/load/totals'
 import type { LoadItem } from '@/lib/load/types'
 import { formatNaira, formatPercent } from '@/lib/money'
+import { STATE_GROUPS, stateLabel, type NgStateId } from '@/lib/nigeria/states'
 import {
   PLANS,
   PLAN_LABELS,
@@ -21,18 +25,21 @@ import {
 } from '@/lib/quotes/buildEstimate'
 import type { Plan } from '@/lib/sizing/types'
 import {
+  BUSINESS_TYPES,
+  BUSINESS_TYPE_LABELS,
   CONSENT_TEXT,
-  ESTIMATE_STATES,
   READY_WHEN,
   READY_WHEN_LABELS,
-  STATE_LABELS,
+  businessSchema,
   emailStepSchema,
   nameStepSchema,
   phoneStepSchema,
+  type ApplicantType,
 } from '@/lib/waitlist/schema'
 
 import {
   completeWaitlist,
+  saveApplicantStep,
   saveEmailStep,
   saveNameStep,
   savePhoneStep,
@@ -41,6 +48,7 @@ import {
 
 const n = (v: number) => v.toLocaleString('en-US')
 const field = 'mt-1 h-12 text-base'
+const select = 'border-input mt-1 h-12 w-full rounded-md border bg-white px-3 text-base'
 const primary = 'h-14 w-full text-lg font-semibold'
 
 function Heading({ title, lead }: { title: string; lead?: string }) {
@@ -244,8 +252,41 @@ export function EmailStep({
 export type NameValues = {
   firstName: string
   surname: string
-  state: (typeof ESTIMATE_STATES)[number]
+  state: NgStateId
   lga: string
+}
+
+/** All 36 states + FCT: launch states first, then a divider, then the rest A–Z. */
+export function StateSelect({
+  id,
+  name,
+  value,
+  onChange,
+}: {
+  id: string
+  name?: string
+  value: NgStateId
+  onChange: (state: NgStateId) => void
+}) {
+  return (
+    <select
+      id={id}
+      name={name}
+      value={value}
+      onChange={(e) => onChange(e.target.value as NgStateId)}
+      className={select}
+    >
+      {STATE_GROUPS.map((g, i) => (
+        <optgroup key={g.label} label={i === 0 ? g.label : `── ${g.label}`}>
+          {g.ids.map((s) => (
+            <option key={s} value={s}>
+              {stateLabel(s)}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  )
 }
 
 export function NameStep({
@@ -278,9 +319,8 @@ export function NameStep({
     })
   }
 
-  const set =
-    (k: keyof NameValues) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setValues((v) => ({ ...v, [k]: e.target.value }))
+  const set = (k: 'firstName' | 'surname' | 'lga') => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setValues((v) => ({ ...v, [k]: e.target.value }))
 
   return (
     <form onSubmit={submit} className="space-y-5" noValidate>
@@ -309,18 +349,11 @@ export function NameStep({
         </div>
         <div>
           <Label htmlFor="state">State of installation</Label>
-          <select
+          <StateSelect
             id="state"
             value={values.state}
-            onChange={set('state')}
-            className="border-input mt-1 h-12 w-full rounded-md border bg-white px-3 text-base"
-          >
-            {ESTIMATE_STATES.map((s) => (
-              <option key={s} value={s}>
-                {STATE_LABELS[s]}
-              </option>
-            ))}
-          </select>
+            onChange={(state) => setValues((v) => ({ ...v, state }))}
+          />
         </div>
         <div>
           <Label htmlFor="lga">Local government area</Label>
@@ -343,18 +376,228 @@ export function NameStep({
       </label>
       <ErrorBox message={error} />
       <Button type="submit" className={primary} disabled={pending}>
-        {pending ? 'Preparing your plans…' : 'See my plans'}
+        {pending ? 'Preparing your plans…' : 'Next'}
       </Button>
     </form>
   )
 }
 
-// ----------------------------------------------------------------- 7. Plans
+// ------------------------------------------------------- 7. Who is it for?
+export function WhoForStep({
+  leadId,
+  onSaved,
+}: {
+  leadId: string
+  onSaved: (type: ApplicantType) => void
+}) {
+  const [error, setError] = useState<string | null>(null)
+  const [pending, start] = useTransition()
+
+  function choose(type: ApplicantType) {
+    setError(null)
+    if (type === 'business') return onSaved(type) // saved together with the business details
+    start(async () => {
+      const r = await saveApplicantStep({ id: leadId, applicantType: 'individual' })
+      if (r.ok) onSaved(type)
+      else setError(r.error)
+    })
+  }
+
+  const card =
+    'hover:border-brand-green focus-visible:ring-brand-green flex min-h-28 w-full flex-col items-start justify-center rounded-2xl border-2 border-transparent bg-brand-mist p-5 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60'
+
+  return (
+    <div className="space-y-6">
+      <Heading title="Who is this solar for?" />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => choose('individual')}
+          disabled={pending}
+          className={card}
+        >
+          <span className="text-brand-dark text-xl font-bold">My home</span>
+          <span className="text-muted-foreground mt-1 text-sm">
+            A house or flat for my family and me.
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => choose('business')}
+          disabled={pending}
+          className={card}
+        >
+          <span className="text-brand-dark text-xl font-bold">My business</span>
+          <span className="text-muted-foreground mt-1 text-sm">
+            A shop, office, school, clinic, hotel, workshop or other business.
+          </span>
+        </button>
+      </div>
+      <ErrorBox message={error} />
+    </div>
+  )
+}
+
+// ----------------------------------------------------- 8. Business details
+export function BusinessStep({
+  leadId,
+  onBack,
+  onSaved,
+}: {
+  leadId: string
+  onBack: () => void
+  onSaved: () => void
+}) {
+  const [error, setError] = useState<string | null>(null)
+  const [pending, start] = useTransition()
+
+  function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError(null)
+    const f = new FormData(e.currentTarget)
+    const str = (k: string) => String(f.get(k) ?? '').trim()
+    const num = (k: string) => (str(k) === '' ? Number.NaN : Number(str(k)))
+    const business = {
+      businessName: str('businessName'),
+      businessType: str('businessType'),
+      cacNumber: str('cacNumber'),
+      contactRole: str('contactRole'),
+      staffCount: num('staffCount'),
+      hoursPerDay: num('hoursPerDay'),
+      daysPerWeek: num('daysPerWeek'),
+      generatorSpendMonthly: num('generatorSpendMonthly'),
+      electricitySpendMonthly: num('electricitySpendMonthly'),
+    }
+    const check = businessSchema.safeParse(business)
+    if (!check.success) return setError(check.error.issues[0]?.message ?? 'Check the details')
+    start(async () => {
+      const r = await saveApplicantStep({
+        id: leadId,
+        applicantType: 'business',
+        business: check.data,
+      })
+      if (r.ok) onSaved()
+      else setError(r.error)
+    })
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-5" noValidate>
+      <Heading
+        title="Tell us about your business"
+        lead="This helps us size the system for your working hours and show what you save."
+      />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <Label htmlFor="businessName">Business name</Label>
+          <Input
+            id="businessName"
+            name="businessName"
+            autoComplete="organization"
+            className={field}
+            autoFocus
+          />
+        </div>
+        <div>
+          <Label htmlFor="businessType">Type of business</Label>
+          <select id="businessType" name="businessType" className={select} defaultValue="shop">
+            {BUSINESS_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {BUSINESS_TYPE_LABELS[t]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="cacNumber">CAC number (optional)</Label>
+          <Input id="cacNumber" name="cacNumber" placeholder="e.g. RC 1234567" className={field} />
+        </div>
+        <div>
+          <Label htmlFor="contactRole">Your role</Label>
+          <Input
+            id="contactRole"
+            name="contactRole"
+            placeholder="e.g. owner, manager"
+            className={field}
+          />
+        </div>
+        <div>
+          <Label htmlFor="staffCount">Number of staff</Label>
+          <Input
+            id="staffCount"
+            name="staffCount"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            className={field}
+          />
+        </div>
+        <div>
+          <Label htmlFor="hoursPerDay">Operating hours per day</Label>
+          <Input
+            id="hoursPerDay"
+            name="hoursPerDay"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={24}
+            step={0.5}
+            className={field}
+          />
+        </div>
+        <div>
+          <Label htmlFor="daysPerWeek">Days per week</Label>
+          <Input
+            id="daysPerWeek"
+            name="daysPerWeek"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={7}
+            className={field}
+          />
+        </div>
+        <div>
+          <Label htmlFor="generatorSpendMonthly">Generator fuel per month (₦)</Label>
+          <Input
+            id="generatorSpendMonthly"
+            name="generatorSpendMonthly"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            className={field}
+          />
+        </div>
+        <div>
+          <Label htmlFor="electricitySpendMonthly">Electricity bills per month (₦)</Label>
+          <Input
+            id="electricitySpendMonthly"
+            name="electricitySpendMonthly"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            className={field}
+          />
+        </div>
+      </div>
+      <ErrorBox message={error} />
+      <Button type="submit" className={primary} disabled={pending}>
+        {pending ? 'Saving…' : 'Next'}
+      </Button>
+      <button type="button" onClick={onBack} className="text-brand-blue block text-sm underline">
+        Back
+      </button>
+    </form>
+  )
+}
+
+// ----------------------------------------------------------------- 9. Plans
 const PLAN_BLURB: Record<Plan, string> = {
   essential:
     'About 3 hours of backup at full load. Grid most days; solar for outages and evenings.',
   comfort: 'About 8 hours of backup at full load. Covers the evening and most of the night.',
-  independence: 'Runs day and night without grid or generator, sized from your real daily use.',
+  independence:
+    'About 15 hours of backup at full load: runs through the night without grid or generator.',
 }
 
 export function PlanCard({
@@ -463,7 +706,7 @@ export function PlansStep({
   )
 }
 
-// --------------------------------------------------------- 8. Contribution
+// -------------------------------------------------------- 10. Contribution
 export function ContributionStep({
   leadId,
   estimate,
@@ -591,26 +834,47 @@ export function ContributionStep({
   )
 }
 
-// ------------------------------------------------------------- 9. Thank you
+// ------------------------------------------------------------ 11. Thank you
+const REDIRECT_AFTER_MS = 5000
+
 export function ThankYouStep({
   firstName,
+  leadId,
   messagingLive,
+  launchMode,
 }: {
   firstName: string
+  leadId: string
   /** True only when MESSAGING_PROVIDER is live: then a copy really was sent. */
   messagingLive: boolean
+  launchMode: LaunchMode
 }) {
+  const router = useRouter()
+  // Prelaunch: home after a few seconds. Live: straight on to the application.
+  // TODO(Prompts 9–10): replace /plans?estimate= with the real application route once it exists.
+  const next = launchMode === 'live' ? `/plans?estimate=${leadId}` : '/'
+
+  useEffect(() => {
+    const t = window.setTimeout(() => router.push(next), REDIRECT_AFTER_MS)
+    return () => window.clearTimeout(t)
+  }, [router, next])
+
   return (
     <div className="bg-brand-mist rounded-2xl p-8 text-center" role="status">
       <p className="text-brand-dark text-2xl font-bold sm:text-3xl">Thank you, {firstName}.</p>
       <p className="text-brand-dark mt-3 text-lg">
-        You are on the Go4Solar waiting list. We will notify you within the next 7 days.
+        We will get back to you within the next 7 days.
       </p>
       <p className="text-muted-foreground mt-4 text-sm">
         {messagingLive
           ? "We've sent a copy of your estimate to your email and WhatsApp."
           : 'We will contact you on WhatsApp within the next 7 days.'}
       </p>
+      <Button asChild className="mt-6 h-12 text-base">
+        <Link href={next}>
+          {launchMode === 'live' ? 'Continue to my application' : 'Back to home'}
+        </Link>
+      </Button>
     </div>
   )
 }

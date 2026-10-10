@@ -13,7 +13,13 @@ import { CATEGORY_LABELS } from '@/lib/load/categories'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import type { ConsumerLead } from '@/lib/waitlist/admin'
-import { ENTRY_CHANNEL_LABELS, READY_WHEN_LABELS, STATE_LABELS } from '@/lib/waitlist/schema'
+import {
+  APPLICANT_TYPE_LABELS,
+  BUSINESS_TYPE_LABELS,
+  ENTRY_CHANNEL_LABELS,
+  READY_WHEN_LABELS,
+  STATE_LABELS,
+} from '@/lib/waitlist/schema'
 
 const date = (iso: string) =>
   new Date(iso).toLocaleString('en-NG', {
@@ -22,8 +28,8 @@ const date = (iso: string) =>
     timeStyle: 'short',
   })
 
-function stateLabel(s: string | null) {
-  return s ? ((STATE_LABELS as Record<string, string>)[s] ?? s) : '—'
+function stateLabelOf(s: string | null) {
+  return s ? (STATE_LABELS[s] ?? s) : '—'
 }
 
 export function ConsumerTable({ rows }: { rows: ConsumerLead[] }) {
@@ -42,6 +48,7 @@ export function ConsumerTable({ rows }: { rows: ConsumerLead[] }) {
               {[
                 'When',
                 'Name',
+                'Type',
                 'Phone',
                 'State',
                 'Plan',
@@ -78,8 +85,22 @@ export function ConsumerTable({ rows }: { rows: ConsumerLead[] }) {
                     </span>
                   )}
                 </td>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  {r.applicantType ? (
+                    <>
+                      {APPLICANT_TYPE_LABELS[r.applicantType]}
+                      {r.business && (
+                        <span className="text-muted-foreground block text-xs">
+                          {r.business.businessName}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    '—'
+                  )}
+                </td>
                 <td className="px-3 py-2 whitespace-nowrap tabular-nums">{r.phone}</td>
-                <td className="px-3 py-2 whitespace-nowrap">{stateLabel(r.state)}</td>
+                <td className="px-3 py-2 whitespace-nowrap">{stateLabelOf(r.state)}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.plan ? PLAN_LABELS[r.plan] : '—'}
                 </td>
@@ -126,9 +147,13 @@ export function ConsumerTable({ rows }: { rows: ConsumerLead[] }) {
                 <Row k="Email" v={open.email ?? '—'} />
                 <Row
                   k="State / LGA"
-                  v={`${stateLabel(open.state)}${open.lga ? ` · ${open.lga}` : ''}`}
+                  v={`${stateLabelOf(open.state)}${open.lga ? ` · ${open.lga}` : ''}`}
                 />
                 <Row k="Consent" v={open.consentAt ? date(open.consentAt) : 'Not given'} />
+                <Row
+                  k="Solar for"
+                  v={open.applicantType ? APPLICANT_TYPE_LABELS[open.applicantType] : '—'}
+                />
                 <Row k="Plan" v={open.plan ? PLAN_LABELS[open.plan] : '—'} />
                 <Row
                   k="Deposit"
@@ -148,13 +173,42 @@ export function ConsumerTable({ rows }: { rows: ConsumerLead[] }) {
                   k="Entered by"
                   v={
                     open.enteredByName
-                      ? `${open.enteredByName}${open.entryChannel ? ` · ${(ENTRY_CHANNEL_LABELS as Record<string, string>)[open.entryChannel] ?? open.entryChannel}` : ''}`
+                      ? `${open.enteredByName}${
+                          open.entryChannel
+                            ? ` · ${(ENTRY_CHANNEL_LABELS as Record<string, string>)[open.entryChannel] ?? open.entryChannel}`
+                            : ''
+                        }`
                       : 'Customer (self)'
                   }
                 />
                 {open.duplicateOf && <Row k="Duplicate of" v={open.duplicateOf} />}
                 {open.sample && <Row k="Prices" v="SAMPLE" />}
               </dl>
+
+              {open.business && (
+                <div className="mt-6 px-4">
+                  <p className="text-brand-dark text-sm font-semibold">Business</p>
+                  <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <Row k="Name" v={open.business.businessName} />
+                    <Row k="Type" v={BUSINESS_TYPE_LABELS[open.business.businessType]} />
+                    <Row k="CAC number" v={open.business.cacNumber || '—'} />
+                    <Row k="Contact role" v={open.business.contactRole} />
+                    <Row k="Staff" v={String(open.business.staffCount)} />
+                    <Row
+                      k="Hours"
+                      v={`${open.business.hoursPerDay} h/day · ${open.business.daysPerWeek} days/week`}
+                    />
+                    <Row
+                      k="Generator fuel"
+                      v={`${formatNaira(open.business.generatorSpendMonthly)} / month`}
+                    />
+                    <Row
+                      k="Electricity bills"
+                      v={`${formatNaira(open.business.electricitySpendMonthly)} / month`}
+                    />
+                  </dl>
+                </div>
+              )}
 
               <div className="mt-6 px-4">
                 <p className="text-brand-dark text-sm font-semibold">
