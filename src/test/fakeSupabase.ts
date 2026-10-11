@@ -132,8 +132,20 @@ export function fakeSupabase(unique: Record<string, string[][]> = {}) {
     return q
   }
 
+  /** Database functions (supabase.rpc): register a stand-in per name. */
+  const functions = new Map<string, (args: Record<string, unknown>) => unknown>()
+  async function rpc(name: string, args: Record<string, unknown> = {}) {
+    const fn = functions.get(name)
+    if (!fn)
+      return { data: null, error: { code: '42883', message: `function ${name} does not exist` } }
+    return { data: fn(args), error: null }
+  }
+
   return {
-    client: { from },
+    client: { from, rpc },
+    defineFunction(name: string, fn: (args: Record<string, unknown>) => unknown) {
+      functions.set(name, fn)
+    },
     rows,
     seed(t: string, ...list: Row[]) {
       for (const r of list)

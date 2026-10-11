@@ -288,6 +288,7 @@ async function submitAfterDeposit(payment: Payment) {
     .from('applications')
     .update({
       status: 'submitted',
+      submitted_at: new Date().toISOString(),
       credit_flags: { ...((app.credit_flags ?? {}) as object), noAutoPay: !mandate } as Json,
     })
     .eq('id', app.id)

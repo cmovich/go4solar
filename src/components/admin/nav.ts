@@ -41,7 +41,12 @@ export const NAV: readonly NavItem[] = [
     icon: ClipboardList,
     roles: ['super_admin', 'credit_officer'],
   },
-  { href: '/admin/jobs', label: 'Jobs', icon: Hammer, roles: ['super_admin', 'operations'] },
+  {
+    href: '/admin/jobs',
+    label: 'Jobs',
+    icon: Hammer,
+    roles: ['super_admin', 'operations', 'finance'],
+  },
   { href: '/admin/pricing', label: 'Pricing', icon: Tags, roles: ['super_admin'] },
   { href: '/admin/funders', label: 'Funders', icon: Wallet, roles: ['super_admin', 'finance'] },
   {

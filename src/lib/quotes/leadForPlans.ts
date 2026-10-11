@@ -44,14 +44,23 @@ export async function loadLeadForPlans(id: string): Promise<LeadForPlans | null>
   if (!z.uuid().safeParse(id).success) return null
   const hash = await currentVisitorHash()
   if (!hash) return null
+  return loadLead(id, hash)
+}
 
+/**
+ * Staff only (assisted entry): the same lead and prices without the visitor cookie. Callers must
+ * have checked the assisted_entry permission.
+ */
+export async function loadLeadForStaff(id: string): Promise<LeadForPlans | null> {
+  if (!z.uuid().safeParse(id).success) return null
+  return loadLead(id, null)
+}
+
+async function loadLead(id: string, visitorHash: string | null): Promise<LeadForPlans | null> {
   const admin = createAdminClient()
-  const { data: lead } = await admin
-    .from('waitlist_consumers')
-    .select('*')
-    .eq('id', id)
-    .eq('visitor_token_hash', hash)
-    .maybeSingle()
+  let query = admin.from('waitlist_consumers').select('*').eq('id', id)
+  if (visitorHash) query = query.eq('visitor_token_hash', visitorHash)
+  const { data: lead } = await query.maybeSingle()
   if (!lead || !lead.estimate || !lead.first_name || !lead.state || !isNgStateId(lead.state)) {
     return null
   }

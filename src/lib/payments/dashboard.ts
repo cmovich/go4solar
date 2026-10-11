@@ -31,6 +31,14 @@ export type DashboardData = {
   /** Auto-pay: on (active mandate), pending, off (skipped / failed / not set up). */
   autoPay: { state: 'on' | 'pending' | 'off'; bank: string | null; last4: string | null }
   loan: { status: Database['public']['Enums']['loan_status']; balance: number } | null
+  /** What the credit officer asked the customer to fix (status more_info). */
+  moreInfo: string | null
+  job: {
+    installer: string
+    installerPhone: string
+    date: string | null
+    status: Database['public']['Enums']['job_status']
+  } | null
   schedule: {
     n: number
     dueDate: string
@@ -99,6 +107,13 @@ export async function loadDashboard(userId: string): Promise<DashboardData | nul
       .maybeSingle(),
   ])
   const loan = loanRes.data
+  const { data: job } = loan
+    ? await admin
+        .from('jobs')
+        .select('installer_name, installer_phone, scheduled_date, status')
+        .eq('loan_id', loan.id)
+        .maybeSingle()
+    : { data: null }
   const { data: schedule } = loan
     ? await admin
         .from('repayment_schedule')
@@ -142,7 +157,7 @@ export async function loadDashboard(userId: string): Promise<DashboardData | nul
       guarantorSigned: guarantee.data?.status === 'signed',
       depositPaid,
       applicationStatus: app.status,
-      installed: Boolean(loan?.start_date && loan.status !== 'pending_approval'),
+      installed: loan?.status === 'active' || loan?.status === 'completed',
     }),
     missing,
     depositReady: readiness.ready && Boolean(steps.review),
@@ -158,6 +173,15 @@ export async function loadDashboard(userId: string): Promise<DashboardData | nul
       last4: mandate.data?.account_last4 ?? null,
     },
     loan: loan ? { status: loan.status, balance: Number(loan.balance) } : null,
+    moreInfo: app.status === 'more_info' ? app.more_info_request : null,
+    job: job
+      ? {
+          installer: job.installer_name,
+          installerPhone: job.installer_phone,
+          date: job.scheduled_date,
+          status: job.status,
+        }
+      : null,
     schedule: (schedule ?? []).map((r) => ({
       n: r.n,
       dueDate: r.due_date,

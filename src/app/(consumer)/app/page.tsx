@@ -8,6 +8,7 @@ import { requireUser } from '@/lib/auth/roles'
 import { formatNaira } from '@/lib/money'
 import { loadDashboard } from '@/lib/payments/dashboard'
 
+import { confirmInstallation, sendBackForReview } from './actions'
 import { payNextInstalment, setUpAutoPay } from './pay/actions'
 
 export const metadata: Metadata = { title: 'Your solar plan' }
@@ -19,6 +20,7 @@ const STATUS_LABEL: Record<string, string> = {
   under_review: 'Under review',
   more_info: 'We need a little more information',
   approved: 'Approved',
+  active: 'Your payment plan is active',
   declined: 'Not approved',
 }
 
@@ -34,7 +36,7 @@ const fmtDate = (iso: string) =>
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ payment?: string; autopay?: string }>
+  searchParams: Promise<{ payment?: string; autopay?: string; installed?: string }>
 }) {
   const { user } = await requireUser('/app')
   const d = await loadDashboard(user!.id)
@@ -49,7 +51,7 @@ export default async function DashboardPage({
         <p className="text-brand-green text-sm font-semibold">Reference {d.reference}</p>
         <h1 className="text-brand-dark text-2xl font-bold">Your solar plan</h1>
         <p className="mt-1 text-lg font-semibold" data-testid="application-status">
-          {STATUS_LABEL[d.status] ?? d.status}
+          {d.loan?.status === 'active' ? STATUS_LABEL.active : (STATUS_LABEL[d.status] ?? d.status)}
         </p>
         {(d.status === 'submitted' || d.status === 'under_review') && (
           <p className="text-muted-foreground text-sm">We will reply within 48 hours.</p>
@@ -63,6 +65,65 @@ export default async function DashboardPage({
         >
           Payment received. Thank you!
         </p>
+      )}
+
+      {sp.installed === '1' && (
+        <p
+          className="bg-brand-mist text-brand-green rounded-md px-4 py-2 text-sm font-semibold"
+          role="status"
+        >
+          Thank you for confirming. Your payment plan has started.
+        </p>
+      )}
+
+      {d.moreInfo && (
+        <section
+          className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-5"
+          data-testid="more-info"
+        >
+          <h2 className="font-bold text-amber-900">We need a little more information</h2>
+          <p className="mt-1 text-sm text-amber-900">{d.moreInfo}</p>
+          <p className="mt-1 text-sm text-amber-900">
+            Send it to us on WhatsApp or update your application, then tell us it is done.
+          </p>
+          <div className="mt-3">
+            <ActionButton action={sendBackForReview} variant="outline" testId="send-back">
+              I have done this: please review again
+            </ActionButton>
+          </div>
+        </section>
+      )}
+
+      {d.job && (
+        <section className="border-brand-green rounded-2xl border-2 p-5" data-testid="installation">
+          <h2 className="text-brand-dark text-lg font-bold">Installation</h2>
+          <p className="mt-1 text-sm">
+            {d.job.installer} ({d.job.installerPhone})
+            {d.job.date
+              ? ` will install your system on ${fmtDate(d.job.date)}.`
+              : ' will call you to agree a date.'}
+          </p>
+          {d.job.status === 'installed' && (
+            <div className="mt-3 space-y-2">
+              <p className="text-sm font-semibold">
+                Your system has been installed. Please check that it is working, then confirm. Your
+                monthly payments start one month after you confirm.
+              </p>
+              <ActionButton
+                action={confirmInstallation}
+                className="bg-brand-green hover:bg-brand-dark h-12 w-full font-semibold"
+                testId="confirm-installation"
+              >
+                My system is installed and working
+              </ActionButton>
+            </div>
+          )}
+          {d.job.status === 'commissioned' && (
+            <p className="text-brand-green mt-1 text-sm font-semibold">
+              Installed and confirmed. Thank you!
+            </p>
+          )}
+        </section>
       )}
 
       {/* Timeline */}
@@ -152,10 +213,16 @@ export default async function DashboardPage({
               Paid {formatNaira(paidTotal)} of {formatNaira(d.plan.balance)}
             </p>
           </div>
-          {d.loan?.status === 'pending_approval' && (
-            <p className="text-muted-foreground mt-1 text-sm">
-              Dates are confirmed when your system is installed. Nothing is due before then.
+          {d.loan && d.loan.status !== 'active' && d.loan.status !== 'completed' ? (
+            <p className="mt-1 text-sm font-semibold" data-testid="payments-start">
+              Payments start one month after installation. Nothing is due before then.
             </p>
+          ) : (
+            nextDue && (
+              <p className="mt-1 text-sm font-semibold" data-testid="payments-start">
+                Next payment due {fmtDate(nextDue.dueDate)}.
+              </p>
+            )
           )}
           <table className="mt-3 w-full text-sm">
             <thead>

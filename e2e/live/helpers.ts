@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
 import { expect, type Page } from '@playwright/test'
 
+import { totp } from '../helpers/totp'
+
 config({ path: '.env.local', quiet: true })
 export const hasDb = Boolean(
   process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -130,4 +132,53 @@ export const PDF = {
   name: 'doc.pdf',
   mimeType: 'application/pdf',
   buffer: Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF'),
+}
+
+/** The staff user from global-setup (super admin with an authenticator). */
+export async function loginAsStaff(page: Page) {
+  await page.goto('/login')
+  await page.getByLabel('Email').fill(process.env.E2E_STAFF_EMAIL!)
+  await page.getByLabel('Password').fill(process.env.E2E_STAFF_PASSWORD!)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.waitForURL(/\/admin\/mfa/)
+  await page.getByLabel('6-digit code').fill(totp(process.env.E2E_STAFF_TOTP_SECRET!))
+  await page.getByRole('button', { name: 'Verify' }).click()
+  await page.waitForURL(/\/admin$/)
+}
+
+/** The newest application of the customer with this email. */
+export async function applicationIdFor(email: string): Promise<string> {
+  const { data } = await admin()
+    .from('applications')
+    .select('id, personal')
+    .order('created_at', { ascending: false })
+    .limit(50)
+  const row = (data ?? []).find((a) => (a.personal as { email?: string } | null)?.email === email)
+  if (!row) throw new Error(`no application for ${email}`)
+  return row.id as string
+}
+
+export async function jobIdFor(applicationId: string): Promise<string> {
+  const { data: loan } = await admin()
+    .from('loans')
+    .select('id')
+    .eq('application_id', applicationId)
+    .single()
+  const { data: job } = await admin().from('jobs').select('id').eq('loan_id', loan!.id).single()
+  return job!.id as string
+}
+
+/** Expected first due date after a sign-off today: one month on, Lagos date, month-end safe. */
+export function oneMonthFromTodayLagos(): string {
+  const local = new Date(Date.now() + 60 * 60 * 1000)
+  const y = local.getUTCFullYear()
+  const m = local.getUTCMonth() + 1
+  const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate()
+  const due = new Date(Date.UTC(y, m, Math.min(local.getUTCDate(), last), 12))
+  return due.toLocaleDateString('en-GB', {
+    timeZone: 'Africa/Lagos',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
 }

@@ -177,13 +177,18 @@ export type Database = {
           consumer_id: string
           created_at: string
           credit_flags: Json
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
           employment: Json | null
           entered_by: string | null
+          entry_channel: string | null
           guarantor: Json | null
           id: string
           income_range: string | null
           install_address: Json | null
           map_pin: unknown
+          more_info_request: string | null
           next_of_kin: Json | null
           nin_hash: string | null
           personal: Json
@@ -203,13 +208,18 @@ export type Database = {
           consumer_id: string
           created_at?: string
           credit_flags?: Json
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
           employment?: Json | null
           entered_by?: string | null
+          entry_channel?: string | null
           guarantor?: Json | null
           id?: string
           income_range?: string | null
           install_address?: Json | null
           map_pin?: unknown
+          more_info_request?: string | null
           next_of_kin?: Json | null
           nin_hash?: string | null
           personal?: Json
@@ -229,13 +239,18 @@ export type Database = {
           consumer_id?: string
           created_at?: string
           credit_flags?: Json
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
           employment?: Json | null
           entered_by?: string | null
+          entry_channel?: string | null
           guarantor?: Json | null
           id?: string
           income_range?: string | null
           install_address?: Json | null
           map_pin?: unknown
+          more_info_request?: string | null
           next_of_kin?: Json | null
           nin_hash?: string | null
           personal?: Json
@@ -256,6 +271,13 @@ export type Database = {
           {
             foreignKeyName: 'applications_consumer_id_fkey'
             columns: ['consumer_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'applications_decided_by_fkey'
+            columns: ['decided_by']
             isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']
@@ -481,6 +503,58 @@ export type Database = {
         }
         Relationships: []
       }
+      funder_draws: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string
+          created_by: string | null
+          funder_id: string
+          id: string
+          loan_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          created_at?: string
+          created_by?: string | null
+          funder_id: string
+          id?: string
+          loan_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          created_by?: string | null
+          funder_id?: string
+          id?: string
+          loan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'funder_draws_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'funder_draws_funder_id_fkey'
+            columns: ['funder_id']
+            isOneToOne: false
+            referencedRelation: 'funders'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'funder_draws_loan_id_fkey'
+            columns: ['loan_id']
+            isOneToOne: true
+            referencedRelation: 'loans'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       funders: {
         Row: {
           annual_rate: number
@@ -637,6 +711,100 @@ export type Database = {
         }
         Relationships: []
       }
+      jobs: {
+        Row: {
+          assigned_by: string | null
+          commissioned_at: string | null
+          created_at: string
+          customer_signoff_at: string | null
+          equipment_source: Database['public']['Enums']['equipment_source']
+          id: string
+          installed_at: string | null
+          installer_name: string
+          installer_phone: string
+          loan_id: string
+          notes: string | null
+          payout_confirmed_at: string | null
+          payout_confirmed_by: string | null
+          photos: string[]
+          picked_up_at: string | null
+          pickup_code: string
+          scheduled_date: string | null
+          serials: Json
+          status: Database['public']['Enums']['job_status']
+          updated_at: string
+          vendor_name: string | null
+        }
+        Insert: {
+          assigned_by?: string | null
+          commissioned_at?: string | null
+          created_at?: string
+          customer_signoff_at?: string | null
+          equipment_source: Database['public']['Enums']['equipment_source']
+          id?: string
+          installed_at?: string | null
+          installer_name: string
+          installer_phone: string
+          loan_id: string
+          notes?: string | null
+          payout_confirmed_at?: string | null
+          payout_confirmed_by?: string | null
+          photos?: string[]
+          picked_up_at?: string | null
+          pickup_code: string
+          scheduled_date?: string | null
+          serials?: Json
+          status?: Database['public']['Enums']['job_status']
+          updated_at?: string
+          vendor_name?: string | null
+        }
+        Update: {
+          assigned_by?: string | null
+          commissioned_at?: string | null
+          created_at?: string
+          customer_signoff_at?: string | null
+          equipment_source?: Database['public']['Enums']['equipment_source']
+          id?: string
+          installed_at?: string | null
+          installer_name?: string
+          installer_phone?: string
+          loan_id?: string
+          notes?: string | null
+          payout_confirmed_at?: string | null
+          payout_confirmed_by?: string | null
+          photos?: string[]
+          picked_up_at?: string | null
+          pickup_code?: string
+          scheduled_date?: string | null
+          serials?: Json
+          status?: Database['public']['Enums']['job_status']
+          updated_at?: string
+          vendor_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'jobs_assigned_by_fkey'
+            columns: ['assigned_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'jobs_loan_id_fkey'
+            columns: ['loan_id']
+            isOneToOne: true
+            referencedRelation: 'loans'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'jobs_payout_confirmed_by_fkey'
+            columns: ['payout_confirmed_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       kyc_checks: {
         Row: {
           attempt: number
@@ -679,12 +847,15 @@ export type Database = {
       loans: {
         Row: {
           application_id: string
+          approved_at: string | null
+          approved_by: string | null
           auto_pay: boolean
           balance: number
           consumer_id: string
           cost_price: number
           created_at: string
           deposit: number
+          drawn: number | null
           funder_id: string | null
           id: string
           profit_snapshot: Json | null
@@ -697,12 +868,15 @@ export type Database = {
         }
         Insert: {
           application_id: string
+          approved_at?: string | null
+          approved_by?: string | null
           auto_pay?: boolean
           balance: number
           consumer_id: string
           cost_price: number
           created_at?: string
           deposit: number
+          drawn?: number | null
           funder_id?: string | null
           id?: string
           profit_snapshot?: Json | null
@@ -715,12 +889,15 @@ export type Database = {
         }
         Update: {
           application_id?: string
+          approved_at?: string | null
+          approved_by?: string | null
           auto_pay?: boolean
           balance?: number
           consumer_id?: string
           cost_price?: number
           created_at?: string
           deposit?: number
+          drawn?: number | null
           funder_id?: string | null
           id?: string
           profit_snapshot?: Json | null
@@ -737,6 +914,13 @@ export type Database = {
             columns: ['application_id']
             isOneToOne: true
             referencedRelation: 'applications'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'loans_approved_by_fkey'
+            columns: ['approved_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
             referencedColumns: ['id']
           },
           {
@@ -1578,6 +1762,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      draw_from_funder: {
+        Args: { p_amount: number; p_funder: string }
+        Returns: number
+      }
       has_permission: { Args: { target: string }; Returns: boolean }
       has_role: {
         Args: { target: Database['public']['Enums']['app_role'] }
@@ -1615,14 +1803,17 @@ export type Database = {
         'draft' | 'submitted' | 'under_review' | 'approved' | 'declined' | 'more_info'
       component_category: 'panels' | 'battery' | 'inverter' | 'accessories'
       component_source: 'oem' | 'vendor'
+      equipment_source: 'go4solar_store' | 'vendor'
       funder_kind: 'external' | 'own_fund'
       funder_method: 'flat' | 'reducing'
       funder_status: 'active' | 'paused'
       guarantee_status: 'invited' | 'in_progress' | 'signed' | 'declined' | 'expired'
+      job_status: 'assigned' | 'picked_up' | 'installed' | 'commissioned'
       kyc_kind: 'nin' | 'bvn' | 'liveness' | 'face_match' | 'address' | 'cac'
       kyc_status: 'pending' | 'passed' | 'failed' | 'manual_review'
       kyc_subject: 'consumer' | 'guarantor' | 'installer' | 'vendor' | 'business'
-      loan_status: 'pending_approval' | 'active' | 'completed' | 'defaulted' | 'cancelled'
+      loan_status:
+        'pending_approval' | 'approved' | 'active' | 'completed' | 'defaulted' | 'cancelled'
       mandate_status: 'pending' | 'active' | 'failed' | 'cancelled'
       outbox_channel: 'sms' | 'whatsapp' | 'email'
       payment_kind: 'deposit' | 'instalment' | 'refund'
@@ -1786,14 +1977,23 @@ export const Constants = {
       ],
       component_category: ['panels', 'battery', 'inverter', 'accessories'],
       component_source: ['oem', 'vendor'],
+      equipment_source: ['go4solar_store', 'vendor'],
       funder_kind: ['external', 'own_fund'],
       funder_method: ['flat', 'reducing'],
       funder_status: ['active', 'paused'],
       guarantee_status: ['invited', 'in_progress', 'signed', 'declined', 'expired'],
+      job_status: ['assigned', 'picked_up', 'installed', 'commissioned'],
       kyc_kind: ['nin', 'bvn', 'liveness', 'face_match', 'address', 'cac'],
       kyc_status: ['pending', 'passed', 'failed', 'manual_review'],
       kyc_subject: ['consumer', 'guarantor', 'installer', 'vendor', 'business'],
-      loan_status: ['pending_approval', 'active', 'completed', 'defaulted', 'cancelled'],
+      loan_status: [
+        'pending_approval',
+        'approved',
+        'active',
+        'completed',
+        'defaulted',
+        'cancelled',
+      ],
       mandate_status: ['pending', 'active', 'failed', 'cancelled'],
       outbox_channel: ['sms', 'whatsapp', 'email'],
       payment_kind: ['deposit', 'instalment', 'refund'],

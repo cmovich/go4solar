@@ -3,11 +3,15 @@ import { expect, test, type Page } from '@playwright/test'
 import {
   PDF,
   PNG,
+  applicationIdFor,
   freshNin,
   freshPhone,
   hasDb,
+  jobIdFor,
   latestOutboxText,
+  loginAsStaff,
   newPerson,
+  oneMonthFromTodayLagos,
   throughAccount,
   throughDetails,
 } from './helpers'
@@ -114,6 +118,8 @@ test.describe('live mode: application wizard with mock KYC', () => {
   test('individual: details → NIN → BVN → consent → face → address → income → next of kin → guarantor → review', async ({
     page,
   }) => {
+    // The whole journey: apply, sign, guarantor, deposit, approval, installation, sign-off.
+    test.setTimeout(480_000)
     const p = newPerson('individual')
     await throughDetails(page, p)
     await throughAccount(page, p)
@@ -242,6 +248,59 @@ test.describe('live mode: application wizard with mock KYC', () => {
     // The wizard now sends the customer to the dashboard.
     await page.goto('/app/apply')
     await page.waitForURL(/\/app$/)
+    await expect(page.getByTestId('payments-start')).toContainText(
+      'Payments start one month after installation',
+    )
+
+    // ---- Staff: approve with a funder, assign the installer, record the installation.
+    const appId = await applicationIdFor(p.email)
+    const staffContext = await page.context().browser()!.newContext()
+    const staff = await staffContext.newPage()
+    await loginAsStaff(staff)
+    await staff.goto(`/admin/applications/${appId}`)
+    await expect(staff.getByTestId('approval-blockers')).toHaveCount(0)
+    await expect(staff.getByTestId('funder-options')).toContainText('SPEWA programme funds')
+    await staff.getByRole('button', { name: /^Approve with/ }).click()
+    await expect(staff.getByTestId('admin-status')).toHaveText('approved', { timeout: 30000 })
+    expect(await latestOutboxText('application_approved', p.email)).toMatch(/approved/i)
+
+    await staff.goto('/admin/jobs')
+    const card = staff.getByTestId('awaiting-job').filter({ hasText: `+234${p.phone.slice(1)}` })
+    await card.getByLabel('Installer', { exact: true }).fill('Bayo Installs')
+    await card.getByLabel('Installer phone').fill('08031112222')
+    await card.getByLabel('Installation date').fill('2026-12-20')
+    await card.getByRole('button', { name: 'Assign' }).click()
+    await expect(card).toHaveCount(0, { timeout: 30000 })
+    expect(await latestOutboxText('installer_assigned', p.email)).toMatch(/Bayo Installs/)
+
+    await staff.goto(`/admin/jobs/${await jobIdFor(appId)}`)
+    const code = (await staff.getByTestId('pickup-code').textContent())!.trim()
+    await staff.getByLabel(/Pickup code/).fill(code)
+    await staff.getByRole('button', { name: 'Release' }).click()
+    await expect(staff.getByTestId('job-status')).toHaveText('picked up', { timeout: 30000 })
+    await staff.getByLabel('Panels').fill('PNL-E2E-0001\nPNL-E2E-0002')
+    await staff.getByLabel('Batteries').fill('BAT-E2E-0001')
+    await staff.getByLabel('Inverters').fill('INV-E2E-0001')
+    await staff.getByRole('button', { name: 'Save serial numbers' }).click()
+    await expect(staff.getByText('Serial numbers saved.')).toBeVisible({ timeout: 30000 })
+    await staff.getByLabel('Commissioning photo').setInputFiles({ ...PNG, name: 'installed.png' })
+    await staff.getByRole('button', { name: 'Upload' }).click()
+    await expect(staff.getByText('Photo added.')).toBeVisible({ timeout: 30000 })
+    await staff.getByRole('button', { name: 'Mark installed' }).click()
+    await expect(staff.getByTestId('job-status')).toHaveText('installed', { timeout: 30000 })
+    await staffContext.close()
+
+    // ---- Customer confirms: the plan starts, first payment one month from today.
+    await page.reload()
+    await expect(page.getByTestId('installation')).toContainText('Bayo Installs')
+    await page.getByTestId('confirm-installation').click()
+    await page.waitForURL(/installed=1/, { timeout: 30000 })
+    await expect(page.getByTestId('application-status')).toHaveText('Your payment plan is active')
+    await expect(page.getByTestId('payments-start')).toHaveText(
+      `Next payment due ${oneMonthFromTodayLagos()}.`,
+    )
+    await expect(page.getByTestId('timeline').getByText('Installed')).toBeVisible()
+    await expect(page.getByTestId('pay-now')).toBeVisible()
   })
 
   test('business: CAC (needs certificate + director tick) → owner KYC → business statements → guarantor → review', async ({
