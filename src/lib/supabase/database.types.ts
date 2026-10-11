@@ -173,6 +173,7 @@ export type Database = {
           assigned_funder_id: string | null
           biometric_consent_at: string | null
           business: Json | null
+          bvn_hash: string | null
           consumer_id: string
           created_at: string
           credit_flags: Json
@@ -184,6 +185,7 @@ export type Database = {
           install_address: Json | null
           map_pin: unknown
           next_of_kin: Json | null
+          nin_hash: string | null
           personal: Json
           quote_id: string | null
           status: Database['public']['Enums']['application_status']
@@ -197,6 +199,7 @@ export type Database = {
           assigned_funder_id?: string | null
           biometric_consent_at?: string | null
           business?: Json | null
+          bvn_hash?: string | null
           consumer_id: string
           created_at?: string
           credit_flags?: Json
@@ -208,6 +211,7 @@ export type Database = {
           install_address?: Json | null
           map_pin?: unknown
           next_of_kin?: Json | null
+          nin_hash?: string | null
           personal?: Json
           quote_id?: string | null
           status?: Database['public']['Enums']['application_status']
@@ -221,6 +225,7 @@ export type Database = {
           assigned_funder_id?: string | null
           biometric_consent_at?: string | null
           business?: Json | null
+          bvn_hash?: string | null
           consumer_id?: string
           created_at?: string
           credit_flags?: Json
@@ -232,6 +237,7 @@ export type Database = {
           install_address?: Json | null
           map_pin?: unknown
           next_of_kin?: Json | null
+          nin_hash?: string | null
           personal?: Json
           quote_id?: string | null
           status?: Database['public']['Enums']['application_status']

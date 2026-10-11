@@ -75,7 +75,16 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pageNoText: { fontSize: 9, fontWeight: 700, color: DARK },
+  pageNoText: {
+    position: 'absolute',
+    top: 5,
+    left: 0,
+    width: 22,
+    textAlign: 'center',
+    fontSize: 9,
+    fontWeight: 700,
+    color: DARK,
+  },
   footNote: { fontSize: 7.5, color: MUTED },
   logo: { width: 74 },
   h1: { fontSize: 14, fontWeight: 700, color: DARK, marginBottom: 6 },
@@ -124,7 +133,11 @@ function Footer({ note }: { note: string }) {
   return (
     <View style={s.footer} fixed>
       <View style={s.pageNo}>
-        <Text style={s.pageNoText} render={({ pageNumber }) => String(pageNumber)} />
+        <Text
+          style={s.pageNoText}
+          fixed
+          render={({ pageNumber }) => String(pageNumber).padStart(2, '0')}
+        />
       </View>
       <Text style={s.footNote}>{note}</Text>
       {/* react-pdf Image, not an HTML img: no alt attribute exists */}

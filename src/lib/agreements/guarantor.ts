@@ -61,7 +61,6 @@ export type GuaranteeContext = {
   applicantPhone: string | null
   applicantEmail: string | null
   applicantNinHash: string | null
-  applicantNinLast4: string | null
   consumerId: string
   reference: string
   quote: QuoteResult
@@ -76,7 +75,9 @@ export async function guaranteeContext(row: GuaranteeRow): Promise<GuaranteeCont
   const admin = createAdminClient()
   const { data: app } = await admin
     .from('applications')
-    .select('id, consumer_id, quote_id, applicant_type, personal, business, install_address')
+    .select(
+      'id, consumer_id, quote_id, applicant_type, personal, business, install_address, nin_hash',
+    )
     .eq('id', row.application_id)
     .single()
   if (!app?.quote_id) return null
@@ -123,8 +124,7 @@ export async function guaranteeContext(row: GuaranteeRow): Promise<GuaranteeCont
     applicantName: customerName,
     applicantPhone: personal.phone ?? null,
     applicantEmail: personal.email ?? null,
-    applicantNinHash: personal.ninHash ?? null,
-    applicantNinLast4: personal.ninLast4 ?? null,
+    applicantNinHash: app.nin_hash,
     consumerId: app.consumer_id,
     reference,
     quote: result,

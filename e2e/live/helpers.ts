@@ -45,11 +45,16 @@ export async function latestOtpFor(e164: string): Promise<string> {
   return m[1]
 }
 
-export type Person = { phone: string; email: string; type: 'individual' | 'business' }
+/** A NIN the mock KYC accepts (11 digits starting with 1), new for every run: one active application per NIN. */
+export function freshNin(): string {
+  return `1${String(Math.floor(Math.random() * 1e10)).padStart(10, '0')}`
+}
+
+export type Person = { phone: string; email: string; nin: string; type: 'individual' | 'business' }
 
 export function newPerson(type: Person['type'] = 'individual'): Person {
   const phone = freshPhone()
-  return { phone, email: `e2e-live-${type}-${phone}@go4solar.test`, type }
+  return { phone, email: `e2e-live-${type}-${phone}@go4solar.test`, nin: freshNin(), type }
 }
 
 /** Calculator → details flow → energy → lands on /plans. */

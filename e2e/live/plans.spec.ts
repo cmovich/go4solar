@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test'
 
-import { hasDb, latestOtpFor, throughDetails as details } from './helpers'
+import { freshNin, hasDb, latestOtpFor, throughDetails as details } from './helpers'
 
 const freshPhone = () => `080${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`
 const throughDetails = (page: Parameters<typeof details>[0], phone: string, email: string) =>
-  details(page, { phone, email, type: 'individual' })
+  details(page, { phone, email, nin: freshNin(), type: 'individual' })
 
 test.describe('live mode: plans → account → phone code → application', () => {
   test.skip(!hasDb, 'needs Supabase env')

@@ -25,9 +25,9 @@ import {
   type Personal,
 } from '@/lib/applications/server'
 import { inviteGuarantor, type GuarantorContact } from '@/lib/agreements/server'
-import { ninIdentityHash } from '@/lib/agreements/tokens'
 import { siteOrigin } from '@/lib/auth/emailVerification'
 import { getSessionInfo } from '@/lib/auth/session'
+import { idHash } from '@/lib/ids/idHash'
 import { formatNaira, normalisePhoneNG } from '@/lib/money'
 import { isNgStateId } from '@/lib/nigeria/states'
 import type { QuoteResult } from '@/lib/pricing/types'
@@ -86,7 +86,8 @@ async function update(
     ? { ...patch, steps: { ...((prev ?? {}) as object), ...steps } as Json }
     : patch
   const { error } = await createAdminClient().from('applications').update(body).eq('id', id)
-  if (error) throw new Error(error.message)
+  // Keep the Postgres code (e.g. 23505 unique violation) so callers can react to it.
+  if (error) throw Object.assign(new Error(error.message), { code: error.code })
   revalidatePath('/app/apply')
 }
 
@@ -293,6 +294,8 @@ export async function verifyNin(input: unknown): Promise<Result<{ status: string
   if (!(await documentKinds(o.app.id)).includes('nin_front')) {
     return { ok: false, error: 'Upload a photo of the front of your NIN slip or card first.' }
   }
+  const ninHash = idHash('nin', p.data.nin)
+  if (await ninInAnotherActiveApplication(ninHash, o.app.id)) return DUPLICATE_NIN
   const checks = await checkSummaries(o.app.id)
   const decision = nextAttempt(checks, 'nin')
   if (!decision.allowed) {
@@ -324,18 +327,18 @@ export async function verifyNin(input: unknown): Promise<Result<{ status: string
     },
   )
   if (status === 'failed') return { ok: false, error: attemptsMessage(decision.attempt) }
-  await update(
-    o.app.id,
-    {
-      personal: {
-        ...personal,
-        ninLast4: p.data.nin.slice(-4),
-        ninHash: identityHash(p.data.nin),
-      } as Json,
-    },
-    { nin: true },
-    o.app.steps,
-  )
+  try {
+    await update(
+      o.app.id,
+      { nin_hash: ninHash, personal: { ...personal, ninLast4: p.data.nin.slice(-4) } as Json },
+      { nin: true },
+      o.app.steps,
+    )
+  } catch (e) {
+    // The unique index (one active application per NIN) also catches a race between two sessions.
+    if (isUniqueViolation(e)) return DUPLICATE_NIN
+    throw e
+  }
   return { ok: true, status }
 }
 
@@ -382,7 +385,10 @@ export async function verifyBvn(input: unknown): Promise<Result<{ status: string
   if (status === 'failed') return { ok: false, error: attemptsMessage(decision.attempt) }
   await update(
     o.app.id,
-    { personal: { ...personal, bvnLast4: p.data.bvn.slice(-4) } as Json },
+    {
+      bvn_hash: idHash('bvn', p.data.bvn),
+      personal: { ...personal, bvnLast4: p.data.bvn.slice(-4) } as Json,
+    },
     { bvn: true },
     o.app.steps,
   )
@@ -688,11 +694,25 @@ async function inviteGuarantorOnce(app: ApplicationRow) {
   })
 }
 
-/** Keyed NIN hash for the guarantor ≠ applicant check; null if the secret is not configured. */
-function identityHash(nin: string): string | null {
-  try {
-    return ninIdentityHash(nin)
-  } catch {
-    return null
-  }
+const DUPLICATE_NIN = {
+  ok: false as const,
+  error:
+    'There is already an application with this NIN. If it is yours, please contact Go4Solar on WhatsApp.',
+}
+
+/** Another application (not declined) already holds this keyed NIN hash. */
+async function ninInAnotherActiveApplication(ninHash: string, applicationId: string) {
+  const { count } = await createAdminClient()
+    .from('applications')
+    .select('id', { count: 'exact', head: true })
+    .eq('nin_hash', ninHash)
+    .neq('id', applicationId)
+    .neq('status', 'declined')
+  return (count ?? 0) > 0
+}
+
+function isUniqueViolation(e: unknown): boolean {
+  return (
+    typeof e === 'object' && e !== null && 'code' in e && (e as { code: unknown }).code === '23505'
+  )
 }

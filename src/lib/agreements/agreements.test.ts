@@ -77,9 +77,7 @@ describe('guarantorEligibility', () => {
   const base = {
     dob: '1990-01-01',
     ninHash: 'g-hash',
-    ninLast4: '9876',
     applicantNinHash: 'a-hash',
-    applicantNinLast4: '1111',
     activeGuarantees: 0,
     maxActive: 2,
     now,
@@ -93,17 +91,12 @@ describe('guarantorEligibility', () => {
     expect(guarantorEligibility({ ...base, dob: '2010-01-01' })).toBe('under_18')
   })
 
-  it('rejects the applicant guaranteeing themselves (same NIN)', () => {
+  it('rejects the applicant guaranteeing themselves (same keyed NIN hash)', () => {
     expect(guarantorEligibility({ ...base, ninHash: 'a-hash' })).toBe('same_as_applicant')
-    // Older applications only kept the last 4 digits: same last 4 is treated as the same person.
-    expect(
-      guarantorEligibility({
-        ...base,
-        applicantNinHash: null,
-        ninLast4: '1111',
-        applicantNinLast4: '1111',
-      }),
-    ).toBe('same_as_applicant')
+  })
+
+  it('never compares last 4 digits: without the applicant hash it waits instead of guessing', () => {
+    expect(guarantorEligibility({ ...base, applicantNinHash: null })).toBe('applicant_not_ready')
   })
 
   it('enforces the maximum number of active guarantees per person', () => {

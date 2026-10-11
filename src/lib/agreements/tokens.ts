@@ -28,14 +28,6 @@ export function newGuaranteeToken(secret = process.env.GUARANTOR_TOKEN_SECRET): 
   return { token, hash: hashGuaranteeToken(token, requireSecret(secret)) }
 }
 
-/**
- * Keyed hash of a NIN, used only to compare identities (guarantor ≠ applicant, max active
- * guarantees) without storing the number. Same secret, different purpose prefix.
- */
-export function ninIdentityHash(nin: string, secret = process.env.GUARANTOR_TOKEN_SECRET): string {
-  return createHmac('sha256', requireSecret(secret)).update(`nin:${nin}`).digest('hex')
-}
-
 export type GuaranteeCheck = 'ok' | 'not_found' | 'expired' | 'signed' | 'declined'
 
 export function checkGuaranteeToken(

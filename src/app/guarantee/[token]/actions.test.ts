@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ninIdentityHash } from '@/lib/agreements/tokens'
+import { idHash } from '@/lib/ids/idHash'
 
-const SECRET = 'test-secret-0123456789'
-process.env.GUARANTOR_TOKEN_SECRET = SECRET
+const ID_SECRET = 'id-hash-test-secret-0123456789abcdef'
+process.env.ID_HASH_SECRET = ID_SECRET
 
 vi.mock('next/headers', () => ({
   headers: async () => new Headers({ 'x-forwarded-for': '1.2.3.4' }),
@@ -28,8 +28,7 @@ const APPLICANT_NIN = '11111111111'
 vi.mock('@/lib/agreements/guarantor', () => ({
   openGuarantee: async () => ({ check, row }),
   guaranteeContext: async () => ({
-    applicantNinHash: ninIdentityHash(APPLICANT_NIN, SECRET),
-    applicantNinLast4: '1111',
+    applicantNinHash: idHash('nin', APPLICANT_NIN, ID_SECRET),
     applicantName: 'Ada Obi',
   }),
   activeGuaranteesFor: async () => active,
@@ -97,6 +96,7 @@ describe('guarantor NIN step', () => {
     expect(r).toEqual({ ok: true, status: 'passed' })
     const saved = JSON.stringify(updates)
     expect(saved).toContain('"nin_last4":"8901"')
+    expect(saved).toContain(`"nin_hash":"${idHash('nin', adult.nin, ID_SECRET)}"`)
     expect(saved).not.toContain(adult.nin)
   })
 })

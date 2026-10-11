@@ -20,7 +20,6 @@ import {
   signaturePngFromDataUrl,
   verifySignatureCode,
 } from '@/lib/agreements/server'
-import { ninIdentityHash } from '@/lib/agreements/tokens'
 import {
   INCOME_RANGES,
   canStartLiveness,
@@ -30,6 +29,7 @@ import {
 } from '@/lib/applications/rules'
 import { checkSummaries } from '@/lib/applications/server'
 import { siteOrigin } from '@/lib/auth/emailVerification'
+import { idHash } from '@/lib/ids/idHash'
 import { isNgStateId } from '@/lib/nigeria/states'
 import { getKycProvider } from '@/lib/providers/kyc'
 import { getMessagingProvider } from '@/lib/providers/messaging'
@@ -133,14 +133,12 @@ export async function verifyGuarantorNin(
   if (!ctx) return { ok: false, error: LINK_PROBLEM.not_found! }
 
   // Free rules first (no paid lookup): adult, not the applicant, under the per-person limit.
-  const ninHash = ninIdentityHash(p.data.nin)
+  const ninHash = idHash('nin', p.data.nin)
   const ninLast4 = p.data.nin.slice(-4)
   const eligibility = guarantorEligibility({
     dob: p.data.dob,
     ninHash,
-    ninLast4,
     applicantNinHash: ctx.applicantNinHash,
-    applicantNinLast4: ctx.applicantNinLast4,
     activeGuarantees: await activeGuaranteesFor(ninHash, u.row.id),
     maxActive: await maxActiveGuarantees(),
   })

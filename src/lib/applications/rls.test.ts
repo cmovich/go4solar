@@ -58,14 +58,12 @@ describe.skipIf(!hasDb)('RLS: one consumer cannot read another’s application d
         contentType: 'application/pdf',
       })
     if (up.error) throw up.error
-    await admin
-      .from('documents')
-      .insert({
-        owner_id: ids.a,
-        application_id: app.id,
-        kind: 'nin_front',
-        storage_path: ids.path,
-      })
+    await admin.from('documents').insert({
+      owner_id: ids.a,
+      application_id: app.id,
+      kind: 'nin_front',
+      storage_path: ids.path,
+    })
     await admin.from('kyc_checks').insert({
       subject_type: 'consumer',
       subject_id: app.id,

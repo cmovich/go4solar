@@ -1,9 +1,12 @@
-export type Eligibility = 'ok' | 'under_18' | 'same_as_applicant' | 'too_many'
+export type Eligibility =
+  'ok' | 'under_18' | 'same_as_applicant' | 'too_many' | 'applicant_not_ready'
 
 export const ELIGIBILITY_MESSAGES: Record<Exclude<Eligibility, 'ok'>, string> = {
   under_18: 'A guarantor must be 18 or older.',
   same_as_applicant: 'The applicant cannot be their own guarantor.',
   too_many: 'You are already guaranteeing the maximum number of payment plans.',
+  applicant_not_ready:
+    "The customer's ID check is not finished yet. Please try again later or contact Go4Solar.",
 }
 
 function ageOn(dob: string, now: Date): number {
@@ -17,19 +20,16 @@ function ageOn(dob: string, now: Date): number {
 /** Who may guarantee: an adult, not the applicant, under the per-person limit. */
 export function guarantorEligibility(input: {
   dob: string
+  /** Keyed hashes (idHash) of the full NINs — never the last 4 digits. */
   ninHash: string
-  ninLast4: string
   applicantNinHash: string | null
-  applicantNinLast4: string | null
   activeGuarantees: number
   maxActive: number
   now?: Date
 }): Eligibility {
   if (ageOn(input.dob, input.now ?? new Date()) < 18) return 'under_18'
-  const same = input.applicantNinHash
-    ? input.applicantNinHash === input.ninHash
-    : input.applicantNinLast4 !== null && input.applicantNinLast4 === input.ninLast4
-  if (same) return 'same_as_applicant'
+  if (!input.applicantNinHash) return 'applicant_not_ready'
+  if (input.applicantNinHash === input.ninHash) return 'same_as_applicant'
   if (input.activeGuarantees >= input.maxActive) return 'too_many'
   return 'ok'
 }

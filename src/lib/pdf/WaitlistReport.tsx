@@ -87,7 +87,16 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pageNoText: { fontSize: 9, fontWeight: 700, color: DARK },
+  pageNoText: {
+    position: 'absolute',
+    top: 5,
+    left: 0,
+    width: 22,
+    textAlign: 'center',
+    fontSize: 9,
+    fontWeight: 700,
+    color: DARK,
+  },
   confidential: { fontSize: 8, color: MUTED, letterSpacing: 1 },
   logo: { width: 78 },
   h2: { fontSize: 13, fontWeight: 700, color: DARK, marginBottom: 8 },
@@ -148,7 +157,11 @@ function Footer() {
   return (
     <View style={s.footer} fixed>
       <View style={s.pageNo}>
-        <Text style={s.pageNoText} render={({ pageNumber }) => String(pageNumber)} />
+        <Text
+          style={s.pageNoText}
+          fixed
+          render={({ pageNumber }) => String(pageNumber).padStart(2, '0')}
+        />
       </View>
       <Text style={s.confidential}>CONFIDENTIAL · Go4Solar Energy Limited</Text>
       {/* react-pdf Image, not an HTML img: no alt attribute exists */}

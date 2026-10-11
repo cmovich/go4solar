@@ -6,9 +6,13 @@ import { defineConfig, devices } from '@playwright/test'
  * on prelaunch and the prelaunch suite keeps its own build.
  */
 const port = 3100
-// A test-only secret for guarantor links (the real one lives in .env.local / Vercel).
-const env =
-  'NEXT_DIST_DIR=.next-live NEXT_PUBLIC_LAUNCH_MODE=live GUARANTOR_TOKEN_SECRET=e2e-live-guarantor-secret-0123456789'
+// Test-only secrets for guarantor links and ID hashes (the real ones live in .env.local / Vercel).
+const env = [
+  'NEXT_DIST_DIR=.next-live',
+  'NEXT_PUBLIC_LAUNCH_MODE=live',
+  'GUARANTOR_TOKEN_SECRET=e2e-live-guarantor-secret-0123456789',
+  'ID_HASH_SECRET=e2e-live-id-hash-secret-0123456789abcdef',
+].join(' ')
 
 export default defineConfig({
   testDir: './e2e/live',

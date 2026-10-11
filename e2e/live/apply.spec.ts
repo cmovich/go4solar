@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import {
   PDF,
   PNG,
+  freshNin,
   freshPhone,
   hasDb,
   latestOutboxText,
@@ -21,14 +22,14 @@ async function step(page: Page, id: string) {
 }
 
 /** NIN → BVN → consent → face → address (shared by both pathways). */
-async function identityAndAddress(page: Page) {
+async function identityAndAddress(page: Page, nin: string) {
   await step(page, 'nin')
   await upload(page, 'Front of your NIN slip or card', PNG, 'nin_front')
   // A failing NIN first: the attempt is counted and the applicant can try again.
   await page.getByLabel('NIN (11 digits)').fill('00000000000')
   await page.getByRole('button', { name: 'Verify my NIN' }).click()
   await expect(page.getByText(/2 attempts left/)).toBeVisible({ timeout: 20000 })
-  await page.getByLabel('NIN (11 digits)').fill('11111111111')
+  await page.getByLabel('NIN (11 digits)').fill(nin)
   await page.getByRole('button', { name: 'Verify my NIN' }).click()
 
   await step(page, 'bvn')
@@ -88,7 +89,7 @@ async function readTickDrawAndSign(page: Page, phone: string) {
   await page.getByRole('button', { name: 'Sign the agreement' }).click()
 }
 
-async function guarantorAndReview(page: Page, g: Guarantor = newGuarantor()) {
+async function guarantorAndReview(page: Page, nin: string, g: Guarantor = newGuarantor()) {
   await step(page, 'guarantor')
   await page.getByLabel('Full name').fill('Ngozi Eze')
   await page.getByLabel('Phone').fill(g.phone)
@@ -97,10 +98,10 @@ async function guarantorAndReview(page: Page, g: Guarantor = newGuarantor()) {
   await page.getByRole('button', { name: 'Save' }).click()
 
   await step(page, 'review')
-  await expect(page.getByText('•••••••1111')).toBeVisible()
+  await expect(page.getByText(`•••••••${nin.slice(-4)}`)).toBeVisible()
   await expect(page.getByText('•••••••2222')).toBeVisible()
   // The raw numbers are never shown.
-  await expect(page.getByText('11111111111')).toHaveCount(0)
+  await expect(page.getByText(nin)).toHaveCount(0)
   await page.getByRole('button', { name: 'Confirm my application' }).click()
   await expect(page.getByTestId('next-sign')).toContainText('Next: sign your agreement', {
     timeout: 20000,
@@ -134,7 +135,7 @@ test.describe('live mode: application wizard with mock KYC', () => {
     await page.getByLabel('Date of birth').fill('1990-05-14')
     await page.getByRole('button', { name: 'These are correct' }).click()
 
-    await identityAndAddress(page)
+    await identityAndAddress(page, p.nin)
 
     await step(page, 'income')
     await page.getByLabel('How do you earn your income?').selectOption('employed')
@@ -148,7 +149,7 @@ test.describe('live mode: application wizard with mock KYC', () => {
     await page.getByRole('button', { name: 'Save' }).click()
 
     const g = newGuarantor()
-    await guarantorAndReview(page, g)
+    await guarantorAndReview(page, p.nin, g)
 
     // ---- Terms: summary from the stored quote, full agreement, ticks, signature, phone code.
     await page.getByRole('link', { name: 'Read and sign' }).click()
@@ -176,14 +177,12 @@ test.describe('live mode: application wizard with mock KYC', () => {
     await gp.getByLabel('First name (as on your NIN)').fill('Ngozi')
     await gp.getByLabel('Surname').fill('Eze')
     await gp.getByLabel('Date of birth').fill('1988-03-02')
-    await gp.getByLabel('NIN (11 digits)').fill('11111111111')
+    await gp.getByLabel('NIN (11 digits)').fill(p.nin)
     await gp.getByRole('button', { name: 'Check my NIN' }).click()
     await expect(gp.getByText('The applicant cannot be their own guarantor.')).toBeVisible({
       timeout: 20000,
     })
-    await gp
-      .getByLabel('NIN (11 digits)')
-      .fill(`1${String(Math.floor(Math.random() * 1e10)).padStart(10, '0')}`)
+    await gp.getByLabel('NIN (11 digits)').fill(freshNin())
     await gp.getByRole('button', { name: 'Check my NIN' }).click()
 
     await gp.getByRole('checkbox').check({ timeout: 20000 })
@@ -234,7 +233,7 @@ test.describe('live mode: application wizard with mock KYC', () => {
     await upload(page, 'CAC certificate', PDF, 'cac_certificate')
     await page.getByRole('button', { name: 'Verify my business' }).click()
 
-    await identityAndAddress(page)
+    await identityAndAddress(page, p.nin)
 
     await step(page, 'income')
     await page.getByLabel('Typical monthly income of the business').selectOption('1m_3m')
@@ -245,7 +244,7 @@ test.describe('live mode: application wizard with mock KYC', () => {
     await upload(page, 'Business bank statements (last 6 months, PDF)', PDF, 'business_statement')
     await page.getByRole('button', { name: 'Save' }).click()
 
-    await guarantorAndReview(page)
+    await guarantorAndReview(page, p.nin)
     await expect(page.getByText(/CAC RC123456/)).toBeVisible()
   })
 })
