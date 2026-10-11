@@ -164,6 +164,12 @@ test.describe('live mode: application wizard with mock KYC', () => {
     )
     expect(await latestOutboxText('agreement_signed', p.email)).toMatch(/fingerprint/i)
 
+    // ---- The deposit stays locked until the guarantor has signed.
+    await page.getByTestId('next-deposit').click()
+    await page.waitForURL(/\/app\/apply\/pay/)
+    await expect(page.getByTestId('deposit-locked')).toContainText('Your guarantor needs to sign')
+    await expect(page.getByTestId('pay-deposit')).toHaveCount(0)
+
     // ---- Guarantor opens the link from the outbox (no account).
     const invite = await latestOutboxText('guarantor_invite', g.email)
     const inviteLink = /(https?:\/\/\S+\/guarantee\/[A-Za-z0-9_-]+)/.exec(invite)?.[1]
@@ -205,9 +211,37 @@ test.describe('live mode: application wizard with mock KYC', () => {
     await expect(gp.getByTestId('guarantee-problem')).toContainText('You have already signed')
     await gp.close()
 
-    // The customer sees it.
+    // ---- Now the deposit unlocks: pay it on the (mock) checkout, then set up auto-pay.
     await page.reload()
-    await expect(page.getByTestId('guarantor-status')).toContainText('They have signed')
+    await expect(page.getByTestId('deposit-locked')).toHaveCount(0)
+    await expect(page.getByTestId('deposit-summary')).toContainText('Total amount payable')
+    await page.getByTestId('pay-deposit').click()
+    await expect(page.getByTestId('mock-provider')).toBeVisible({ timeout: 30000 })
+    await page.getByRole('button', { name: /^Pay ₦/ }).click()
+    await expect(page.getByTestId('autopay-step')).toContainText('Deposit received', {
+      timeout: 30000,
+    })
+    expect(await latestOutboxText('deposit_received', p.email)).toMatch(/under review/i)
+
+    await page.getByTestId('setup-autopay').click()
+    await expect(
+      page.getByRole('heading', { name: 'Approve auto-pay (direct debit)' }),
+    ).toBeVisible({
+      timeout: 30000,
+    })
+    await page.getByRole('button', { name: 'Approve auto-pay' }).click()
+
+    // ---- Dashboard: under review, schedule, auto-pay on, signed agreement.
+    await page.waitForURL(/\/app\?autopay=/, { timeout: 30000 })
+    await expect(page.getByTestId('application-status')).toHaveText('Under review')
+    await expect(page.getByTestId('timeline')).toContainText('Deposit paid')
+    await expect(page.getByTestId('autopay-status')).toContainText('Auto-pay is on')
+    await expect(page.getByTestId('schedule').locator('tbody tr')).not.toHaveCount(0)
+    await expect(page.getByTestId('documents')).toContainText('signed payment plan agreement')
+    await expect(page.getByTestId('still-missing')).toHaveCount(0)
+    // The wizard now sends the customer to the dashboard.
+    await page.goto('/app/apply')
+    await page.waitForURL(/\/app$/)
   })
 
   test('business: CAC (needs certificate + director tick) → owner KYC → business statements → guarantor → review', async ({

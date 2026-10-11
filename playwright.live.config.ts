@@ -10,6 +10,8 @@ const port = 3100
 const env = [
   'NEXT_DIST_DIR=.next-live',
   'NEXT_PUBLIC_LAUNCH_MODE=live',
+  // The live suite always uses the mock payment provider, even if .env.local points at Paystack.
+  'PAYMENTS_PROVIDER=mock',
   'GUARANTOR_TOKEN_SECRET=e2e-live-guarantor-secret-0123456789',
   'ID_HASH_SECRET=e2e-live-id-hash-secret-0123456789abcdef',
 ].join(' ')

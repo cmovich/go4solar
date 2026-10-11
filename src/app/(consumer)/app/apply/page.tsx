@@ -17,6 +17,8 @@ export default async function ApplyPage({
   const { user } = await requireUser('/app/apply')
   const app = await ensureApplication(user!.id)
   if (!app) redirect('/get-started')
+  // Submitted (deposit paid) or decided: the dashboard shows where things stand.
+  if (app.status !== 'draft') redirect('/app')
   const state = await wizardState(app)
   const sp = await searchParams
   return (

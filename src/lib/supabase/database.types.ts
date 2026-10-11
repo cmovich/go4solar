@@ -676,6 +676,152 @@ export type Database = {
         }
         Relationships: []
       }
+      loans: {
+        Row: {
+          application_id: string
+          auto_pay: boolean
+          balance: number
+          consumer_id: string
+          cost_price: number
+          created_at: string
+          deposit: number
+          funder_id: string | null
+          id: string
+          profit_snapshot: Json | null
+          quote_id: string | null
+          start_date: string | null
+          status: Database['public']['Enums']['loan_status']
+          system_price: number
+          tenure: number
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          auto_pay?: boolean
+          balance: number
+          consumer_id: string
+          cost_price: number
+          created_at?: string
+          deposit: number
+          funder_id?: string | null
+          id?: string
+          profit_snapshot?: Json | null
+          quote_id?: string | null
+          start_date?: string | null
+          status?: Database['public']['Enums']['loan_status']
+          system_price: number
+          tenure: number
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          auto_pay?: boolean
+          balance?: number
+          consumer_id?: string
+          cost_price?: number
+          created_at?: string
+          deposit?: number
+          funder_id?: string | null
+          id?: string
+          profit_snapshot?: Json | null
+          quote_id?: string | null
+          start_date?: string | null
+          status?: Database['public']['Enums']['loan_status']
+          system_price?: number
+          tenure?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'loans_application_id_fkey'
+            columns: ['application_id']
+            isOneToOne: true
+            referencedRelation: 'applications'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'loans_consumer_id_fkey'
+            columns: ['consumer_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'loans_funder_id_fkey'
+            columns: ['funder_id']
+            isOneToOne: false
+            referencedRelation: 'funders'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'loans_quote_id_fkey'
+            columns: ['quote_id']
+            isOneToOne: false
+            referencedRelation: 'quotes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      mandates: {
+        Row: {
+          account_last4: string | null
+          application_id: string | null
+          bank_name: string | null
+          consumer_id: string
+          created_at: string
+          failure_reason: string | null
+          id: string
+          init_reference: string
+          provider: string
+          provider_ref: string | null
+          status: Database['public']['Enums']['mandate_status']
+          updated_at: string
+        }
+        Insert: {
+          account_last4?: string | null
+          application_id?: string | null
+          bank_name?: string | null
+          consumer_id: string
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          init_reference: string
+          provider: string
+          provider_ref?: string | null
+          status?: Database['public']['Enums']['mandate_status']
+          updated_at?: string
+        }
+        Update: {
+          account_last4?: string | null
+          application_id?: string | null
+          bank_name?: string | null
+          consumer_id?: string
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          init_reference?: string
+          provider?: string
+          provider_ref?: string | null
+          status?: Database['public']['Enums']['mandate_status']
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'mandates_application_id_fkey'
+            columns: ['application_id']
+            isOneToOne: false
+            referencedRelation: 'applications'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'mandates_consumer_id_fkey'
+            columns: ['consumer_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       outbox: {
         Row: {
           channel: Database['public']['Enums']['outbox_channel']
@@ -729,6 +875,105 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          application_id: string | null
+          channel: string | null
+          consumer_id: string
+          created_at: string
+          fee: number
+          id: string
+          kind: Database['public']['Enums']['payment_kind']
+          loan_id: string | null
+          paid_at: string | null
+          provider: string
+          provider_event_id: string | null
+          raw: Json | null
+          reference: string
+          refund_of: string | null
+          schedule_id: string | null
+          status: Database['public']['Enums']['payment_status']
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          application_id?: string | null
+          channel?: string | null
+          consumer_id: string
+          created_at?: string
+          fee?: number
+          id?: string
+          kind: Database['public']['Enums']['payment_kind']
+          loan_id?: string | null
+          paid_at?: string | null
+          provider: string
+          provider_event_id?: string | null
+          raw?: Json | null
+          reference: string
+          refund_of?: string | null
+          schedule_id?: string | null
+          status?: Database['public']['Enums']['payment_status']
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          application_id?: string | null
+          channel?: string | null
+          consumer_id?: string
+          created_at?: string
+          fee?: number
+          id?: string
+          kind?: Database['public']['Enums']['payment_kind']
+          loan_id?: string | null
+          paid_at?: string | null
+          provider?: string
+          provider_event_id?: string | null
+          raw?: Json | null
+          reference?: string
+          refund_of?: string | null
+          schedule_id?: string | null
+          status?: Database['public']['Enums']['payment_status']
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'payments_application_id_fkey'
+            columns: ['application_id']
+            isOneToOne: false
+            referencedRelation: 'applications'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'payments_consumer_id_fkey'
+            columns: ['consumer_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'payments_loan_id_fkey'
+            columns: ['loan_id']
+            isOneToOne: false
+            referencedRelation: 'loans'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'payments_refund_of_fkey'
+            columns: ['refund_of']
+            isOneToOne: false
+            referencedRelation: 'payments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'payments_schedule_id_fkey'
+            columns: ['schedule_id']
+            isOneToOne: false
+            referencedRelation: 'repayment_schedule'
+            referencedColumns: ['id']
+          },
+        ]
       }
       phone_otps: {
         Row: {
@@ -956,6 +1201,47 @@ export type Database = {
             columns: ['quote_id']
             isOneToOne: false
             referencedRelation: 'quotes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      repayment_schedule: {
+        Row: {
+          amount: number
+          due_date: string
+          id: string
+          loan_id: string
+          n: number
+          paid_amount: number
+          paid_at: string | null
+          status: Database['public']['Enums']['schedule_status']
+        }
+        Insert: {
+          amount: number
+          due_date: string
+          id?: string
+          loan_id: string
+          n: number
+          paid_amount?: number
+          paid_at?: string | null
+          status?: Database['public']['Enums']['schedule_status']
+        }
+        Update: {
+          amount?: number
+          due_date?: string
+          id?: string
+          loan_id?: string
+          n?: number
+          paid_amount?: number
+          paid_at?: string | null
+          status?: Database['public']['Enums']['schedule_status']
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'repayment_schedule_loan_id_fkey'
+            columns: ['loan_id']
+            isOneToOne: false
+            referencedRelation: 'loans'
             referencedColumns: ['id']
           },
         ]
@@ -1336,9 +1622,14 @@ export type Database = {
       kyc_kind: 'nin' | 'bvn' | 'liveness' | 'face_match' | 'address' | 'cac'
       kyc_status: 'pending' | 'passed' | 'failed' | 'manual_review'
       kyc_subject: 'consumer' | 'guarantor' | 'installer' | 'vendor' | 'business'
+      loan_status: 'pending_approval' | 'active' | 'completed' | 'defaulted' | 'cancelled'
+      mandate_status: 'pending' | 'active' | 'failed' | 'cancelled'
       outbox_channel: 'sms' | 'whatsapp' | 'email'
+      payment_kind: 'deposit' | 'instalment' | 'refund'
+      payment_status: 'pending' | 'success' | 'failed'
       quote_status: 'draft' | 'chosen' | 'expired'
       ready_when: 'now' | '30_days' | 'later'
+      schedule_status: 'due' | 'paid' | 'late'
       size_band: 'small' | 'medium' | 'large'
       template_status: 'draft' | 'approved'
       waitlist_status: 'incomplete' | 'complete'
@@ -1502,9 +1793,14 @@ export const Constants = {
       kyc_kind: ['nin', 'bvn', 'liveness', 'face_match', 'address', 'cac'],
       kyc_status: ['pending', 'passed', 'failed', 'manual_review'],
       kyc_subject: ['consumer', 'guarantor', 'installer', 'vendor', 'business'],
+      loan_status: ['pending_approval', 'active', 'completed', 'defaulted', 'cancelled'],
+      mandate_status: ['pending', 'active', 'failed', 'cancelled'],
       outbox_channel: ['sms', 'whatsapp', 'email'],
+      payment_kind: ['deposit', 'instalment', 'refund'],
+      payment_status: ['pending', 'success', 'failed'],
       quote_status: ['draft', 'chosen', 'expired'],
       ready_when: ['now', '30_days', 'later'],
+      schedule_status: ['due', 'paid', 'late'],
       size_band: ['small', 'medium', 'large'],
       template_status: ['draft', 'approved'],
       waitlist_status: ['incomplete', 'complete'],

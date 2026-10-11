@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { ConsumerSign } from '@/components/agreements/ConsumerSign'
@@ -66,6 +67,13 @@ export default async function SignPage() {
           <p className="text-muted-foreground mt-3 text-xs break-all">
             Document fingerprint: {ctx.signed.content_sha256}
           </p>
+          <Link
+            href="/app/apply/pay"
+            data-testid="next-deposit"
+            className="bg-brand-green hover:bg-brand-dark mt-4 flex h-12 items-center justify-center rounded-md font-semibold text-white"
+          >
+            Next: pay your deposit
+          </Link>
         </section>
       ) : (
         <>
