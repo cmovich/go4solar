@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 
+import { CookieNotice } from '@/components/legal/CookieNotice'
 import { siteConfig } from '@/config/site'
 
 import './globals.css'
@@ -15,11 +16,11 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: `${siteConfig.name} — Solar on monthly payments. Zero interest.`,
+    default: `${siteConfig.name} — Solar on a monthly payment plan`,
     template: `%s · ${siteConfig.name}`,
   },
   description:
-    'Go4Solar imports solar systems directly from the manufacturers so Nigerian homes and small businesses can pay from a 20% deposit and spread the rest over up to 12 months with zero interest.',
+    'Go4Solar imports solar systems directly from the manufacturers so Nigerian homes and small businesses can pay from a 20% deposit and spread the rest over up to 12 months.',
   metadataBase: new URL(siteConfig.url),
 }
 
@@ -30,7 +31,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} font-sans`}>
-      <body className="bg-background text-foreground min-h-screen antialiased">{children}</body>
+      <body className="bg-background text-foreground min-h-screen antialiased">
+        {children}
+        <CookieNotice />
+      </body>
     </html>
   )
 }

@@ -9,7 +9,7 @@ import { fetchApplianceLibrary } from '@/lib/appliances/library'
 export const metadata: Metadata = {
   title: 'Get your solar plan',
   description:
-    'Calculate your load and see three estimated solar plans with 0% interest. We get back to you within 7 days.',
+    'Calculate your load and see three estimated solar plans, each one fixed price. We get back to you within 7 days.',
 }
 
 export const revalidate = 3600

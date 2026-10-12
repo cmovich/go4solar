@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { StateSelect } from '@/components/waitlist/steps'
 import type { GuarantorStepId } from '@/lib/agreements/guarantor'
 import { GUARANTOR_TICKS } from '@/lib/agreements/ticks'
+import { BIOMETRIC_CONSENT_TEXT } from '@/lib/consent/wording'
 import { INCOME_RANGES } from '@/lib/applications/rules'
 import type { NgStateId } from '@/lib/nigeria/states'
 
@@ -39,8 +40,6 @@ const STEP_LABELS: Record<GuarantorStepId, string> = {
   sign: 'Sign',
 }
 const ORDER: GuarantorStepId[] = ['intro', 'nin', 'consent', 'face', 'about', 'sign']
-const CONSENT_TEXT =
-  'I agree that Go4Solar and its verification partner may capture and process my face images and ID data to confirm my identity, as described in the Privacy Policy.'
 const PROMPTS = [
   'Look straight at the camera',
   'Turn your head slowly left',
@@ -362,7 +361,7 @@ function ConsentStep({
           className="mt-0.5"
         />
         <Label htmlFor="g-consent" className="text-sm leading-snug font-normal">
-          {CONSENT_TEXT}
+          {BIOMETRIC_CONSENT_TEXT}
         </Label>
       </div>
       <Button

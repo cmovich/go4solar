@@ -53,6 +53,13 @@ vi.mock('@/lib/agreements/server', async () => {
   }
 })
 
+const consents: { kind: string; text_version: string }[] = []
+vi.mock('@/lib/consent/server', () => ({
+  recordConsents: async (rows: { consent: { kind: string; text_version: string } }[]) => {
+    consents.push(...rows.map((r) => r.consent))
+  },
+}))
+
 const updates: unknown[] = []
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => ({
@@ -92,6 +99,7 @@ const verified: SessionInfo = {
 beforeEach(() => {
   vi.clearAllMocks()
   updates.length = 0
+  consents.length = 0
   ctx.signed = null
   getSessionInfo.mockResolvedValue(verified)
 })
@@ -139,6 +147,11 @@ describe('consumer signing', () => {
       }),
     )
     expect(updates).toContainEqual({ steps: { review: true, terms: true } })
+    // Each tick is stored as its own consent, with the version of the text agreed to.
+    expect(consents.map((c) => c.kind).sort()).toEqual(
+      ['agreement', 'biometric', 'collateral', 'credit_check', 'remote_lock'].sort(),
+    )
+    expect(consents.every((c) => /^consumer-tick-\w+-\d{4}-\d{2}-\d{2}$/.test(c.text_version))).toBe(true)
   })
 
   it('cannot sign twice', async () => {

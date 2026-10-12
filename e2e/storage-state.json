@@ -1,0 +1,13 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:3000",
+      "localStorage": [{ "name": "g4s.cookie-notice.v1", "value": "seen" }]
+    },
+    {
+      "origin": "http://localhost:3100",
+      "localStorage": [{ "name": "g4s.cookie-notice.v1", "value": "seen" }]
+    }
+  ]
+}

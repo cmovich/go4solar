@@ -33,7 +33,7 @@ export function Footer() {
             </span>
             <p className="mt-4 text-sm text-white/75">
               Solar on monthly payments for Nigerian homes and small businesses. Direct from the
-              manufacturers, zero interest, one fixed price.
+              manufacturers, one fixed price shown in full before you sign.
             </p>
           </div>
 
@@ -73,10 +73,10 @@ export function Footer() {
               Chat on WhatsApp
             </a>
             <nav className="flex gap-5 text-sm text-white/85">
-              <Link href="/privacy" prefetch={false} className="hover:text-brand-gold">
+              <Link href="/privacy" className="hover:text-brand-gold">
                 Privacy
               </Link>
-              <Link href="/terms" prefetch={false} className="hover:text-brand-gold">
+              <Link href="/terms" className="hover:text-brand-gold">
                 Terms
               </Link>
             </nav>

@@ -180,7 +180,7 @@ export function AgreementSigner({
 
       <div className="space-y-1">
         <Label>Your signature</Label>
-        <SignatureCanvas onChange={setSignature} disabled={pending} />
+        <SignatureCanvas onChange={setSignature} disabled={pending} typedName={name} />
       </div>
 
       {error && (

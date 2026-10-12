@@ -3,6 +3,7 @@ import 'server-only'
 import { NextResponse } from 'next/server'
 
 import { getSessionInfo } from '@/lib/auth/session'
+import { exportLimit } from '@/lib/ratelimit/staffExport'
 
 import { getScenario } from './forecast'
 
@@ -12,6 +13,8 @@ export async function scenarioForExport(id: string) {
   if (!s.user || s.aal !== 'aal2' || !['super_admin', 'finance'].includes(s.role ?? '')) {
     return { error: NextResponse.json({ error: 'not allowed' }, { status: 403 }) }
   }
+  const limited = await exportLimit(s.user.id)
+  if (limited) return { error: limited }
   const scenario = await getScenario(id)
   if (!scenario) return { error: NextResponse.json({ error: 'not found' }, { status: 404 }) }
   return { scenario }

@@ -63,11 +63,18 @@ export function Hero({ example }: { example: HeroExample }) {
               We import directly from the manufacturers, so you pay less upfront and never pay
               interest. Start with 20%, spread the rest over up to 12 months.
             </p>
+            {/* The example card (with the total) is desktop-only; phones see the total here. */}
+            <p
+              className="mt-3 text-sm font-semibold text-white/85 lg:hidden"
+              data-testid="hero-total"
+            >
+              Example: total amount payable {formatNaira(example.total)}, 0% interest.
+            </p>
 
             <div className="mt-8">
               <Link
                 href="/calculate"
-                className="bg-brand-orange hover:bg-brand-orange/90 focus-visible:ring-brand-gold focus-visible:ring-offset-brand-dark inline-flex h-14 w-full items-center justify-center rounded-lg px-8 text-lg font-semibold text-white shadow-lg shadow-black/20 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto"
+                className="bg-brand-orange hover:bg-brand-orange/90 focus-visible:ring-brand-gold focus-visible:ring-offset-brand-dark text-brand-dark inline-flex h-14 w-full items-center justify-center rounded-lg px-8 text-lg font-semibold shadow-lg shadow-black/20 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto"
               >
                 Calculate my load
               </Link>
@@ -92,7 +99,7 @@ export function Hero({ example }: { example: HeroExample }) {
 
           {/* Desktop only: the badges already carry this message on phones. */}
           <aside className="text-brand-dark relative hidden rounded-2xl bg-white p-6 shadow-2xl shadow-black/30 lg:block">
-            <span className="bg-brand-orange absolute -top-3 left-6 rounded-full px-3 py-1 text-xs font-bold tracking-wide text-white uppercase">
+            <span className="bg-brand-orange text-brand-dark absolute -top-3 left-6 rounded-full px-3 py-1 text-xs font-bold tracking-wide uppercase">
               Example
             </span>
             <p className="text-brand-green text-sm font-semibold tracking-wide uppercase">

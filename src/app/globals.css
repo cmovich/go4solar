@@ -12,7 +12,8 @@
 
   /* Go4Solar brand (CLAUDE.md section 10) → bg-brand-green, text-brand-dark, etc. */
   --color-brand-dark: #0e3b22;
-  --color-brand-green: #2e8b3a;
+  /* #2E8B3A darkened slightly for WCAG AA: 4.96:1 with white text, 4.62:1 as text on mist. */
+  --color-brand-green: #2a8035;
   --color-brand-blue: #1b4e9b;
   --color-brand-orange: #f47b20;
   --color-brand-gold: #ffc94d;
@@ -66,7 +67,7 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
   /* Primary = brand green (#2E8B3A); white text on it. */
-  --primary: #2e8b3a;
+  --primary: #2a8035;
   --primary-foreground: #ffffff;
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -101,7 +102,7 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: #2e8b3a;
+  --primary: #2a8035;
   --primary-foreground: #ffffff;
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);

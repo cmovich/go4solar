@@ -10,9 +10,13 @@ export default defineConfig({
   // Creates the staff test user (with MFA) used by the admin tests; no-op without Supabase env.
   globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
-  retries: process.env.CI ? 2 : 0,
+  // One retry: the remote database sometimes drops a request ("fetch failed"). A test that
+  // fails twice is a real failure. See CLAUDE.md section 12.
+  retries: process.env.CI ? 2 : 1,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
+    // Cookie notice already dismissed (one test checks the notice itself).
+    storageState: 'e2e/storage-state.json',
     baseURL,
     trace: 'on-first-retry',
   },

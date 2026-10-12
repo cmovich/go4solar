@@ -35,7 +35,7 @@ export function fakeSupabase(unique: Record<string, string[][]> = {}) {
 
   function from(t: string) {
     const filters: Filter[] = []
-    let op: 'select' | 'insert' | 'update' | 'upsert' = 'select'
+    let op: 'select' | 'insert' | 'update' | 'upsert' | 'delete' = 'select'
     let payload: Row[] = []
     let patch: Row = {}
     let returning = false
@@ -60,6 +60,14 @@ export function fakeSupabase(unique: Record<string, string[][]> = {}) {
           out.push(row)
         }
         return { data: returning ? out : null, error: null }
+      }
+      if (op === 'delete') {
+        const hit = matched()
+        tables.set(
+          t,
+          rows(t).filter((r) => !hit.includes(r)),
+        )
+        return { data: returning ? hit : null, error: null }
       }
       if (op === 'update') {
         const hit = matched()
@@ -95,6 +103,10 @@ export function fakeSupabase(unique: Record<string, string[][]> = {}) {
         upsertOpts = opts
         return q
       },
+      delete() {
+        op = 'delete'
+        return q
+      },
       update(p: Row) {
         op = 'update'
         patch = p
@@ -104,6 +116,11 @@ export function fakeSupabase(unique: Record<string, string[][]> = {}) {
       neq: (c: string, v: unknown) => (filters.push((r) => r[c] !== v), q),
       in: (c: string, v: unknown[]) => (filters.push((r) => v.includes(r[c])), q),
       is: (c: string, v: unknown) => (filters.push((r) => (r[c] ?? null) === v), q),
+      not: (c: string, operator: string, v: unknown) => {
+        if (operator !== 'is') throw new Error(`fake: not(${operator}) unsupported`)
+        filters.push((r) => (r[c] ?? null) !== v)
+        return q
+      },
       order: (col: string, o?: { ascending?: boolean }) => (
         (orderBy = { col, asc: o?.ascending !== false }),
         q

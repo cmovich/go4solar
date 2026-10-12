@@ -11,6 +11,9 @@ import {
 } from '@/lib/agreements/guarantor'
 import { latestStatus } from '@/lib/applications/rules'
 import { checkSummaries } from '@/lib/applications/server'
+import { clientIp } from '@/lib/ratelimit/clientIp'
+import { hitRateLimit } from '@/lib/ratelimit/hitRateLimit'
+import { headers } from 'next/headers'
 
 export const metadata: Metadata = {
   title: 'Guarantor request',
@@ -34,12 +37,37 @@ const PROBLEMS: Record<string, { title: string; body: string }> = {
   declined: { title: 'You declined this request', body: 'We have let the customer know.' },
 }
 
+const LINK_OPENS_PER_HOUR = 30
+
+function LimitReached() {
+  return (
+    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <section className="rounded-2xl border p-6 text-center" data-testid="guarantee-problem">
+        <h1 className="text-brand-dark text-xl font-bold">Please wait a little</h1>
+        <p className="text-muted-foreground mt-2">
+          This link has been opened many times from your connection. Please try again in an hour.
+        </p>
+      </section>
+    </main>
+  )
+}
+
 const maskPhone = (p: string) =>
   p.length > 7 ? `${p.slice(0, 4)}•••••${p.slice(-4)}` : 'your phone'
 
 /** Guarantor flow from the secure link (no account): who/what first, then ID, face check, about you, sign. */
 export default async function GuaranteePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
+  // Opening links is rate-limited per IP so nobody can try link after link.
+  if (
+    !(await hitRateLimit(
+      `guarantee-open:${clientIp(await headers())}`,
+      LINK_OPENS_PER_HOUR,
+      '1 hour',
+    ))
+  ) {
+    return <LimitReached />
+  }
   const g = await openGuarantee(token)
   const ctx = g.check === 'ok' && g.row ? await guaranteeContext(g.row) : null
 

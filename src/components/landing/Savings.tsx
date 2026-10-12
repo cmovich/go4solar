@@ -42,7 +42,7 @@ export function Savings() {
           </article>
 
           <article className="border-brand-green relative rounded-2xl border-2 bg-white p-6 sm:p-8">
-            <span className="bg-brand-orange absolute -top-3 left-6 rounded-full px-3 py-1 text-xs font-bold tracking-wide text-white uppercase">
+            <span className="bg-brand-orange text-brand-dark absolute -top-3 left-6 rounded-full px-3 py-1 text-xs font-bold tracking-wide uppercase">
               Example
             </span>
             <p className="text-brand-green text-sm font-semibold tracking-wide uppercase">

@@ -24,7 +24,8 @@ export async function exportIsRecent(): Promise<boolean> {
 }
 
 /**
- * Super admin only. Deletes every consumer and installer row. Allowed only when an export was
+ * Super admin only. Marks every consumer and installer row as cleared (hidden from reports); the
+ * retention job deletes cleared rows after a 7-day grace. Allowed only when an export was
  * downloaded in the last 24 h and the word CLEAR was typed. Writes audit_log.
  */
 export async function clearWaitlist(input: {
@@ -40,15 +41,26 @@ export async function clearWaitlist(input: {
 
   const admin = createAdminClient()
   const [{ count: consumers }, { count: installers }] = await Promise.all([
-    admin.from('waitlist_consumers').select('id', { count: 'exact', head: true }),
-    admin.from('waitlist_installers').select('id', { count: 'exact', head: true }),
+    admin
+      .from('waitlist_consumers')
+      .select('id', { count: 'exact', head: true })
+      .is('cleared_at', null),
+    admin
+      .from('waitlist_installers')
+      .select('id', { count: 'exact', head: true })
+      .is('cleared_at', null),
   ])
 
-  // Delete as the staff user so the super_admin RLS policy is what allows it.
-  const supabase = await createClient()
-  const { error: e1 } = await supabase.from('waitlist_consumers').delete().not('id', 'is', null)
-  const { error: e2 } = await supabase.from('waitlist_installers').delete().not('id', 'is', null)
-  if (e1 || e2) return { ok: false, error: (e1 ?? e2)?.message ?? 'Delete failed' }
+  const clearedAt = new Date().toISOString()
+  const { error: e1 } = await admin
+    .from('waitlist_consumers')
+    .update({ cleared_at: clearedAt })
+    .is('cleared_at', null)
+  const { error: e2 } = await admin
+    .from('waitlist_installers')
+    .update({ cleared_at: clearedAt })
+    .is('cleared_at', null)
+  if (e1 || e2) return { ok: false, error: 'Could not clear the waiting list. Please try again.' }
 
   await admin.from('audit_log').insert({
     actor_id: session.user!.id,
@@ -56,7 +68,7 @@ export async function clearWaitlist(input: {
     entity: 'waitlist',
     entity_id: null,
     before: { consumers: consumers ?? 0, installers: installers ?? 0 },
-    after: { consumers: 0, installers: 0 },
+    after: { consumers: 0, installers: 0, clearedAt, purgeAfterDays: 7 },
   })
   revalidatePath('/admin/waitlist')
   return { ok: true, deleted: (consumers ?? 0) + (installers ?? 0) }

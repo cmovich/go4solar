@@ -14,9 +14,12 @@ const MIN_POINTS = 8
 export function SignatureCanvas({
   onChange,
   disabled = false,
+  typedName = '',
 }: {
   onChange: (png: string | null) => void
   disabled?: boolean
+  /** Keyboard alternative: sign with this typed name instead of drawing. */
+  typedName?: string
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const drawing = useRef(false)
@@ -84,6 +87,26 @@ export function SignatureCanvas({
     onChange(null)
   }
 
+  /** Keyboard / screen-reader alternative to drawing: the typed full name becomes the signature. */
+  function signWithTypedName() {
+    const canvas = canvasRef.current
+    const ctx = context()
+    const name = typedName.trim()
+    if (!canvas || !ctx || name.length < 3) return
+    const { width, height } = canvas.getBoundingClientRect()
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.save()
+    ctx.fillStyle = INK
+    ctx.font = 'italic 600 34px Inter, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(name, width / 2, height / 2, width - 24)
+    ctx.restore()
+    points.current = MIN_POINTS
+    setEmpty(false)
+    onChange(canvas.toDataURL('image/png'))
+  }
+
   return (
     <div>
       <div className="relative rounded-xl border-2 border-dashed border-slate-300 bg-white">
@@ -113,6 +136,16 @@ export function SignatureCanvas({
         disabled={disabled}
       >
         Clear
+      </Button>
+      <Button
+        type="button"
+        variant="link"
+        size="sm"
+        className="mt-1"
+        onClick={signWithTypedName}
+        disabled={disabled || typedName.trim().length < 3}
+      >
+        Use my typed name as my signature
       </Button>
     </div>
   )

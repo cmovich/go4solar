@@ -70,7 +70,7 @@ export function Results({
           <button
             type="button"
             onClick={onContinue}
-            className="bg-brand-orange hover:bg-brand-orange/90 focus-visible:ring-brand-green inline-flex h-14 w-full items-center justify-center rounded-lg px-8 text-lg font-semibold text-white shadow-lg transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto"
+            className="bg-brand-orange hover:bg-brand-orange/90 focus-visible:ring-brand-green text-brand-dark inline-flex h-14 w-full items-center justify-center rounded-lg px-8 text-lg font-semibold shadow-lg transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto"
           >
             Continue
           </button>
@@ -78,7 +78,7 @@ export function Results({
           <Link
             href={nextHref}
             prefetch={false}
-            className="bg-brand-orange hover:bg-brand-orange/90 focus-visible:ring-brand-green inline-flex h-14 w-full items-center justify-center rounded-lg px-8 text-lg font-semibold text-white shadow-lg transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto"
+            className="bg-brand-orange hover:bg-brand-orange/90 focus-visible:ring-brand-green text-brand-dark inline-flex h-14 w-full items-center justify-center rounded-lg px-8 text-lg font-semibold shadow-lg transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto"
           >
             See my solar plans
           </Link>
@@ -86,7 +86,7 @@ export function Results({
           <button
             type="button"
             disabled
-            className="bg-brand-orange/50 inline-flex h-14 w-full cursor-not-allowed items-center justify-center rounded-lg px-8 text-lg font-semibold text-white sm:w-auto"
+            className="bg-brand-orange/50 text-brand-dark inline-flex h-14 w-full cursor-not-allowed items-center justify-center rounded-lg px-8 text-lg font-semibold sm:w-auto"
           >
             See my solar plans
           </button>

@@ -188,7 +188,7 @@ test.describe('solar plan sign-up (waiting list)', () => {
     await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 5000 })
     // …and the visitor leaves here.
 
-    const staff = await browser.newPage()
+    const staff = await browser.newPage({ storageState: 'e2e/storage-state.json' })
     await loginAsStaff(staff)
     // Test data is hidden by default; the toggle shows it.
     await staff.goto('/admin/waitlist?tab=incomplete')

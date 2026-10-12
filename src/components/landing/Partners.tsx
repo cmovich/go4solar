@@ -20,7 +20,7 @@ export function Partners() {
             <Link
               href="/partners/installer"
               prefetch={false}
-              className={`${cta} bg-brand-orange hover:bg-brand-orange/90 text-white`}
+              className={`${cta} bg-brand-orange hover:bg-brand-orange/90 text-brand-dark`}
             >
               Become a partner installer
             </Link>

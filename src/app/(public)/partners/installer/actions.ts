@@ -2,6 +2,8 @@
 
 import { headers } from 'next/headers'
 
+import { recordConsents } from '@/lib/consent/server'
+import { consentRecord } from '@/lib/consent/texts'
 import { clientIp } from '@/lib/ratelimit/clientIp'
 import { hitRateLimit } from '@/lib/ratelimit/hitRateLimit'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -31,7 +33,7 @@ export async function submitInstaller(input: unknown): Promise<InstallerResult> 
     }
   }
 
-  const { error } = await createAdminClient()
+  const { data: created, error } = await createAdminClient()
     .from('waitlist_installers')
     .insert({
       name: d.name,
@@ -47,9 +49,14 @@ export async function submitInstaller(input: unknown): Promise<InstallerResult> 
       consent: true,
       consent_at: new Date().toISOString(),
     })
+    .select('id')
+    .single()
   if (error) {
     console.error('[waitlist] installer insert failed:', error.message)
     return { ok: false, error: 'Something went wrong. Please try again.' }
   }
+  await recordConsents([
+    { subjectType: 'installer_lead', subjectId: created.id, ip, consent: consentRecord('contact') },
+  ])
   return { ok: true, name: d.name }
 }

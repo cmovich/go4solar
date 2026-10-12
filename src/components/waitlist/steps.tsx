@@ -630,7 +630,7 @@ export function PlanCard({
       disabled={busy}
       className="hover:border-brand-green focus-visible:ring-brand-green relative w-full rounded-2xl border-2 border-transparent bg-white p-5 text-left shadow-sm transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
     >
-      <span className="bg-brand-orange absolute -top-3 right-5 rounded-full px-3 py-1 text-xs font-bold tracking-wide text-white uppercase">
+      <span className="bg-brand-orange text-brand-dark absolute -top-3 right-5 rounded-full px-3 py-1 text-xs font-bold tracking-wide uppercase">
         Estimate
       </span>
       <p className="text-brand-green text-sm font-semibold tracking-wide uppercase">

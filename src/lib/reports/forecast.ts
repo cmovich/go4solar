@@ -112,6 +112,7 @@ export async function waitlistLeadSummaries(includeTest = false): Promise<Waitli
   let q = createAdminClient()
     .from('waitlist_consumers')
     .select('created_at, estimate, chosen_plan, deposit_share, applicant_type, energy, status')
+    .is('cleared_at', null)
     .limit(5000)
   if (!includeTest) q = q.eq('is_test', false)
   const { data } = await q

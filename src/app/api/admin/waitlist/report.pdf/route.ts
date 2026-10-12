@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createElement, type ReactElement } from 'react'
 
 import { requireStaffWithMfa } from '@/lib/auth/roles'
+import { exportLimit } from '@/lib/ratelimit/staffExport'
 import { WaitlistReport } from '@/lib/pdf/WaitlistReport'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -15,6 +16,8 @@ export const runtime = 'nodejs'
 export async function GET(req: Request) {
   const includeTest = new URL(req.url).searchParams.get('test') === '1'
   const session = await requireStaffWithMfa()
+  const limited = await exportLimit(session.user!.id)
+  if (limited) return limited
   const [stats, leads, settings] = await Promise.all([
     headline(includeTest),
     listConsumers({ tab: 'complete', includeTest }),

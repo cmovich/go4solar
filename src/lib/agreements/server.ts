@@ -319,7 +319,7 @@ export async function inviteGuarantor(input: {
   const link = `${input.origin}/guarantee/${token}`
   const text =
     `Hello ${input.contact.name}, ${input.applicantName} has asked you to be the guarantor for their Go4Solar solar payment plan ` +
-    `(${input.monthly} a month for ${input.tenure} months, no interest). Please review and respond within 72 hours: ${link}`
+    `(${input.monthly} a month for ${input.tenure} months). Please review and respond within 72 hours: ${link}`
   const provider = await getMessagingProvider()
   await Promise.allSettled([
     provider.send({

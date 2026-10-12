@@ -54,7 +54,12 @@ export async function sendWaitlistConfirmation(c: WaitlistConfirmation): Promise
   }
   const results = await Promise.allSettled(sends)
   for (const r of results) {
-    if (r.status === 'rejected') console.error('[waitlist] confirmation failed:', r.reason)
+    if (r.status === 'rejected') {
+      console.error(
+        '[waitlist] confirmation failed:',
+        r.reason instanceof Error ? r.reason.message : 'send error',
+      )
+    }
   }
 }
 

@@ -105,6 +105,8 @@ export function WattsLookupDialog({
 
         <input
           ref={cameraRef}
+          aria-label="Take a photo of the appliance label"
+          tabIndex={-1}
           type="file"
           accept="image/*"
           capture="environment"
@@ -113,6 +115,8 @@ export function WattsLookupDialog({
         />
         <input
           ref={uploadRef}
+          aria-label="Upload a photo of the appliance label"
+          tabIndex={-1}
           type="file"
           accept="image/*"
           className="hidden"
@@ -168,7 +172,7 @@ export function WattsLookupDialog({
               <>
                 <p className="text-brand-dark text-2xl font-bold">
                   About {result.watts.toLocaleString('en-US')} W
-                  <span className="bg-brand-orange ml-2 rounded-full px-2 py-0.5 align-middle text-xs font-bold text-white uppercase">
+                  <span className="bg-brand-orange text-brand-dark ml-2 rounded-full px-2 py-0.5 align-middle text-xs font-bold uppercase">
                     Estimate
                   </span>
                 </p>

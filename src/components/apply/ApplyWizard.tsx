@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { StateSelect } from '@/components/waitlist/steps'
 import { INCOME_RANGES, STEP_LABELS, maskId, stepsFor, type StepId } from '@/lib/applications/rules'
 import type { WizardState } from '@/lib/applications/server'
+import { BIOMETRIC_CONSENT_TEXT } from '@/lib/consent/wording'
 import { formatNaira, formatPercent } from '@/lib/money'
 import type { NgStateId } from '@/lib/nigeria/states'
 import { PLAN_LABELS } from '@/lib/quotes/buildEstimate'
@@ -35,8 +36,6 @@ import {
 } from '@/app/(consumer)/app/apply/actions'
 
 /** Exact consent wording (notes before Prompt 10). */
-export const BIOMETRIC_CONSENT_TEXT =
-  'I agree that Go4Solar and its verification partner may capture and process my face images and ID data to confirm my identity, as described in the Privacy Policy.'
 
 const field = 'mt-1 h-12 text-base'
 const select = 'border-input mt-1 h-12 w-full rounded-md border bg-white px-3 text-base'

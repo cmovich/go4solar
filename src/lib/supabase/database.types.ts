@@ -431,6 +431,53 @@ export type Database = {
         }
         Relationships: []
       }
+      consents: {
+        Row: {
+          created_at: string
+          given_at: string
+          id: string
+          ip: string | null
+          kind: Database['public']['Enums']['consent_kind']
+          profile_id: string | null
+          subject_id: string
+          subject_type: Database['public']['Enums']['consent_subject']
+          text_sha256: string
+          text_version: string
+        }
+        Insert: {
+          created_at?: string
+          given_at?: string
+          id?: string
+          ip?: string | null
+          kind: Database['public']['Enums']['consent_kind']
+          profile_id?: string | null
+          subject_id: string
+          subject_type: Database['public']['Enums']['consent_subject']
+          text_sha256: string
+          text_version: string
+        }
+        Update: {
+          created_at?: string
+          given_at?: string
+          id?: string
+          ip?: string | null
+          kind?: Database['public']['Enums']['consent_kind']
+          profile_id?: string | null
+          subject_id?: string
+          subject_type?: Database['public']['Enums']['consent_subject']
+          text_sha256?: string
+          text_version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'consents_profile_id_fkey'
+            columns: ['profile_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       documents: {
         Row: {
           application_id: string | null
@@ -1642,6 +1689,7 @@ export type Database = {
           applicant_type: string | null
           business: Json | null
           chosen_plan: string | null
+          cleared_at: string | null
           consent: boolean
           consent_at: string | null
           created_at: string
@@ -1671,6 +1719,7 @@ export type Database = {
           applicant_type?: string | null
           business?: Json | null
           chosen_plan?: string | null
+          cleared_at?: string | null
           consent?: boolean
           consent_at?: string | null
           created_at?: string
@@ -1700,6 +1749,7 @@ export type Database = {
           applicant_type?: string | null
           business?: Json | null
           chosen_plan?: string | null
+          cleared_at?: string | null
           consent?: boolean
           consent_at?: string | null
           created_at?: string
@@ -1778,6 +1828,7 @@ export type Database = {
         Row: {
           business_name: string | null
           cac_registered: boolean
+          cleared_at: string | null
           consent: boolean
           consent_at: string | null
           created_at: string
@@ -1796,6 +1847,7 @@ export type Database = {
         Insert: {
           business_name?: string | null
           cac_registered?: boolean
+          cleared_at?: string | null
           consent?: boolean
           consent_at?: string | null
           created_at?: string
@@ -1814,6 +1866,7 @@ export type Database = {
         Update: {
           business_name?: string | null
           cac_registered?: boolean
+          cleared_at?: string | null
           consent?: boolean
           consent_at?: string | null
           created_at?: string
@@ -1885,6 +1938,16 @@ export type Database = {
         'draft' | 'submitted' | 'under_review' | 'approved' | 'declined' | 'more_info'
       component_category: 'panels' | 'battery' | 'inverter' | 'accessories'
       component_source: 'oem' | 'vendor'
+      consent_kind:
+        | 'contact'
+        | 'biometric'
+        | 'credit_check'
+        | 'agreement'
+        | 'collateral'
+        | 'remote_lock'
+        | 'guarantee'
+        | 'marketing'
+      consent_subject: 'profile' | 'guarantee' | 'waitlist_lead' | 'installer_lead'
       equipment_source: 'go4solar_store' | 'vendor'
       funder_kind: 'external' | 'own_fund'
       funder_method: 'flat' | 'reducing'
@@ -2060,6 +2123,17 @@ export const Constants = {
       ],
       component_category: ['panels', 'battery', 'inverter', 'accessories'],
       component_source: ['oem', 'vendor'],
+      consent_kind: [
+        'contact',
+        'biometric',
+        'credit_check',
+        'agreement',
+        'collateral',
+        'remote_lock',
+        'guarantee',
+        'marketing',
+      ],
+      consent_subject: ['profile', 'guarantee', 'waitlist_lead', 'installer_lead'],
       equipment_source: ['go4solar_store', 'vendor'],
       funder_kind: ['external', 'own_fund'],
       funder_method: ['flat', 'reducing'],

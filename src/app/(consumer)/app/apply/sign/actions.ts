@@ -14,6 +14,8 @@ import {
   verifySignatureCode,
 } from '@/lib/agreements/server'
 import { siteOrigin } from '@/lib/auth/emailVerification'
+import { recordConsents } from '@/lib/consent/server'
+import { tickConsents } from '@/lib/consent/texts'
 import { getSessionInfo } from '@/lib/auth/session'
 import { formatNaira, normalisePhoneNG } from '@/lib/money'
 import { clientIp } from '@/lib/ratelimit/clientIp'
@@ -100,6 +102,16 @@ export async function signConsumerAgreement(input: unknown): Promise<Result> {
     userAgent: h.get('user-agent') ?? 'unknown',
     emailTo: ctx.email,
   })
+
+  await recordConsents(
+    tickConsents('consumer').map((c) => ({
+      subjectType: 'profile' as const,
+      subjectId: s.userId,
+      profileId: s.userId,
+      ip,
+      consent: { kind: c.kind, text_version: c.text_version, text_sha256: c.text_sha256 },
+    })),
+  )
 
   const admin = createAdminClient()
   const { data: app } = await admin

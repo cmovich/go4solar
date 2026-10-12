@@ -79,6 +79,9 @@ export default async function AdminHomePage({
       <section className="mt-4 rounded-xl border p-4">
         <h2 className="text-brand-dark text-sm font-bold">Funder balances remaining</h2>
         <ul className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
+          {tiles.funders.length === 0 && (
+            <li className="text-muted-foreground">No active funders. Add one in Funders.</li>
+          )}
           {tiles.funders.map((f) => (
             <li key={f.name} className="flex justify-between gap-2">
               <span>{f.name}</span>

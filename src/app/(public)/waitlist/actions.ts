@@ -13,6 +13,8 @@ import {
 } from '@/lib/quotes/buildEstimate'
 import { clientIp } from '@/lib/ratelimit/clientIp'
 import { hitRateLimit } from '@/lib/ratelimit/hitRateLimit'
+import { recordConsents } from '@/lib/consent/server'
+import { consentRecord } from '@/lib/consent/texts'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 import type { Plan } from '@/lib/sizing/types'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -32,6 +34,7 @@ import { currentVisitorHash, getOrCreateVisitorToken } from '@/lib/waitlist/toke
 type ActionResult<T = object> = ({ ok: true } & T) | { ok: false; error: string; field?: string }
 
 const SUBMITS_PER_HOUR = 20
+const SUBMITS_PER_PHONE_PER_HOUR = 5
 
 function firstIssue(err: { issues: { path: PropertyKey[]; message: string }[] }): {
   error: string
@@ -67,6 +70,15 @@ export async function savePhoneStep(input: unknown): Promise<ActionResult<{ id: 
     return {
       ok: false,
       error: 'Too many sign-ups from your connection. Please try again in an hour.',
+    }
+  }
+
+  // Per phone too: the same number cannot be signed up over and over.
+  if (!(await hitRateLimit(`waitlist-phone:${phone}`, SUBMITS_PER_PHONE_PER_HOUR, '1 hour'))) {
+    return {
+      ok: false,
+      error: 'This number has been used for several sign-ups already. Please try again later.',
+      field: 'phone',
     }
   }
 
@@ -162,6 +174,14 @@ export async function saveNameStep(input: unknown): Promise<ActionResult<{ estim
     })
     .eq('id', row.id)
   if (error) return { ok: false, error: 'Could not save your details. Please try again.' }
+  await recordConsents([
+    {
+      subjectType: 'waitlist_lead',
+      subjectId: row.id,
+      ip: clientIp(await headers()),
+      consent: consentRecord('contact'),
+    },
+  ])
   return { ok: true, estimate }
 }
 

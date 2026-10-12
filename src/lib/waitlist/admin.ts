@@ -140,6 +140,7 @@ export async function listConsumers(filters: ConsumerFilters): Promise<ConsumerL
     .eq('status', filters.tab)
     .order('created_at', { ascending: false })
     .limit(2000)
+  q = q.is('cleared_at', null)
   if (!filters.includeTest) q = q.eq('is_test', false)
   if (filters.state) q = q.eq('state', filters.state)
   if (filters.plan) q = q.eq('chosen_plan', filters.plan)
@@ -199,10 +200,11 @@ function segment(leads: ConsumerLead[]): Segment {
 /** The funder numbers (PRD "Admin waiting-list view"), over every complete sign-up. */
 export async function headline(includeTest = false): Promise<Headline> {
   const supabase = await createClient()
-  let leadsQ = supabase.from('waitlist_consumers').select('*').limit(5000)
+  let leadsQ = supabase.from('waitlist_consumers').select('*').is('cleared_at', null).limit(5000)
   let installersQ = supabase
     .from('waitlist_installers')
     .select('id', { count: 'exact', head: true })
+  installersQ = installersQ.is('cleared_at', null)
   if (!includeTest) {
     leadsQ = leadsQ.eq('is_test', false)
     installersQ = installersQ.eq('is_test', false)
@@ -262,6 +264,7 @@ export async function listInstallers(includeTest = false): Promise<InstallerLead
     .select('*')
     .order('created_at', { ascending: false })
     .limit(2000)
+  q = q.is('cleared_at', null)
   if (!includeTest) q = q.eq('is_test', false)
   const { data, error } = await q
   if (error) throw new Error(`waitlist_installers: ${error.message}`)

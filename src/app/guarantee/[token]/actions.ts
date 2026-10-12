@@ -29,6 +29,8 @@ import {
 } from '@/lib/applications/rules'
 import { checkSummaries } from '@/lib/applications/server'
 import { siteOrigin } from '@/lib/auth/emailVerification'
+import { recordConsents } from '@/lib/consent/server'
+import { consentRecord, tickConsents } from '@/lib/consent/texts'
 import { idHash } from '@/lib/ids/idHash'
 import { isNgStateId } from '@/lib/nigeria/states'
 import { getKycProvider } from '@/lib/providers/kyc'
@@ -47,9 +49,16 @@ const LINK_PROBLEM: Record<string, string> = {
   declined: 'You have declined this guarantee.',
 }
 const KYC_CALLS_PER_HOUR = 15
+/** Every step of the guarantor flow checks the link; a full, honest flow needs about 20. */
+const STEPS_PER_HOUR = 150
 
 /** The guarantee behind a link, if it can still be used. */
 async function usable(token: string): Promise<{ row: GuaranteeRow } | { error: string }> {
+  if (
+    !(await hitRateLimit(`guarantee-steps:${clientIp(await headers())}`, STEPS_PER_HOUR, '1 hour'))
+  ) {
+    return { error: 'Too many tries from your connection. Please try again in an hour.' }
+  }
   const g = await openGuarantee(token)
   if (g.check !== 'ok' || !g.row) return { error: LINK_PROBLEM[g.check] ?? LINK_PROBLEM.not_found! }
   return { row: g.row }
@@ -228,6 +237,14 @@ export async function giveGuarantorConsent(token: string, input: unknown): Promi
     return { ok: false, error: 'Please tick the box to continue with the face check.' }
   }
   await patch(u.row, { biometric_consent_at: new Date().toISOString() }, { consent: true })
+  await recordConsents([
+    {
+      subjectType: 'guarantee',
+      subjectId: u.row.id,
+      ip: clientIp(await headers()),
+      consent: consentRecord('biometric'),
+    },
+  ])
   return { ok: true }
 }
 
@@ -386,6 +403,14 @@ export async function signGuarantee(token: string, input: unknown): Promise<Resu
     emailTo: u.row.email,
   })
   await patch(u.row, { status: 'signed' }, { sign: true })
+  await recordConsents(
+    tickConsents('guarantor').map((c) => ({
+      subjectType: 'guarantee' as const,
+      subjectId: u.row.id,
+      ip,
+      consent: { kind: c.kind, text_version: c.text_version, text_sha256: c.text_sha256 },
+    })),
+  )
   await notifyApplicant(
     u.row,
     `${u.row.name} has signed as your Go4Solar guarantor.`,

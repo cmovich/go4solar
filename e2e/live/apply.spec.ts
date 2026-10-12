@@ -182,7 +182,7 @@ test.describe('live mode: application wizard with mock KYC', () => {
     const invite = await latestOutboxText('guarantor_invite', g.email)
     const inviteLink = /(https?:\/\/\S+\/guarantee\/[A-Za-z0-9_-]+)/.exec(invite)?.[1]
     expect(inviteLink).toBeTruthy()
-    const gp = await page.context().browser()!.newPage()
+    const gp = await page.context().browser()!.newPage({ storageState: 'e2e/storage-state.json' })
     await gp.goto(inviteLink!.replace(/^https?:\/\/[^/]+/, 'http://localhost:3100'))
     await expect(gp.getByTestId('guarantee-summary')).toContainText('Monthly payment')
     await gp.getByRole('button', { name: 'Yes, continue' }).click()
@@ -256,7 +256,9 @@ test.describe('live mode: application wizard with mock KYC', () => {
 
     // ---- Staff: approve with a funder, assign the installer, record the installation.
     const appId = await applicationIdFor(p.email)
-    const staffContext = await page.context().browser()!.newContext()
+    const staffContext = await page.context().browser()!.newContext({
+      storageState: 'e2e/storage-state.json',
+    })
     const staff = await staffContext.newPage()
     await loginAsStaff(staff)
     await staff.goto(`/admin/applications/${appId}`)
@@ -320,15 +322,21 @@ test.describe('live mode: application wizard with mock KYC', () => {
     await staff.goto('/admin/forecasts?test=1')
     await expect(staff.getByTestId('break-even-base')).toContainText(/Month|Not within/)
     await staff.getByTestId('from-waitlist').click()
-    await expect(staff.getByTestId('waitlist-summary')).toContainText('sign-ups', { timeout: 30000 })
+    await expect(staff.getByTestId('waitlist-summary')).toContainText('sign-ups', {
+      timeout: 30000,
+    })
     await staff.getByLabel('Scenario name').fill(`E2E TEST scenario ${p.phone}`)
     await staff.getByRole('button', { name: 'Save scenario' }).click()
     await staff.waitForURL(/forecasts\?id=/, { timeout: 30000 })
     const scenarioId = new URL(staff.url()).searchParams.get('id')!
-    const pdf = await staff.request.get(`/api/admin/forecasts/${scenarioId}/pdf`, { timeout: 90_000 })
+    const pdf = await staff.request.get(`/api/admin/forecasts/${scenarioId}/pdf`, {
+      timeout: 90_000,
+    })
     expect(pdf.status()).toBe(200)
     expect((await pdf.body()).subarray(0, 5).toString()).toBe('%PDF-')
-    const xlsx = await staff.request.get(`/api/admin/forecasts/${scenarioId}/xlsx`, { timeout: 60_000 })
+    const xlsx = await staff.request.get(`/api/admin/forecasts/${scenarioId}/xlsx`, {
+      timeout: 60_000,
+    })
     expect(xlsx.status()).toBe(200)
     expect((await xlsx.body()).subarray(0, 2).toString()).toBe('PK')
     // The customer cannot reach any of it.

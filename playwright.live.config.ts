@@ -21,10 +21,15 @@ export default defineConfig({
   globalSetup: './e2e/global-setup.ts',
   // One at a time: each test makes many calls to the remote database and KYC mocks.
   workers: 1,
-  retries: process.env.CI ? 2 : 0,
+  // One retry for remote-database drops ("fetch failed"); failing twice is a real failure.
+  retries: process.env.CI ? 2 : 1,
   reporter: process.env.CI ? 'github' : 'list',
   timeout: 240_000,
-  use: { baseURL: `http://localhost:${port}`, trace: 'on-first-retry' },
+  use: {
+    baseURL: `http://localhost:${port}`,
+    trace: 'on-first-retry',
+    storageState: 'e2e/storage-state.json',
+  },
   projects: [{ name: 'desktop-live', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     command: `${env} npx next build && ${env} npx next start -p ${port}`,

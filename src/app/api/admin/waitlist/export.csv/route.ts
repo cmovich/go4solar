@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireStaffWithMfa } from '@/lib/auth/roles'
+import { exportLimit } from '@/lib/ratelimit/staffExport'
 import { PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { listConsumers, listInstallers } from '@/lib/waitlist/admin'
@@ -20,6 +21,8 @@ const line = (cells: unknown[]) => cells.map(cell).join(',')
 export async function GET(req: Request) {
   const includeTest = new URL(req.url).searchParams.get('test') === '1'
   const session = await requireStaffWithMfa()
+  const limited = await exportLimit(session.user!.id)
+  if (limited) return limited
   const [complete, incomplete, installers] = await Promise.all([
     listConsumers({ tab: 'complete', includeTest }),
     listConsumers({ tab: 'incomplete', includeTest }),

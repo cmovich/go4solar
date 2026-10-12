@@ -27,7 +27,10 @@ import {
 import { inviteGuarantor, type GuarantorContact } from '@/lib/agreements/server'
 import { siteOrigin } from '@/lib/auth/emailVerification'
 import { getSessionInfo } from '@/lib/auth/session'
+import { recordConsents } from '@/lib/consent/server'
+import { consentRecord } from '@/lib/consent/texts'
 import { idHash } from '@/lib/ids/idHash'
+import { clientIp } from '@/lib/ratelimit/clientIp'
 import { formatNaira, normalisePhoneNG } from '@/lib/money'
 import { isNgStateId } from '@/lib/nigeria/states'
 import type { QuoteResult } from '@/lib/pricing/types'
@@ -408,6 +411,15 @@ export async function giveBiometricConsent(input: unknown): Promise<Result> {
     { consent: true },
     o.app.steps,
   )
+  await recordConsents([
+    {
+      subjectType: 'profile',
+      subjectId: o.userId,
+      profileId: o.userId,
+      ip: clientIp(await headers()),
+      consent: consentRecord('biometric'),
+    },
+  ])
   return { ok: true }
 }
 

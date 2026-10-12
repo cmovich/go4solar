@@ -80,6 +80,11 @@ export function AssistedApplicationForm({ leads }: { leads: LeadOption[] }) {
             </option>
           ))}
         </select>
+        {leads.length === 0 && (
+          <p className="text-sm font-semibold text-amber-800">
+            No customer records yet. Add the customer on the waiting list first.
+          </p>
+        )}
         <p className="text-muted-foreground text-xs">
           Not listed? Add them first with “Add on behalf of customer” on the waiting list (it
           records their load).

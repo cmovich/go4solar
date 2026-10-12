@@ -2,9 +2,11 @@ import { randomUUID } from 'node:crypto'
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import type { Database } from '@/lib/supabase/database.types'
+
+import { testEmail } from '../../../e2e/helpers/test-identity'
 
 // Integration test against the real database: two users, A owns an application, a document and
 // a KYC file; B must see none of it. Skipped without .env.local.
@@ -31,12 +33,12 @@ describe.skipIf(!hasDb)('RLS: one consumer cannot read another’s application d
   beforeAll(async () => {
     const tag = randomUUID().slice(0, 8)
     const a = await admin.auth.admin.createUser({
-      email: `rls-a-${tag}@go4solar.test`,
+      email: testEmail('rls-a', tag),
       password,
       email_confirm: true,
     })
     const b = await admin.auth.admin.createUser({
-      email: `rls-b-${tag}@go4solar.test`,
+      email: testEmail('rls-b', tag),
       password,
       email_confirm: true,
     })
@@ -74,11 +76,7 @@ describe.skipIf(!hasDb)('RLS: one consumer cannot read another’s application d
     })
   }, 90_000)
 
-  afterAll(async () => {
-    if (ids.path) await admin.storage.from('kyc').remove([ids.path])
-    if (ids.app) await admin.from('kyc_checks').delete().eq('subject_id', ids.app)
-    for (const id of [ids.a, ids.b]) if (id) await admin.auth.admin.deleteUser(id)
-  }, 90_000)
+  // No clean-up: these rows use test identities (is_test) and stay as labelled test data.
 
   it('A can read their own application, document, check and file (control)', async () => {
     const a = await signedIn((await admin.auth.admin.getUserById(ids.a!)).data.user!.email!)
