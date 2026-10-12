@@ -67,13 +67,13 @@ vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => fakeClient({})
 const { saveMargins } = await import('./actions')
 
 const superAdmin: SessionInfo = {
-  user: { id: 'u-sa', email: 'sa@go4solar.app' },
+  user: { id: 'u-sa', email: 'sa@example.org' },
   role: 'super_admin',
   aal: 'aal2',
 }
 const creditOfficer: SessionInfo = {
   ...superAdmin,
-  user: { id: 'u-co', email: 'co@go4solar.app' },
+  user: { id: 'u-co', email: 'co@example.org' },
   role: 'credit_officer',
 }
 

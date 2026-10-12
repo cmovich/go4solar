@@ -31,16 +31,17 @@ export function testEmail(label: string, unique: string = digits(8)): string {
 }
 
 /**
- * A plus-address test email (the rule Semako's manual tests use): e2e+g4stest-<label>-<unique>@go4solar.app.
- * Flagged test by the "+g4stest" rule, not by the domain. Accounts are created confirmed: no mail is sent.
+ * A plus-address test email (the rule Semako's manual tests use): e2e+g4stest-<label>-<unique>@example.org.
+ * Flagged test by the "+g4stest" rule, not by the domain. example.org is reserved and never
+ * receives mail. Never use go4solar.app (the real company email domain) in tests.
  */
 export function testPlusEmail(label: string, unique: string = digits(8)): string {
-  return `e2e+g4stest-${label}-${unique}@go4solar.app`
+  return `e2e+g4stest-${label}-${unique}@example.org`
 }
 
 /** An email that is NOT a test identity by itself (use only together with a test phone). */
 export function plainEmailWithTestPhone(label: string, unique: string = digits(8)): string {
-  return `e2e-${label}-${unique}@go4solar.app`
+  return `e2e-${label}-${unique}@example.org`
 }
 
 /** A NIN the mock KYC accepts (11 digits starting with 1), new every run: one active application per NIN. */
