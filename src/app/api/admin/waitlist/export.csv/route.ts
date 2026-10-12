@@ -17,12 +17,13 @@ function cell(v: unknown): string {
 const line = (cells: unknown[]) => cells.map(cell).join(',')
 
 /** Staff only. Everything on the waiting list (complete, incomplete, installers) as CSV. */
-export async function GET() {
+export async function GET(req: Request) {
+  const includeTest = new URL(req.url).searchParams.get('test') === '1'
   const session = await requireStaffWithMfa()
   const [complete, incomplete, installers] = await Promise.all([
-    listConsumers({ tab: 'complete' }),
-    listConsumers({ tab: 'incomplete' }),
-    listInstallers(),
+    listConsumers({ tab: 'complete', includeTest }),
+    listConsumers({ tab: 'incomplete', includeTest }),
+    listInstallers(includeTest),
   ])
 
   const rows: string[] = []

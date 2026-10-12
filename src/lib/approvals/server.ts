@@ -98,7 +98,7 @@ export async function approvalContext(applicationId: string): Promise<ApprovalCo
     .eq('id', applicationId)
     .maybeSingle()
   if (!app) return null
-  const [loanRes, payments, signed, guarantee, checks, fundersRes, costs, limit] =
+  const [loanRes, payments, signed, guarantee, checks, fundersRes, profile, costs, limit] =
     await Promise.all([
       admin.from('loans').select('*').eq('application_id', app.id).maybeSingle(),
       admin.from('payments').select('kind, status, fee').eq('application_id', app.id),
@@ -122,6 +122,7 @@ export async function approvalContext(applicationId: string): Promise<ApprovalCo
         .eq('subject_id', app.id)
         .order('created_at'),
       admin.from('funders').select('*'),
+      admin.from('profiles').select('is_test').eq('id', app.consumer_id).maybeSingle(),
       unitCostsRow(),
       approvalLimit(),
     ])
@@ -138,16 +139,20 @@ export async function approvalContext(applicationId: string): Promise<ApprovalCo
         tenure: loan.tenure as TenureMonths,
       }
     : null
-  const funders: FunderRow[] = (fundersRes.data ?? []).map((f) => ({
-    id: f.id,
-    name: f.name,
-    annualRate: Number(f.annual_rate),
-    minAmount: Number(f.min_amount),
-    maxAmount: f.max_amount === null ? null : Number(f.max_amount),
-    maxTenure: f.max_tenure,
-    balanceAvailable: Number(f.balance_available),
-    status: f.status,
-  }))
+  // Test customers (profiles.is_test) only ever draw on test funders, real customers never do.
+  const isTest = Boolean(profile.data?.is_test)
+  const funders: FunderRow[] = (fundersRes.data ?? [])
+    .filter((f) => Boolean(f.is_test) === isTest)
+    .map((f) => ({
+      id: f.id,
+      name: f.name,
+      annualRate: Number(f.annual_rate),
+      minAmount: Number(f.min_amount),
+      maxAmount: f.max_amount === null ? null : Number(f.max_amount),
+      maxTenure: f.max_tenure,
+      balanceAvailable: Number(f.balance_available),
+      status: f.status,
+    }))
   const blockers = approvalBlockers({
     status: app.status,
     applicantType: app.applicant_type === 'business' ? 'business' : 'individual',

@@ -68,6 +68,8 @@ export type ConsumerFilters = {
   gen?: string
   from?: string
   to?: string
+  /** Include test data (is_test). Off by default: reports show real people only. */
+  includeTest?: boolean
 }
 
 type EstimateWithChosen = Estimate & {
@@ -138,6 +140,7 @@ export async function listConsumers(filters: ConsumerFilters): Promise<ConsumerL
     .eq('status', filters.tab)
     .order('created_at', { ascending: false })
     .limit(2000)
+  if (!filters.includeTest) q = q.eq('is_test', false)
   if (filters.state) q = q.eq('state', filters.state)
   if (filters.plan) q = q.eq('chosen_plan', filters.plan)
   if (filters.ready) q = q.eq('ready_when', filters.ready as 'now' | '30_days' | 'later')
@@ -194,12 +197,17 @@ function segment(leads: ConsumerLead[]): Segment {
 }
 
 /** The funder numbers (PRD "Admin waiting-list view"), over every complete sign-up. */
-export async function headline(): Promise<Headline> {
+export async function headline(includeTest = false): Promise<Headline> {
   const supabase = await createClient()
-  const [{ data: rows, error }, { count: installers }] = await Promise.all([
-    supabase.from('waitlist_consumers').select('*').limit(5000),
-    supabase.from('waitlist_installers').select('id', { count: 'exact', head: true }),
-  ])
+  let leadsQ = supabase.from('waitlist_consumers').select('*').limit(5000)
+  let installersQ = supabase
+    .from('waitlist_installers')
+    .select('id', { count: 'exact', head: true })
+  if (!includeTest) {
+    leadsQ = leadsQ.eq('is_test', false)
+    installersQ = installersQ.eq('is_test', false)
+  }
+  const [{ data: rows, error }, { count: installers }] = await Promise.all([leadsQ, installersQ])
   if (error) throw new Error(`waitlist_consumers: ${error.message}`)
   const leads = rows.map((r) => decode(r, new Map()))
   const complete = leads.filter((l) => l.status === 'complete')
@@ -247,13 +255,15 @@ export async function headline(): Promise<Headline> {
 
 export type InstallerLead = InstallerRow & { enteredByName: string | null }
 
-export async function listInstallers(): Promise<InstallerLead[]> {
+export async function listInstallers(includeTest = false): Promise<InstallerLead[]> {
   const supabase = await createClient()
-  const { data, error } = await supabase
+  let q = supabase
     .from('waitlist_installers')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(2000)
+  if (!includeTest) q = q.eq('is_test', false)
+  const { data, error } = await q
   if (error) throw new Error(`waitlist_installers: ${error.message}`)
   const names = await staffNames(data.map((r) => r.entered_by))
   return data.map((r) => ({

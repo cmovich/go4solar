@@ -6,6 +6,7 @@ import { ConsumerTable } from '@/components/admin/waitlist/ConsumerTable'
 import { HeadlineCards } from '@/components/admin/waitlist/HeadlineCards'
 import { InstallerTable } from '@/components/admin/waitlist/InstallerTable'
 import { WaitlistFilters } from '@/components/admin/waitlist/WaitlistFilters'
+import { TestDataToggle, showTestFrom } from '@/components/admin/TestDataToggle'
 import { Button } from '@/components/ui/button'
 import { requireStaffWithMfa } from '@/lib/auth/roles'
 import { createClient } from '@/lib/supabase/server'
@@ -37,13 +38,14 @@ export default async function WaitlistAdminPage({
     gen: one(sp.gen),
     from: one(sp.from),
     to: one(sp.to),
+    includeTest: showTestFrom(sp.test),
   }
 
   const supabase = await createClient()
   const [stats, rows, installers, recentExport, { data: canAssist }] = await Promise.all([
-    headline(),
+    headline(filters.includeTest),
     tab === 'installers' ? Promise.resolve([]) : listConsumers(filters),
-    tab === 'installers' ? listInstallers() : Promise.resolve([]),
+    tab === 'installers' ? listInstallers(filters.includeTest) : Promise.resolve([]),
     exportIsRecent(),
     supabase.rpc('has_permission', { target: 'assisted_entry' }),
   ])
@@ -63,15 +65,24 @@ export default async function WaitlistAdminPage({
           <p className="text-muted-foreground mt-1 text-sm">
             Prelaunch sign-ups. Signed in as {session.user?.email} ({session.role}).
           </p>
+          <div className="mt-2">
+            <TestDataToggle path="/admin/waitlist" params={sp} on={Boolean(filters.includeTest)} />
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
-            <a href="/api/admin/waitlist/report.pdf" download>
+            <a
+              href={`/api/admin/waitlist/report.pdf${filters.includeTest ? '?test=1' : ''}`}
+              download
+            >
               Download PDF
             </a>
           </Button>
           <Button asChild variant="outline">
-            <a href="/api/admin/waitlist/export.csv" download>
+            <a
+              href={`/api/admin/waitlist/export.csv${filters.includeTest ? '?test=1' : ''}`}
+              download
+            >
               Download CSV
             </a>
           </Button>

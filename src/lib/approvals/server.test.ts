@@ -27,7 +27,12 @@ const drawn = Math.max(0, quote.costPrice - quote.deposit)
 const officer = { id: 'officer-1', role: 'credit_officer' as const }
 const boss = { id: 'boss-1', role: 'super_admin' as const }
 
-function seed({ guarantorSigned = true, limit = 100_000_000, balance = 50_000_000 } = {}) {
+function seed({
+  guarantorSigned = true,
+  limit = 100_000_000,
+  balance = 50_000_000,
+  customerIsTest = false,
+} = {}) {
   db = fakeSupabase({ funder_draws: [['loan_id']], loans: [['application_id']] })
   db.defineFunction('draw_from_funder', ({ p_funder, p_amount }) => {
     const f = db.rows('funders').find((r) => r.id === p_funder)!
@@ -82,7 +87,20 @@ function seed({ guarantorSigned = true, limit = 100_000_000, balance = 50_000_00
     max_tenure: 12,
     balance_available: balance,
     status: 'active',
+    is_test: false,
   })
+  db.seed('funders', {
+    id: 'fund-test',
+    name: 'E2E TEST FUNDER',
+    annual_rate: 0.16,
+    min_amount: 0,
+    max_amount: null,
+    max_tenure: 12,
+    balance_available: 900_000_000_000,
+    status: 'active',
+    is_test: true,
+  })
+  db.seed('profiles', { id: 'u-1', is_test: customerIsTest })
   db.seed('unit_costs', {
     id: 1,
     kyc_per_loan: 10000,
@@ -211,6 +229,40 @@ describe('approve', () => {
     })
     expect(r).toEqual({ ok: false, error: 'That funder is not eligible for this loan.' })
     expect(db.rows('loans')[0]).toMatchObject({ status: 'pending_approval' })
+  })
+})
+
+describe('test data never mixes with real funders', () => {
+  it('a real customer never sees the test funder', async () => {
+    const ctx = await approvals.approvalContext('app-1')
+    expect(ctx!.options.map((o) => o.funder.id)).toEqual(['fund-a'])
+    const r = await approvals.approveApplication({
+      applicationId: 'app-1',
+      funderId: 'fund-test',
+      actor: boss,
+    })
+    expect(r).toEqual({ ok: false, error: 'That funder is not eligible for this loan.' })
+  })
+
+  it('a test customer (is_test) only ever draws on the test funder', async () => {
+    seed({ customerIsTest: true })
+    const ctx = await approvals.approvalContext('app-1')
+    expect(ctx!.options.map((o) => o.funder.id)).toEqual(['fund-test'])
+    expect(
+      await approvals.approveApplication({
+        applicationId: 'app-1',
+        funderId: 'fund-a',
+        actor: boss,
+      }),
+    ).toMatchObject({ ok: false })
+    expect(
+      await approvals.approveApplication({
+        applicationId: 'app-1',
+        funderId: 'fund-test',
+        actor: boss,
+      }),
+    ).toEqual({ ok: true })
+    expect(db.rows('funders').find((f) => f.id === 'fund-a')!.balance_available).toBe(50_000_000)
   })
 })
 

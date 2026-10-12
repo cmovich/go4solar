@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
 import { expect, type Page } from '@playwright/test'
 
+import { testEmail, testNin, testPhone, toE164 } from '../helpers/test-identity'
 import { totp } from '../helpers/totp'
 
 config({ path: '.env.local', quiet: true })
@@ -9,9 +10,9 @@ export const hasDb = Boolean(
   process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY,
 )
 
-export function freshPhone(): string {
-  return `080${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`
-}
+/** Test identities only (see ../helpers/test-identity.ts). */
+export const freshPhone = testPhone
+export { toE164 }
 
 function admin() {
   return createClient(
@@ -48,15 +49,13 @@ export async function latestOtpFor(e164: string): Promise<string> {
 }
 
 /** A NIN the mock KYC accepts (11 digits starting with 1), new for every run: one active application per NIN. */
-export function freshNin(): string {
-  return `1${String(Math.floor(Math.random() * 1e10)).padStart(10, '0')}`
-}
+export const freshNin = testNin
 
 export type Person = { phone: string; email: string; nin: string; type: 'individual' | 'business' }
 
 export function newPerson(type: Person['type'] = 'individual'): Person {
   const phone = freshPhone()
-  return { phone, email: `e2e-live-${type}-${phone}@go4solar.test`, nin: freshNin(), type }
+  return { phone, email: testEmail(`live-${type}`, phone), nin: freshNin(), type }
 }
 
 /** Calculator → details flow → energy → lands on /plans. */

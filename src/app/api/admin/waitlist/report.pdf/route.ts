@@ -12,11 +12,12 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 /** Staff only. Funder-ready PDF: summary + chart, then every complete sign-up. */
-export async function GET() {
+export async function GET(req: Request) {
+  const includeTest = new URL(req.url).searchParams.get('test') === '1'
   const session = await requireStaffWithMfa()
   const [stats, leads, settings] = await Promise.all([
-    headline(),
-    listConsumers({ tab: 'complete' }),
+    headline(includeTest),
+    listConsumers({ tab: 'complete', includeTest }),
     getQuoteSettings(),
   ])
   const generatedAt = new Date()

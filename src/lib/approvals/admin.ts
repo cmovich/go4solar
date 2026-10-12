@@ -28,7 +28,15 @@ export const QUEUE_FLAGS = {
 } as const
 export type QueueFlag = keyof typeof QUEUE_FLAGS
 
+/** Ids of test accounts (profiles.is_test): reports leave them out unless asked. */
+export async function testProfileIds(): Promise<Set<string>> {
+  const { data } = await createAdminClient().from('profiles').select('id').eq('is_test', true)
+  return new Set((data ?? []).map((p) => p.id))
+}
+
 export type QueueFilters = {
+  /** Include test customers (profiles.is_test). Off by default. */
+  includeTest?: boolean
   status?: string
   state?: string
   type?: string
@@ -67,11 +75,14 @@ export async function applicationQueue(
   const { data } = await admin
     .from('applications')
     .select(
-      'id, status, applicant_type, personal, credit_flags, submitted_at, entered_by, quote_id, created_at, business',
+      'id, consumer_id, status, applicant_type, personal, credit_flags, submitted_at, entered_by, quote_id, created_at, business',
     )
     .order('created_at', { ascending: false })
     .limit(500)
-  const apps = (data ?? []).filter((a) => a.status !== 'draft' || a.entered_by)
+  const testIds = filters.includeTest ? new Set<string>() : await testProfileIds()
+  const apps = (data ?? []).filter(
+    (a) => (a.status !== 'draft' || a.entered_by) && !testIds.has(a.consumer_id),
+  )
   const quoteIds = apps.map((a) => a.quote_id).filter((x): x is string => Boolean(x))
   const staffIds = [
     ...new Set(apps.map((a) => a.entered_by).filter((x): x is string => Boolean(x))),
@@ -285,27 +296,36 @@ export type AdminTiles = {
 }
 
 /** Back-office home tiles. */
-export async function adminTiles(now = new Date()): Promise<AdminTiles> {
+export async function adminTiles(includeTest = false, now = new Date()): Promise<AdminTiles> {
   const admin = createAdminClient()
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString()
-  const [open, approved, jobs, funders] = await Promise.all([
-    admin.from('applications').select('submitted_at').in('status', ['submitted', 'under_review']),
+  const [testIds, open, approved, jobs, loans, funders] = await Promise.all([
+    includeTest ? Promise.resolve(new Set<string>()) : testProfileIds(),
     admin
       .from('applications')
-      .select('id', { count: 'exact', head: true })
+      .select('consumer_id, submitted_at')
+      .in('status', ['submitted', 'under_review']),
+    admin
+      .from('applications')
+      .select('consumer_id')
       .eq('status', 'approved')
       .gte('decided_at', monthStart),
-    admin.from('jobs').select('id', { count: 'exact', head: true }).neq('status', 'commissioned'),
-    admin.from('funders').select('name, balance_available, status').order('name'),
+    admin.from('jobs').select('loan_id').neq('status', 'commissioned'),
+    admin.from('loans').select('id, consumer_id'),
+    admin.from('funders').select('name, balance_available, status, is_test').order('name'),
   ])
-  const waiting = open.data ?? []
+  const real = <T extends { consumer_id: string }>(rows: T[] | null) =>
+    (rows ?? []).filter((r) => !testIds.has(r.consumer_id))
+  const loanOwner = new Map((loans.data ?? []).map((l) => [l.id, l.consumer_id]))
+  const waiting = real(open.data)
   return {
     waiting: waiting.length,
     overdue: waiting.filter((a) => slaState(a.submitted_at, now)?.overdue).length,
-    approvedThisMonth: approved.count ?? 0,
-    jobsInProgress: jobs.count ?? 0,
+    approvedThisMonth: real(approved.data).length,
+    jobsInProgress: (jobs.data ?? []).filter((j) => !testIds.has(loanOwner.get(j.loan_id) ?? ''))
+      .length,
     funders: (funders.data ?? [])
-      .filter((f) => f.status === 'active')
+      .filter((f) => f.status === 'active' && (includeTest || !f.is_test))
       .map((f) => ({ name: f.name, balance: Number(f.balance_available) })),
   }
 }

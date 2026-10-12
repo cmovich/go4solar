@@ -1,14 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { testEmail, testPhone } from './helpers/test-identity'
 import { totp } from './helpers/totp'
 
 const hasStaff = () => Boolean(process.env.E2E_STAFF_EMAIL && process.env.E2E_STAFF_TOTP_SECRET)
 
-/** A random Nigerian mobile number per test so parallel runs never collide. */
-function freshPhone(): string {
-  const tail = String(Math.floor(Math.random() * 1e8)).padStart(8, '0')
-  return `080${tail}`
-}
+/** A fresh test phone per test (0800000…, see helpers/test-identity.ts). */
+const freshPhone = testPhone
 
 async function addLedAndFridge(page: Page) {
   await page.getByRole('button', { name: 'Lighting' }).click()
@@ -32,7 +30,7 @@ async function throughNameStep(page: Page, phone: string, state: string) {
   await page.getByRole('button', { name: 'Next' }).click()
 
   await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 5000 })
-  await page.getByLabel('Email address').fill(`e2e-${phone}@go4solar.test`)
+  await page.getByLabel('Email address').fill(testEmail('waitlist', phone))
   await page.getByRole('button', { name: 'Next' }).click()
 
   await expect(page.getByLabel('First name')).toBeVisible({ timeout: 5000 })
@@ -133,7 +131,7 @@ test.describe('solar plan sign-up (waiting list)', () => {
     await page.getByLabel('Phone number').fill(phone)
     await page.getByRole('button', { name: 'Next' }).click()
     await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 5000 })
-    await page.getByLabel('Email address').fill(`e2e-${phone}@go4solar.test`)
+    await page.getByLabel('Email address').fill(testEmail('waitlist', phone))
     await page.getByRole('button', { name: 'Next' }).click()
     await expect(page.getByLabel('State of installation')).toBeVisible({ timeout: 5000 })
 
@@ -192,9 +190,13 @@ test.describe('solar plan sign-up (waiting list)', () => {
 
     const staff = await browser.newPage()
     await loginAsStaff(staff)
+    // Test data is hidden by default; the toggle shows it.
     await staff.goto('/admin/waitlist?tab=incomplete')
     await expect(staff.getByRole('heading', { name: 'Waiting list' })).toBeVisible()
     const row = staff.getByTestId('consumer-row').filter({ hasText: e164 })
+    await expect(row).toHaveCount(0)
+    await staff.getByTestId('test-data-toggle').click()
+    await staff.waitForURL(/test=1/)
     await expect(row).toBeVisible()
     await row.click()
     await expect(staff.getByRole('dialog').getByText(/Incomplete lead/)).toBeVisible()
@@ -210,9 +212,13 @@ test.describe('solar plan sign-up (waiting list)', () => {
     // CSV export contains the row (fetched with the staff session's cookies).
     await expect(staff.getByRole('link', { name: 'Download CSV' })).toHaveAttribute(
       'href',
-      '/api/admin/waitlist/export.csv',
+      '/api/admin/waitlist/export.csv?test=1',
     )
-    const res = await staff.request.get('/api/admin/waitlist/export.csv', { timeout: 60_000 })
+    const real = await staff.request.get('/api/admin/waitlist/export.csv', { timeout: 60_000 })
+    expect(await real.text()).not.toContain(e164)
+    const res = await staff.request.get('/api/admin/waitlist/export.csv?test=1', {
+      timeout: 60_000,
+    })
     expect(res.status(), await res.text().then((t) => t.slice(0, 300))).toBe(200)
     expect(res.headers()['content-type']).toContain('text/csv')
     const csv = await res.text()

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+import { TestDataToggle, showTestFrom } from '@/components/admin/TestDataToggle'
 import { applicationQueue, QUEUE_FLAGS, type QueueFlag } from '@/lib/approvals/admin'
 import { requireRole } from '@/lib/auth/roles'
 import { formatNaira } from '@/lib/money'
@@ -37,6 +38,7 @@ export default async function ApplicationsPage({
     type?: string
     flag?: string
     awaiting?: string
+    test?: string
   }>
 }) {
   await requireRole('super_admin', 'credit_officer')
@@ -48,6 +50,7 @@ export default async function ApplicationsPage({
     type: sp.type || undefined,
     flag,
     awaiting: sp.awaiting === '1',
+    includeTest: showTestFrom(sp.test),
   })
 
   return (
@@ -58,6 +61,9 @@ export default async function ApplicationsPage({
           <p className="text-muted-foreground mt-1 text-sm">
             Decide within 48 hours of submission.
           </p>
+          <div className="mt-2">
+            <TestDataToggle path="/admin/applications" params={sp} on={showTestFrom(sp.test)} />
+          </div>
         </div>
         <Link
           href="/admin/applications/new"
@@ -106,6 +112,7 @@ export default async function ApplicationsPage({
           <input type="checkbox" name="awaiting" value="1" defaultChecked={sp.awaiting === '1'} />{' '}
           Awaiting customer
         </label>
+        {showTestFrom(sp.test) && <input type="hidden" name="test" value="1" />}
         <button
           type="submit"
           className="bg-brand-dark h-10 rounded-md px-4 text-sm font-semibold text-white"

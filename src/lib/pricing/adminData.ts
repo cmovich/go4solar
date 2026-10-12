@@ -25,7 +25,8 @@ function sizeFrom(category: keyof typeof SIZE_KEY, sizes: unknown): number {
 }
 
 /** Loads every pricing table and the relevant settings rows as the signed-in staff user (RLS). */
-export async function loadPricingDraft(): Promise<PricingDraft> {
+/** Test funders (is_test) only appear when asked (Funders page "Show test data"). */
+export async function loadPricingDraft(includeTestFunders = false): Promise<PricingDraft> {
   const supabase = await createClient()
   const [components, margins, rates, installs, unitCosts, funders, settings] = await Promise.all([
     supabase.from('components').select('*').order('category').order('unit_cost'),
@@ -33,7 +34,9 @@ export async function loadPricingDraft(): Promise<PricingDraft> {
     supabase.from('pricing_rates').select('*').order('tenure_months'),
     supabase.from('installation_costs').select('*'),
     supabase.from('unit_costs').select('*').eq('id', 1).maybeSingle(),
-    supabase.from('funders').select('*').order('created_at'),
+    includeTestFunders
+      ? supabase.from('funders').select('*').order('created_at')
+      : supabase.from('funders').select('*').eq('is_test', false).order('created_at'),
     supabase
       .from('settings')
       .select('key, value')

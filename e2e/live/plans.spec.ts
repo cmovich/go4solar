@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test'
 
-import { freshNin, hasDb, latestOtpFor, throughDetails as details } from './helpers'
+import { testEmail } from '../helpers/test-identity'
 
-const freshPhone = () => `080${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`
+import { freshNin, freshPhone, hasDb, latestOtpFor, throughDetails as details } from './helpers'
+
 const throughDetails = (page: Parameters<typeof details>[0], phone: string, email: string) =>
   details(page, { phone, email, nin: freshNin(), type: 'individual' })
 
@@ -12,7 +13,7 @@ test.describe('live mode: plans → account → phone code → application', () 
   test('calculator → details → plans → choose → account → OTP → /app/apply', async ({ page }) => {
     const phone = freshPhone()
     const e164 = `+234${phone.slice(1)}`
-    const email = `e2e-live-${phone}@go4solar.test`
+    const email = testEmail('live', phone)
 
     await throughDetails(page, phone, email)
 
@@ -60,7 +61,7 @@ test.describe('live mode: plans → account → phone code → application', () 
 
   test('a wrong code is rejected', async ({ page }) => {
     const phone = freshPhone()
-    await throughDetails(page, phone, `e2e-live-wrong-${phone}@go4solar.test`)
+    await throughDetails(page, phone, testEmail('live-wrong', phone))
     await page.waitForURL(/\/plans\?estimate=/, { timeout: 20000 })
     await page.getByRole('button', { name: 'Choose Essential' }).click()
     await page.waitForURL(/\/account\?quote=/)

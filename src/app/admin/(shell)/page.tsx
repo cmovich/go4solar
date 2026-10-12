@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+import { TestDataToggle, showTestFrom } from '@/components/admin/TestDataToggle'
 import { navFor } from '@/components/admin/nav'
 import { adminTiles } from '@/lib/approvals/admin'
 import { requireStaffWithMfa } from '@/lib/auth/roles'
@@ -11,11 +12,17 @@ export const metadata: Metadata = { title: 'Back office' }
 export const dynamic = 'force-dynamic'
 
 /** Back-office home: today's numbers, then the modules this role can use. */
-export default async function AdminHomePage() {
+export default async function AdminHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ test?: string }>
+}) {
   const { user, role } = await requireStaffWithMfa()
+  const sp = await searchParams
+  const includeTest = showTestFrom(sp.test)
   const modules = navFor(role).filter((n) => n.href !== '/admin')
   const [tiles, permission] = await Promise.all([
-    adminTiles(),
+    adminTiles(includeTest),
     role === 'super_admin'
       ? Promise.resolve(true)
       : createClient().then(
@@ -47,6 +54,9 @@ export default async function AdminHomePage() {
       <p className="text-muted-foreground mt-1 text-sm">
         Signed in as {user?.email} · role {role} · two-factor verified
       </p>
+      <div className="mt-2">
+        <TestDataToggle path="/admin" params={sp} on={includeTest} />
+      </div>
 
       <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="admin-tiles">
         {cards.map((c) => (

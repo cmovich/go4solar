@@ -561,6 +561,7 @@ export type Database = {
           balance_available: number
           created_at: string
           id: string
+          is_test: boolean
           kind: Database['public']['Enums']['funder_kind']
           max_amount: number | null
           max_tenure: number
@@ -577,6 +578,7 @@ export type Database = {
           balance_available?: number
           created_at?: string
           id?: string
+          is_test?: boolean
           kind?: Database['public']['Enums']['funder_kind']
           max_amount?: number | null
           max_tenure?: number
@@ -593,6 +595,7 @@ export type Database = {
           balance_available?: number
           created_at?: string
           id?: string
+          is_test?: boolean
           kind?: Database['public']['Enums']['funder_kind']
           max_amount?: number | null
           max_tenure?: number
@@ -1229,6 +1232,7 @@ export type Database = {
           email_verified_at: string | null
           full_name: string | null
           id: string
+          is_test: boolean
           phone_e164: string | null
           role: Database['public']['Enums']['app_role']
           state: string | null
@@ -1239,6 +1243,7 @@ export type Database = {
           email_verified_at?: string | null
           full_name?: string | null
           id: string
+          is_test?: boolean
           phone_e164?: string | null
           role?: Database['public']['Enums']['app_role']
           state?: string | null
@@ -1249,6 +1254,7 @@ export type Database = {
           email_verified_at?: string | null
           full_name?: string | null
           id?: string
+          is_test?: boolean
           phone_e164?: string | null
           role?: Database['public']['Enums']['app_role']
           state?: string | null
@@ -1578,6 +1584,7 @@ export type Database = {
           estimate: Json | null
           first_name: string | null
           id: string
+          is_test: boolean
           lga: string | null
           load_items: Json
           load_totals: Json
@@ -1606,6 +1613,7 @@ export type Database = {
           estimate?: Json | null
           first_name?: string | null
           id?: string
+          is_test?: boolean
           lga?: string | null
           load_items?: Json
           load_totals?: Json
@@ -1634,6 +1642,7 @@ export type Database = {
           estimate?: Json | null
           first_name?: string | null
           id?: string
+          is_test?: boolean
           lga?: string | null
           load_items?: Json
           load_totals?: Json
@@ -1706,6 +1715,7 @@ export type Database = {
           entered_by: string | null
           id: string
           installations_completed: number | null
+          is_test: boolean
           lgas: string | null
           name: string
           phone_e164: string
@@ -1723,6 +1733,7 @@ export type Database = {
           entered_by?: string | null
           id?: string
           installations_completed?: number | null
+          is_test?: boolean
           lgas?: string | null
           name: string
           phone_e164: string
@@ -1740,6 +1751,7 @@ export type Database = {
           entered_by?: string | null
           id?: string
           installations_completed?: number | null
+          is_test?: boolean
           lgas?: string | null
           name?: string
           phone_e164?: string

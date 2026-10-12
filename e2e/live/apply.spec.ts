@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { TEST_FUNDER_NAME, testEmail } from '../helpers/test-identity'
+
 import {
   PDF,
   PNG,
@@ -62,7 +64,7 @@ type Guarantor = { phone: string; email: string }
 
 function newGuarantor(): Guarantor {
   const phone = freshPhone()
-  return { phone, email: `e2e-guarantor-${phone}@go4solar.test` }
+  return { phone, email: testEmail('guarantor', phone) }
 }
 
 const e164 = (phone: string) => `+234${phone.slice(1)}`
@@ -150,7 +152,7 @@ test.describe('live mode: application wizard with mock KYC', () => {
 
     await step(page, 'nextOfKin')
     await page.getByLabel('Full name').fill('Emeka Eze')
-    await page.getByLabel('Phone').fill('08088880000')
+    await page.getByLabel('Phone').fill(freshPhone())
     await page.getByLabel('Relationship to you').fill('Brother')
     await page.getByRole('button', { name: 'Save' }).click()
 
@@ -259,15 +261,18 @@ test.describe('live mode: application wizard with mock KYC', () => {
     await loginAsStaff(staff)
     await staff.goto(`/admin/applications/${appId}`)
     await expect(staff.getByTestId('approval-blockers')).toHaveCount(0)
-    await expect(staff.getByTestId('funder-options')).toContainText('SPEWA programme funds')
-    await staff.getByRole('button', { name: /^Approve with/ }).click()
+    // Test customers only ever see (and draw on) the test funder: never SAMPLE or real funders.
+    await expect(staff.getByTestId('funder-options')).toContainText(TEST_FUNDER_NAME)
+    await expect(staff.getByTestId('funder-options')).not.toContainText('SPEWA')
+    await staff.getByRole('radio', { name: TEST_FUNDER_NAME }).check()
+    await staff.getByRole('button', { name: `Approve with ${TEST_FUNDER_NAME}` }).click()
     await expect(staff.getByTestId('admin-status')).toHaveText('approved', { timeout: 30000 })
     expect(await latestOutboxText('application_approved', p.email)).toMatch(/approved/i)
 
     await staff.goto('/admin/jobs')
     const card = staff.getByTestId('awaiting-job').filter({ hasText: `+234${p.phone.slice(1)}` })
     await card.getByLabel('Installer', { exact: true }).fill('Bayo Installs')
-    await card.getByLabel('Installer phone').fill('08031112222')
+    await card.getByLabel('Installer phone').fill(freshPhone())
     await card.getByLabel('Installation date').fill('2026-12-20')
     await card.getByRole('button', { name: 'Assign' }).click()
     await expect(card).toHaveCount(0, { timeout: 30000 })

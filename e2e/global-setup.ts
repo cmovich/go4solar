@@ -1,6 +1,7 @@
 import { config } from 'dotenv'
 import { createClient } from '@supabase/supabase-js'
 
+import { TEST_EMAIL_DOMAIN } from './helpers/test-identity'
 import { totp } from './helpers/totp'
 
 /**
@@ -21,7 +22,7 @@ export default async function globalSetup() {
     return
   }
 
-  const email = 'e2e-staff@go4solar.test'
+  const email = `e2e-staff@${TEST_EMAIL_DOMAIN}`
   const password = `E2e-${service.slice(-12)}!`
   const admin = createClient(url, service, {
     auth: { persistSession: false, autoRefreshToken: false },
