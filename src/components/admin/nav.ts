@@ -1,5 +1,6 @@
 import {
   BookOpenText,
+  ChartLine,
   ClipboardList,
   FileSignature,
   Hammer,
@@ -8,6 +9,7 @@ import {
   Mail,
   Plug,
   Tags,
+  TrendingUp,
   Users,
   Wallet,
   type LucideIcon,
@@ -48,6 +50,13 @@ export const NAV: readonly NavItem[] = [
     roles: ['super_admin', 'operations', 'finance'],
   },
   { href: '/admin/pricing', label: 'Pricing', icon: Tags, roles: ['super_admin'] },
+  { href: '/admin/profit', label: 'Profit', icon: TrendingUp, roles: ['super_admin', 'finance'] },
+  {
+    href: '/admin/forecasts',
+    label: 'Forecasts',
+    icon: ChartLine,
+    roles: ['super_admin', 'finance'],
+  },
   { href: '/admin/funders', label: 'Funders', icon: Wallet, roles: ['super_admin', 'finance'] },
   {
     href: '/admin/appliances',

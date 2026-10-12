@@ -121,7 +121,7 @@ test.describe('live mode: application wizard with mock KYC', () => {
     page,
   }) => {
     // The whole journey: apply, sign, guarantor, deposit, approval, installation, sign-off.
-    test.setTimeout(480_000)
+    test.setTimeout(600_000)
     const p = newPerson('individual')
     await throughDetails(page, p)
     await throughAccount(page, p)
@@ -293,7 +293,6 @@ test.describe('live mode: application wizard with mock KYC', () => {
     await expect(staff.getByText('Photo added.')).toBeVisible({ timeout: 30000 })
     await staff.getByRole('button', { name: 'Mark installed' }).click()
     await expect(staff.getByTestId('job-status')).toHaveText('installed', { timeout: 30000 })
-    await staffContext.close()
 
     // ---- Customer confirms: the plan starts, first payment one month from today.
     await page.reload()
@@ -306,6 +305,35 @@ test.describe('live mode: application wizard with mock KYC', () => {
     )
     await expect(page.getByTestId('timeline').getByText('Installed')).toBeVisible()
     await expect(page.getByTestId('pay-now')).toBeVisible()
+
+    // ---- Profit dashboard: test customers are hidden unless "Show test data" is on.
+    await staff.goto('/admin/profit')
+    await expect(staff.getByTestId('profit-cards')).toContainText('GRAND TOTAL')
+    await expect(staff.getByTestId('profit-customers')).not.toContainText(TEST_FUNDER_NAME)
+    await staff.getByTestId('test-data-toggle').click()
+    await staff.waitForURL(/test=1/)
+    await expect(staff.getByTestId('profit-customers')).toContainText(TEST_FUNDER_NAME)
+    await expect(staff.getByTestId('profit-funders')).toContainText(TEST_FUNDER_NAME)
+    await expect(staff.getByTestId('profit-charts')).toBeVisible()
+
+    // ---- Forecasts: Low / Base / High, from the waiting list, save, export PDF and Excel.
+    await staff.goto('/admin/forecasts?test=1')
+    await expect(staff.getByTestId('break-even-base')).toContainText(/Month|Not within/)
+    await staff.getByTestId('from-waitlist').click()
+    await expect(staff.getByTestId('waitlist-summary')).toContainText('sign-ups', { timeout: 30000 })
+    await staff.getByLabel('Scenario name').fill(`E2E TEST scenario ${p.phone}`)
+    await staff.getByRole('button', { name: 'Save scenario' }).click()
+    await staff.waitForURL(/forecasts\?id=/, { timeout: 30000 })
+    const scenarioId = new URL(staff.url()).searchParams.get('id')!
+    const pdf = await staff.request.get(`/api/admin/forecasts/${scenarioId}/pdf`, { timeout: 90_000 })
+    expect(pdf.status()).toBe(200)
+    expect((await pdf.body()).subarray(0, 5).toString()).toBe('%PDF-')
+    const xlsx = await staff.request.get(`/api/admin/forecasts/${scenarioId}/xlsx`, { timeout: 60_000 })
+    expect(xlsx.status()).toBe(200)
+    expect((await xlsx.body()).subarray(0, 2).toString()).toBe('PK')
+    // The customer cannot reach any of it.
+    expect((await page.request.get(`/api/admin/forecasts/${scenarioId}/pdf`)).status()).toBe(403)
+    await staffContext.close()
   })
 
   test('business: CAC (needs certificate + director tick) → owner KYC → business statements → guarantor → review', async ({

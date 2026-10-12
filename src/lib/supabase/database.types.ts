@@ -503,6 +503,41 @@ export type Database = {
         }
         Relationships: []
       }
+      forecast_scenarios: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          inputs: Json
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inputs: Json
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inputs?: Json
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'forecast_scenarios_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       funder_draws: {
         Row: {
           amount: number
@@ -846,6 +881,41 @@ export type Database = {
           subject_type?: Database['public']['Enums']['kyc_subject']
         }
         Relationships: []
+      }
+      loan_profit_snapshots: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          loan_id: string
+          month: string | null
+          stage: Database['public']['Enums']['profit_stage']
+        }
+        Insert: {
+          created_at?: string
+          data: Json
+          id?: string
+          loan_id: string
+          month?: string | null
+          stage: Database['public']['Enums']['profit_stage']
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          loan_id?: string
+          month?: string | null
+          stage?: Database['public']['Enums']['profit_stage']
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'loan_profit_snapshots_loan_id_fkey'
+            columns: ['loan_id']
+            isOneToOne: false
+            referencedRelation: 'loans'
+            referencedColumns: ['id']
+          },
+        ]
       }
       loans: {
         Row: {
@@ -1830,6 +1900,7 @@ export type Database = {
       outbox_channel: 'sms' | 'whatsapp' | 'email'
       payment_kind: 'deposit' | 'instalment' | 'refund'
       payment_status: 'pending' | 'success' | 'failed'
+      profit_stage: 'quoted' | 'approved' | 'actual'
       quote_status: 'draft' | 'chosen' | 'expired'
       ready_when: 'now' | '30_days' | 'later'
       schedule_status: 'due' | 'paid' | 'late'
@@ -2010,6 +2081,7 @@ export const Constants = {
       outbox_channel: ['sms', 'whatsapp', 'email'],
       payment_kind: ['deposit', 'instalment', 'refund'],
       payment_status: ['pending', 'success', 'failed'],
+      profit_stage: ['quoted', 'approved', 'actual'],
       quote_status: ['draft', 'chosen', 'expired'],
       ready_when: ['now', '30_days', 'later'],
       schedule_status: ['due', 'paid', 'late'],
