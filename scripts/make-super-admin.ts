@@ -5,6 +5,10 @@
  * creates the account with the email already confirmed. Then it sets the role to super_admin,
  * checks the account is NOT marked as test data, and writes an audit_log row.
  * After that: sign in at /login and set up the authenticator app at /admin/mfa.
+ *
+ *   npm run make-admin -- you@email.com --set-password
+ * Also asks for a new password (typed twice, hidden) for an account that already exists and sets
+ * it. The password is never printed or stored in the audit_log row.
  */
 import { createInterface } from 'node:readline'
 import { Writable } from 'node:stream'
@@ -36,10 +40,25 @@ function askHidden(question: string): Promise<string> {
   })
 }
 
+/** Ask for a password twice; stops if they differ or it is shorter than 12 characters. */
+async function askNewPassword(): Promise<string> {
+  const password = await askHidden('Password: ')
+  const again = await askHidden('Type it again: ')
+  if (password !== again) throw new Error('The two passwords are different. Nothing was changed.')
+  if (password.length < 12) throw new Error('Use at least 12 characters. Nothing was changed.')
+  return password
+}
+
 async function main(): Promise<void> {
-  const email = process.argv[2]?.trim().toLowerCase()
-  if (!email || !email.includes('@')) {
-    console.error('Usage: npm run make-admin -- you@email.com')
+  const args = process.argv.slice(2)
+  const setPassword = args.includes('--set-password')
+  const email = args
+    .find((a) => !a.startsWith('--'))
+    ?.trim()
+    .toLowerCase()
+  const unknown = args.filter((a) => a.startsWith('--') && a !== '--set-password')
+  if (!email || !email.includes('@') || unknown.length > 0) {
+    console.error('Usage: npm run make-admin -- you@email.com [--set-password]')
     process.exit(1)
   }
   if (email.endsWith('@go4solar.test') || email.split('@')[0]!.includes('+g4stest')) {
@@ -65,10 +84,7 @@ async function main(): Promise<void> {
 
   if (!profile) {
     console.log(`No account for ${email} yet. Choose a password for it (at least 12 characters).`)
-    const password = await askHidden('Password: ')
-    const again = await askHidden('Type it again: ')
-    if (password !== again) throw new Error('The two passwords are different. Nothing was created.')
-    if (password.length < 12) throw new Error('Use at least 12 characters. Nothing was created.')
+    const password = await askNewPassword()
     const { data, error } = await admin.auth.admin.createUser({
       email,
       password,
@@ -85,6 +101,21 @@ async function main(): Promise<void> {
     if (!profile)
       throw new Error('Account created, but its profile did not appear. Run this again.')
     console.log(`Account created for ${email}.`)
+  } else if (setPassword) {
+    console.log(`Choose a new password for ${email} (at least 12 characters).`)
+    const password = await askNewPassword()
+    const { error } = await admin.auth.admin.updateUserById(profile.id, { password })
+    if (error) throw new Error(`Could not set the password: ${error.message}`)
+    const { error: auditError } = await admin.from('audit_log').insert({
+      actor_id: null,
+      action: 'auth.password.set',
+      entity: 'profiles',
+      entity_id: profile.id,
+      before: null,
+      after: { via: 'scripts/make-super-admin.ts --set-password' },
+    })
+    if (auditError) throw auditError
+    console.log('Password set.')
   }
 
   if (profile.role !== 'super_admin') {
