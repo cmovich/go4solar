@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SessionInfo } from '@/lib/auth/session'
 import { fakeSupabase } from '@/test/fakeSupabase'
 
-process.env.ID_HASH_SECRET = 'id-hash-test-secret-0123456789abcdef'
+process.env.ID_HASH_SECRET = 'local-test-only-id-hash-0123456789abcdef'
 
 let db = fakeSupabase()
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => db.client }))

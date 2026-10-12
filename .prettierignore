@@ -1,1 +1,5 @@
 src/components/ui
+
+# Hand-written docs keep their own table layout
+CLAUDE.md
+docs/

@@ -5,6 +5,8 @@ import { MockMandate } from '@/components/payments/MockProviderPages'
 import { siteOrigin } from '@/lib/auth/emailVerification'
 import { requireUser } from '@/lib/auth/roles'
 import { paymentsMode } from '@/lib/providers/payments'
+import { testSwitchesOn } from '@/lib/testmode/server'
+import { TestModeLocked } from '@/components/payments/TestModeLocked'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 import { safeNext } from '../safeNext'
@@ -18,6 +20,8 @@ export default async function MockMandatePage({
   searchParams: Promise<{ reference?: string; next?: string }>
 }) {
   if (paymentsMode() !== 'mock') notFound()
+  // Test-only page: never in production; on previews only after /test-mode unlock.
+  if (!(await testSwitchesOn())) return <TestModeLocked />
   const { user } = await requireUser('/app')
   const sp = await searchParams
   const { data: m } = await createAdminClient()

@@ -151,7 +151,9 @@ describe('consumer signing', () => {
     expect(consents.map((c) => c.kind).sort()).toEqual(
       ['agreement', 'biometric', 'collateral', 'credit_check', 'remote_lock'].sort(),
     )
-    expect(consents.every((c) => /^consumer-tick-\w+-\d{4}-\d{2}-\d{2}$/.test(c.text_version))).toBe(true)
+    expect(
+      consents.every((c) => /^consumer-tick-\w+-\d{4}-\d{2}-\d{2}$/.test(c.text_version)),
+    ).toBe(true)
   })
 
   it('cannot sign twice', async () => {

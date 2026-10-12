@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { ForecastWorkbench } from '@/components/admin/forecasts/ForecastWorkbench'
-import { TestDataToggle, showTestFrom } from '@/components/admin/TestDataToggle'
+import { TestDataToggle } from '@/components/admin/TestDataToggle'
+import { includeTestData } from '@/lib/testmode/server'
 import { requireRole } from '@/lib/auth/roles'
 import { breakEvenSystemsPerYear } from '@/lib/forecast/breakEven'
 import { perSystem } from '@/lib/forecast/scenario'
@@ -19,7 +20,7 @@ export default async function ForecastsPage({
 }) {
   await requireRole('super_admin', 'finance')
   const sp = await searchParams
-  const includeTest = showTestFrom(sp.test)
+  const includeTest = await includeTestData(sp.test)
   const [scenarios, current, defaults] = await Promise.all([
     listScenarios(includeTest),
     sp.id ? getScenario(sp.id) : Promise.resolve(null),

@@ -1,3 +1,5 @@
+import { MockInProductionError, deployEnv, mockProvidersAllowed } from '@/lib/testmode/policy'
+
 export type MessageChannel = 'sms' | 'whatsapp' | 'email'
 
 export type OutboundMessage = {
@@ -20,6 +22,7 @@ export async function getMessagingProvider(): Promise<MessagingProvider> {
     const { liveMessagingProvider } = await import('./live')
     return liveMessagingProvider
   }
+  if (!mockProvidersAllowed(deployEnv())) throw new MockInProductionError('Messaging')
   const { mockMessagingProvider } = await import('./mock')
   return mockMessagingProvider
 }

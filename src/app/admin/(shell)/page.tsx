@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
-import { TestDataToggle, showTestFrom } from '@/components/admin/TestDataToggle'
+import { TestDataToggle } from '@/components/admin/TestDataToggle'
+import { includeTestData } from '@/lib/testmode/server'
 import { navFor } from '@/components/admin/nav'
 import { adminTiles } from '@/lib/approvals/admin'
 import { requireStaffWithMfa } from '@/lib/auth/roles'
@@ -19,7 +20,7 @@ export default async function AdminHomePage({
 }) {
   const { user, role } = await requireStaffWithMfa()
   const sp = await searchParams
-  const includeTest = showTestFrom(sp.test)
+  const includeTest = await includeTestData(sp.test)
   const modules = navFor(role).filter((n) => n.href !== '/admin')
   const [tiles, permission] = await Promise.all([
     adminTiles(includeTest),

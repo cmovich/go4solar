@@ -1,3 +1,5 @@
+import { MockInProductionError, deployEnv, mockProvidersAllowed } from '@/lib/testmode/policy'
+
 /**
  * Payments provider interface. Amounts here are in naira; adapters convert (Paystack uses kobo).
  * Never trust a browser redirect alone: after checkout the server calls verify(reference).
@@ -64,8 +66,12 @@ export async function getPaymentsProvider(): Promise<PaymentsProvider> {
   if (process.env.PAYMENTS_PROVIDER === 'paystack') {
     return (await import('./paystack')).paystackPaymentsProvider
   }
+  if (!mockProvidersAllowed(deployEnv())) throw new MockInProductionError('Payments')
   return (await import('./mock')).mockPaymentsProvider
 }
 
+/** 'mock' only where mocks are allowed (never production): the mock checkout pages key off this. */
 export const paymentsMode = (): 'mock' | 'paystack' =>
-  process.env.PAYMENTS_PROVIDER === 'paystack' ? 'paystack' : 'mock'
+  process.env.PAYMENTS_PROVIDER === 'paystack' || !mockProvidersAllowed(deployEnv())
+    ? 'paystack'
+    : 'mock'

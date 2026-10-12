@@ -7,13 +7,14 @@ import { defineConfig, devices } from '@playwright/test'
  */
 const port = 3100
 // Test-only secrets for guarantor links and ID hashes (the real ones live in .env.local / Vercel).
+// The local-test-only- prefix means the app refuses them anywhere on Vercel.
 const env = [
   'NEXT_DIST_DIR=.next-live',
   'NEXT_PUBLIC_LAUNCH_MODE=live',
   // The live suite always uses the mock payment provider, even if .env.local points at Paystack.
   'PAYMENTS_PROVIDER=mock',
-  'GUARANTOR_TOKEN_SECRET=e2e-live-guarantor-secret-0123456789',
-  'ID_HASH_SECRET=e2e-live-id-hash-secret-0123456789abcdef',
+  'GUARANTOR_TOKEN_SECRET=local-test-only-e2e-guarantor-0123456789',
+  'ID_HASH_SECRET=local-test-only-e2e-id-hash-0123456789abcdef',
 ].join(' ')
 
 export default defineConfig({

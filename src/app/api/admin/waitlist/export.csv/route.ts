@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { requireStaffWithMfa } from '@/lib/auth/roles'
+import { includeTestData } from '@/lib/testmode/server'
 import { exportLimit } from '@/lib/ratelimit/staffExport'
 import { PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -19,7 +20,7 @@ const line = (cells: unknown[]) => cells.map(cell).join(',')
 
 /** Staff only. Everything on the waiting list (complete, incomplete, installers) as CSV. */
 export async function GET(req: Request) {
-  const includeTest = new URL(req.url).searchParams.get('test') === '1'
+  const includeTest = await includeTestData(new URL(req.url).searchParams.get('test') ?? undefined)
   const session = await requireStaffWithMfa()
   const limited = await exportLimit(session.user!.id)
   if (limited) return limited

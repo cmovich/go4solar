@@ -20,7 +20,7 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY
 const hasDb = Boolean(url && anonKey && service)
-const TOKEN_SECRET = 'rls-test-guarantor-secret-0123456789'
+const TOKEN_SECRET = 'local-test-only-guarantor-0123456789'
 process.env.GUARANTOR_TOKEN_SECRET ??= TOKEN_SECRET
 
 type Table = keyof Database['public']['Tables']

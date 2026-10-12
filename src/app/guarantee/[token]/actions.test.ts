@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { idHash } from '@/lib/ids/idHash'
 
-const ID_SECRET = 'id-hash-test-secret-0123456789abcdef'
+const ID_SECRET = 'local-test-only-id-hash-0123456789abcdef'
 process.env.ID_HASH_SECRET = ID_SECRET
 
 vi.mock('next/headers', () => ({

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 
-import { TestDataToggle, showTestFrom } from '@/components/admin/TestDataToggle'
+import { TestDataToggle } from '@/components/admin/TestDataToggle'
+import { includeTestData } from '@/lib/testmode/server'
 import { FundersTable, type FunderRowView } from '@/components/admin/funders/FundersTable'
 import { requireRole } from '@/lib/auth/roles'
 import { loadPricingDraft } from '@/lib/pricing/adminData'
@@ -15,7 +16,7 @@ export default async function FundersPage({
 }) {
   const session = await requireRole('super_admin', 'finance')
   const sp = await searchParams
-  const includeTest = showTestFrom(sp.test)
+  const includeTest = await includeTestData(sp.test)
   const draft = await loadPricingDraft(includeTest)
   const rows: FunderRowView[] = draft.funders.map((f) => ({
     ...f,

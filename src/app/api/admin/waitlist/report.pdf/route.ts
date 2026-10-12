@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createElement, type ReactElement } from 'react'
 
 import { requireStaffWithMfa } from '@/lib/auth/roles'
+import { includeTestData } from '@/lib/testmode/server'
 import { exportLimit } from '@/lib/ratelimit/staffExport'
 import { WaitlistReport } from '@/lib/pdf/WaitlistReport'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
@@ -14,7 +15,7 @@ export const runtime = 'nodejs'
 
 /** Staff only. Funder-ready PDF: summary + chart, then every complete sign-up. */
 export async function GET(req: Request) {
-  const includeTest = new URL(req.url).searchParams.get('test') === '1'
+  const includeTest = await includeTestData(new URL(req.url).searchParams.get('test') ?? undefined)
   const session = await requireStaffWithMfa()
   const limited = await exportLimit(session.user!.id)
   if (limited) return limited

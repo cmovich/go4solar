@@ -24,7 +24,7 @@ import {
   newGuaranteeToken,
 } from './tokens'
 
-const SECRET = 'test-secret-0123456789'
+const SECRET = 'local-test-only-guarantor-0123'
 const now = new Date('2026-10-10T12:00:00Z')
 
 describe('guarantee link tokens', () => {

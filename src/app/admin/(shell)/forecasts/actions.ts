@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { staffActor } from '@/lib/auth/staffActor'
+import { testSwitchesOn } from '@/lib/testmode/server'
 import { inputsFromWaitlist, type ScenarioInputs } from '@/lib/forecast/scenario'
 import { saveScenario, scenarioInputsSchema, waitlistLeadSummaries } from '@/lib/reports/forecast'
 
@@ -28,7 +29,8 @@ export async function fromWaitlist(current: unknown, includeTest: boolean) {
   if (!actor) return { ok: false as const, error: 'Only super admin and finance can do this.' }
   const p = scenarioInputsSchema.safeParse(current)
   if (!p.success) return { ok: false as const, error: 'Check the inputs first.' }
-  const leads = await waitlistLeadSummaries(includeTest)
+  // Never trust the browser: test data only where test switches are allowed.
+  const leads = await waitlistLeadSummaries(includeTest && (await testSwitchesOn()))
   const { inputs, summary } = inputsFromWaitlist(leads, p.data as ScenarioInputs)
   // Numbers that now come from real sign-ups are no longer sample values.
   const fromSignUps = summary.complete > 0

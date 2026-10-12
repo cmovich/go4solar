@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import { idHash } from './idHash'
 
-const SECRET = 'id-hash-test-secret-0123456789abcdef'
+const SECRET = 'local-test-only-id-hash-0123456789abcdef'
 
 describe('idHash (keyed hash of a full NIN or BVN)', () => {
   it('is HMAC-SHA256 with the server secret, never a plain hash of the number', () => {

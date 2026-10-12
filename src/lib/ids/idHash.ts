@@ -1,5 +1,7 @@
 import { createHmac } from 'node:crypto'
 
+import { assertUsableSecret } from '@/lib/config/secrets'
+
 export type IdKind = 'nin' | 'bvn'
 
 const MIN_SECRET = 32
@@ -15,6 +17,7 @@ export function idHash(kind: IdKind, value: string, secret = process.env.ID_HASH
       `ID_HASH_SECRET is not set (at least ${MIN_SECRET} characters). Add it to .env.local and Vercel.`,
     )
   }
+  assertUsableSecret('ID_HASH_SECRET', secret)
   const digits = value.replace(/[\s-]/g, '')
   if (!/^\d{11}$/.test(digits)) throw new Error(`${kind.toUpperCase()} must be 11 digits`)
   return createHmac('sha256', secret).update(`${kind}:${digits}`).digest('hex')

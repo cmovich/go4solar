@@ -4,7 +4,7 @@ import Link from 'next/link'
  * Staff reports leave out test data (is_test) unless this is on. Keeps the page's other filters.
  * Server component: a plain link, so it works without JavaScript.
  */
-export function TestDataToggle({
+export async function TestDataToggle({
   path,
   params,
   on,
@@ -13,6 +13,9 @@ export function TestDataToggle({
   params: Record<string, string | string[] | undefined>
   on: boolean
 }) {
+  // Test switches never work in production, and on previews only after /test-mode unlock.
+  const { testSwitchesOn } = await import('@/lib/testmode/server')
+  if (!(await testSwitchesOn())) return null
   const next = new URLSearchParams()
   for (const [k, v] of Object.entries(params)) {
     if (k === 'test' || v === undefined) continue

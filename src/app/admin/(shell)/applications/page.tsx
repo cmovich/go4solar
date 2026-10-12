@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
-import { TestDataToggle, showTestFrom } from '@/components/admin/TestDataToggle'
+import { TestDataToggle } from '@/components/admin/TestDataToggle'
+import { includeTestData } from '@/lib/testmode/server'
 import { applicationQueue, QUEUE_FLAGS, type QueueFlag } from '@/lib/approvals/admin'
 import { requireRole } from '@/lib/auth/roles'
 import { formatNaira } from '@/lib/money'
@@ -43,6 +44,7 @@ export default async function ApplicationsPage({
 }) {
   await requireRole('super_admin', 'credit_officer')
   const sp = await searchParams
+  const includeTest = await includeTestData(sp.test)
   const flag = sp.flag && sp.flag in QUEUE_FLAGS ? (sp.flag as QueueFlag) : undefined
   const rows = await applicationQueue({
     status: sp.status || undefined,
@@ -50,7 +52,7 @@ export default async function ApplicationsPage({
     type: sp.type || undefined,
     flag,
     awaiting: sp.awaiting === '1',
-    includeTest: showTestFrom(sp.test),
+    includeTest,
   })
 
   return (
@@ -62,7 +64,7 @@ export default async function ApplicationsPage({
             Decide within 48 hours of submission.
           </p>
           <div className="mt-2">
-            <TestDataToggle path="/admin/applications" params={sp} on={showTestFrom(sp.test)} />
+            <TestDataToggle path="/admin/applications" params={sp} on={includeTest} />
           </div>
         </div>
         <Link
@@ -112,7 +114,7 @@ export default async function ApplicationsPage({
           <input type="checkbox" name="awaiting" value="1" defaultChecked={sp.awaiting === '1'} />{' '}
           Awaiting customer
         </label>
-        {showTestFrom(sp.test) && <input type="hidden" name="test" value="1" />}
+        {includeTest && <input type="hidden" name="test" value="1" />}
         <button
           type="submit"
           className="bg-brand-dark h-10 rounded-md px-4 text-sm font-semibold text-white"

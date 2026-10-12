@@ -702,6 +702,7 @@ export type Database = {
           expires_at: string
           guarantor_profile_id: string | null
           id: string
+          is_test: boolean
           name: string
           nin_hash: string | null
           nin_last4: string | null
@@ -722,6 +723,7 @@ export type Database = {
           expires_at: string
           guarantor_profile_id?: string | null
           id?: string
+          is_test?: boolean
           name: string
           nin_hash?: string | null
           nin_last4?: string | null
@@ -742,6 +744,7 @@ export type Database = {
           expires_at?: string
           guarantor_profile_id?: string | null
           id?: string
+          is_test?: boolean
           name?: string
           nin_hash?: string | null
           nin_last4?: string | null
@@ -1911,6 +1914,10 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: never; Returns: boolean }
+      is_test_identity: {
+        Args: { p_email: string; p_phone: string }
+        Returns: boolean
+      }
       my_role: { Args: never; Returns: Database['public']['Enums']['app_role'] }
     }
     Enums: {

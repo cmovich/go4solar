@@ -14,6 +14,7 @@ import {
   startMandate,
 } from '@/lib/payments/server'
 import { paymentsMode } from '@/lib/providers/payments'
+import { testSwitchesOn } from '@/lib/testmode/server'
 import { mockFee } from '@/lib/providers/payments/mock'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -64,7 +65,8 @@ const mockInput = z.object({
 export async function completeMockCheckout(
   input: unknown,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (paymentsMode() !== 'mock') return { ok: false, error: 'Not available.' }
+  if (paymentsMode() !== 'mock' || !(await testSwitchesOn()))
+    return { ok: false, error: 'Not available.' }
   const id = await userId()
   const p = mockInput.safeParse(input)
   if (!id || !p.success) return { ok: false, error: 'Not available.' }
@@ -101,7 +103,8 @@ const mandateInput = mockInput.extend({ bank: z.string().max(60).optional() })
 export async function completeMockMandate(
   input: unknown,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (paymentsMode() !== 'mock') return { ok: false, error: 'Not available.' }
+  if (paymentsMode() !== 'mock' || !(await testSwitchesOn()))
+    return { ok: false, error: 'Not available.' }
   const id = await userId()
   const p = mandateInput.safeParse(input)
   if (!id || !p.success) return { ok: false, error: 'Not available.' }

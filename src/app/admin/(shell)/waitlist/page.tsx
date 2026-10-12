@@ -6,7 +6,8 @@ import { ConsumerTable } from '@/components/admin/waitlist/ConsumerTable'
 import { HeadlineCards } from '@/components/admin/waitlist/HeadlineCards'
 import { InstallerTable } from '@/components/admin/waitlist/InstallerTable'
 import { WaitlistFilters } from '@/components/admin/waitlist/WaitlistFilters'
-import { TestDataToggle, showTestFrom } from '@/components/admin/TestDataToggle'
+import { TestDataToggle } from '@/components/admin/TestDataToggle'
+import { includeTestData } from '@/lib/testmode/server'
 import { Button } from '@/components/ui/button'
 import { requireStaffWithMfa } from '@/lib/auth/roles'
 import { createClient } from '@/lib/supabase/server'
@@ -38,7 +39,7 @@ export default async function WaitlistAdminPage({
     gen: one(sp.gen),
     from: one(sp.from),
     to: one(sp.to),
-    includeTest: showTestFrom(sp.test),
+    includeTest: await includeTestData(sp.test),
   }
 
   const supabase = await createClient()

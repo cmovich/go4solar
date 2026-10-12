@@ -1,5 +1,7 @@
 import { createHmac, randomBytes } from 'node:crypto'
 
+import { assertUsableSecret } from '@/lib/config/secrets'
+
 /** A guarantor link works for 72 hours. A resend issues a new token and the old one stops working. */
 export const GUARANTEE_TTL_MS = 72 * 60 * 60 * 1000
 
@@ -9,6 +11,7 @@ function requireSecret(secret: string | undefined): string {
       'GUARANTOR_TOKEN_SECRET is not set (at least 16 characters). Add it to .env.local and Vercel.',
     )
   }
+  assertUsableSecret('GUARANTOR_TOKEN_SECRET', secret)
   return secret
 }
 

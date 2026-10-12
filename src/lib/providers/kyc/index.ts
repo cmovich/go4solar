@@ -1,3 +1,5 @@
+import { MockInProductionError, deployEnv, mockProvidersAllowed } from '@/lib/testmode/policy'
+
 /**
  * KYC provider interface. Results never contain the raw NIN/BVN: only match flags, a provider
  * reference and (for NIN) a photo reference used for the face match.
@@ -59,6 +61,7 @@ export async function getKycProvider(): Promise<KycProvider> {
     case 'dojah':
       return (await import('./dojah')).dojahKycProvider
     default:
+      if (!mockProvidersAllowed(deployEnv())) throw new MockInProductionError('KYC')
       return (await import('./mock')).mockKycProvider
   }
 }

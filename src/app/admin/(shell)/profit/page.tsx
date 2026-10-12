@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { ProfitCharts, type ProfitChartData } from '@/components/admin/profit/ProfitCharts'
-import { TestDataToggle, showTestFrom } from '@/components/admin/TestDataToggle'
+import { TestDataToggle } from '@/components/admin/TestDataToggle'
+import { includeTestData } from '@/lib/testmode/server'
 import { requireRole } from '@/lib/auth/roles'
 import { runForecast } from '@/lib/forecast/run'
 import { scenarioFromInputs } from '@/lib/forecast/scenario'
@@ -45,7 +46,7 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
     band: one(sp.band),
     type: one(sp.type),
     installer: one(sp.installer),
-    includeTest: showTestFrom(sp.test),
+    includeTest: await includeTestData(sp.test),
   }
   const [d, inputs] = await Promise.all([profitDashboard(filters), defaultInputs()])
   const { totals } = d.portfolio

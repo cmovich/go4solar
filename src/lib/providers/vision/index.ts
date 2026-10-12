@@ -1,4 +1,5 @@
 import type { VisionResult } from './schema'
+import { MockInProductionError, deployEnv, mockProvidersAllowed } from '@/lib/testmode/policy'
 
 export type { VisionResult } from './schema'
 
@@ -14,6 +15,7 @@ export async function getVisionProvider(): Promise<VisionProvider> {
     const { anthropicVisionProvider } = await import('./anthropic')
     return anthropicVisionProvider
   }
+  if (!mockProvidersAllowed(deployEnv())) throw new MockInProductionError('Vision')
   const { mockVisionProvider } = await import('./mock')
   return mockVisionProvider
 }
