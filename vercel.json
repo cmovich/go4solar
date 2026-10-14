@@ -1,7 +1,17 @@
 {
+  "regions": ["dub1"],
   "crons": [
-    { "path": "/api/cron/reminders", "schedule": "0 8 * * *" },
-    { "path": "/api/cron/profit-actuals", "schedule": "0 5 * * *" },
-    { "path": "/api/cron/retention", "schedule": "0 3 * * 0" }
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/profit-actuals",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/retention",
+      "schedule": "0 3 * * 0"
+    }
   ]
 }

@@ -209,8 +209,10 @@ test.describe('live mode: application wizard with mock KYC', () => {
     await gp.getByLabel('Monthly income').selectOption('250k_500k')
     await gp.getByRole('button', { name: 'Continue to the guarantee' }).click()
 
+    // Save + page refresh is ~11 s from here on a normal run (remote database, 0.3–1.5 s per
+    // round trip; measured in a trace on 2026-10-14), so 20 s was too tight.
     await expect(gp.getByRole('heading', { name: 'Read and sign the guarantee' })).toBeVisible({
-      timeout: 20000,
+      timeout: 45000,
     })
     await readTickDrawAndSign(gp, g.phone)
     await expect(gp.getByTestId('guarantee-signed')).toBeVisible({ timeout: 60000 })
