@@ -12,6 +12,7 @@ import {
   type GuaranteeRow,
   type GuarantorStepId,
 } from '@/lib/agreements/guarantor'
+import { SIGN_FAILED, logSignFailure } from '@/lib/agreements/signFailure'
 import {
   CODE_MESSAGES,
   finaliseAgreement,
@@ -384,24 +385,29 @@ export async function signGuarantee(token: string, input: unknown): Promise<Resu
   if (code.result !== 'ok') return { ok: false, error: CODE_MESSAGES[code.result] }
 
   const d = (u.row.details ?? {}) as GuaranteeDetails
-  await finaliseAgreement({
-    type: 'guarantor',
-    template: ctx.template,
-    subjectId: u.row.id,
-    applicationId: u.row.application_id,
-    folder: `guarantors/${u.row.id}`,
-    title: 'Guarantee',
-    reference: ctx.reference,
-    text: ctx.text,
-    signaturePng: png,
-    signerName: [d.firstName, d.surname].filter(Boolean).join(' ') || u.row.name,
-    signerTitle: null,
-    typedName: p.data.typedName,
-    otpVerifiedAt: code.at!,
-    ip,
-    userAgent: h.get('user-agent') ?? 'unknown',
-    emailTo: u.row.email,
-  })
+  try {
+    await finaliseAgreement({
+      type: 'guarantor',
+      template: ctx.template,
+      subjectId: u.row.id,
+      applicationId: u.row.application_id,
+      folder: `guarantors/${u.row.id}`,
+      title: 'Guarantee',
+      reference: ctx.reference,
+      text: ctx.text,
+      signaturePng: png,
+      signerName: [d.firstName, d.surname].filter(Boolean).join(' ') || u.row.name,
+      signerTitle: null,
+      typedName: p.data.typedName,
+      otpVerifiedAt: code.at!,
+      ip,
+      userAgent: h.get('user-agent') ?? 'unknown',
+      emailTo: u.row.email,
+    })
+  } catch (err) {
+    logSignFailure('guarantor', err)
+    return { ok: false, error: SIGN_FAILED }
+  }
   await patch(u.row, { status: 'signed' }, { sign: true })
   await recordConsents(
     tickConsents('guarantor').map((c) => ({

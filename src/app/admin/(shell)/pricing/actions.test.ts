@@ -64,7 +64,7 @@ const staffData: Record<string, unknown[]> = {
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => fakeClient(staffData) }))
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => fakeClient({}) }))
 
-const { saveMargins } = await import('./actions')
+const { saveMargins, saveLateFee } = await import('./actions')
 
 const superAdmin: SessionInfo = {
   user: { id: 'u-sa', email: 'sa@example.org' },
@@ -130,5 +130,42 @@ describe('pricing server actions', () => {
       before: { panels: 0.125, battery: 0.125, inverter: 0.125, accessories: 0.125 },
       after: { panels: 0.15, battery: 0.125, inverter: 0.125, accessories: 0.125 },
     })
+  })
+
+  // Fix-up 1 #7: the remote-lock days are an admin setting, saved with an audit row.
+  it('saves lock_after_days_overdue with the late fee, with an audit_log row', async () => {
+    getSessionInfo.mockResolvedValue(superAdmin)
+    const r = await saveLateFee({ dailyRate: 0.0075, capShare: 0.25, lockAfterDays: 10 })
+    expect(r.ok).toBe(true)
+    expect(calls).toContainEqual(
+      expect.objectContaining({
+        table: 'settings',
+        op: 'upsert',
+        payload: expect.objectContaining({ key: 'lock_after_days_overdue', value: 10 }),
+      }),
+    )
+    expect(calls).toContainEqual(
+      expect.objectContaining({
+        table: 'audit_log',
+        op: 'insert',
+        payload: expect.objectContaining({
+          action: 'pricing.lock_rule.update',
+          entity: 'settings.lock_after_days_overdue',
+          after: 10,
+        }),
+      }),
+    )
+  })
+
+  it('refuses lock days outside 1–90 and non-super-admins', async () => {
+    getSessionInfo.mockResolvedValue(superAdmin)
+    expect((await saveLateFee({ dailyRate: 0.0075, capShare: 0.25, lockAfterDays: 0 })).ok).toBe(
+      false,
+    )
+    getSessionInfo.mockResolvedValue(creditOfficer)
+    expect((await saveLateFee({ dailyRate: 0.0075, capShare: 0.25, lockAfterDays: 7 })).ok).toBe(
+      false,
+    )
+    expect(calls).toEqual([])
   })
 })

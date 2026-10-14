@@ -28,7 +28,7 @@ export type ConsumerSignContext = {
   values: AgreementValues
   template: TemplateRow
   text: string
-  lateFee: { daily: number; cap: number }
+  lateFee: { daily: number; cap: number; lockAfterDays: number }
   guarantee: Pick<
     Guarantee,
     'id' | 'name' | 'phone' | 'email' | 'relationship' | 'status' | 'expires_at' | 'decline_reason'
@@ -113,6 +113,7 @@ export async function loadConsumerSignContext(
     address: address || '—',
     lateFeeDaily: lateFee.daily,
     lateFeeCap: lateFee.cap,
+    lockAfterDays: lateFee.lockAfterDays,
   })
 
   return {

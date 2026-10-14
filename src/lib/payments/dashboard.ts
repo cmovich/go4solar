@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { lateFeeSettings } from '@/lib/agreements/server'
 import type { QuoteResult } from '@/lib/pricing/types'
 import { quoteReference } from '@/lib/quotes/quote'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -30,7 +31,14 @@ export type DashboardData = {
   depositPaid: boolean
   /** Auto-pay: on (active mandate), pending, off (skipped / failed / not set up). */
   autoPay: { state: 'on' | 'pending' | 'off'; bank: string | null; last4: string | null }
-  loan: { status: Database['public']['Enums']['loan_status']; balance: number } | null
+  loan: {
+    status: Database['public']['Enums']['loan_status']
+    balance: number
+    /** Last day of an approved extension (pauses the remote lock), or null. */
+    extensionUntil: string | null
+  } | null
+  /** Late fee and remote-lock rule from settings, shown in the plan summary. */
+  rules: { lateFeeDaily: number; lateFeeCap: number; lockAfterDays: number }
   /** What the credit officer asked the customer to fix (status more_info). */
   moreInfo: string | null
   job: {
@@ -68,44 +76,46 @@ export async function loadDashboard(userId: string): Promise<DashboardData | nul
   if (!quote?.tenure) return null
   const q = quote.result as unknown as QuoteResult
 
-  const [readiness, consumerAgreement, guarantee, deposit, mandate, loanRes] = await Promise.all([
-    readinessFor(app),
-    admin
-      .from('agreements')
-      .select('id, pdf_path, signed_at')
-      .eq('application_id', app.id)
-      .eq('type', 'consumer')
-      .order('signed_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    admin
-      .from('guarantees')
-      .select('status')
-      .eq('application_id', app.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    admin
-      .from('payments')
-      .select('id')
-      .eq('application_id', app.id)
-      .eq('kind', 'deposit')
-      .eq('status', 'success')
-      .limit(1)
-      .maybeSingle(),
-    admin
-      .from('mandates')
-      .select('status, bank_name, account_last4')
-      .eq('consumer_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    admin
-      .from('loans')
-      .select('id, status, balance, start_date')
-      .eq('application_id', app.id)
-      .maybeSingle(),
-  ])
+  const [readiness, consumerAgreement, guarantee, deposit, mandate, loanRes, rules] =
+    await Promise.all([
+      readinessFor(app),
+      admin
+        .from('agreements')
+        .select('id, pdf_path, signed_at')
+        .eq('application_id', app.id)
+        .eq('type', 'consumer')
+        .order('signed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      admin
+        .from('guarantees')
+        .select('status')
+        .eq('application_id', app.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      admin
+        .from('payments')
+        .select('id')
+        .eq('application_id', app.id)
+        .eq('kind', 'deposit')
+        .eq('status', 'success')
+        .limit(1)
+        .maybeSingle(),
+      admin
+        .from('mandates')
+        .select('status, bank_name, account_last4')
+        .eq('consumer_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      admin
+        .from('loans')
+        .select('id, status, balance, start_date, extension_until')
+        .eq('application_id', app.id)
+        .maybeSingle(),
+      lateFeeSettings(),
+    ])
   const loan = loanRes.data
   const { data: job } = loan
     ? await admin
@@ -172,7 +182,18 @@ export async function loadDashboard(userId: string): Promise<DashboardData | nul
       bank: mandate.data?.bank_name ?? null,
       last4: mandate.data?.account_last4 ?? null,
     },
-    loan: loan ? { status: loan.status, balance: Number(loan.balance) } : null,
+    loan: loan
+      ? {
+          status: loan.status,
+          balance: Number(loan.balance),
+          extensionUntil: loan.extension_until,
+        }
+      : null,
+    rules: {
+      lateFeeDaily: rules.daily,
+      lateFeeCap: rules.cap,
+      lockAfterDays: rules.lockAfterDays,
+    },
     moreInfo: app.status === 'more_info' ? app.more_info_request : null,
     job: job
       ? {

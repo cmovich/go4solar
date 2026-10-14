@@ -230,6 +230,12 @@ export async function saveLateFee(input: unknown): Promise<Result> {
       parsed.data.capShare,
       'pricing.late_fee.update',
     )
+    await saveSetting(
+      session,
+      'lock_after_days_overdue',
+      parsed.data.lockAfterDays,
+      'pricing.lock_rule.update',
+    )
   } catch (err) {
     return { ok: false, error: (err as Error).message }
   }

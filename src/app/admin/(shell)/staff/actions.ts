@@ -1,8 +1,10 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { headers } from 'next/headers'
 import { z } from 'zod'
 
+import { siteOrigin } from '@/lib/auth/emailVerification'
 import { STAFF_ROLES } from '@/lib/auth/roles'
 import { getSessionInfo, type SessionInfo } from '@/lib/auth/session'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -59,7 +61,7 @@ export async function inviteStaff(input: unknown): Promise<Result> {
 
   const { data, error } = await admin.auth.admin.inviteUserByEmail(d.email, {
     data: { full_name: d.fullName },
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ''}/login`,
+    redirectTo: `${siteOrigin(await headers())}/login`,
   })
   if (error) return { ok: false, error: error.message }
   const id = data.user.id

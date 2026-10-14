@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 
+import { LinkedText } from '@/components/admin/outbox/LinkedText'
 import { STAFF_ROLES, requireRole } from '@/lib/auth/roles'
 import { createClient } from '@/lib/supabase/server'
 
@@ -49,7 +50,9 @@ export default async function OutboxPage() {
               {typeof payload.subject === 'string' && (
                 <p className="text-brand-dark mt-2 text-sm font-semibold">{payload.subject}</p>
               )}
-              <p className="text-muted-foreground mt-1 text-sm whitespace-pre-wrap">{text}</p>
+              <p className="text-muted-foreground mt-1 text-sm whitespace-pre-wrap">
+                <LinkedText text={text} />
+              </p>
             </article>
           )
         })}

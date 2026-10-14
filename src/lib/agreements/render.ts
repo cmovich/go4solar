@@ -23,6 +23,8 @@ export function agreementValues(input: {
   address: string
   lateFeeDaily: number
   lateFeeCap: number
+  /** Days overdue before the system may be locked (setting lock_after_days_overdue). */
+  lockAfterDays: number
   guarantorName?: string
 }): AgreementValues {
   const q = input.quote
@@ -46,6 +48,7 @@ export function agreementValues(input: {
     tenure: String(input.tenure),
     lateFeeDaily: formatPercent(input.lateFeeDaily, 2).replace(/\.?0+%$/, '%'),
     lateFeeCap: formatPercent(input.lateFeeCap),
+    lockAfterDays: String(input.lockAfterDays),
     signerName: input.signerName,
     signerTitleLine: input.signerTitle
       ? `, ${input.signerTitle}, for and on behalf of ${input.customerName}`

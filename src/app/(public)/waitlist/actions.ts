@@ -59,11 +59,14 @@ async function ownRow(id: string) {
 
 const EXPIRED = { ok: false, error: 'Your session expired. Please start again.' } as const
 
-/** Step 4: phone + WhatsApp. Creates the (incomplete) lead and sets the visitor cookie. */
+/**
+ * Step 4: phone + WhatsApp. Creates the (incomplete) lead and sets the visitor cookie; when the
+ * visitor comes back to this screen (Back), it updates their own lead instead.
+ */
 export async function savePhoneStep(input: unknown): Promise<ActionResult<{ id: string }>> {
   const parsed = phoneStepSchema.safeParse(input)
   if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
-  const { phone, whatsapp, sameAsPhone, items } = parsed.data
+  const { id, phone, whatsapp, sameAsPhone, items } = parsed.data
 
   const ip = clientIp(await headers())
   if (!(await hitRateLimit(`waitlist:${ip}`, SUBMITS_PER_HOUR, '1 hour'))) {
@@ -90,6 +93,22 @@ export async function savePhoneStep(input: unknown): Promise<ActionResult<{ id: 
   }
 
   const admin = createAdminClient()
+  if (id) {
+    const row = await ownRow(id)
+    if (!row) return EXPIRED
+    const { error } = await admin
+      .from('waitlist_consumers')
+      .update({
+        phone_e164: phone,
+        whatsapp_e164: sameAsPhone ? phone : (whatsapp ?? null),
+        load_items: items,
+        load_totals: totals,
+      })
+      .eq('id', row.id)
+    if (error)
+      return { ok: false, error: 'Something went wrong saving your number. Please try again.' }
+    return { ok: true, id: row.id }
+  }
   const { hash } = await getOrCreateVisitorToken()
 
   // Same phone already on the list? Link it so admin sees the duplicate; never block.

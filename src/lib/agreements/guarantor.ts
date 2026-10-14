@@ -118,6 +118,7 @@ export async function guaranteeContext(row: GuaranteeRow): Promise<GuaranteeCont
     address: d.address ?? '—',
     lateFeeDaily: lateFee.daily,
     lateFeeCap: lateFee.cap,
+    lockAfterDays: lateFee.lockAfterDays,
     guarantorName,
   })
   return {

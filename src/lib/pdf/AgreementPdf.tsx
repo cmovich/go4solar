@@ -1,5 +1,3 @@
-import path from 'node:path'
-
 import {
   Document,
   Font,
@@ -15,6 +13,8 @@ import {
 } from '@react-pdf/renderer'
 import { createElement, type ReactElement } from 'react'
 
+import { pdfAssets } from './assets'
+
 // Go4Solar document style: dark-green header band with an angled edge and orange tab, outlined
 // circle page numbers, logo bottom-right, Inter, green accents.
 const DARK = '#0E3B22'
@@ -24,12 +24,11 @@ const GOLD = '#FFC94D'
 const MIST = '#F4F8F5'
 const MUTED = '#5B6B61'
 
-const publicDir = path.join(process.cwd(), 'public')
 Font.register({
   family: 'Inter',
   fonts: [
-    { src: path.join(publicDir, 'fonts/Inter-Regular.ttf'), fontWeight: 400 },
-    { src: path.join(publicDir, 'fonts/Inter-Bold.ttf'), fontWeight: 700 },
+    { src: pdfAssets.interRegular, fontWeight: 400 },
+    { src: pdfAssets.interBold, fontWeight: 700 },
   ],
 })
 Font.registerHyphenationCallback((word) => [word])
@@ -142,7 +141,7 @@ function Footer({ note }: { note: string }) {
       <Text style={s.footNote}>{note}</Text>
       {/* react-pdf Image, not an HTML img: no alt attribute exists */}
       {/* eslint-disable-next-line jsx-a11y/alt-text */}
-      <Image style={s.logo} src={path.join(publicDir, 'brand/go4solar-logo.png')} />
+      <Image style={s.logo} src={pdfAssets.logo} />
     </View>
   )
 }

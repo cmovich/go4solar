@@ -45,8 +45,8 @@ export function SummaryCard({
           payment.
         </li>
         <li>
-          <strong>Remote lock:</strong> if a payment is 14 days late the system can be locked, and
-          it is unlocked once you pay.
+          <strong>Remote lock:</strong> if a payment is {v.lockAfterDays} days overdue the system
+          can be locked, and it is unlocked once you pay. An approved extension pauses the lock.
         </li>
         <li>
           <strong>Late fee:</strong> {v.lateFeeDaily} of the overdue amount per day, capped at{' '}

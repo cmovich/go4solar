@@ -50,12 +50,14 @@ async function setting<T>(key: string, schema: z.ZodType<T>, fallback: T): Promi
   return schema.safeParse(data?.value).data ?? fallback
 }
 
+/** Late fee and the remote-lock rule (both printed in the agreement and the plan summary). */
 export async function lateFeeSettings() {
-  const [daily, cap] = await Promise.all([
+  const [daily, cap, lockAfterDays] = await Promise.all([
     setting('late_fee_daily', z.number().min(0).max(0.1), 0.0075),
     setting('late_fee_cap_share', z.number().min(0).max(5), 0.25),
+    setting('lock_after_days_overdue', z.number().int().min(1).max(90), 7),
   ])
-  return { daily, cap }
+  return { daily, cap, lockAfterDays }
 }
 
 export const maxActiveGuarantees = () =>

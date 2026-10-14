@@ -24,6 +24,7 @@ import {
   type BusinessDetails,
   type Personal,
 } from '@/lib/applications/server'
+import { guarantorRelationshipSchema } from '@/lib/applications/relationships'
 import { inviteGuarantor, type GuarantorContact } from '@/lib/agreements/server'
 import { siteOrigin } from '@/lib/auth/emailVerification'
 import { getSessionInfo } from '@/lib/auth/session'
@@ -638,12 +639,22 @@ export async function saveNextOfKin(input: unknown): Promise<Result> {
 export async function saveGuarantor(input: unknown): Promise<Result> {
   const o = await own()
   if (!o) return NO_APP
-  const p = personSchema.extend({ email: z.email('Enter their email address') }).safeParse(input)
+  const p = personSchema
+    .omit({ relationship: true })
+    .extend({ email: z.email('Enter their email address') })
+    .safeParse(input)
   if (!p.success) return issue(p.error)
+  const rel = guarantorRelationshipSchema.safeParse(input)
+  if (!rel.success) return issue(rel.error)
   if (p.data.phone === (o.app.personal as Personal).phone) {
     return { ok: false, error: 'Your guarantor must be someone other than you.' }
   }
-  await update(o.app.id, { guarantor: p.data as Json }, { guarantor: true }, o.app.steps)
+  await update(
+    o.app.id,
+    { guarantor: { ...p.data, relationship: rel.data } as Json },
+    { guarantor: true },
+    o.app.steps,
+  )
   return { ok: true }
 }
 

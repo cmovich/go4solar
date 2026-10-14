@@ -247,7 +247,7 @@ A small **?** icon sits beside every watts box. Tapping it opens the camera or p
 - Total running watts, total surge watts and total daily energy (kWh/day), in large numbers.
 - A breakdown by category, so the user sees what is driving the size.
 - A heavy-load warning on items over 1,000 W used together (cooker, oven, kettle, water heater, pressing iron), with advice: run them in daytime on solar, or keep them on gas or grid. This one tip can cut a quote by half.
-- A **See my solar plans** button that leads to Feature 4.
+- A **See my solar plans** button that leads to Feature 4. In live mode the chosen appliances carry over: the visitor continues at **Your total load** (the calculator is never shown twice), then the details screens (phone, email, name and state, who it is for, energy) and the three plans. Every screen has a clear **‹ Back** link; going back keeps earlier answers and never creates a second lead.
 
 ## Feature 4: Quotes (generate or upload)
 
@@ -444,7 +444,7 @@ Once a quote is chosen, the consumer completes nine steps. A progress bar shows 
 5. **Face verification (liveness)** — the camera guides the user, as Opay and banks do: face the camera, turn head left, turn head right, then blink or smile. The provider confirms a live person (not a photo or video) and matches the face to the NIN photo.
 6. **Address and site** — upload a recent utility bill or tenancy agreement, and drop a map pin on the installation site. For loans above an admin-set amount, order a physical address visit.
 7. **Income check** — connect a bank account (Mono) or upload 6 months of statements. Rule: the monthly repayment should not exceed a share of verified income set by admin (suggested 30–35%).
-8. **Guarantor** — enter the guarantor's name, phone, email and relationship. The guarantor's flow runs in parallel (below).
+8. **Guarantor** — enter the guarantor's name, phone, email and relationship. Relationship is a dropdown: Spouse, Parent, Brother, Sister, Child, Other relative, Friend, Colleague, Employer, Mentor, Religious leader, Other (Other adds a short text box, stored as "Other: …"). The guarantor's flow runs in parallel (below).
 9. **Terms, signature and deposit** — described below.
 
 ### Guarantor flow
@@ -551,14 +551,15 @@ How it works for the user: during Feature 5 they link their bank account, approv
 1. **3 days before due:** reminder by SMS, WhatsApp and email.
 2. **Due date:** automatic debit; retries on days 1, 3 and 5 (Mono Sweep if available).
 3. **Day 1 late:** late fee applies: 0.75% of the overdue amount for each day it stays unpaid, counted from the day after the due date. The rate is written into the signed agreement and shown on the summary card. Super admin can change the rate for new agreements and sets a maximum total late fee per instalment.
-4. **Day 7:** guarantor is notified.
-5. **Day 12:** 48-hour warning that the system will be locked.
-6. **Day 14:** automatic remote lock.
+4. **Day 5:** 48-hour warning that the system will be locked.
+5. **Day 7:** automatic remote lock, and the guarantor is notified. The number of days is the admin setting **`lock_after_days_overdue`** (default **7**, edited in Pricing → Late fee and remote lock, audited) and is printed in the agreement, the signing tick and the customer's plan summary next to the late fee. Days are counted from the due date of the **oldest unpaid** payment.
 7. **Day 30:** formal notice of default to consumer and guarantor; demand on the guarantor.
 8. **After the lawyer-confirmed notice period:** retrieval by an assigned installer, with photos and signed handover.
 
 - **Admin lock:** authorised admin can lock any financed system at any time, with a reason recorded. Unlocking without payment needs a second admin's approval.
-- **Extension on appeal:** the consumer can appeal in the app (reason and evidence); their installer or vendor can add support. Admin may grant one extension of **no more than 30 days**. During the extension the ladder pauses; afterwards it resumes where it stopped.
+- **Extension on appeal:** the consumer can appeal in the app (reason and evidence); their installer or vendor can add support. Admin may grant one extension of **no more than 30 days**. During the extension the ladder pauses and **the lock is paused until the extension's last day**; afterwards it resumes where it stopped.
+
+**Phase 1 vs Phase 2 (lock).** Phase 1 builds the rule, not the lock: the setting, the agreement wording, the plan summary, a **"Lock due"** badge on admin screens (application page and the profit page's per-customer table) and staff approval of the one extension (`loans.extension_until`, audited, customer told). The rule lives in `src/lib/payments/lock.ts` (`lockStatus`): an **active** plan is lock-due when its oldest unpaid payment is at least `lock_after_days_overdue` days overdue and no approved extension is running. **Phase 2** (lock-capable inverters through the device adapter) must send the lock command from this same rule — no second copy of it.
 - All messages stay respectful: no calls to the user's contacts, no public shaming, in line with the FCCPC's 2025 lending rules ([Guardian](https://guardian.ng/news/digital-lending-fccpc-issues-regulations-to-tackle-consumer-abuses/)).
 
 ### Lock-capable equipment, any brand

@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next'
 
 import { deploySecretProblems } from './src/lib/config/secrets'
+import { PDF_ASSETS_GLOB, PDFKIT_STANDARD_FONTS_GLOB } from './src/lib/pdf/assets'
 import { securityHeaders } from './src/lib/security/headers'
 
 // On Vercel (preview / production) the build stops if a secret that hashes personal data is
@@ -21,6 +22,9 @@ const nextConfig: NextConfig = {
   // Never ship source maps to browsers.
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
+  // Read from disk at run time by the PDF code, but not found by Vercel's file tracing:
+  // our fonts and logo, and pdfkit's built-in fonts (see src/lib/pdf/assets.ts).
+  outputFileTracingIncludes: { '/**/*': [PDF_ASSETS_GLOB, PDFKIT_STANDARD_FONTS_GLOB] },
   async headers() {
     return securityHeaders({
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://*.supabase.co',

@@ -4,15 +4,18 @@ import { notFound } from 'next/navigation'
 
 import {
   DecisionPanel,
+  ExtensionForm,
   KycReviewButtons,
   ResendLinkButton,
   type FunderChoice,
 } from '@/components/admin/applications/DecisionPanel'
+import { LockBadge } from '@/components/admin/LockBadge'
 import { applicationDetail } from '@/lib/approvals/admin'
 import { slaState } from '@/lib/approvals/rules'
 import { INCOME_RANGES, maskId } from '@/lib/applications/rules'
 import { requireRole } from '@/lib/auth/roles'
 import { formatNaira, formatPercent } from '@/lib/money'
+import { MAX_EXTENSION_DAYS, addDaysIso, lagosDate } from '@/lib/payments/lock'
 
 export const metadata: Metadata = { title: 'Application' }
 export const dynamic = 'force-dynamic'
@@ -101,6 +104,7 @@ export default async function ApplicationPage({
         <p className="text-muted-foreground text-sm">
           {d.reference} · {app.applicant_type === 'business' ? 'Business' : 'Home'} · status{' '}
           <strong data-testid="admin-status">{app.status.replace('_', ' ')}</strong>
+          {d.lock && <LockBadge lock={d.lock} />}
           {sla && (
             <span className={`ml-2 font-semibold ${sla.overdue ? 'text-red-700' : ''}`}>
               {sla.overdue ? `Overdue by ${-sla.hoursLeft} h` : `${sla.hoursLeft} h left to decide`}
@@ -399,6 +403,35 @@ export default async function ApplicationPage({
             ]}
           />
         </div>
+      )}
+
+      {tab === 'payments' && d.lock && ctx.loan && (
+        <section className="rounded-xl border bg-white p-4 text-sm" data-testid="lock-panel">
+          <h2 className="text-brand-dark font-semibold">Remote lock</h2>
+          <p className="mt-1">
+            Rule: lock when a payment is {d.lock.lockAfterDays} days overdue.{' '}
+            {d.lock.daysOverdue > 0
+              ? `Oldest unpaid payment: ${d.lock.daysOverdue} days overdue.`
+              : 'No payment is overdue.'}
+            {d.lock.lockDate && ` Lock due from ${d.lock.lockDate}.`}
+            <LockBadge lock={d.lock} />
+          </p>
+          <p className="text-muted-foreground mt-1 text-xs">
+            Phase 1 shows the rule only; the remote lock itself arrives in Phase 2.
+          </p>
+          {d.lock.extensionUntil ? (
+            <p className="mt-2">
+              Extension approved until <strong>{d.lock.extensionUntil}</strong> (one per plan).
+            </p>
+          ) : ctx.loan.status === 'active' ? (
+            <ExtensionForm
+              applicationId={app.id}
+              loanId={ctx.loan.id}
+              minDate={addDaysIso(lagosDate(), 1)}
+              maxDate={addDaysIso(lagosDate(), MAX_EXTENSION_DAYS)}
+            />
+          ) : null}
+        </section>
       )}
 
       {tab === 'payments' && (

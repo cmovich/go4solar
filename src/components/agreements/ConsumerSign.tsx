@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 
 import { AgreementSigner } from '@/components/signature/AgreementSigner'
-import { CONSUMER_TICKS } from '@/lib/agreements/ticks'
+import { consumerTicks } from '@/lib/agreements/ticks'
 
 import {
   sendConsumerSignCode,
@@ -16,18 +16,20 @@ export function ConsumerSign({
   defaultTitle,
   isBusiness,
   phoneHint,
+  lockAfterDays,
 }: {
   text: string
   defaultName: string
   defaultTitle: string | null
   isBusiness: boolean
   phoneHint: string
+  lockAfterDays: number
 }) {
   const router = useRouter()
   return (
     <AgreementSigner
       text={text}
-      ticks={[...CONSUMER_TICKS]}
+      ticks={[...consumerTicks(lockAfterDays)]}
       defaultName={defaultName}
       titleLabel={isBusiness ? 'Your title (director / authorised signatory)' : undefined}
       defaultTitle={defaultTitle}

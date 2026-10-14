@@ -30,10 +30,30 @@ vi.mock('@/lib/agreements/guarantor', () => ({
   guaranteeContext: async () => ({
     applicantNinHash: idHash('nin', APPLICANT_NIN, ID_SECRET),
     applicantName: 'Ada Obi',
+    template: { id: 't-2', version: 1, status: 'draft' },
+    text: 'Guarantee text',
+    reference: 'G4S-TEST',
   }),
   activeGuaranteesFor: async () => active,
 }))
-vi.mock('@/lib/agreements/server', () => ({ maxActiveGuarantees: async () => 2 }))
+const finaliseAgreement = vi.fn<(input: unknown) => Promise<object>>(async () => ({}))
+vi.mock('@/lib/agreements/server', async () => {
+  const real =
+    await vi.importActual<typeof import('@/lib/agreements/server')>('@/lib/agreements/server')
+  return {
+    maxActiveGuarantees: async () => 2,
+    CODE_MESSAGES: real.CODE_MESSAGES,
+    signaturePngFromDataUrl: real.signaturePngFromDataUrl,
+    verifySignatureCode: async () => ({ result: 'ok', at: '2026-10-10T10:00:00Z' }),
+    finaliseAgreement: (i: unknown) => finaliseAgreement(i),
+  }
+})
+const consents: unknown[] = []
+vi.mock('@/lib/consent/server', () => ({
+  recordConsents: async (rows: unknown[]) => {
+    consents.push(...rows)
+  },
+}))
 
 const verifyNin = vi.fn(async () => ({
   status: 'passed' as const,
@@ -58,13 +78,15 @@ vi.mock('@/lib/supabase/admin', () => ({
   }),
 }))
 
-const { verifyGuarantorNin, acceptGuarantee } = await import('./actions')
+const { verifyGuarantorNin, acceptGuarantee, signGuarantee } = await import('./actions')
+const { SIGN_FAILED } = await import('@/lib/agreements/signFailure')
 
 const adult = { firstName: 'Bola', surname: 'Ade', dob: '1980-05-01', nin: '12345678901' }
 
 beforeEach(() => {
   vi.clearAllMocks()
   updates.length = 0
+  consents.length = 0
   check = 'ok'
   active = 0
 })
@@ -109,5 +131,38 @@ describe('guarantor link', () => {
       error: 'This link has expired. Ask the customer to send you a new one.',
     })
     expect(updates).toHaveLength(0)
+  })
+})
+
+// Fix-up 1 #3: on Vercel the PDF step threw and the guarantor saw a bare 500.
+describe('guarantor signing', () => {
+  const png = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    Buffer.alloc(200, 1),
+  ])
+  const valid = {
+    typedName: 'Bola Ade',
+    ticks: { agreement: true, liability: true, bureau: true, biometrics: true },
+    scrolledToEnd: true,
+    signature: `data:image/png;base64,${png.toString('base64')}`,
+    code: '123456',
+  }
+  const ready = { intro: true, nin: true, consent: true, face: true, about: true }
+
+  it('a failure while finishing the guarantee returns a clear message and logs the reason', async () => {
+    const saved = row.steps
+    row.steps = ready
+    finaliseAgreement.mockRejectedValueOnce(new Error('ENOENT: Inter-Regular.ttf'))
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(await signGuarantee('token', valid)).toEqual({ ok: false, error: SIGN_FAILED })
+    expect(log).toHaveBeenCalledWith(
+      '[agreements] could not finish the guarantor agreement:',
+      'ENOENT: Inter-Regular.ttf',
+    )
+    // The guarantee is not marked signed and no consents are stored.
+    expect(updates).toEqual([])
+    expect(consents).toEqual([])
+    log.mockRestore()
+    row.steps = saved
   })
 })

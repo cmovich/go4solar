@@ -76,6 +76,7 @@ vi.mock('@/lib/supabase/admin', () => ({
 }))
 
 const { sendConsumerSignCode, signConsumerAgreement } = await import('./actions')
+const { SIGN_FAILED } = await import('@/lib/agreements/signFailure')
 
 // A real (tiny) PNG: 8-byte signature + padding so it passes the size check.
 const png = Buffer.concat([
@@ -154,6 +155,22 @@ describe('consumer signing', () => {
     expect(
       consents.every((c) => /^consumer-tick-\w+-\d{4}-\d{2}-\d{2}$/.test(c.text_version)),
     ).toBe(true)
+  })
+
+  // Fix-up 1 #2: on Vercel the PDF step threw and the customer saw a bare 500.
+  it('a failure while finishing the agreement returns a clear message and logs the reason', async () => {
+    finaliseAgreement.mockRejectedValueOnce(new Error('ENOENT: Inter-Regular.ttf'))
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const r = await signConsumerAgreement(valid)
+    expect(r).toEqual({ ok: false, error: SIGN_FAILED })
+    expect(log).toHaveBeenCalledWith(
+      '[agreements] could not finish the consumer agreement:',
+      'ENOENT: Inter-Regular.ttf',
+    )
+    // Nothing is marked as signed.
+    expect(updates).toEqual([])
+    expect(consents).toEqual([])
+    log.mockRestore()
   })
 
   it('cannot sign twice', async () => {

@@ -1,7 +1,9 @@
 import 'server-only'
 
 import { staffSignedUrl } from '@/lib/applications/server'
+import { lateFeeSettings } from '@/lib/agreements/server'
 import { co2Avoided } from '@/lib/energy/currentSpend'
+import { lagosDate, lockStatus, type LockState } from '@/lib/payments/lock'
 import type { QuoteResult } from '@/lib/pricing/types'
 import { quoteReference } from '@/lib/quotes/quote'
 import type { Plan } from '@/lib/sizing/types'
@@ -163,6 +165,8 @@ export type ApplicationDetail = {
   energy: { monthlySpend: number | null; co2KgPerYear: number | null; generator: string | null }
   enteredBy: string | null
   job: Database['public']['Tables']['jobs']['Row'] | null
+  /** Remote-lock rule for the plan (null before there is a loan). */
+  lock: (LockState & { lockAfterDays: number; extensionUntil: string | null }) | null
 }
 
 /** Everything on the staff detail page (tabs). Files open through 10-minute signed links. */
@@ -208,12 +212,22 @@ export async function applicationDetail(id: string): Promise<ApplicationDetail |
       ? admin.from('jobs').select('*').eq('loan_id', ctx.loan.id).maybeSingle()
       : { data: null },
   ])
+  const [scheduleRes, rules] = await Promise.all([
+    ctx.loan
+      ? admin
+          .from('repayment_schedule')
+          .select('due_date, amount, paid_amount')
+          .eq('loan_id', ctx.loan.id)
+      : { data: [] },
+    lateFeeSettings(),
+  ])
 
   // Audit trail: the application, its KYC checks, its loan's job.
   const entityIds = [
     app.id,
     ...(checks.data ?? []).map((c) => c.id),
     ...(jobRes.data ? [jobRes.data.id] : []),
+    ...(ctx.loan ? [ctx.loan.id] : []),
   ]
   const { data: auditRows } = await admin
     .from('audit_log')
@@ -284,6 +298,23 @@ export async function applicationDetail(id: string): Promise<ApplicationDetail |
     },
     enteredBy: app.entered_by ? (who.get(app.entered_by) ?? 'Staff') : null,
     job: jobRes.data,
+    lock: ctx.loan
+      ? {
+          ...lockStatus({
+            schedule: (scheduleRes.data ?? []).map((r) => ({
+              dueDate: r.due_date,
+              amount: Number(r.amount),
+              paidAmount: Number(r.paid_amount),
+            })),
+            today: lagosDate(),
+            lockAfterDays: rules.lockAfterDays,
+            extensionUntil: ctx.loan.extension_until,
+            active: ctx.loan.status === 'active',
+          }),
+          lockAfterDays: rules.lockAfterDays,
+          extensionUntil: ctx.loan.extension_until,
+        }
+      : null,
   }
 }
 

@@ -6,11 +6,12 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { Calculator } from '@/components/calculator/Calculator'
 import type { LaunchMode } from '@/config/site'
-import type { LibraryItem } from '@/lib/calculator/store'
+import { STORAGE_KEY, parseStoredItems, type LibraryItem } from '@/lib/calculator/store'
 import type { CurrentEnergy } from '@/lib/energy/currentSpend'
 import type { LoadItem } from '@/lib/load/types'
 import type { Estimate } from '@/lib/quotes/buildEstimate'
 import type { Plan } from '@/lib/sizing/types'
+import { flowStart } from '@/lib/waitlist/entry'
 
 import {
   BusinessStep,
@@ -25,6 +26,7 @@ import {
   TotalsStep,
   WhoForStep,
   type NameValues,
+  type PhoneValues,
 } from './steps'
 
 /**
@@ -32,9 +34,6 @@ import {
  * 8 business details (business only) · 9 energy spend · 10 plans · 11 contribution · 12 thank you
  */
 export type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
-
-/** Screens the visitor can swipe back from (never past a saved step's validation). */
-const SWIPE_BACK: Partial<Record<Step, Step>> = { 2: 1, 4: 2, 5: 4, 6: 5, 7: 6, 8: 7, 9: 7, 11: 10 }
 
 const slide = {
   enter: (dir: number) => ({ x: dir > 0 ? '60%' : '-60%', opacity: 0 }),
@@ -60,7 +59,31 @@ export function WaitlistFlow({
   const [current, setCurrent] = useState<CurrentEnergy | null>(null)
   const [plan, setPlan] = useState<Plan | null>(null)
   const [pausing, setPausing] = useState(false)
+  const [phoneValues, setPhoneValues] = useState<PhoneValues | null>(null)
+  const [email, setEmail] = useState('')
+  const [isBusiness, setIsBusiness] = useState(false)
+  // Live visitors from /calculate start at the totals; "Back to my appliances" returns there.
+  const [backToAppliances, setBackToAppliances] = useState<string | null>(null)
+  const [ready, setReady] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    let stored: string | null = null
+    try {
+      stored = window.localStorage.getItem(STORAGE_KEY)
+    } catch {
+      // Storage blocked: start with the calculator.
+    }
+    const start = flowStart({
+      launchMode,
+      fromCalculator: new URLSearchParams(window.location.search).get('from') === 'calculate',
+      storedItems: parseStoredItems(stored),
+    })
+    setItems(start.items)
+    setStep(start.step)
+    setBackToAppliances(start.backToAppliances)
+    setReady(true)
+  }, [launchMode])
 
   const go = useCallback(
     (next: Step) => {
@@ -83,6 +106,24 @@ export function WaitlistFlow({
     [go],
   )
 
+  const toAppliances = useCallback(() => {
+    if (backToAppliances) router.push(backToAppliances)
+    else go(1)
+  }, [backToAppliances, router, go])
+
+  /** Where Back (and a swipe right) goes from each screen. */
+  const back: Partial<Record<Step, () => void>> = {
+    2: toAppliances,
+    4: () => go(2),
+    5: () => go(4),
+    6: () => go(5),
+    7: () => go(6),
+    8: () => go(7),
+    9: () => go(isBusiness ? 8 : 7),
+    10: () => go(9),
+    11: () => go(10),
+  }
+
   // Step 3 is a timed loading screen.
   useEffect(() => {
     if (step !== 3) return
@@ -91,11 +132,12 @@ export function WaitlistFlow({
   }, [step, go])
 
   function onDragEnd(_: unknown, info: PanInfo) {
-    const back = SWIPE_BACK[step]
-    if (back && info.offset.x > 90 && !pausing) go(back)
+    const goBack = back[step]
+    if (goBack && info.offset.x > 90 && !pausing) goBack()
   }
 
   const firstName = name?.firstName ?? ''
+  if (!ready) return <div className="min-h-[50vh]" aria-busy="true" />
 
   return (
     <div className="relative overflow-x-hidden">
@@ -109,7 +151,7 @@ export function WaitlistFlow({
           animate="center"
           exit="exit"
           transition={{ type: 'tween', duration: 0.28, ease: 'easeOut' }}
-          drag={SWIPE_BACK[step] ? 'x' : false}
+          drag={back[step] ? 'x' : false}
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.2}
           onDragEnd={onDragEnd}
@@ -125,24 +167,39 @@ export function WaitlistFlow({
               }}
             />
           )}
-          {step === 2 && <TotalsStep items={items} onBack={() => go(1)} onNext={() => go(3)} />}
+          {step === 2 && <TotalsStep items={items} onBack={toAppliances} onNext={() => go(3)} />}
           {step === 3 && <PreparingStep />}
           {step === 4 && (
             <PhoneStep
               items={items}
+              leadId={leadId}
+              initial={phoneValues}
               pausing={pausing}
-              onSaved={(id) => {
+              onBack={() => go(2)}
+              onSaved={(id, values) => {
                 setLeadId(id)
+                setPhoneValues(values)
                 pauseThen(5)
               }}
             />
           )}
           {step === 5 && leadId && (
-            <EmailStep leadId={leadId} pausing={pausing} onSaved={() => pauseThen(6)} />
+            <EmailStep
+              leadId={leadId}
+              initial={email}
+              pausing={pausing}
+              onBack={() => go(4)}
+              onSaved={(value) => {
+                setEmail(value)
+                pauseThen(6)
+              }}
+            />
           )}
           {step === 6 && leadId && (
             <NameStep
               leadId={leadId}
+              initial={name}
+              onBack={() => go(5)}
               onSaved={(values, est) => {
                 setName(values)
                 setEstimate(est)
@@ -151,7 +208,14 @@ export function WaitlistFlow({
             />
           )}
           {step === 7 && leadId && (
-            <WhoForStep leadId={leadId} onSaved={(type) => go(type === 'business' ? 8 : 9)} />
+            <WhoForStep
+              leadId={leadId}
+              onBack={() => go(6)}
+              onSaved={(type) => {
+                setIsBusiness(type === 'business')
+                go(type === 'business' ? 8 : 9)
+              }}
+            />
           )}
           {step === 8 && leadId && (
             <BusinessStep leadId={leadId} onBack={() => go(7)} onSaved={() => go(9)} />
@@ -159,6 +223,7 @@ export function WaitlistFlow({
           {step === 9 && leadId && (
             <EnergyStep
               leadId={leadId}
+              onBack={() => go(isBusiness ? 8 : 7)}
               onSaved={(c) => {
                 setCurrent(c)
                 // Live mode: the priced plans, tenure choice and account step live on /plans.
@@ -173,6 +238,7 @@ export function WaitlistFlow({
               firstName={firstName}
               estimate={estimate}
               current={current}
+              onBack={() => go(9)}
               onChosen={(p) => {
                 setPlan(p)
                 go(11)

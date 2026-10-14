@@ -76,6 +76,8 @@ export const lateFeeSchema = z.object({
   dailyRate: z.number().min(0).max(0.1),
   /** Cap as a share of the overdue amount (0.25 = 25%). */
   capShare: z.number().min(0).max(5),
+  /** Days a payment may be overdue before the system may be locked (Phase 2 does the lock). */
+  lockAfterDays: z.number().int().min(1).max(90),
 })
 export type LateFeeDraft = z.infer<typeof lateFeeSchema>
 

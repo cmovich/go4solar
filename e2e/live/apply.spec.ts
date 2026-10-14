@@ -100,7 +100,8 @@ async function guarantorAndReview(page: Page, nin: string, g: Guarantor = newGua
   await page.getByLabel('Full name').fill('Ngozi Eze')
   await page.getByLabel('Phone').fill(g.phone)
   await page.getByLabel('Email').fill(g.email)
-  await page.getByLabel('Relationship to you').fill('Sister')
+  await page.getByLabel('Relationship to you').selectOption('Other')
+  await page.getByLabel('How do you know them?').fill('Landlord')
   await page.getByRole('button', { name: 'Save' }).click()
 
   await step(page, 'review')

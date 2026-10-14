@@ -7,6 +7,7 @@ import { includeTestData } from '@/lib/testmode/server'
 import { requireRole } from '@/lib/auth/roles'
 import { runForecast } from '@/lib/forecast/run'
 import { scenarioFromInputs } from '@/lib/forecast/scenario'
+import { LockBadge } from '@/components/admin/LockBadge'
 import { formatNaira } from '@/lib/money'
 import { defaultInputs } from '@/lib/reports/forecast'
 import { profitDashboard } from '@/lib/reports/profit'
@@ -250,6 +251,7 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
                   >
                     {STATUS[r.profit.status]}
                     {r.profit.daysOverdue > 0 && ` (${r.profit.daysOverdue} days)`}
+                    <LockBadge lock={r.lock} />
                   </td>
                   <td
                     className={`px-2 py-2 text-right ${r.profit.actualVsPlan < 0 ? 'text-red-700' : 'text-brand-green'}`}

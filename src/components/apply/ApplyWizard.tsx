@@ -10,7 +10,9 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RelationshipField, type RelationshipValue } from '@/components/apply/RelationshipField'
 import { StateSelect } from '@/components/waitlist/steps'
+import { splitRelationship } from '@/lib/applications/relationships'
 import { INCOME_RANGES, STEP_LABELS, maskId, stepsFor, type StepId } from '@/lib/applications/rules'
 import type { WizardState } from '@/lib/applications/server'
 import { BIOMETRIC_CONSENT_TEXT } from '@/lib/consent/wording'
@@ -897,6 +899,9 @@ function PersonStep({
     email: saved.email ?? '',
     relationship: saved.relationship ?? '',
   })
+  const [rel, setRel] = useState<RelationshipValue>(() =>
+    splitRelationship(saved.relationship ?? ''),
+  )
   const g = kind === 'guarantor'
   return (
     <div className="space-y-5">
@@ -941,16 +946,27 @@ function PersonStep({
             />
           </div>
         )}
-        <div>
-          <Label htmlFor={`${kind}-rel`}>Relationship to you</Label>
-          <Input
-            id={`${kind}-rel`}
-            placeholder="e.g. brother, employer"
-            value={v.relationship}
-            onChange={(e) => setV({ ...v, relationship: e.target.value })}
-            className={field}
-          />
-        </div>
+        {g ? (
+          <div className="sm:col-span-2">
+            <RelationshipField
+              id={`${kind}-rel`}
+              label="Relationship to you"
+              value={rel}
+              onChange={setRel}
+            />
+          </div>
+        ) : (
+          <div>
+            <Label htmlFor={`${kind}-rel`}>Relationship to you</Label>
+            <Input
+              id={`${kind}-rel`}
+              placeholder="e.g. brother, employer"
+              value={v.relationship}
+              onChange={(e) => setV({ ...v, relationship: e.target.value })}
+              className={field}
+            />
+          </div>
+        )}
       </div>
       <Button
         type="button"
@@ -959,7 +975,7 @@ function PersonStep({
         onClick={() =>
           act(() =>
             g
-              ? saveGuarantor(v)
+              ? saveGuarantor({ name: v.name, phone: v.phone, email: v.email, ...rel })
               : saveNextOfKin({ name: v.name, phone: v.phone, relationship: v.relationship }),
           )
         }

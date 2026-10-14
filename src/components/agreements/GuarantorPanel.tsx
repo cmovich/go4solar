@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RelationshipField } from '@/components/apply/RelationshipField'
 
 import { nominateGuarantor, resendGuarantorInvite } from '@/app/(consumer)/app/apply/sign/actions'
 
@@ -27,7 +28,8 @@ export function GuarantorPanel({
   const [pending, start] = useTransition()
   const [msg, setMsg] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', phone: '', email: '', relationship: '' })
+  const [form, setForm] = useState({ name: '', phone: '', email: '' })
+  const [rel, setRel] = useState({ relationship: '', relationshipOther: '' })
 
   const expired =
     guarantee &&
@@ -60,7 +62,7 @@ export function GuarantorPanel({
     e.preventDefault()
     setError(null)
     start(async () => {
-      const r = await nominateGuarantor(form)
+      const r = await nominateGuarantor({ ...form, ...rel })
       if (r.ok) {
         setMsg('Link sent to your new guarantor.')
         router.refresh()
@@ -108,7 +110,6 @@ export function GuarantorPanel({
               ['name', 'Full name', 'name'],
               ['phone', 'Phone number', 'tel'],
               ['email', 'Email', 'email'],
-              ['relationship', 'How you know them', 'off'],
             ] as const
           ).map(([k, l, ac]) => (
             <div key={k} className="space-y-1">
@@ -122,6 +123,12 @@ export function GuarantorPanel({
               />
             </div>
           ))}
+          <RelationshipField
+            id="g-relationship"
+            label="How you know them"
+            value={rel}
+            onChange={setRel}
+          />
           <Button
             type="submit"
             className="bg-brand-green hover:bg-brand-dark w-full"

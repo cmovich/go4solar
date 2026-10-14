@@ -1,5 +1,3 @@
-import path from 'node:path'
-
 import {
   Document,
   Font,
@@ -15,6 +13,8 @@ import {
 } from '@react-pdf/renderer'
 import { createElement, type ReactElement } from 'react'
 
+import { pdfAssets } from './assets'
+
 // Go4Solar document style (same as the agreement and waiting-list report).
 const DARK = '#0E3B22'
 const GREEN = '#2E8B3A'
@@ -24,12 +24,11 @@ const MIST = '#F4F8F5'
 const MUTED = '#5B6B61'
 const AMBER = '#9A5B00'
 
-const publicDir = path.join(process.cwd(), 'public')
 Font.register({
   family: 'Inter',
   fonts: [
-    { src: path.join(publicDir, 'fonts/Inter-Regular.ttf'), fontWeight: 400 },
-    { src: path.join(publicDir, 'fonts/Inter-Bold.ttf'), fontWeight: 700 },
+    { src: pdfAssets.interRegular, fontWeight: 400 },
+    { src: pdfAssets.interBold, fontWeight: 700 },
   ],
 })
 Font.registerHyphenationCallback((word) => [word])
@@ -141,7 +140,7 @@ function Chrome({ title, sub, note }: { title: string; sub: string; note: string
         <Text style={s.footNote}>{note}</Text>
         {/* react-pdf Image, not an HTML img: no alt attribute exists */}
         {/* eslint-disable-next-line jsx-a11y/alt-text */}
-        <Image style={s.logo} src={path.join(publicDir, 'brand/go4solar-logo.png')} />
+        <Image style={s.logo} src={pdfAssets.logo} />
       </View>
     </>
   )

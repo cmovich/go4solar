@@ -1,4 +1,5 @@
 import { Faq } from '@/components/landing/Faq'
+import { lateFeeSettings } from '@/lib/agreements/server'
 import { Footer } from '@/components/landing/Footer'
 import { Hero } from '@/components/landing/Hero'
 import { HowItWorks } from '@/components/landing/HowItWorks'
@@ -15,7 +16,7 @@ import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 export const revalidate = 3600
 
 export default async function HomePage() {
-  const settings = await getQuoteSettings()
+  const [settings, lateFee] = await Promise.all([getQuoteSettings(), lateFeeSettings()])
   const comfort = buildEstimate(computeLoadTotals(sampleHomeItems), 'Lagos', 0.2, settings).plans
     .comfort
   const example = {
@@ -42,7 +43,7 @@ export default async function HomePage() {
         <Savings />
         <Proof />
         <Partners />
-        <Faq />
+        <Faq lockAfterDays={lateFee.lockAfterDays} />
       </main>
       <Footer />
     </>

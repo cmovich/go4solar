@@ -979,6 +979,9 @@ export type Database = {
           created_at: string
           deposit: number
           drawn: number | null
+          extension_approved_at: string | null
+          extension_approved_by: string | null
+          extension_until: string | null
           funder_id: string | null
           id: string
           profit_snapshot: Json | null
@@ -1000,6 +1003,9 @@ export type Database = {
           created_at?: string
           deposit: number
           drawn?: number | null
+          extension_approved_at?: string | null
+          extension_approved_by?: string | null
+          extension_until?: string | null
           funder_id?: string | null
           id?: string
           profit_snapshot?: Json | null
@@ -1021,6 +1027,9 @@ export type Database = {
           created_at?: string
           deposit?: number
           drawn?: number | null
+          extension_approved_at?: string | null
+          extension_approved_by?: string | null
+          extension_until?: string | null
           funder_id?: string | null
           id?: string
           profit_snapshot?: Json | null
@@ -1049,6 +1058,13 @@ export type Database = {
           {
             foreignKeyName: 'loans_consumer_id_fkey'
             columns: ['consumer_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'loans_extension_approved_by_fkey'
+            columns: ['extension_approved_by']
             isOneToOne: false
             referencedRelation: 'profiles'
             referencedColumns: ['id']

@@ -11,6 +11,7 @@ import {
   reviewKycCheck,
 } from '@/lib/approvals/server'
 import { siteOrigin } from '@/lib/auth/emailVerification'
+import { approveExtension } from '@/lib/payments/extension'
 import { staffActor } from '@/lib/auth/staffActor'
 import { createClient } from '@/lib/supabase/server'
 
@@ -90,4 +91,16 @@ export async function resendCustomerLink(applicationId: string): Promise<Result>
   if (!(await canAssist(actor.role)))
     return { ok: false, error: 'You do not have the assisted-entry permission.' }
   return sendCustomerLink({ applicationId, actorId: actor.id, origin: siteOrigin(await headers()) })
+}
+
+export async function approvePlanExtension(
+  applicationId: string,
+  loanId: string,
+  until: string,
+): Promise<Result> {
+  const actor = await staffActor()
+  if (!actor) return SIGN_IN
+  const r = await approveExtension({ loanId, until, actor })
+  refresh(applicationId)
+  return r
 }

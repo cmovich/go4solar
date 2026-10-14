@@ -3,11 +3,15 @@ import Link from 'next/link'
 
 import { H2, LegalPage } from '@/components/legal/LegalPage'
 import { siteConfig } from '@/config/site'
+import { lateFeeSettings } from '@/lib/agreements/server'
 
 export const metadata: Metadata = { title: 'Terms of use' }
 
 /** Website and app terms. The payment plan itself is governed by the signed agreement. DRAFT. */
-export default function TermsPage() {
+export const revalidate = 3600
+
+export default async function TermsPage() {
+  const { lockAfterDays } = await lateFeeSettings()
   return (
     <LegalPage title="Terms of use" updated="12 October 2026">
       <p>
@@ -30,7 +34,7 @@ export default function TermsPage() {
         of at least 20%. No interest is charged: the total amount payable on your quote is what you
         pay for the system. A late fee applies only when a monthly payment is late, at the rate
         written in your agreement. Until the final payment the system is collateral and can be
-        locked remotely if a payment is 14 days late, as the agreement explains.
+        locked remotely if a payment is {lockAfterDays} days overdue, as the agreement explains.
       </p>
 
       <H2>Your account</H2>

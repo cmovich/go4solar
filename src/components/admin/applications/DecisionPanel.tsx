@@ -11,6 +11,7 @@ import { formatNaira, formatPercent } from '@/lib/money'
 
 import {
   approve,
+  approvePlanExtension,
   askForMoreInfo,
   decline,
   resendCustomerLink,
@@ -312,6 +313,52 @@ export function ResendLinkButton({ applicationId }: { applicationId: string }) {
         }
       >
         Send the customer a new link
+      </Button>
+      <Feedback error={error} done={done} />
+    </div>
+  )
+}
+
+/** Approve the plan's one extension (pauses the remote lock until the chosen day). */
+export function ExtensionForm({
+  applicationId,
+  loanId,
+  minDate,
+  maxDate,
+}: {
+  applicationId: string
+  loanId: string
+  minDate: string
+  maxDate: string
+}) {
+  const { pending, error, done, run } = useRun()
+  const [until, setUntil] = useState(maxDate)
+  return (
+    <div className="mt-3 flex flex-wrap items-end gap-3" data-testid="extension-form">
+      <div>
+        <Label htmlFor="extension-until">Extension until (up to 30 days)</Label>
+        <Input
+          id="extension-until"
+          type="date"
+          min={minDate}
+          max={maxDate}
+          value={until}
+          onChange={(e) => setUntil(e.target.value)}
+          className="mt-1 w-48"
+        />
+      </div>
+      <Button
+        type="button"
+        size="sm"
+        disabled={pending || !until}
+        onClick={() =>
+          run(
+            () => approvePlanExtension(applicationId, loanId, until),
+            'Extension approved. The customer has been told.',
+          )
+        }
+      >
+        Approve extension
       </Button>
       <Feedback error={error} done={done} />
     </div>

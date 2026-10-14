@@ -126,6 +126,8 @@ export type BusinessInput = z.infer<typeof businessSchema>
 
 // Step 4
 export const phoneStepSchema = z.object({
+  /** Set when the visitor comes back to this screen: update their lead, never add a second. */
+  id: z.uuid().optional(),
   phone: phoneSchema,
   whatsapp: phoneSchema.optional(),
   sameAsPhone: z.boolean(),

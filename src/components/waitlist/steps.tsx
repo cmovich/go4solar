@@ -64,9 +64,33 @@ const field = 'mt-1 h-12 text-base'
 const select = 'border-input mt-1 h-12 w-full rounded-md border bg-white px-3 text-base'
 const primary = 'h-14 w-full text-lg font-semibold'
 
-function Heading({ title, lead }: { title: string; lead?: string }) {
+/** A clear way back on every step (top left, 44 px tall for thumbs). */
+export function BackLink({ onClick, label = 'Back' }: { onClick: () => void; label?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-brand-blue -ml-1 inline-flex min-h-11 items-center gap-1 px-1 text-sm font-medium underline"
+    >
+      <span aria-hidden>‹</span> {label}
+    </button>
+  )
+}
+
+function Heading({
+  title,
+  lead,
+  onBack,
+  backLabel,
+}: {
+  title: string
+  lead?: string
+  onBack?: () => void
+  backLabel?: string
+}) {
   return (
     <div>
+      {onBack && <BackLink onClick={onBack} label={backLabel} />}
       <h1 className="text-brand-dark text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
       {lead && <p className="text-muted-foreground mt-2 text-base">{lead}</p>}
     </div>
@@ -98,6 +122,8 @@ export function TotalsStep({
       <Heading
         title="Your total load"
         lead={`${items.length} appliance${items.length === 1 ? '' : 's'} on your list.`}
+        onBack={onBack}
+        backLabel="Back to my appliances"
       />
       <dl className="grid gap-3 sm:grid-cols-3">
         {[
@@ -114,9 +140,6 @@ export function TotalsStep({
       <Button type="button" className={primary} onClick={onNext}>
         Get quotes
       </Button>
-      <button type="button" onClick={onBack} className="text-brand-blue block text-sm underline">
-        Back to my appliances
-      </button>
     </div>
   )
 }
@@ -136,30 +159,45 @@ export function PreparingStep() {
 }
 
 // ----------------------------------------------------------------- 4. Phone
+export type PhoneValues = { phone: string; whatsapp: string; same: boolean }
+
 export function PhoneStep({
   items,
+  leadId,
+  initial,
   pausing,
+  onBack,
   onSaved,
 }: {
   items: LoadItem[]
+  /** Set when the visitor came back to this screen: their lead is updated, not duplicated. */
+  leadId: string | null
+  initial: PhoneValues | null
   pausing: boolean
-  onSaved: (id: string) => void
+  onBack: () => void
+  onSaved: (id: string, values: PhoneValues) => void
 }) {
-  const [phone, setPhone] = useState('')
-  const [whatsapp, setWhatsapp] = useState('')
-  const [same, setSame] = useState(true)
+  const [phone, setPhone] = useState(initial?.phone ?? '')
+  const [whatsapp, setWhatsapp] = useState(initial?.whatsapp ?? '')
+  const [same, setSame] = useState(initial?.same ?? true)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
-    const input = { phone, whatsapp: same ? undefined : whatsapp, sameAsPhone: same, items }
+    const input = {
+      ...(leadId ? { id: leadId } : {}),
+      phone,
+      whatsapp: same ? undefined : whatsapp,
+      sameAsPhone: same,
+      items,
+    }
     const check = phoneStepSchema.safeParse(input)
     if (!check.success) return setError(check.error.issues[0]?.message ?? 'Check your number')
     start(async () => {
       const r = await savePhoneStep(input)
-      if (r.ok) onSaved(r.id)
+      if (r.ok) onSaved(r.id, { phone, whatsapp, same })
       else setError(r.error)
     })
   }
@@ -169,6 +207,7 @@ export function PhoneStep({
       <Heading
         title="Where should we send your quotes?"
         lead="We will call or message you only about your solar plan."
+        onBack={onBack}
       />
       <div>
         <Label htmlFor="phone">Phone number</Label>
@@ -213,14 +252,18 @@ export function PhoneStep({
 // ----------------------------------------------------------------- 5. Email
 export function EmailStep({
   leadId,
+  initial,
   pausing,
+  onBack,
   onSaved,
 }: {
   leadId: string
+  initial: string
   pausing: boolean
-  onSaved: () => void
+  onBack: () => void
+  onSaved: (email: string) => void
 }) {
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(initial)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -232,14 +275,14 @@ export function EmailStep({
     if (!check.success) return setError(check.error.issues[0]?.message ?? 'Check your email')
     start(async () => {
       const r = await saveEmailStep(input)
-      if (r.ok) onSaved()
+      if (r.ok) onSaved(email)
       else setError(r.error)
     })
   }
 
   return (
     <form onSubmit={submit} className="space-y-6" noValidate>
-      <Heading title="And your email?" lead="A copy of your estimate goes here." />
+      <Heading title="And your email?" lead="A copy of your estimate goes here." onBack={onBack} />
       <div>
         <Label htmlFor="email">Email address</Label>
         <Input
@@ -304,17 +347,18 @@ export function StateSelect({
 
 export function NameStep({
   leadId,
+  initial,
+  onBack,
   onSaved,
 }: {
   leadId: string
+  initial: NameValues | null
+  onBack: () => void
   onSaved: (values: NameValues, estimate: Estimate) => void
 }) {
-  const [values, setValues] = useState<NameValues>({
-    firstName: '',
-    surname: '',
-    state: 'FCT',
-    lga: '',
-  })
+  const [values, setValues] = useState<NameValues>(
+    initial ?? { firstName: '', surname: '', state: 'FCT', lga: '' },
+  )
   const [consent, setConsent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
@@ -337,7 +381,7 @@ export function NameStep({
 
   return (
     <form onSubmit={submit} className="space-y-5" noValidate>
-      <Heading title="Who are we preparing this for?" />
+      <Heading title="Who are we preparing this for?" onBack={onBack} />
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Label htmlFor="firstName">First name</Label>
@@ -398,9 +442,11 @@ export function NameStep({
 // ------------------------------------------------------- 7. Who is it for?
 export function WhoForStep({
   leadId,
+  onBack,
   onSaved,
 }: {
   leadId: string
+  onBack: () => void
   onSaved: (type: ApplicantType) => void
 }) {
   const [error, setError] = useState<string | null>(null)
@@ -421,7 +467,7 @@ export function WhoForStep({
 
   return (
     <div className="space-y-6">
-      <Heading title="Who is this solar for?" />
+      <Heading title="Who is this solar for?" onBack={onBack} />
       <div className="grid gap-4 sm:grid-cols-2">
         <button
           type="button"
@@ -497,6 +543,7 @@ export function BusinessStep({
       <Heading
         title="Tell us about your business"
         lead="This helps us size the system for your working hours and show what you save."
+        onBack={onBack}
       />
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
@@ -573,9 +620,6 @@ export function BusinessStep({
       <Button type="submit" className={primary} disabled={pending}>
         {pending ? 'Saving…' : 'Next'}
       </Button>
-      <button type="button" onClick={onBack} className="text-brand-blue block text-sm underline">
-        Back
-      </button>
     </form>
   )
 }
@@ -703,12 +747,14 @@ export function PlansStep({
   firstName,
   estimate,
   current,
+  onBack,
   onChosen,
 }: {
   leadId: string
   firstName: string
   estimate: Estimate
   current: CurrentEnergy | null
+  onBack: () => void
   onChosen: (plan: Plan) => void
 }) {
   const [error, setError] = useState<string | null>(null)
@@ -727,6 +773,7 @@ export function PlansStep({
     <div className="space-y-6">
       <Heading
         title={`Here are your plans, ${firstName}`}
+        onBack={onBack}
         lead="Estimates at a 20% deposit over 12 months. Backup hours assume every item is on at the same time, so you will usually get more."
       />
       {estimate.sample && (
@@ -787,6 +834,8 @@ export function ContributionStep({
       <Heading
         title="How much can you pay upfront?"
         lead={`${PLAN_LABELS[plan]} plan. A bigger contribution lowers both the total and the monthly amount.`}
+        onBack={onBack}
+        backLabel="Choose a different plan"
       />
 
       <div className="bg-brand-mist rounded-2xl p-5">
@@ -871,9 +920,6 @@ export function ContributionStep({
       <Button type="button" className={primary} onClick={submit} disabled={pending}>
         {pending ? 'Saving…' : 'Next'}
       </Button>
-      <button type="button" onClick={onBack} className="text-brand-blue block text-sm underline">
-        Choose a different plan
-      </button>
     </div>
   )
 }
@@ -925,9 +971,11 @@ export function ThankYouStep({
 // -------------------------------------------------------- 9. Energy spend
 export function EnergyStep({
   leadId,
+  onBack,
   onSaved,
 }: {
   leadId: string
+  onBack: () => void
   onSaved: (current: CurrentEnergy | null) => void
 }) {
   const [generator, setGenerator] = useState<GeneratorType | null>(null)
@@ -961,6 +1009,7 @@ export function EnergyStep({
       <Heading
         title="What do you pay for power today?"
         lead="So we can show what you save and which plan pays for itself."
+        onBack={onBack}
       />
 
       <fieldset>

@@ -3,6 +3,8 @@
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 
+import { PLANS_FROM_CALCULATOR } from '@/lib/waitlist/entry'
+
 import type { LaunchMode } from '@/config/site'
 import type { LoadTotals } from '@/lib/load/types'
 
@@ -27,7 +29,7 @@ export function Results({
   onContinue?: () => void
 }) {
   // Prelaunch: the waiting list reads the same saved items. Live: straight to the plans.
-  const nextHref = launchMode === 'prelaunch' ? '/waitlist' : '/get-started'
+  const nextHref = launchMode === 'prelaunch' ? '/waitlist' : PLANS_FROM_CALCULATOR
 
   return (
     <section className="mt-10" aria-labelledby="results-heading">

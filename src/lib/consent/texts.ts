@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 
-import { CONSUMER_TICKS, GUARANTOR_TICKS } from '@/lib/agreements/ticks'
+import { GUARANTOR_TICKS, consumerTicks } from '@/lib/agreements/ticks'
 import { CONSENT_TEXT } from '@/lib/waitlist/schema'
 
 import { BIOMETRIC_CONSENT_TEXT } from './wording'
@@ -49,14 +49,19 @@ const GUARANTOR_KIND: Record<string, ConsentKind> = {
   biometrics: 'biometric',
 }
 
-/** The signing ticks (one consent each), versioned by the date the tick wording was written. */
-export function tickConsents(who: 'consumer' | 'guarantor') {
-  const ticks = who === 'consumer' ? CONSUMER_TICKS : GUARANTOR_TICKS
+/**
+ * The signing ticks (one consent each), versioned by the date each tick's wording was written.
+ * The consumer lock tick shows the lock days from the setting (wording of 2026-10-14).
+ */
+const TICK_DATES: Record<string, string> = { 'consumer:lock': '2026-10-14' }
+
+export function tickConsents(who: 'consumer' | 'guarantor', lockAfterDays = 7) {
+  const ticks = who === 'consumer' ? consumerTicks(lockAfterDays) : GUARANTOR_TICKS
   const kinds = who === 'consumer' ? CONSUMER_KIND : GUARANTOR_KIND
   return ticks.map((t) => ({
     tickId: t.id,
     kind: kinds[t.id]!,
-    text_version: `${who}-tick-${t.id}-2026-10-10`,
+    text_version: `${who}-tick-${t.id}-${TICK_DATES[`${who}:${t.id}`] ?? '2026-10-10'}`,
     text_sha256: sha(t.label),
   }))
 }

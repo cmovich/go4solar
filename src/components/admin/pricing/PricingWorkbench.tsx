@@ -744,7 +744,7 @@ function LateFeeForm({ draft, onChange }: FormProps) {
   const l = draft.lateFee
   return (
     <div>
-      <h2 className="text-brand-dark text-xl font-semibold">Late fee</h2>
+      <h2 className="text-brand-dark text-xl font-semibold">Late fee and remote lock</h2>
       <p className="text-muted-foreground text-sm">
         Written into every agreement: a share of the overdue amount per day, capped.
       </p>
@@ -771,6 +771,29 @@ function LateFeeForm({ draft, onChange }: FormProps) {
           {formatNaira(Math.min(165017 * l.dailyRate * 10, 165017 * l.capShare))} (cap{' '}
           {formatNaira(165017 * l.capShare)}).
         </p>
+        <div>
+          <Label htmlFor="lock-days">Lock the system after (days overdue)</Label>
+          <Input
+            id="lock-days"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={90}
+            step={1}
+            value={l.lockAfterDays}
+            onChange={(e) =>
+              onChange({
+                ...draft,
+                lateFee: { ...l, lockAfterDays: Math.round(Number(e.target.value) || 0) },
+              })
+            }
+            className="mt-1"
+          />
+          <p className="text-muted-foreground mt-1 text-xs">
+            Printed in new agreements and the customer&apos;s plan summary. An approved extension
+            pauses the lock. The remote lock itself arrives in Phase 2.
+          </p>
+        </div>
       </div>
     </div>
   )

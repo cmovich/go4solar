@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { lateFeeSettings } from '@/lib/agreements/server'
 import { testProfileIds } from '@/lib/approvals/admin'
 import { unitCostsRow } from '@/lib/approvals/server'
 import type { QuoteResult } from '@/lib/pricing/types'
@@ -9,6 +10,7 @@ import type { Json } from '@/lib/supabase/database.types'
 import { loanProfit } from '@/lib/profit/loanProfit'
 import { depositBand, portfolio, type LoanFacts } from '@/lib/profit/portfolio'
 import type { LoanProfit } from '@/lib/profit/types'
+import { lagosDate, lockStatus } from '@/lib/payments/lock'
 
 export type ProfitFilters = {
   funder?: string
@@ -23,9 +25,14 @@ export type ProfitFilters = {
 type ApprovedSnapshot = { funderName?: string; profit?: LoanProfit }
 
 /** Every signed loan as plain facts for the portfolio engine (test customers left out by default). */
-export async function loadLoanFacts(
-  includeTest = false,
-): Promise<(LoanFacts & { customer: string; consumerId: string })[]> {
+export async function loadLoanFacts(includeTest = false): Promise<
+  (LoanFacts & {
+    customer: string
+    consumerId: string
+    applicationId: string
+    extensionUntil: string | null
+  })[]
+> {
   const admin = createAdminClient()
   const [{ data: loans }, testIds] = await Promise.all([
     admin.from('loans').select('*').in('status', ['approved', 'active', 'completed', 'defaulted']),
@@ -58,6 +65,8 @@ export async function loadLoanFacts(
     return {
       id: l.id,
       consumerId: l.consumer_id,
+      applicationId: l.application_id,
+      extensionUntil: l.extension_until,
       customer: [p.firstName, p.surname].filter(Boolean).join(' ') || 'Customer',
       status: l.status,
       funderId: l.funder_id,
@@ -128,10 +137,11 @@ export async function profitDashboard(filters: ProfitFilters, now = new Date()) 
   const admin = createAdminClient()
   const all = await loadLoanFacts(filters.includeTest)
   const loans = applyFilters(all, filters)
-  const [costs, overheads, fundersRes] = await Promise.all([
+  const [costs, overheads, fundersRes, { lockAfterDays }] = await Promise.all([
     unitCostsRow(),
     overheadsToDate(loans, now),
     admin.from('funders').select('id, name, balance_available, status, is_test').order('name'),
+    lateFeeSettings(),
   ])
   const p = portfolio(loans, {
     now,
@@ -169,7 +179,17 @@ export async function profitDashboard(filters: ProfitFilters, now = new Date()) 
   const byId = new Map(p.customers.map((c) => [c.loanId, c]))
   return {
     portfolio: p,
-    rows: loans.map((l) => ({ ...l, profit: byId.get(l.id)! })),
+    rows: loans.map((l) => ({
+      ...l,
+      profit: byId.get(l.id)!,
+      lock: lockStatus({
+        schedule: l.schedule,
+        today: lagosDate(now),
+        lockAfterDays,
+        extensionUntil: l.extensionUntil,
+        active: l.status === 'active',
+      }),
+    })),
     co2Tonnes,
     overheadsSample: overheads.sample,
     funderBalances: (fundersRes.data ?? [])

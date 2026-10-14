@@ -7,7 +7,7 @@ import {
 
 import { Container, SectionHeading } from './Band'
 
-const faqs = [
+const faqs = (lockAfterDays: number) => [
   {
     q: 'How much deposit do I need?',
     a: 'At least 20% of the system price. You can pay more if you like: a bigger deposit lowers both your monthly payment and your total price.',
@@ -18,7 +18,7 @@ const faqs = [
   },
   {
     q: 'What happens if I miss a payment?',
-    a: 'We send reminders first. A late payment attracts a fee of 0.75% of the overdue amount per day, and this is written into your agreement. If a payment is more than 14 days late the system can be locked remotely until the balance is settled; paying in the app unlocks it automatically.',
+    a: `We send reminders first. A late payment attracts a fee of 0.75% of the overdue amount per day, and this is written into your agreement. If a payment is ${lockAfterDays} days overdue the system can be locked remotely until the balance is settled; paying in the app unlocks it automatically.`,
   },
   {
     q: 'Is the equipment under warranty?',
@@ -34,13 +34,13 @@ const faqs = [
   },
 ]
 
-export function Faq() {
+export function Faq({ lockAfterDays }: { lockAfterDays: number }) {
   return (
     <section id="faq" className="py-20 sm:py-24">
       <Container className="max-w-3xl">
         <SectionHeading eyebrow="FAQ" title="Questions people ask before they start" />
         <Accordion type="single" collapsible className="mt-10">
-          {faqs.map((f, i) => (
+          {faqs(lockAfterDays).map((f, i) => (
             <AccordionItem key={f.q} value={`faq-${i}`}>
               <AccordionTrigger className="text-brand-dark text-left text-base font-semibold sm:text-lg">
                 {f.q}

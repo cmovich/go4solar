@@ -85,6 +85,7 @@ export default async function SignPage() {
               defaultTitle={ctx.defaultTitle}
               isBusiness={ctx.isBusiness}
               phoneHint={maskPhone(ctx.phone)}
+              lockAfterDays={ctx.lateFee.lockAfterDays}
             />
           ) : (
             <VerifyEmailGate email={session.user?.email ?? null} />

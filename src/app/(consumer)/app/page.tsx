@@ -5,8 +5,9 @@ import { redirect } from 'next/navigation'
 
 import { ActionButton } from '@/components/payments/ActionButton'
 import { requireUser } from '@/lib/auth/roles'
-import { formatNaira } from '@/lib/money'
+import { formatNaira, formatPercent } from '@/lib/money'
 import { loadDashboard } from '@/lib/payments/dashboard'
+import { lagosDate } from '@/lib/payments/lock'
 
 import { confirmInstallation, sendBackForReview } from './actions'
 import { payNextInstalment, setUpAutoPay } from './pay/actions'
@@ -200,8 +201,25 @@ export default async function DashboardPage({
           ))}
         </dl>
         <p className="mt-2 text-sm">
-          0% interest. A late fee applies only to late payments, as set out in your agreement.
+          0% interest. The total amount payable above is everything you pay for the system.
         </p>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm" data-testid="plan-rules">
+          <li>
+            <strong>Late fee:</strong> {formatPercent(d.rules.lateFeeDaily, 2)} of the overdue
+            amount per day, capped at {formatPercent(d.rules.lateFeeCap)} of that amount.
+          </li>
+          <li>
+            <strong>Remote lock:</strong> if a payment is {d.rules.lockAfterDays} days overdue the
+            system can be locked; it is unlocked once you pay. An approved extension pauses the
+            lock.
+          </li>
+          {d.loan?.extensionUntil && d.loan.extensionUntil >= lagosDate() && (
+            <li data-testid="extension-note">
+              <strong>Extension approved</strong> until {fmtDate(d.loan.extensionUntil)}: your
+              system will not be locked before then.
+            </li>
+          )}
+        </ul>
       </section>
 
       {/* Schedule */}

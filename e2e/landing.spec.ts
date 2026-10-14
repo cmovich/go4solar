@@ -65,7 +65,7 @@ test.describe('landing page', () => {
     await page.goto('/')
     await page.getByRole('button', { name: 'What happens if I miss a payment?' }).click()
     await expect(
-      page.getByText('If a payment is more than 14 days late the system can be locked'),
+      page.getByText('If a payment is 7 days overdue the system can be locked'),
     ).toBeVisible()
   })
 

@@ -13,6 +13,8 @@ import {
   signaturePngFromDataUrl,
   verifySignatureCode,
 } from '@/lib/agreements/server'
+import { SIGN_FAILED, logSignFailure } from '@/lib/agreements/signFailure'
+import { guarantorRelationshipSchema } from '@/lib/applications/relationships'
 import { siteOrigin } from '@/lib/auth/emailVerification'
 import { recordConsents } from '@/lib/consent/server'
 import { tickConsents } from '@/lib/consent/texts'
@@ -84,27 +86,32 @@ export async function signConsumerAgreement(input: unknown): Promise<Result> {
   const code = await verifySignatureCode(ctx.applicationId, p.data.code, ip)
   if (code.result !== 'ok') return { ok: false, error: CODE_MESSAGES[code.result] }
 
-  await finaliseAgreement({
-    type: 'consumer',
-    template: ctx.template,
-    subjectId: s.userId,
-    applicationId: ctx.applicationId,
-    folder: `${s.userId}/${ctx.applicationId}`,
-    title: 'Solar payment plan agreement',
-    reference: ctx.reference,
-    text: ctx.text,
-    signaturePng: png,
-    signerName: ctx.signerName,
-    signerTitle: ctx.isBusiness ? p.data.signerTitle || ctx.defaultTitle : null,
-    typedName: p.data.typedName,
-    otpVerifiedAt: code.at!,
-    ip,
-    userAgent: h.get('user-agent') ?? 'unknown',
-    emailTo: ctx.email,
-  })
+  try {
+    await finaliseAgreement({
+      type: 'consumer',
+      template: ctx.template,
+      subjectId: s.userId,
+      applicationId: ctx.applicationId,
+      folder: `${s.userId}/${ctx.applicationId}`,
+      title: 'Solar payment plan agreement',
+      reference: ctx.reference,
+      text: ctx.text,
+      signaturePng: png,
+      signerName: ctx.signerName,
+      signerTitle: ctx.isBusiness ? p.data.signerTitle || ctx.defaultTitle : null,
+      typedName: p.data.typedName,
+      otpVerifiedAt: code.at!,
+      ip,
+      userAgent: h.get('user-agent') ?? 'unknown',
+      emailTo: ctx.email,
+    })
+  } catch (err) {
+    logSignFailure('consumer', err)
+    return { ok: false, error: SIGN_FAILED }
+  }
 
   await recordConsents(
-    tickConsents('consumer').map((c) => ({
+    tickConsents('consumer', ctx.lateFee.lockAfterDays).map((c) => ({
       subjectType: 'profile' as const,
       subjectId: s.userId,
       profileId: s.userId,
@@ -158,7 +165,6 @@ const contactSchema = z.object({
   name: z.string().trim().min(3).max(120),
   phone: z.string().trim(),
   email: z.email('Enter their email address'),
-  relationship: z.string().trim().min(2).max(60),
 })
 
 /** After a decline (or an expired link) the consumer nominates someone else. */
@@ -167,6 +173,9 @@ export async function nominateGuarantor(input: unknown): Promise<Result> {
   if (!session.user) return { ok: false, error: 'Please sign in.' }
   const p = contactSchema.safeParse(input)
   if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? 'Check the details.' }
+  const rel = guarantorRelationshipSchema.safeParse(input)
+  if (!rel.success)
+    return { ok: false, error: rel.error.issues[0]?.message ?? 'Check the details.' }
   let phone: string
   try {
     phone = normalisePhoneNG(p.data.phone)
@@ -179,7 +188,7 @@ export async function nominateGuarantor(input: unknown): Promise<Result> {
     return { ok: false, error: 'Your guarantor must be someone other than you.' }
   if (ctx.guarantee?.status === 'signed')
     return { ok: false, error: 'Your guarantor has already signed.' }
-  const contact = { ...p.data, phone }
+  const contact = { ...p.data, phone, relationship: rel.data }
   await createAdminClient()
     .from('applications')
     .update({ guarantor: contact as Json })

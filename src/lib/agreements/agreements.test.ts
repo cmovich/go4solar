@@ -126,6 +126,7 @@ describe('agreement rendering', () => {
     address: '12 Allen Avenue, Ikeja, Lagos',
     lateFeeDaily: 0.0075,
     lateFeeCap: 0.25,
+    lockAfterDays: 7,
   })
 
   it('every number comes from the stored quote snapshot', () => {
@@ -137,6 +138,7 @@ describe('agreement rendering', () => {
     expect(values.depositPct).toBe('30%')
     expect(values.lateFeeDaily).toBe('0.75%')
     expect(values.lateFeeCap).toBe('25%')
+    expect(values.lockAfterDays).toBe('7')
   })
 
   it('fills every placeholder and leaves none behind', () => {
@@ -163,6 +165,7 @@ describe('agreement rendering', () => {
       address: 'x',
       lateFeeDaily: 0.0075,
       lateFeeCap: 0.25,
+      lockAfterDays: 7,
     })
     expect(v.customerName).toBe('EZE STORES LIMITED')
     expect(v.businessClause).toContain('RC123456')

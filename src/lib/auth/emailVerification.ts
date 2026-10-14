@@ -3,20 +3,16 @@ import 'server-only'
 import { createHash, randomBytes } from 'node:crypto'
 
 import { getMessagingProvider } from '@/lib/providers/messaging'
+import { originFor } from '@/lib/site/origin'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 const TTL_MS = 3 * 24 * 60 * 60 * 1000 // 3 days
 
 const hash = (token: string) => createHash('sha256').update(token).digest('hex')
 
-/** Site origin for links in emails: NEXT_PUBLIC_SITE_URL, else the request's own origin. */
+/** Site origin for links in messages (see originFor: previews always use their own address). */
 export function siteOrigin(headers: Headers): string {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL
-  if (configured) return configured.replace(/\/$/, '')
-  const host = headers.get('x-forwarded-host') ?? headers.get('host') ?? 'localhost:3000'
-  const proto =
-    headers.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https')
-  return `${proto}://${host}`
+  return originFor(headers)
 }
 
 /**

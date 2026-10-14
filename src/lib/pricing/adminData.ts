@@ -40,7 +40,14 @@ export async function loadPricingDraft(includeTestFunders = false): Promise<Pric
     supabase
       .from('settings')
       .select('key, value')
-      .in('key', ['sizing', 'energy', 'late_fee_daily', 'late_fee_cap_share', 'min_deposit_share']),
+      .in('key', [
+        'sizing',
+        'energy',
+        'late_fee_daily',
+        'late_fee_cap_share',
+        'lock_after_days_overdue',
+        'min_deposit_share',
+      ]),
   ])
   for (const r of [components, margins, rates, installs, unitCosts, funders, settings]) {
     if (r.error) throw new Error(`pricing data: ${r.error.message}`)
@@ -93,6 +100,7 @@ export async function loadPricingDraft(includeTestFunders = false): Promise<Pric
     lateFee: {
       dailyRate: z.number().safeParse(byKey.late_fee_daily).data ?? 0.0075,
       capShare: z.number().safeParse(byKey.late_fee_cap_share).data ?? 0.25,
+      lockAfterDays: z.number().int().safeParse(byKey.lock_after_days_overdue).data ?? 7,
     },
     energy: energy.success ? energy.data : DEFAULT_ENERGY_SETTINGS,
     sizing: sizing.success ? sizing.data : DEFAULT_SIZING_SETTINGS,

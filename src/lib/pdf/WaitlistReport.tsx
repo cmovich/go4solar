@@ -1,5 +1,3 @@
-import path from 'node:path'
-
 import {
   Document,
   Font,
@@ -18,6 +16,8 @@ import type { EnergySettings } from '@/lib/settings/schemas'
 import type { ConsumerLead, Headline } from '@/lib/waitlist/admin'
 import { READY_WHEN_LABELS, STATE_LABELS } from '@/lib/waitlist/schema'
 
+import { pdfAssets } from './assets'
+
 // Go4Solar document style (proposal look): dark-green header band with an angled bottom-right
 // edge and an orange tab, outlined circle page numbers, logo bottom-right, Inter, green tables.
 const DARK = '#0E3B22'
@@ -28,12 +28,11 @@ const MIST = '#F4F8F5'
 const INK = '#1A1A1A'
 const MUTED = '#5B6B61'
 
-const publicDir = path.join(process.cwd(), 'public')
 Font.register({
   family: 'Inter',
   fonts: [
-    { src: path.join(publicDir, 'fonts/Inter-Regular.ttf'), fontWeight: 400 },
-    { src: path.join(publicDir, 'fonts/Inter-Bold.ttf'), fontWeight: 700 },
+    { src: pdfAssets.interRegular, fontWeight: 400 },
+    { src: pdfAssets.interBold, fontWeight: 700 },
   ],
 })
 // Keep the ₦ sign and numbers unbroken.
@@ -166,7 +165,7 @@ function Footer() {
       <Text style={s.confidential}>CONFIDENTIAL · Go4Solar Energy Limited</Text>
       {/* react-pdf Image, not an HTML img: no alt attribute exists */}
       {/* eslint-disable-next-line jsx-a11y/alt-text */}
-      <Image style={s.logo} src={path.join(publicDir, 'brand/go4solar-logo.png')} />
+      <Image style={s.logo} src={pdfAssets.logo} />
     </View>
   )
 }
