@@ -1,0 +1,106 @@
+import 'server-only'
+
+import { z } from 'zod'
+
+import { priceListFromRows, pricingFromRows } from '@/lib/pricing/tables'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { hasSupabaseEnv } from '@/lib/supabase/env'
+
+import {
+  DEFAULT_QUOTE_SETTINGS,
+  energySettingsSchema,
+  sizingSettingsSchema,
+  type QuoteSettings,
+} from './schemas'
+
+/**
+ * Everything the estimate engine needs: sizing/energy/min-deposit from `settings`, and the
+ * price list from the pricing tables (components, category_margins, pricing_rates,
+ * installation_costs — the single source of truth since Prompt 8). Cost prices and margins
+ * are confidential, so this reads with the service role and is server-only. Any part that is
+ * missing or malformed falls back to the seeded defaults and is logged, so a bad admin edit
+ * never takes the site down.
+ */
+export async function getQuoteSettings(): Promise<QuoteSettings> {
+  if (!hasSupabaseEnv() || !process.env.SUPABASE_SERVICE_ROLE_KEY) return DEFAULT_QUOTE_SETTINGS
+  const admin = createAdminClient()
+
+  const [settings, components, margins, rates, installs] = await Promise.all([
+    admin
+      .from('settings')
+      .select('key, value')
+      .in('key', ['sizing', 'min_deposit_share', 'energy']),
+    admin
+      .from('components')
+      .select('sku, name, category, unit_cost, stock_sizes, active, sample')
+      .eq('active', true),
+    admin.from('category_margins').select('category, margin, sample'),
+    admin
+      .from('pricing_rates')
+      .select('tenure_months, expected_funder_rate, spread, default_buffer, pricing_rate, sample'),
+    admin.from('installation_costs').select('state, size_band, amount, sample'),
+  ])
+  for (const r of [settings, components, margins, rates, installs]) {
+    if (r.error) {
+      console.error('[settings] could not read pricing data:', r.error.message)
+      return DEFAULT_QUOTE_SETTINGS
+    }
+  }
+
+  const byKey = Object.fromEntries((settings.data ?? []).map((r) => [r.key, r.value]))
+  const sizing = pick('sizing', sizingSettingsSchema, byKey.sizing, DEFAULT_QUOTE_SETTINGS.sizing)
+
+  let priceList = DEFAULT_QUOTE_SETTINGS.priceList
+  try {
+    priceList = priceListFromRows({
+      components: (components.data ?? []).map((c) => ({ ...c, unit_cost: Number(c.unit_cost) })),
+      installs: (installs.data ?? []).map((i) => ({ ...i, amount: Number(i.amount) })),
+      panelWatts: sizing.panelWatts,
+    })
+  } catch (err) {
+    console.error('[settings] price list unusable; using SAMPLE defaults:', (err as Error).message)
+  }
+
+  let pricing = DEFAULT_QUOTE_SETTINGS.pricing
+  try {
+    pricing = pricingFromRows({
+      margins: (margins.data ?? []).map((m) => ({ ...m, margin: Number(m.margin) })),
+      rates: (rates.data ?? []).map((r) => ({
+        ...r,
+        expected_funder_rate: Number(r.expected_funder_rate),
+        spread: Number(r.spread),
+        default_buffer: Number(r.default_buffer),
+        pricing_rate: r.pricing_rate === null ? null : Number(r.pricing_rate),
+      })),
+    })
+  } catch (err) {
+    console.error(
+      '[settings] pricing rates unusable; using SAMPLE defaults:',
+      (err as Error).message,
+    )
+  }
+
+  return {
+    sizing,
+    priceList,
+    pricing,
+    minDepositShare: pick(
+      'min_deposit_share',
+      z.number().min(0).max(0.95),
+      byKey.min_deposit_share,
+      DEFAULT_QUOTE_SETTINGS.minDepositShare,
+    ),
+    energy: pick('energy', energySettingsSchema, byKey.energy, DEFAULT_QUOTE_SETTINGS.energy),
+  }
+}
+
+function pick<T>(key: string, schema: z.ZodType<T>, value: unknown, fallback: T): T {
+  if (value === undefined) return fallback
+  const parsed = schema.safeParse(value)
+  if (parsed.success) return parsed.data
+  console.error(
+    `[settings] "${key}" is malformed; using the default`,
+    parsed.error.issues[0]?.message,
+  )
+  return fallback
+}
