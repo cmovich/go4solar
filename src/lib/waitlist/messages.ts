@@ -4,7 +4,7 @@ import { formatNaira, formatPercent } from '@/lib/money'
 import { getMessagingProvider } from '@/lib/providers/messaging'
 import { PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import type { Plan } from '@/lib/sizing/types'
-import { PRICE_LATER_TEXT } from '@/lib/waitlist/schema'
+import { PRICE_LATER_TEXT, THANK_YOU_TEXT } from '@/lib/waitlist/schema'
 
 export type WaitlistConfirmation = {
   firstName: string
@@ -21,19 +21,19 @@ export type WaitlistConfirmation = {
   samplePrices: boolean
 }
 
-export { PRICE_LATER_TEXT }
+export { PRICE_LATER_TEXT, THANK_YOU_TEXT }
 
 /** The copy that goes to the customer's email and WhatsApp (PRD step 9). */
 export function confirmationText(c: WaitlistConfirmation): string {
   if (c.samplePrices) {
     return (
-      `Thank you, ${c.firstName}. We will get back to you within the next 7 days.\n\n` +
+      `Hi ${c.firstName}. ${THANK_YOU_TEXT}\n\n` +
       `Your choice: ${PLAN_LABELS[c.plan]} plan, ${formatPercent(c.depositShare)} upfront. ` +
       PRICE_LATER_TEXT
     )
   }
   return (
-    `Thank you, ${c.firstName}. We will get back to you within the next 7 days.\n\n` +
+    `Hi ${c.firstName}. ${THANK_YOU_TEXT}\n\n` +
     `Your estimate: ${PLAN_LABELS[c.plan]} plan — total ${formatNaira(c.systemPrice)}, ` +
     `${formatNaira(c.deposit)} upfront (${formatPercent(c.depositShare)}) then ` +
     `${formatNaira(c.monthly)} a month for ${c.tenureMonths} months. 0% interest. ` +

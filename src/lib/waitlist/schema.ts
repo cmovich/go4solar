@@ -245,3 +245,10 @@ export function depositBandOf(share: number | null): string | null {
 
 /** Shown (and sent) instead of naira amounts while any price used is still a SAMPLE price. */
 export const PRICE_LATER_TEXT = 'Your exact price will be confirmed when we contact you.'
+
+/**
+ * Shown (and sent) after a visitor completes the sign-up and has seen their plans. The only place
+ * the site promises "7 days". Customers never see the words "waiting list".
+ */
+export const THANK_YOU_TEXT =
+  'Thank you! Our team will get back to you within 7 days with your confirmed price and next steps.'

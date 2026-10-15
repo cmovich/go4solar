@@ -40,4 +40,23 @@ test.describe('prelaunch: live-only routes are closed', () => {
     await page.goto('/partners/installer')
     await expect(page).toHaveURL(/\/partners\/installer$/)
   })
+
+  // No strip at the top and no "7 days" promise anywhere before the sign-up is complete.
+  for (const path of [
+    '/',
+    '/calculate',
+    '/waitlist',
+    '/partners/installer',
+    '/privacy',
+    '/terms',
+  ]) {
+    test(`${path} has no prelaunch strip and no 7-day promise`, async ({ page }) => {
+      await page.goto(path)
+      await expect(page.getByText(/^Prelaunch:/)).toHaveCount(0)
+      await expect(page.locator('body')).not.toContainText(/within (the next )?7 days/i)
+      await expect(page.locator('body')).not.toContainText(/waiting list/i)
+      const description = await page.locator('meta[name="description"]').getAttribute('content')
+      expect(description ?? '').not.toMatch(/7 days/i)
+    })
+  }
 })

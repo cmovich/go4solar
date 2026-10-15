@@ -113,8 +113,11 @@ async function finishFromPlans(page: Page, expectAdvice: boolean) {
   await page.getByRole('button', { name: 'Now', exact: true }).click()
   await page.getByRole('button', { name: 'Next' }).click()
 
-  await expect(page.getByText('Thank you, Amaka.')).toBeVisible({ timeout: 10000 })
-  await expect(page.getByText('We will get back to you within the next 7 days.')).toBeVisible()
+  // The 7-day promise appears only here, after the plans (exact wording).
+  await expect(page.getByTestId('thank-you')).toHaveText(
+    'Thank you! Our team will get back to you within 7 days with your confirmed price and next steps.',
+    { timeout: 10000 },
+  )
   await expect(page.getByText(/waiting list/i)).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Back to home' })).toBeVisible()
   // Prelaunch: back to the landing page after ~5 s.

@@ -9,8 +9,7 @@ import { photoLookupAvailable } from '@/lib/providers/vision/available'
 
 export const metadata: Metadata = {
   title: 'Get your solar plan',
-  description:
-    'Calculate your load and see three estimated solar plans, each one fixed price. We get back to you within 7 days.',
+  description: 'Calculate your load and see three estimated solar plans, each one fixed price.',
 }
 
 export const revalidate = 3600
