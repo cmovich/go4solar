@@ -73,6 +73,9 @@ export function Footer() {
               Chat on WhatsApp
             </a>
             <nav className="flex gap-5 text-sm text-white/85">
+              <Link href="/partners" className="hover:text-brand-gold">
+                Partners
+              </Link>
               <Link href="/privacy" className="hover:text-brand-gold">
                 Privacy
               </Link>

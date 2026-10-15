@@ -17,28 +17,24 @@ const fan: LoadItem = {
 }
 
 // Fix-up 1 #1 (both modes): /calculate → "See my solar plans" opened the calculator a second time.
+// Whenever appliances are saved on this device the flow starts at the total load, however the
+// visitor arrived; only a visitor with no appliances starts with the calculator.
 describe('flowStart (where the details flow begins)', () => {
-  for (const launchMode of ['live', 'prelaunch'] as const) {
-    it(`${launchMode}, from /calculate with saved appliances: starts at the total load`, () => {
-      expect(flowStart({ launchMode, fromCalculator: true, storedItems: [fan] })).toEqual({
-        step: 2,
-        items: [fan],
-        backToAppliances: CALCULATE_PATH,
-      })
+  it('saved appliances: starts at the total load, Back returns to /calculate', () => {
+    expect(flowStart({ storedItems: [fan] })).toEqual({
+      step: 2,
+      items: [fan],
+      backToAppliances: CALCULATE_PATH,
     })
+  })
 
-    it(`${launchMode}, from /calculate but nothing saved: the calculator`, () => {
-      expect(flowStart({ launchMode, fromCalculator: true, storedItems: [] })).toEqual({
-        step: 1,
-        items: [],
-        backToAppliances: null,
-      })
+  it('nothing saved: the calculator is the first step', () => {
+    expect(flowStart({ storedItems: [] })).toEqual({
+      step: 1,
+      items: [],
+      backToAppliances: null,
     })
-
-    it(`${launchMode}, opened directly: the calculator is the first step`, () => {
-      expect(flowStart({ launchMode, fromCalculator: false, storedItems: [fan] }).step).toBe(1)
-    })
-  }
+  })
 
   it('the "See my solar plans" link marks where the visitor came from, in both modes', () => {
     expect(plansLinkFromCalculator('live')).toBe('/get-started?from=calculate')

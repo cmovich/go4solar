@@ -1,5 +1,8 @@
 import { expect, test } from '@playwright/test'
 
+import { checkPartnersPage } from './helpers/partners'
+import { testEmail, testPhone } from './helpers/test-identity'
+
 // Prompt 16A: with NEXT_PUBLIC_LAUNCH_MODE=prelaunch only the waiting list and staff pages are open.
 test.describe('prelaunch: live-only routes are closed', () => {
   for (const path of [
@@ -90,4 +93,50 @@ test('/get-started?from=calculate also lands on the total load (query kept on re
   await page.goto('/get-started?from=calculate')
   await page.waitForURL(/\/waitlist\?from=calculate$/)
   await expect(page.getByRole('heading', { name: 'Your total load' })).toBeVisible()
+})
+
+// Fix-up 1 #1: any arrival with saved appliances (not only the calculator's link) starts at the
+// total load, nothing is asked twice and Back works on every screen.
+test('saved appliances, /get-started opened directly: total load first, Back on every screen', async ({
+  page,
+}) => {
+  await page.goto('/calculate')
+  await page.getByRole('button', { name: 'Lighting' }).click()
+  await page.getByRole('button', { name: /^LED bulb/ }).click()
+  await page.goto('/get-started')
+  await page.waitForURL(/\/waitlist$/)
+  await expect(page.getByRole('heading', { name: 'Your total load' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Calculate your load' })).toHaveCount(0)
+  await expect(page.getByText('1 appliance on your list.')).toBeVisible()
+
+  const phone = testPhone()
+  await page.getByRole('button', { name: 'Get quotes' }).click()
+  await expect(page.getByLabel('Phone number')).toBeVisible({ timeout: 5000 })
+  await page.getByLabel('Phone number').fill(phone)
+  await page.getByRole('button', { name: 'Next' }).click()
+  await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 15000 })
+  await page.getByLabel('Email address').fill(testEmail('prelaunch-back', phone))
+  await page.getByRole('button', { name: 'Next' }).click()
+  await expect(page.getByLabel('First name')).toBeVisible({ timeout: 15000 })
+
+  // Back, screen by screen, keeps every answer.
+  await page.getByRole('button', { name: 'Back' }).click()
+  await expect(page.getByLabel('Email address')).toHaveValue(testEmail('prelaunch-back', phone))
+  await page.getByRole('button', { name: 'Back' }).click()
+  await expect(page.getByLabel('Phone number')).toHaveValue(phone)
+  await page.getByRole('button', { name: 'Back' }).click()
+  await expect(page.getByRole('heading', { name: 'Your total load' })).toBeVisible()
+  await page.getByRole('button', { name: 'Back to my appliances' }).click()
+  await page.waitForURL(/\/calculate$/)
+  await expect(page.getByRole('link', { name: 'See my solar plans' })).toBeVisible()
+})
+
+test('no saved appliances: the sign-up starts with the calculator', async ({ page }) => {
+  await page.goto('/get-started')
+  await page.waitForURL(/\/waitlist$/)
+  await expect(page.getByRole('heading', { name: 'Calculate your load' })).toBeVisible()
+})
+
+test('prelaunch: footer → /partners → Sign up as an installer', async ({ page }) => {
+  await checkPartnersPage(page)
 })
