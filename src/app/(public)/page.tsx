@@ -4,7 +4,6 @@ import { Footer } from '@/components/landing/Footer'
 import { Hero } from '@/components/landing/Hero'
 import { HowItWorks } from '@/components/landing/HowItWorks'
 import { Partners } from '@/components/landing/Partners'
-import { PrelaunchBanner } from '@/components/landing/PrelaunchBanner'
 import { Proof } from '@/components/landing/Proof'
 import { Savings } from '@/components/landing/Savings'
 import { sampleHomeItems } from '@/lib/load/load.fixture'
@@ -38,7 +37,6 @@ export default async function HomePage() {
   }
   return (
     <>
-      <PrelaunchBanner />
       <main>
         <Hero example={example} />
         <HowItWorks />

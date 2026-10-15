@@ -48,6 +48,7 @@ import {
   phoneStepSchema,
   type ApplicantType,
   PRICE_LATER_TEXT,
+  THANK_YOU_TEXT,
 } from '@/lib/waitlist/schema'
 
 import {
@@ -975,15 +976,15 @@ export function ThankYouStep({
 
   return (
     <div className="bg-brand-mist rounded-2xl p-8 text-center" role="status">
-      <p className="text-brand-dark text-2xl font-bold sm:text-3xl">Thank you, {firstName}.</p>
-      <p className="text-brand-dark mt-3 text-lg">
-        We will get back to you within the next 7 days.
+      {firstName && <p className="text-muted-foreground text-base">{firstName},</p>}
+      <p className="text-brand-dark mt-1 text-2xl font-bold sm:text-3xl" data-testid="thank-you">
+        {THANK_YOU_TEXT}
       </p>
-      <p className="text-muted-foreground mt-4 text-sm">
-        {messagingLive
-          ? "We've sent a copy of your estimate to your email and WhatsApp."
-          : 'We will contact you on WhatsApp within the next 7 days.'}
-      </p>
+      {messagingLive && (
+        <p className="text-muted-foreground mt-4 text-sm">
+          We&apos;ve sent a copy of your estimate to your email and WhatsApp.
+        </p>
+      )}
       <Button asChild className="mt-6 h-12 text-base">
         <Link href={next}>
           {launchMode === 'live' ? 'Continue to my application' : 'Back to home'}

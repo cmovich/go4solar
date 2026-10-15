@@ -86,7 +86,7 @@ Vercel deploys `main` to go4solar.app. The `phase-1` branch stays open for furth
 Use your phone on mobile data, plus a computer.
 
 1. **Home:** open https://go4solar.app.
-   - The page loads, with the green prelaunch bar at the top.
+   - The page loads. There is no strip at the top, and no "7 days" promise before the sign-up.
    - With sample prices, no ₦ amounts show and the hero says "One fixed price."
    - With real prices, the hero says "Zero interest." and shows the example total.
 2. **Closed pages:** open https://go4solar.app/plans and https://go4solar.app/app.
@@ -96,8 +96,8 @@ Use your phone on mobile data, plus a computer.
    The camera "snap the label" button is hidden while no vision key is set.
 4. **Sign-up on your phone:**
    1. Tap **See my solar plans** and go through the sign-up with your own phone number and email.
-   2. You should finish on "Thank you, [name]. We will contact you on WhatsApp within the next 7
-      days."
+   2. After your plans you should finish on "Thank you! Our team will get back to you within 7
+      days with your confirmed price and next steps."
    3. You should see no error at any point. (No SMS or email is sent yet; that is expected.)
 5. **Lead in admin:** on the computer, open https://go4solar.app/login.
    - Only "Sign in" shows (no "Create an account").

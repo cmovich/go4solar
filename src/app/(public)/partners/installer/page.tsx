@@ -42,7 +42,7 @@ export default function InstallerPartnerPage() {
         </h1>
         <p className="text-muted-foreground mt-3 max-w-2xl text-base">
           We are building our installer network in Abuja, Kaduna and Lagos ahead of launch. Tell us
-          about your business and we will be in touch within 7 days.
+          about your business and we will be in touch.
         </p>
         <div className="mt-8">
           <InstallerForm />

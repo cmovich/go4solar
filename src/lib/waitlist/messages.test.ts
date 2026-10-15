@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { PRICE_LATER_TEXT, confirmationText } from './messages'
+import { PRICE_LATER_TEXT, THANK_YOU_TEXT, confirmationText } from './messages'
 
 const base = {
   firstName: 'Ada',
@@ -29,5 +29,17 @@ describe('confirmationText', () => {
     expect(t).toContain('Comfort')
     expect(t).toContain(PRICE_LATER_TEXT)
     expect(PRICE_LATER_TEXT).toBe('Your exact price will be confirmed when we contact you.')
+  })
+
+  // Prelaunch copy change: the 7-day promise appears only after sign-up, in this exact wording.
+  it('starts with the thank-you line (the only 7-day promise) and never says "waiting list"', () => {
+    expect(THANK_YOU_TEXT).toBe(
+      'Thank you! Our team will get back to you within 7 days with your confirmed price and next steps.',
+    )
+    for (const samplePrices of [true, false]) {
+      const t = confirmationText({ ...base, samplePrices })
+      expect(t).toContain(THANK_YOU_TEXT)
+      expect(t).not.toMatch(/waiting list|next 7 days/i)
+    }
   })
 })

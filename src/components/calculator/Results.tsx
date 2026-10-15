@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 
-import { PLANS_FROM_CALCULATOR } from '@/lib/waitlist/entry'
+import { plansLinkFromCalculator } from '@/lib/waitlist/entry'
 
 import type { LaunchMode } from '@/config/site'
 import type { LoadTotals } from '@/lib/load/types'
@@ -28,8 +28,8 @@ export function Results({
   /** When given, a Continue button replaces the link (waiting-list flow). */
   onContinue?: () => void
 }) {
-  // Prelaunch: the waiting list reads the same saved items. Live: straight to the plans.
-  const nextHref = launchMode === 'prelaunch' ? '/waitlist' : PLANS_FROM_CALCULATOR
+  // Both modes: the details flow reads the saved appliances and skips the calculator.
+  const nextHref = plansLinkFromCalculator(launchMode)
 
   return (
     <section className="mt-10" aria-labelledby="results-heading">

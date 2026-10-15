@@ -63,3 +63,11 @@ describe('prelaunchBlock (live-only routes are closed while NEXT_PUBLIC_LAUNCH_M
     }
   })
 })
+
+describe('prelaunch redirect keeps the query', () => {
+  it('/get-started?from=calculate → /waitlist?from=calculate (appliances carry over)', async () => {
+    const { redirectTarget } = await import('./guard')
+    expect(redirectTarget('/waitlist', '?from=calculate')).toBe('/waitlist?from=calculate')
+    expect(redirectTarget('/', '?x=1')).toBe('/')
+  })
+})
