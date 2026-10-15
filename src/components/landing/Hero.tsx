@@ -3,6 +3,7 @@ import Link from 'next/link'
 
 import { siteConfig } from '@/config/site'
 import { formatNaira } from '@/lib/money'
+import { PRICE_LATER_TEXT } from '@/lib/waitlist/schema'
 
 import { Band, Container } from './Band'
 
@@ -11,17 +12,24 @@ export type HeroExample = {
   monthly: number
   months: number
   total: number
-  /** True while the price list still holds SAMPLE rows. */
+  /** True while any price used is a SAMPLE price: no naira amounts and no interest claims. */
   sample: boolean
 }
 
-const badges = [
-  { title: '0% interest', line: 'One fixed price, shown in full before you sign' },
+const badgesFor = (sample: boolean) => [
+  sample
+    ? { title: 'One fixed price', line: 'Shown in full before you sign' }
+    : { title: '0% interest', line: 'One fixed price, shown in full before you sign' },
   { title: 'Direct importers', line: 'Factory prices, no middlemen, genuine warranty' },
   { title: 'From 20% deposit', line: 'The rest in up to 12 monthly payments' },
 ]
 
+/**
+ * "0% interest" may only appear next to the total amount payable, so while prices are SAMPLE
+ * prices (totals hidden) the hero makes no interest claim.
+ */
 export function Hero({ example }: { example: HeroExample }) {
+  const badges = badgesFor(example.sample)
   return (
     <Band angled accent>
       <Container>
@@ -57,18 +65,23 @@ export function Hero({ example }: { example: HeroExample }) {
             <h1 className="text-4xl leading-[1.05] font-bold tracking-tight sm:text-6xl">
               Solar on monthly payments.
               <br />
-              <span className="text-brand-gold">Zero interest.</span>
+              <span className="text-brand-gold">
+                {example.sample ? 'One fixed price.' : 'Zero interest.'}
+              </span>
             </h1>
             <p className="mt-6 max-w-2xl text-lg text-white/85 sm:text-xl">
-              We import directly from the manufacturers, so you pay less upfront and never pay
-              interest. Start with 20%, spread the rest over up to 12 months.
+              {example.sample
+                ? 'We import directly from the manufacturers, so you pay less upfront. Start with 20%, spread the rest over up to 12 months.'
+                : 'We import directly from the manufacturers, so you pay less upfront and never pay interest. Start with 20%, spread the rest over up to 12 months.'}
             </p>
             {/* The example card (with the total) is desktop-only; phones see the total here. */}
             <p
               className="mt-3 text-sm font-semibold text-white/85 lg:hidden"
               data-testid="hero-total"
             >
-              Example: total amount payable {formatNaira(example.total)}, 0% interest.
+              {example.sample
+                ? PRICE_LATER_TEXT
+                : `Example: total amount payable ${formatNaira(example.total)}, 0% interest.`}
             </p>
 
             <div className="mt-8">
@@ -114,17 +127,24 @@ export function Hero({ example }: { example: HeroExample }) {
                 </div>
               ))}
             </dl>
-            <p className="mt-5 text-3xl font-bold tracking-tight">
-              {formatNaira(example.monthly)}
-              <span className="text-muted-foreground text-base font-medium">
-                {' '}
-                / month for {example.months} months
-              </span>
-            </p>
-            <p className="text-muted-foreground mt-2 text-sm font-medium">
-              Total {formatNaira(example.total)} · 0% interest
-              {example.sample ? ' · sample prices' : ''}
-            </p>
+            {example.sample ? (
+              <p className="mt-4 text-sm font-semibold" data-testid="hero-price-later">
+                {PRICE_LATER_TEXT}
+              </p>
+            ) : (
+              <>
+                <p className="mt-5 text-3xl font-bold tracking-tight">
+                  {formatNaira(example.monthly)}
+                  <span className="text-muted-foreground text-base font-medium">
+                    {' '}
+                    / month for {example.months} months
+                  </span>
+                </p>
+                <p className="text-muted-foreground mt-2 text-sm font-medium">
+                  Total {formatNaira(example.total)} · 0% interest
+                </p>
+              </>
+            )}
           </aside>
         </div>
       </Container>

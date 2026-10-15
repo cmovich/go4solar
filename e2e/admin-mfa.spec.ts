@@ -47,7 +47,9 @@ test.describe('admin two-factor', () => {
     // A brand-new visitor: no saved state, so the notice must show.
     const fresh = await browser.newPage({ storageState: { cookies: [], origins: [] } })
     await fresh.goto('/privacy')
-    await expect(fresh.getByTestId('legal-draft')).toHaveText('DRAFT – pending legal review')
+    // /privacy was approved by Go4Solar's lawyer (15 October 2026): no DRAFT bar there.
+    await expect(fresh.getByRole('heading', { name: 'Privacy policy' })).toBeVisible()
+    await expect(fresh.getByTestId('legal-draft')).toHaveCount(0)
     const notice = fresh.getByTestId('cookie-notice')
     await expect(notice).toContainText('essential cookies only')
     await notice.getByRole('button', { name: 'OK' }).focus()
@@ -56,7 +58,7 @@ test.describe('admin two-factor', () => {
     await fresh.reload()
     await expect(fresh.getByTestId('cookie-notice')).toHaveCount(0)
     await fresh.goto('/terms')
-    await expect(fresh.getByTestId('legal-draft')).toBeVisible()
+    await expect(fresh.getByTestId('legal-draft')).toHaveText('DRAFT – pending legal review')
     await fresh.close()
   })
 })

@@ -1,4 +1,4 @@
-import { MockInProductionError, deployEnv, mockProvidersAllowed } from '@/lib/testmode/policy'
+import { deployEnv, mockProvidersAllowed } from '@/lib/testmode/policy'
 
 export type MessageChannel = 'sms' | 'whatsapp' | 'email'
 
@@ -12,17 +12,26 @@ export type OutboundMessage = {
 }
 
 export type MessagingProvider = {
-  name: 'mock' | 'live'
-  send(message: OutboundMessage): Promise<{ id: string; status: 'queued' | 'sent' | 'failed' }>
+  name: 'mock' | 'live' | 'unsent'
+  send(
+    message: OutboundMessage,
+  ): Promise<{ id: string; status: 'queued' | 'sent' | 'failed' | 'not_sent' }>
 }
 
-/** MESSAGING_PROVIDER=mock (default) writes to the outbox table; 'live' is wired in a later prompt. */
+/**
+ * MESSAGING_PROVIDER=live → the live adapter (Termii/Resend, later prompt). Otherwise previews and
+ * local runs use the mock (outbox, "queued"); production never uses the mock: messages are kept
+ * in the outbox as "not_sent". Never throws, so a message can never break a page.
+ */
 export async function getMessagingProvider(): Promise<MessagingProvider> {
   if (process.env.MESSAGING_PROVIDER === 'live') {
     const { liveMessagingProvider } = await import('./live')
     return liveMessagingProvider
   }
-  if (!mockProvidersAllowed(deployEnv())) throw new MockInProductionError('Messaging')
+  if (!mockProvidersAllowed(deployEnv())) {
+    const { unsentMessagingProvider } = await import('./unsent')
+    return unsentMessagingProvider
+  }
   const { mockMessagingProvider } = await import('./mock')
   return mockMessagingProvider
 }

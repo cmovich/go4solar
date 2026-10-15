@@ -27,7 +27,14 @@ const formSchema = signInSchema
 
 type FormValues = z.infer<typeof formSchema>
 
-export function LoginForm({ next }: { next?: string }) {
+export function LoginForm({
+  next,
+  allowSignUp = true,
+}: {
+  next?: string
+  /** Prelaunch: staff sign-in only (customers do not create accounts yet). */
+  allowSignUp?: boolean
+}) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [serverMessage, setServerMessage] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -107,31 +114,33 @@ export function LoginForm({ next }: { next?: string }) {
         {pending ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
       </Button>
 
-      <p className="text-muted-foreground text-center text-sm">
-        {mode === 'signin' ? (
-          <>
-            New here?{' '}
-            <button
-              type="button"
-              className="text-brand-blue underline"
-              onClick={() => switchMode('signup')}
-            >
-              Create an account
-            </button>
-          </>
-        ) : (
-          <>
-            Already have an account?{' '}
-            <button
-              type="button"
-              className="text-brand-blue underline"
-              onClick={() => switchMode('signin')}
-            >
-              Sign in
-            </button>
-          </>
-        )}
-      </p>
+      {allowSignUp && (
+        <p className="text-muted-foreground text-center text-sm">
+          {mode === 'signin' ? (
+            <>
+              New here?{' '}
+              <button
+                type="button"
+                className="text-brand-blue underline"
+                onClick={() => switchMode('signup')}
+              >
+                Create an account
+              </button>
+            </>
+          ) : (
+            <>
+              Already have an account?{' '}
+              <button
+                type="button"
+                className="text-brand-blue underline"
+                onClick={() => switchMode('signin')}
+              >
+                Sign in
+              </button>
+            </>
+          )}
+        </p>
+      )}
     </form>
   )
 }

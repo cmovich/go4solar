@@ -13,7 +13,7 @@ export const revalidate = 3600
 export default async function TermsPage() {
   const { lockAfterDays } = await lateFeeSettings()
   return (
-    <LegalPage title="Terms of use" updated="12 October 2026">
+    <LegalPage title="Terms of use" updated="12 October 2026" draft>
       <p>
         These terms cover your use of the Go4Solar website and app run by {siteConfig.legalName},{' '}
         {siteConfig.address}. If you take a payment plan, the payment plan agreement you sign is

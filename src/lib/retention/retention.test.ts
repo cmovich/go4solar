@@ -95,3 +95,14 @@ describe('selectForPurge: cleared waiting-list rows', () => {
     expect(r.waitlist.map((w) => w.id)).toEqual(['w1', 'w3'])
   })
 })
+
+// Prompt 16A: nothing is deleted on go4solar.app until Semako switches deleting on.
+describe('retentionDryRun', () => {
+  it('counts only, unless RETENTION_ENABLED=true and no ?dry=1', async () => {
+    const { retentionDryRun } = await import('./rules')
+    expect(retentionDryRun({}, false)).toBe(true)
+    expect(retentionDryRun({ RETENTION_ENABLED: 'yes' }, false)).toBe(true)
+    expect(retentionDryRun({ RETENTION_ENABLED: 'true' }, true)).toBe(true)
+    expect(retentionDryRun({ RETENTION_ENABLED: 'true' }, false)).toBe(false)
+  })
+})

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { AssistedEntryForm } from '@/components/admin/waitlist/AssistedEntryForm'
+import { photoLookupAvailable } from '@/lib/providers/vision/available'
 import { requireStaffWithMfa } from '@/lib/auth/roles'
 import { fetchApplianceLibrary } from '@/lib/appliances/library'
 import { createClient } from '@/lib/supabase/server'
@@ -29,7 +30,7 @@ export default async function AssistedEntryPage() {
         it, and the customer still receives the confirmation.
       </p>
       <div className="mt-8">
-        <AssistedEntryForm library={library} />
+        <AssistedEntryForm library={library} photoLookup={photoLookupAvailable()} />
       </div>
     </main>
   )

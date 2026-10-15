@@ -34,7 +34,13 @@ const field = 'mt-1 h-11 text-base'
 const select = 'border-input mt-1 h-11 w-full rounded-md border bg-white px-3 text-base'
 
 /** Same steps as the customer flow, on one staff screen. */
-export function AssistedEntryForm({ library }: { library: LibraryItem[] }) {
+export function AssistedEntryForm({
+  library,
+  photoLookup,
+}: {
+  library: LibraryItem[]
+  photoLookup: boolean
+}) {
   const router = useRouter()
   const [items, setItems] = useState<LoadItem[] | null>(null)
   const [consent, setConsent] = useState(false)
@@ -57,7 +63,12 @@ export function AssistedEntryForm({ library }: { library: LibraryItem[] }) {
         <p className="text-muted-foreground mb-4 text-sm">
           Build the list with the customer, then press Continue.
         </p>
-        <Calculator library={library} launchMode="prelaunch" onContinue={setItems} />
+        <Calculator
+          library={library}
+          launchMode="prelaunch"
+          photoLookup={photoLookup}
+          onContinue={setItems}
+        />
       </section>
     )
   }

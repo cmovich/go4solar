@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Calculator } from '@/components/calculator/Calculator'
 import { launchMode, siteConfig } from '@/config/site'
 import { fetchApplianceLibrary } from '@/lib/appliances/library'
+import { photoLookupAvailable } from '@/lib/providers/vision/available'
 
 export const metadata: Metadata = {
   title: 'Calculate my load',
@@ -40,7 +41,11 @@ export default async function CalculatePage() {
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-        <Calculator library={library} launchMode={launchMode()} />
+        <Calculator
+          library={library}
+          launchMode={launchMode()}
+          photoLookup={photoLookupAvailable()}
+        />
       </main>
     </>
   )

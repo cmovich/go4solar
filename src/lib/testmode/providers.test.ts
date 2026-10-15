@@ -19,7 +19,8 @@ describe('mock providers cannot run in production', () => {
       delete process.env[k]
     await expect(getKycProvider()).rejects.toThrow(/disabled in production/)
     await expect(getPaymentsProvider()).rejects.toThrow(/disabled in production/)
-    await expect(getMessagingProvider()).rejects.toThrow(/disabled in production/)
+    // Messaging never throws (Prompt 16A): no mock in production, messages are kept as not_sent.
+    expect((await getMessagingProvider()).name).toBe('unsent')
     await expect(getVisionProvider()).rejects.toThrow(/disabled in production/)
     process.env.KYC_PROVIDER = 'mock'
     await expect(getKycProvider()).rejects.toThrow(/disabled in production/)

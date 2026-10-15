@@ -1,13 +1,14 @@
 'use server'
 
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 
+import { launchMode } from '@/config/site'
 import { isStaffRole } from '@/lib/auth/roles'
 import { getSessionInfo } from '@/lib/auth/session'
 import { clientIp } from '@/lib/ratelimit/clientIp'
 import { hitRateLimit } from '@/lib/ratelimit/hitRateLimit'
 import { createClient } from '@/lib/supabase/server'
-import { headers } from 'next/headers'
 
 import { signInSchema, signUpSchema } from './schema'
 
@@ -52,6 +53,8 @@ export async function signIn(input: unknown): Promise<AuthActionResult> {
 }
 
 export async function signUp(input: unknown): Promise<AuthActionResult> {
+  // Prelaunch: no customer accounts yet (staff accounts are created by invite).
+  if (launchMode() !== 'live') return { error: 'Accounts open at launch.' }
   const parsed = signUpSchema.safeParse(input)
   if (!parsed.success) return { error: 'Please check the details you entered.' }
   if (

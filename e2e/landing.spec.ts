@@ -1,4 +1,11 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+/** True when the page shows the SAMPLE-price version (no naira amounts). */
+async function samplePrices(page: Page): Promise<boolean> {
+  return (await page.getByTestId('hero-total').innerText()).includes(
+    'confirmed when we contact you',
+  )
+}
 
 test.describe('landing page', () => {
   test('hero copy is visible and the button leads to the calculator', async ({ page }) => {
@@ -7,7 +14,9 @@ test.describe('landing page', () => {
     const h1 = page.getByRole('heading', { level: 1 })
     await expect(h1).toBeVisible()
     await expect(h1).toContainText('Solar on monthly payments.')
-    await expect(h1).toContainText('Zero interest.')
+    // While any price is a SAMPLE price the hero makes no interest claim (no total is shown).
+    if (await samplePrices(page)) await expect(h1).toContainText('One fixed price.')
+    else await expect(h1).toContainText('Zero interest.')
 
     await expect(
       page.getByText('We import directly from the manufacturers, so you pay less upfront'),
@@ -29,9 +38,11 @@ test.describe('landing page', () => {
   test('has every section in order and the partner links', async ({ page }) => {
     await page.goto('/')
     const headings = await page.getByRole('heading', { level: 2 }).allTextContents()
+    const sample = await samplePrices(page)
     expect(headings).toEqual([
       'From appliances to installed solar in four steps',
-      'A generator costs you every month, forever',
+      // The Savings comparison (naira amounts) is hidden while prices are SAMPLE prices.
+      ...(sample ? [] : ['A generator costs you every month, forever']),
       '20+ homes and businesses already financed',
       'Grow with Go4Solar',
       'Questions people ask before they start',
@@ -40,10 +51,8 @@ test.describe('landing page', () => {
       'href',
       '/partners/installer',
     )
-    await expect(page.getByRole('link', { name: 'Become a verified vendor' })).toHaveAttribute(
-      'href',
-      '/partners/vendor',
-    )
+    // Prelaunch: the vendor sign-up opens at launch, so its button is hidden.
+    await expect(page.getByRole('link', { name: 'Become a verified vendor' })).toHaveCount(0)
     // Track-record tiles
     await expect(page.getByText('₦30M+')).toBeVisible()
     await expect(page.getByText('in solar financing')).toBeVisible()
@@ -51,6 +60,14 @@ test.describe('landing page', () => {
 
   test('savings example shows the total amount payable beside 0% interest', async ({ page }) => {
     await page.goto('/')
+    if (await samplePrices(page)) {
+      // Prompt 16A safety net: no naira amounts while prices are SAMPLE prices.
+      await expect(page.locator('section', { hasText: 'Savings comparison' })).toHaveCount(0)
+      await expect(page.getByTestId('hero-total')).toHaveText(
+        'Your exact price will be confirmed when we contact you.',
+      )
+      return
+    }
     const savings = page.locator('section', { hasText: 'Savings comparison' })
     await expect(savings.getByText('Example', { exact: true })).toBeVisible()
     await expect(savings.getByText('₦165,017').first()).toBeVisible()

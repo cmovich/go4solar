@@ -4,14 +4,17 @@ import Link from 'next/link'
 import { Footer } from '@/components/landing/Footer'
 import { siteConfig } from '@/config/site'
 
-/** Shared layout for /privacy and /terms, with the draft notice above the footer. */
+/** Shared layout for /privacy and /terms; `draft` shows the notice above the footer. */
 export function LegalPage({
   title,
   updated,
+  draft,
   children,
 }: {
   title: string
   updated: string
+  /** True until Go4Solar's lawyer has approved the text (/privacy approved 15 October 2026). */
+  draft: boolean
   children: React.ReactNode
 }) {
   return (
@@ -38,13 +41,14 @@ export function LegalPage({
         <p className="text-muted-foreground mt-1 text-sm">Last updated {updated}</p>
         <div className="prose-legal mt-6 space-y-4 text-[15px] leading-relaxed">{children}</div>
       </main>
-      {/* Stays until Go4Solar's lawyer has reviewed the text and Semako removes it. */}
-      <div
-        className="bg-amber-100 px-4 py-3 text-center text-sm font-semibold text-amber-900"
-        data-testid="legal-draft"
-      >
-        DRAFT – pending legal review
-      </div>
+      {draft && (
+        <div
+          className="bg-amber-100 px-4 py-3 text-center text-sm font-semibold text-amber-900"
+          data-testid="legal-draft"
+        >
+          DRAFT – pending legal review
+        </div>
+      )}
       <Footer />
     </>
   )

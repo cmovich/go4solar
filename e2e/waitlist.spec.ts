@@ -76,7 +76,22 @@ async function finishFromPlans(page: Page, expectAdvice: boolean) {
     timeout: 15000,
   })
   await expect(page.getByText('Estimate', { exact: true })).toHaveCount(3)
-  if (expectAdvice) {
+  // Prompt 16A: while any price is a SAMPLE price, no naira amounts are shown anywhere.
+  const sample = (await page.getByTestId('price-later').count()) > 0
+  if (sample) {
+    await expect(page.getByTestId('price-later')).toHaveCount(3)
+    await expect(page.getByTestId('price-later').first()).toHaveText(
+      'Your exact price will be confirmed when we contact you.',
+    )
+    await expect(page.locator('main')).not.toContainText('₦')
+    await page.getByRole('button', { name: /Comfort/ }).click()
+    await expect(page.getByRole('heading', { name: 'How much can you pay upfront?' })).toBeVisible()
+    await expect(page.getByTestId('total-price')).toHaveCount(0)
+    await page.getByRole('slider').focus()
+    for (let i = 0; i < 30; i++) await page.keyboard.press('ArrowRight')
+    await expect(page.getByTestId('deposit-pct')).toHaveText('50%')
+    await expect(page.locator('main')).not.toContainText('₦')
+  } else if (expectAdvice) {
     await expect(page.getByTestId('plan-advice')).toHaveCount(3)
     await expect(page.getByTestId('plan-advice').first()).toContainText('₦70,200')
     await expect(page.getByTestId('plan-advice').first()).toContainText('a month on power today')
@@ -84,16 +99,17 @@ async function finishFromPlans(page: Page, expectAdvice: boolean) {
   } else {
     await expect(page.getByTestId('plan-advice')).toHaveCount(0)
   }
-  await page.getByRole('button', { name: /Comfort/ }).click()
-
-  await expect(page.getByRole('heading', { name: 'How much can you pay upfront?' })).toBeVisible()
-  const totalAt20 = await page.getByTestId('total-price').textContent()
-  await page.getByRole('slider').focus()
-  for (let i = 0; i < 30; i++) await page.keyboard.press('ArrowRight')
-  await expect(page.getByTestId('deposit-pct')).toHaveText('50%')
-  await expect(page.getByTestId('saving')).toContainText('You save ₦')
-  await expect(page.getByTestId('saving')).toContainText('by paying 50%')
-  expect(await page.getByTestId('total-price').textContent()).not.toBe(totalAt20)
+  if (!sample) {
+    await page.getByRole('button', { name: /Comfort/ }).click()
+    await expect(page.getByRole('heading', { name: 'How much can you pay upfront?' })).toBeVisible()
+    const totalAt20 = await page.getByTestId('total-price').textContent()
+    await page.getByRole('slider').focus()
+    for (let i = 0; i < 30; i++) await page.keyboard.press('ArrowRight')
+    await expect(page.getByTestId('deposit-pct')).toHaveText('50%')
+    await expect(page.getByTestId('saving')).toContainText('You save ₦')
+    await expect(page.getByTestId('saving')).toContainText('by paying 50%')
+    expect(await page.getByTestId('total-price').textContent()).not.toBe(totalAt20)
+  }
   await page.getByRole('button', { name: 'Now', exact: true }).click()
   await page.getByRole('button', { name: 'Next' }).click()
 

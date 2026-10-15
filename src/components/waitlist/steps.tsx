@@ -47,6 +47,7 @@ import {
   nameStepSchema,
   phoneStepSchema,
   type ApplicantType,
+  PRICE_LATER_TEXT,
 } from '@/lib/waitlist/schema'
 
 import {
@@ -658,11 +659,14 @@ export function PlanCard({
   onChoose,
   busy,
   advice,
+  showPrices = true,
 }: {
   estimate: PlanEstimate
   onChoose?: () => void
   busy?: boolean
   advice?: PlanAdvice | null
+  /** False while prices are SAMPLE prices: sizes and backup only, no naira amounts. */
+  showPrices?: boolean
 }) {
   const { plan, size, quote } = estimate
   const tonnes = advice ? Math.round(advice.co2AvoidedKgPerYear / 100) / 10 : null
@@ -697,18 +701,31 @@ export function PlanCard({
           </dd>
         </div>
       </dl>
-      <p className="text-brand-dark mt-4 text-2xl font-bold tracking-tight">
-        {formatNaira(quote.monthly)}
-        <span className="text-muted-foreground text-sm font-medium">
-          {' '}
-          / month for {quote.snapshot.tenureMonths} months
-        </span>
-      </p>
-      <p className="text-muted-foreground text-sm">
-        {formatNaira(quote.deposit)} upfront ({formatPercent(quote.snapshot.depositShare)}) · total{' '}
-        {formatNaira(quote.systemPrice)} · 0% interest
-      </p>
-      {advice && (
+      {showPrices ? (
+        <>
+          <p className="text-brand-dark mt-4 text-2xl font-bold tracking-tight">
+            {formatNaira(quote.monthly)}
+            <span className="text-muted-foreground text-sm font-medium">
+              {' '}
+              / month for {quote.snapshot.tenureMonths} months
+            </span>
+          </p>
+          <p className="text-muted-foreground text-sm">
+            {formatNaira(quote.deposit)} upfront ({formatPercent(quote.snapshot.depositShare)}) ·
+            total {formatNaira(quote.systemPrice)} · 0% interest
+          </p>
+        </>
+      ) : (
+        <p className="text-brand-dark mt-4 text-sm font-semibold" data-testid="price-later">
+          {PRICE_LATER_TEXT}
+        </p>
+      )}
+      {!showPrices && tonnes !== null && tonnes > 0 && (
+        <p className="bg-brand-mist mt-3 rounded-lg p-3 text-sm">
+          Avoids about {tonnes} tonne{tonnes === 1 ? '' : 's'} of CO₂ a year.
+        </p>
+      )}
+      {showPrices && advice && (
         <div
           className="bg-brand-mist mt-3 space-y-1 rounded-lg p-3 text-sm"
           data-testid="plan-advice"
@@ -774,13 +791,12 @@ export function PlansStep({
       <Heading
         title={`Here are your plans, ${firstName}`}
         onBack={onBack}
-        lead="Estimates at a 20% deposit over 12 months. Backup hours assume every item is on at the same time, so you will usually get more."
+        lead={
+          estimate.sample
+            ? 'Three systems sized for your load. Backup hours assume every item is on at the same time, so you will usually get more.'
+            : 'Estimates at a 20% deposit over 12 months. Backup hours assume every item is on at the same time, so you will usually get more.'
+        }
       />
-      {estimate.sample && (
-        <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Prelaunch estimate using sample prices. Your final quote comes at launch.
-        </p>
-      )}
       <div className="space-y-5 pt-2">
         {PLANS.map((p) => (
           <PlanCard
@@ -789,6 +805,7 @@ export function PlansStep({
             onChoose={() => choose(p)}
             busy={pending}
             advice={adviceFor(estimate.plans[p], current, estimate.pricingRateByTenure)}
+            showPrices={!estimate.sample}
           />
         ))}
       </div>
@@ -833,7 +850,11 @@ export function ContributionStep({
     <div className="space-y-6">
       <Heading
         title="How much can you pay upfront?"
-        lead={`${PLAN_LABELS[plan]} plan. A bigger contribution lowers both the total and the monthly amount.`}
+        lead={
+          estimate.sample
+            ? `${PLAN_LABELS[plan]} plan. A bigger contribution lowers both the total and the monthly amount. ${PRICE_LATER_TEXT}`
+            : `${PLAN_LABELS[plan]} plan. A bigger contribution lowers both the total and the monthly amount.`
+        }
         onBack={onBack}
         backLabel="Choose a different plan"
       />
@@ -862,37 +883,41 @@ export function ContributionStep({
           <span>95%</span>
         </div>
 
-        <dl className="mt-5 grid grid-cols-3 gap-2 text-sm">
-          <div>
-            <dt className="text-muted-foreground">Total</dt>
-            <dd className="text-brand-dark font-bold tabular-nums" data-testid="total-price">
-              {formatNaira(priced.quote.systemPrice)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Upfront</dt>
-            <dd className="text-brand-dark font-bold tabular-nums" data-testid="upfront">
-              {formatNaira(priced.quote.deposit)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">
-              Monthly × {priced.quote.snapshot.tenureMonths}
-            </dt>
-            <dd className="text-brand-dark font-bold tabular-nums" data-testid="monthly">
-              {formatNaira(priced.quote.monthly)}
-            </dd>
-          </div>
-        </dl>
-        <p
-          className="text-brand-green mt-4 text-base font-semibold"
-          data-testid="saving"
-          aria-live="polite"
-        >
-          {priced.savingVsMin > 0
-            ? `You save ${formatNaira(priced.savingVsMin)} by paying ${pct}%.`
-            : `Move the slider to see how much a bigger contribution saves you.`}
-        </p>
+        {!estimate.sample && (
+          <>
+            <dl className="mt-5 grid grid-cols-3 gap-2 text-sm">
+              <div>
+                <dt className="text-muted-foreground">Total</dt>
+                <dd className="text-brand-dark font-bold tabular-nums" data-testid="total-price">
+                  {formatNaira(priced.quote.systemPrice)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Upfront</dt>
+                <dd className="text-brand-dark font-bold tabular-nums" data-testid="upfront">
+                  {formatNaira(priced.quote.deposit)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">
+                  Monthly × {priced.quote.snapshot.tenureMonths}
+                </dt>
+                <dd className="text-brand-dark font-bold tabular-nums" data-testid="monthly">
+                  {formatNaira(priced.quote.monthly)}
+                </dd>
+              </div>
+            </dl>
+            <p
+              className="text-brand-green mt-4 text-base font-semibold"
+              data-testid="saving"
+              aria-live="polite"
+            >
+              {priced.savingVsMin > 0
+                ? `You save ${formatNaira(priced.savingVsMin)} by paying ${pct}%.`
+                : `Move the slider to see how much a bigger contribution saves you.`}
+            </p>
+          </>
+        )}
       </div>
 
       <fieldset>

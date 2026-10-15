@@ -18,7 +18,8 @@ export default defineConfig({
     // Cookie notice already dismissed (one test checks the notice itself).
     storageState: 'e2e/storage-state.json',
     baseURL,
-    trace: 'on-first-retry',
+    // Keep a trace of every failed attempt, so an intermittent failure can be explained.
+    trace: 'retain-on-failure',
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },

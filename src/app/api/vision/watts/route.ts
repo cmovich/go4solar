@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getVisionProvider } from '@/lib/providers/vision'
+import { photoLookupAvailable } from '@/lib/providers/vision/available'
 import { clientIp } from '@/lib/ratelimit/clientIp'
 import { hitRateLimit } from '@/lib/ratelimit/hitRateLimit'
 
@@ -15,6 +16,7 @@ const LOOKUPS_PER_HOUR = 10
  * Returns the vision provider's reading. The image is processed in memory and never stored.
  */
 export async function POST(req: Request) {
+  if (!photoLookupAvailable()) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const form = await req.formData().catch(() => null)
   const file = form?.get('image')
   if (!(file instanceof Blob)) {

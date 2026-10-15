@@ -30,7 +30,9 @@ export default async function OutboxPage() {
       <p className="text-muted-foreground mt-1 text-sm">
         {process.env.MESSAGING_PROVIDER === 'live'
           ? 'Live messaging: this list shows delivery status.'
-          : 'Mock messaging: nothing is really sent. Every message lands here instead.'}
+          : process.env.VERCEL_ENV === 'production'
+            ? 'No SMS/email provider yet: nothing is sent. Messages are kept here as "not_sent" so staff can follow up.'
+            : 'Mock messaging: nothing is really sent. Every message lands here instead.'}
       </p>
       <div className="mt-6 space-y-3">
         {rows.map((r) => {

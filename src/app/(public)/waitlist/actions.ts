@@ -330,6 +330,7 @@ export async function completeWaitlist(
     deposit: chosen.quote.deposit,
     monthly: chosen.quote.monthly,
     tenureMonths: chosen.quote.snapshot.tenureMonths,
+    samplePrices: estimate.sample,
   })
   return { ok: true, id: row.id, firstName: row.first_name }
 }

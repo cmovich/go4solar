@@ -5,7 +5,8 @@ import { Band, Container, SectionHeading } from './Band'
 const cta =
   'inline-flex h-12 items-center justify-center rounded-lg px-6 text-base font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 focus-visible:ring-offset-brand-dark focus-visible:outline-none'
 
-export function Partners() {
+/** `vendors`: the vendor sign-up opens at launch, so its button is hidden in prelaunch. */
+export function Partners({ vendors }: { vendors: boolean }) {
   return (
     <Band angled accent className="py-20 sm:py-28">
       <Container>
@@ -24,13 +25,15 @@ export function Partners() {
             >
               Become a partner installer
             </Link>
-            <Link
-              href="/partners/vendor"
-              prefetch={false}
-              className={`${cta} border border-white/40 text-white hover:bg-white/10`}
-            >
-              Become a verified vendor
-            </Link>
+            {vendors && (
+              <Link
+                href="/partners/vendor"
+                prefetch={false}
+                className={`${cta} border border-white/40 text-white hover:bg-white/10`}
+              >
+                Become a verified vendor
+              </Link>
+            )}
           </div>
         </div>
       </Container>

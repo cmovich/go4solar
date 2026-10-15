@@ -242,3 +242,6 @@ export function depositBandOf(share: number | null): string | null {
   if (share === null) return null
   return DEPOSIT_BANDS.find((b) => share >= b.min && share < b.max)?.id ?? null
 }
+
+/** Shown (and sent) instead of naira amounts while any price used is still a SAMPLE price. */
+export const PRICE_LATER_TEXT = 'Your exact price will be confirmed when we contact you.'

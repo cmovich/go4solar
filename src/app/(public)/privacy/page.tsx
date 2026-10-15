@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: 'Privacy policy' }
 export default function PrivacyPage() {
   const email = siteConfig.email
   return (
-    <LegalPage title="Privacy policy" updated="12 October 2026">
+    <LegalPage title="Privacy policy" updated="12 October 2026" draft={false}>
       <p>
         {siteConfig.legalName} (&quot;Go4Solar&quot;, &quot;we&quot;), {siteConfig.address}, helps
         homes and small businesses in Nigeria buy solar systems on a payment plan. This policy

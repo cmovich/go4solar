@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { WaitlistFlow } from '@/components/waitlist/WaitlistFlow'
 import { launchMode, siteConfig } from '@/config/site'
 import { fetchApplianceLibrary } from '@/lib/appliances/library'
+import { photoLookupAvailable } from '@/lib/providers/vision/available'
 
 export const metadata: Metadata = {
   title: 'Get your solar plan',
@@ -40,6 +41,7 @@ export default async function WaitlistPage() {
           library={library}
           messagingLive={process.env.MESSAGING_PROVIDER === 'live'}
           launchMode={launchMode()}
+          photoLookup={photoLookupAvailable()}
         />
       </main>
     </>

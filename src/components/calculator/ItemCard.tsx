@@ -19,10 +19,13 @@ export function ItemCard({
   item,
   onChange,
   onRemove,
+  photoLookup,
 }: {
   item: LoadItem
   onChange: (patch: Patch) => void
   onRemove: () => void
+  /** The "snap the label" watts lookup (hidden when there is no vision provider). */
+  photoLookup: boolean
 }) {
   const [lookupOpen, setLookupOpen] = useState(false)
 
@@ -77,15 +80,17 @@ export function ItemCard({
               onChange={numberField('watts', false)}
               className="h-11 text-base"
             />
-            <button
-              type="button"
-              onClick={() => setLookupOpen(true)}
-              aria-label={`Find the watts of ${item.name} from a photo`}
-              title="Don't know the watts? Snap the label"
-              className="text-brand-blue hover:bg-brand-mist inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md"
-            >
-              <HelpCircle className="h-5 w-5" aria-hidden />
-            </button>
+            {photoLookup && (
+              <button
+                type="button"
+                onClick={() => setLookupOpen(true)}
+                aria-label={`Find the watts of ${item.name} from a photo`}
+                title="Don't know the watts? Snap the label"
+                className="text-brand-blue hover:bg-brand-mist inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md"
+              >
+                <HelpCircle className="h-5 w-5" aria-hidden />
+              </button>
+            )}
           </div>
         </div>
         <div>
@@ -127,15 +132,17 @@ export function ItemCard({
           ` · starts at ${(item.watts * item.surgeFactor).toLocaleString('en-US')} W`}
       </p>
 
-      <WattsLookupDialog
-        open={lookupOpen}
-        itemName={item.name}
-        onClose={() => setLookupOpen(false)}
-        onUse={(watts) => {
-          onChange({ watts })
-          setLookupOpen(false)
-        }}
-      />
+      {photoLookup && (
+        <WattsLookupDialog
+          open={lookupOpen}
+          itemName={item.name}
+          onClose={() => setLookupOpen(false)}
+          onUse={(watts) => {
+            onChange({ watts })
+            setLookupOpen(false)
+          }}
+        />
+      )}
     </li>
   )
 }

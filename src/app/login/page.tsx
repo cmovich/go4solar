@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { siteConfig } from '@/config/site'
+import { launchMode, siteConfig } from '@/config/site'
 import { isStaffRole } from '@/lib/auth/roles'
 import { getSessionInfo } from '@/lib/auth/session'
 
@@ -50,7 +50,7 @@ export default async function LoginPage({
             <CardDescription>Use the email and password for your account.</CardDescription>
           </CardHeader>
           <CardContent>
-            <LoginForm next={next} />
+            <LoginForm next={next} allowSignUp={launchMode() === 'live'} />
           </CardContent>
         </Card>
       </div>

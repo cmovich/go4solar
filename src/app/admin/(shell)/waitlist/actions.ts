@@ -207,6 +207,7 @@ export async function assistedEntry(input: unknown): Promise<StaffActionResult<{
     deposit: chosen.quote.deposit,
     monthly: chosen.quote.monthly,
     tenureMonths: chosen.quote.snapshot.tenureMonths,
+    samplePrices: estimate.sample,
   })
   revalidatePath('/admin/waitlist')
   return { ok: true, id: data.id }

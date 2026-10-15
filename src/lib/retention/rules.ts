@@ -63,3 +63,14 @@ export function selectForPurge(input: RetentionInput, now: Date) {
   )
   return { kycDocuments, waitlist }
 }
+
+/**
+ * Deleting is off until Semako switches it on (env RETENTION_ENABLED=true): until then every run,
+ * including the weekly cron on go4solar.app, only counts what it would delete.
+ */
+export function retentionDryRun(
+  env: Record<string, string | undefined>,
+  dryParam: boolean,
+): boolean {
+  return dryParam || env.RETENTION_ENABLED !== 'true'
+}

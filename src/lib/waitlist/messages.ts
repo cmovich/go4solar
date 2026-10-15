@@ -4,6 +4,7 @@ import { formatNaira, formatPercent } from '@/lib/money'
 import { getMessagingProvider } from '@/lib/providers/messaging'
 import { PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import type { Plan } from '@/lib/sizing/types'
+import { PRICE_LATER_TEXT } from '@/lib/waitlist/schema'
 
 export type WaitlistConfirmation = {
   firstName: string
@@ -16,10 +17,21 @@ export type WaitlistConfirmation = {
   deposit: number
   monthly: number
   tenureMonths: number
+  /** True while any price used is a SAMPLE price: no naira amounts are sent. */
+  samplePrices: boolean
 }
+
+export { PRICE_LATER_TEXT }
 
 /** The copy that goes to the customer's email and WhatsApp (PRD step 9). */
 export function confirmationText(c: WaitlistConfirmation): string {
+  if (c.samplePrices) {
+    return (
+      `Thank you, ${c.firstName}. We will get back to you within the next 7 days.\n\n` +
+      `Your choice: ${PLAN_LABELS[c.plan]} plan, ${formatPercent(c.depositShare)} upfront. ` +
+      PRICE_LATER_TEXT
+    )
+  }
   return (
     `Thank you, ${c.firstName}. We will get back to you within the next 7 days.\n\n` +
     `Your estimate: ${PLAN_LABELS[c.plan]} plan — total ${formatNaira(c.systemPrice)}, ` +

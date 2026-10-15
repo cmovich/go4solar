@@ -44,10 +44,13 @@ function safeTotals(items: LoadItem[]): LoadTotals {
 export function Calculator({
   library,
   launchMode,
+  photoLookup,
   onContinue,
 }: {
   library: LibraryItem[]
   launchMode: LaunchMode
+  /** Show the AI photo lookup (see photoLookupAvailable). */
+  photoLookup: boolean
   /** Waiting-list mode: replaces the "See my solar plans" link with a Continue button. */
   onContinue?: (items: LoadItem[]) => void
 }) {
@@ -109,6 +112,7 @@ export function Calculator({
               <ItemCard
                 key={item.id}
                 item={item}
+                photoLookup={photoLookup}
                 onChange={(patch) => setItems((prev) => updateItem(prev, item.id, patch))}
                 onRemove={() => setItems((prev) => removeItem(prev, item.id))}
               />

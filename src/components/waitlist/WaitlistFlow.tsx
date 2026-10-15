@@ -45,10 +45,12 @@ export function WaitlistFlow({
   library,
   messagingLive,
   launchMode,
+  photoLookup,
 }: {
   library: LibraryItem[]
   messagingLive: boolean
   launchMode: LaunchMode
+  photoLookup: boolean
 }) {
   const [step, setStep] = useState<Step>(1)
   const [dir, setDir] = useState(1)
@@ -161,6 +163,7 @@ export function WaitlistFlow({
             <Calculator
               library={library}
               launchMode={launchMode}
+              photoLookup={photoLookup}
               onContinue={(list) => {
                 setItems(list)
                 go(2)

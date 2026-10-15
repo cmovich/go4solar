@@ -64,8 +64,17 @@ describe('GET /api/cron/retention', () => {
     ])
   })
 
-  it('real run: deletes exactly what the rules pick and records the counts', async () => {
+  it('without RETENTION_ENABLED=true it only counts (Prompt 16A: nothing is deleted)', async () => {
     expect((await call()).status).toBe(200)
+    expect(db.rows('documents').map((d) => d.id)).toEqual(['dA', 'dB'])
+    expect(removed).toEqual([])
+    expect(db.rows('waitlist_consumers')).toHaveLength(2)
+  })
+
+  it('real run (RETENTION_ENABLED=true): deletes exactly what the rules pick and records the counts', async () => {
+    vi.stubEnv('RETENTION_ENABLED', 'true')
+    expect((await call()).status).toBe(200)
+    vi.unstubAllEnvs()
     expect(db.rows('documents').map((d) => d.id)).toEqual(['dB'])
     expect(removed).toEqual([['u/A/nin.jpg']])
     expect(db.rows('waitlist_consumers').map((w) => w.id)).toEqual(['w2'])
