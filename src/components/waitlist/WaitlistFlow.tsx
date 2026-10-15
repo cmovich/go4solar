@@ -64,7 +64,7 @@ export function WaitlistFlow({
   const [phoneValues, setPhoneValues] = useState<PhoneValues | null>(null)
   const [email, setEmail] = useState('')
   const [isBusiness, setIsBusiness] = useState(false)
-  // Live visitors from /calculate start at the totals; "Back to my appliances" returns there.
+  // Visitors with saved appliances start at the totals; "Back to my appliances" returns there.
   const [backToAppliances, setBackToAppliances] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
   const router = useRouter()
@@ -76,16 +76,12 @@ export function WaitlistFlow({
     } catch {
       // Storage blocked: start with the calculator.
     }
-    const start = flowStart({
-      launchMode,
-      fromCalculator: new URLSearchParams(window.location.search).get('from') === 'calculate',
-      storedItems: parseStoredItems(stored),
-    })
+    const start = flowStart({ storedItems: parseStoredItems(stored) })
     setItems(start.items)
     setStep(start.step)
     setBackToAppliances(start.backToAppliances)
     setReady(true)
-  }, [launchMode])
+  }, [])
 
   const go = useCallback(
     (next: Step) => {
