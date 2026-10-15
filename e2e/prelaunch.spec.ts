@@ -60,3 +60,34 @@ test.describe('prelaunch: live-only routes are closed', () => {
     })
   }
 })
+
+// Fix-up 1 #1 in prelaunch: the calculator must not be shown twice on go4solar.app.
+test('calculator → "See my solar plans" continues at the total load (no second calculator)', async ({
+  page,
+}) => {
+  await page.goto('/calculate')
+  await page.getByRole('button', { name: 'Lighting' }).click()
+  await page.getByRole('button', { name: /^LED bulb/ }).click()
+  await page.getByRole('button', { name: 'Kitchen Appliances' }).click()
+  await page.getByRole('button', { name: /^Fridge/ }).click()
+  await page.getByRole('link', { name: 'See my solar plans' }).click()
+  await page.waitForURL(/\/waitlist\?from=calculate$/)
+  await expect(page.getByRole('heading', { name: 'Your total load' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Calculate your load' })).toHaveCount(0)
+  await expect(page.getByText('2 appliances on your list.')).toBeVisible()
+  // Back to my appliances returns to /calculate with the list kept.
+  await page.getByRole('button', { name: 'Back to my appliances' }).click()
+  await page.waitForURL(/\/calculate$/)
+  await expect(page.getByRole('link', { name: 'See my solar plans' })).toBeVisible()
+})
+
+test('/get-started?from=calculate also lands on the total load (query kept on redirect)', async ({
+  page,
+}) => {
+  await page.goto('/calculate')
+  await page.getByRole('button', { name: 'Lighting' }).click()
+  await page.getByRole('button', { name: /^LED bulb/ }).click()
+  await page.goto('/get-started?from=calculate')
+  await page.waitForURL(/\/waitlist\?from=calculate$/)
+  await expect(page.getByRole('heading', { name: 'Your total load' })).toBeVisible()
+})

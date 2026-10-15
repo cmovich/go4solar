@@ -29,3 +29,8 @@ export function prelaunchBlock(path: string, mode: LaunchMode): Block | null {
   if (LIVE_ONLY_APIS.some((p) => under(path, p))) return { notFound: true }
   return null
 }
+
+/** Where a redirect goes: /get-started keeps its query (?from=calculate), home drops it. */
+export function redirectTarget(to: string, search: string): string {
+  return to === '/waitlist' ? `${to}${search}` : to
+}

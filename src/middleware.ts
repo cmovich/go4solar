@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { launchMode } from '@/config/site'
-import { prelaunchBlock } from '@/lib/launch/guard'
+import { prelaunchBlock, redirectTarget } from '@/lib/launch/guard'
 import { updateSession } from '@/lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
@@ -9,7 +9,8 @@ export async function middleware(request: NextRequest) {
   const block = prelaunchBlock(request.nextUrl.pathname, launchMode())
   if (block) {
     if ('notFound' in block) return new NextResponse('Not found', { status: 404 })
-    return NextResponse.redirect(new URL(block.redirect, request.url))
+    const to = redirectTarget(block.redirect, request.nextUrl.search)
+    return NextResponse.redirect(new URL(to, request.url))
   }
   return updateSession(request)
 }
