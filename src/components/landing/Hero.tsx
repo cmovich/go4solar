@@ -54,7 +54,7 @@ export function Hero({ example }: { example: HeroExample }) {
             <a href="#faq" className="hover:text-white">
               FAQ
             </a>
-            <Link href="/partners/installer" prefetch={false} className="hover:text-white">
+            <Link href="/partners" className="hover:text-white">
               Partners
             </Link>
           </nav>

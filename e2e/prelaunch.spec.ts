@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 
+import { checkPartnersPage } from './helpers/partners'
 import { testEmail, testPhone } from './helpers/test-identity'
 
 // Prompt 16A: with NEXT_PUBLIC_LAUNCH_MODE=prelaunch only the waiting list and staff pages are open.
@@ -134,4 +135,8 @@ test('no saved appliances: the sign-up starts with the calculator', async ({ pag
   await page.goto('/get-started')
   await page.waitForURL(/\/waitlist$/)
   await expect(page.getByRole('heading', { name: 'Calculate your load' })).toBeVisible()
+})
+
+test('prelaunch: footer → /partners → Sign up as an installer', async ({ page }) => {
+  await checkPartnersPage(page)
 })
