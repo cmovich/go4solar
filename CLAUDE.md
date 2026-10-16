@@ -256,3 +256,5 @@ on slow networks — keep pages light (target < 3 s on 3G for the landing page).
 | 2026-10-15 | fix #8 | `/partners` was a 404: new branded programme page `src/app/(public)/partners/page.tsx` (verified customers, genuine equipment, paid on time; "Sign up as an installer" → `/partners/installer`; no vendor button because no vendor sign-up page exists). Open in both modes. "Partners" link added to the footer; the home header's "Partners" link now opens `/partners` (was `/partners/installer`). e2e `e2e/helpers/partners.ts` used by `e2e/prelaunch.spec.ts` and `e2e/live/partners.spec.ts`. Git check: PR #2 (486b0a1) was merged before 2a3a7e2; main had only merge commits, nothing lost; PR #3 carries 2a3a7e2 + this. | **Live mode:** the landing Partners section still shows "Become a verified vendor" → `/partners/vendor`, which has no page (404) — hide it or build the page before the live launch. |
 
 **Next prompt to run:** merge PR #3 (after Semako's yes), then the smoke test in `docs/GO-LIVE.md`; full live launch (Prompt 16) later.
+
+**Before the live launch:** the numbered list (fixed items and what is still to do) is section 7 of `docs/GO-LIVE.md`.

@@ -118,3 +118,42 @@ Vercel's runtime logs for that time show the cause.
 - Semako rotates the Supabase database password.
 - Before sharing the link widely, enter the real prices in /admin/pricing. The yellow "Sample
   prices" banner disappears and naira amounts appear on the site.
+
+## 7. Before the live launch
+
+FIXED in the October testing round:
+
+1. Calculator shown twice (/calculate → plans) [fixed, both modes]
+2. Error 500 after customer signs — PDF fonts not packaged on Vercel [fixed]
+3. Error 500 after guarantor signs — same cause [fixed]
+
+4/5. Outbox message links not clickable [fixed]
+
+6. Guarantor relationship → dropdown [fixed]
+7. Lock after 7 days overdue: setting, agreement v2 wording, "Lock due" badge
+   [done; the actual remote lock is Phase 2]
+8. /partners showed a 404 → partner programme page [fixed]
+
+STILL TO DO before switching Production to live mode:
+
+9. Vendor button "Become a verified vendor" → /partners/vendor (404). Hide it or
+   build the vendor sign-up page.
+10. Finish Semako's manual test on the preview: Parts 1–7 (stopped at Part 3:
+    installer sign-up and job assignment).
+11. Mock KYC accepts only BVN 22222222222 — accept any test BVN starting with 2
+    (mock only) so each test customer can have their own.
+12. Speed: run independent database queries in parallel on the guarantor and
+    signing pages.
+13. Flaky e2e test: admin "Show test data" toggle — find the cause.
+14. Real provider accounts and keys: QoreID (KYC), Paystack live + Direct Debit,
+    Termii (SMS), Resend (email — its DNS records must not touch the existing
+    mail settings), Anthropic vision (optional).
+15. Lawyer approval of /terms and the customer agreement templates (remove the
+    DRAFT bars only after approval). /privacy already approved 2026-10-15.
+16. Real overheads entered for the forecasts; verify the grid CO2 factor.
+17. Test-data clean-up: reviewed query, database backup first, count-only run
+    first, deletes only is_test rows; staff accounts and real leads untouched.
+18. Decide on RETENTION_ENABLED (weekly clean-up job is count-only until then).
+19. Rotate the Supabase database password after launch.
+20. Switch Production NEXT_PUBLIC_LAUNCH_MODE from prelaunch to live, redeploy,
+    and run a full smoke test on go4solar.app.
