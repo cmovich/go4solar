@@ -63,12 +63,17 @@ export const pricingSettingsSchema = z.object({
   sample: z.boolean().default(false),
   /** The 12-month pricing rate (what the waiting-list estimate uses). */
   pricingRateAnnual: z.number().min(0).max(2),
-  /** Pricing rate per tenure = expected funder rate + spread + default buffer. */
+  /**
+   * Pricing rate per tenure = expected funder rate + spread + default buffer. Only tenures that
+   * are switched on are present; 12 months always is (estimates are priced at 12).
+   */
   pricingRateByTenure: z.object({
-    3: z.number().min(0).max(2),
-    6: z.number().min(0).max(2),
-    9: z.number().min(0).max(2),
+    3: z.number().min(0).max(2).optional(),
+    6: z.number().min(0).max(2).optional(),
+    9: z.number().min(0).max(2).optional(),
     12: z.number().min(0).max(2),
+    18: z.number().min(0).max(2).optional(),
+    24: z.number().min(0).max(2).optional(),
   }),
   marginByCategory: z.object({
     panels: z.number().min(0),

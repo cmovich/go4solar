@@ -64,6 +64,18 @@ describe('perSystem', () => {
   })
 })
 
+describe('perSystem: 18 and 24 months in the tenure mix', () => {
+  it('a 24-month mix is counted: more funder interest per system than 12 months', () => {
+    const at12 = perSystem(inputs)
+    const at24 = perSystem({ ...inputs, tenureMix: { 24: 1 } })
+    expect(at24.tenureMonths).toBe(24)
+    // Same price and money drawn, a year longer with the funder: less net profit per system.
+    expect(at24.netProfit).toBeLessThan(at12.netProfit)
+    const half = perSystem({ ...inputs, tenureMix: { 12: 0.5, 18: 0.5 } })
+    expect(half.tenureMonths).toBe(15)
+  })
+})
+
 describe('scenarioFromInputs', () => {
   it('Low / Base / High differ only in growth', () => {
     const low = scenarioFromInputs(inputs, 'low')

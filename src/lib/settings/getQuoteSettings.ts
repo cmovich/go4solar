@@ -35,9 +35,8 @@ export async function getQuoteSettings(): Promise<QuoteSettings> {
       .select('sku, name, category, unit_cost, stock_sizes, active, sample')
       .eq('active', true),
     admin.from('category_margins').select('category, margin, sample'),
-    admin
-      .from('pricing_rates')
-      .select('tenure_months, expected_funder_rate, spread, default_buffer, pricing_rate, sample'),
+    // Every column: `enabled` exists from migration 0019 (rows without it count as switched on).
+    admin.from('pricing_rates').select('*'),
     admin.from('installation_costs').select('state, size_band, amount, sample'),
   ])
   for (const r of [settings, components, margins, rates, installs]) {

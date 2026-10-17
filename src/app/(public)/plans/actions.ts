@@ -6,6 +6,7 @@ import { PLANS, type Estimate } from '@/lib/quotes/buildEstimate'
 import { loadLeadForPlans, type LeadForPlans } from '@/lib/quotes/leadForPlans'
 import { sendCashReferralNotice, sendSavedQuotes, type SavedQuoteLine } from '@/lib/quotes/messages'
 import { cashPrice, priceVariant, quoteReference, validUntil } from '@/lib/quotes/quote'
+import type { TenureMonths } from '@/lib/pricing/types'
 import type { Plan } from '@/lib/sizing/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
@@ -14,7 +15,14 @@ import { currentVisitorHash } from '@/lib/waitlist/token'
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string }
 
 const planSchema = z.enum(['essential', 'comfort', 'independence'])
-const tenureSchema = z.union([z.literal(3), z.literal(6), z.literal(9), z.literal(12)])
+const tenureSchema = z.union([
+  z.literal(3),
+  z.literal(6),
+  z.literal(9),
+  z.literal(12),
+  z.literal(18),
+  z.literal(24),
+])
 const chooseSchema = z.object({
   leadId: z.uuid(),
   plan: planSchema,
@@ -26,6 +34,10 @@ const cashSchema = z.object({ leadId: z.uuid(), plan: planSchema })
 
 const REMINDER_AFTER_MS = 2 * 24 * 60 * 60 * 1000
 const EXPIRED = { ok: false, error: 'Your session expired. Please start again.' } as const
+const NOT_OFFERED = {
+  ok: false,
+  error: 'That payment plan length is not available. Please choose another.',
+} as const
 
 /** Common columns of a quote row built from the visitor's lead. */
 function baseRow(ctx: LeadForPlans, hash: string, plan: Plan) {
@@ -48,10 +60,11 @@ async function insertQuote(
   ctx: LeadForPlans,
   hash: string,
   plan: Plan,
-  tenure: 3 | 6 | 9 | 12,
+  tenure: TenureMonths,
   depositShare: number,
 ): Promise<{ id: string; line: SavedQuoteLine } | null> {
-  const v = priceVariant(ctx.estimate, plan, tenure, depositShare)
+  // Throws TenureNotOfferedError for a length this customer may not choose (callers answer it).
+  const v = priceVariant(ctx.estimate, plan, tenure, depositShare, ctx.tenures)
   const { data, error } = await createAdminClient()
     .from('quotes')
     .insert({
@@ -92,6 +105,7 @@ export async function chooseQuote(input: unknown): Promise<Result<{ quoteId: str
   if (!parsed.success) return { ok: false, error: 'Please pick a plan, tenure and deposit.' }
   const c = await context(parsed.data.leadId)
   if (!c) return EXPIRED
+  if (!c.ctx.tenures.includes(parsed.data.tenure)) return NOT_OFFERED
   const q = await insertQuote(
     c.ctx,
     c.hash,
@@ -109,6 +123,7 @@ export async function saveForLater(input: unknown): Promise<Result<{ references:
   if (!parsed.success) return { ok: false, error: 'Please pick a tenure and deposit.' }
   const c = await context(parsed.data.leadId)
   if (!c) return EXPIRED
+  if (!c.ctx.tenures.includes(parsed.data.tenure)) return NOT_OFFERED
 
   const saved = []
   for (const plan of PLANS) {

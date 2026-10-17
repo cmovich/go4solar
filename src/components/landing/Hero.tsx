@@ -14,14 +14,16 @@ export type HeroExample = {
   total: number
   /** True while any price used is a SAMPLE price: no naira amounts and no interest claims. */
   sample: boolean
+  /** Longest payment plan switched on in /admin/pricing. */
+  maxMonths: number
 }
 
-const badgesFor = (sample: boolean) => [
+const badgesFor = (sample: boolean, maxMonths: number) => [
   sample
     ? { title: 'One fixed price', line: 'Shown in full before you sign' }
     : { title: '0% interest', line: 'One fixed price, shown in full before you sign' },
   { title: 'Direct importers', line: 'Factory prices, no middlemen, genuine warranty' },
-  { title: 'From 20% deposit', line: 'The rest in up to 12 monthly payments' },
+  { title: 'From 20% deposit', line: `The rest in up to ${maxMonths} monthly payments` },
 ]
 
 /**
@@ -29,7 +31,7 @@ const badgesFor = (sample: boolean) => [
  * prices (totals hidden) the hero makes no interest claim.
  */
 export function Hero({ example }: { example: HeroExample }) {
-  const badges = badgesFor(example.sample)
+  const badges = badgesFor(example.sample, example.maxMonths)
   return (
     <Band angled accent>
       <Container>
@@ -71,8 +73,8 @@ export function Hero({ example }: { example: HeroExample }) {
             </h1>
             <p className="mt-6 max-w-2xl text-lg text-white/85 sm:text-xl">
               {example.sample
-                ? 'We import directly from the manufacturers, so you pay less upfront. Start with 20%, spread the rest over up to 12 months.'
-                : 'We import directly from the manufacturers, so you pay less upfront and never pay interest. Start with 20%, spread the rest over up to 12 months.'}
+                ? `We import directly from the manufacturers, so you pay less upfront. Start with 20%, spread the rest over up to ${example.maxMonths} months.`
+                : `We import directly from the manufacturers, so you pay less upfront and never pay interest. Start with 20%, spread the rest over up to ${example.maxMonths} months.`}
             </p>
             {/* The example card (with the total) is desktop-only; phones see the total here. */}
             <p

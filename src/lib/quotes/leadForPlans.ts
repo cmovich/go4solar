@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { computeLoadTotals } from '@/lib/load/totals'
 import type { LoadItem } from '@/lib/load/types'
 import { isNgStateId, type NgStateId } from '@/lib/nigeria/states'
+import { offeredTenures } from '@/lib/pricing/tenures'
+import type { TenureMonths } from '@/lib/pricing/types'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database } from '@/lib/supabase/database.types'
@@ -22,6 +24,8 @@ export type LeadForPlans = {
   estimate: Estimate
   energy: EnergyRecord | null
   validityDays: number
+  /** Payment-plan lengths this customer may choose: in the estimate and still switched on. */
+  tenures: TenureMonths[]
 }
 
 /** quote_validity_days from settings (default 7). */
@@ -65,10 +69,9 @@ async function loadLead(id: string, visitorHash: string | null): Promise<LeadFor
     return null
   }
 
-  const validityDays = await quoteValidityDays()
+  const [validityDays, settings] = await Promise.all([quoteValidityDays(), getQuoteSettings()])
   let estimate = lead.estimate as unknown as Estimate
   if (estimateIsStale(estimate.pricedAt ?? lead.created_at, validityDays)) {
-    const settings = await getQuoteSettings()
     estimate = {
       ...buildEstimate(
         computeLoadTotals(lead.load_items as LoadItem[]),
@@ -87,5 +90,9 @@ async function loadLead(id: string, visitorHash: string | null): Promise<LeadFor
     estimate,
     energy: (lead.energy as EnergyRecord | null) ?? null,
     validityDays,
+    tenures: offeredTenures(
+      estimate.pricingRateByTenure,
+      offeredTenures(settings.pricing.pricingRateByTenure),
+    ),
   }
 }

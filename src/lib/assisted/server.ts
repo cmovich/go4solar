@@ -17,7 +17,14 @@ type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string }
 export const assistedSchema = z.object({
   leadId: z.uuid('Pick the customer from the waiting list'),
   plan: z.enum(['essential', 'comfort', 'independence']),
-  tenure: z.union([z.literal(3), z.literal(6), z.literal(9), z.literal(12)]),
+  tenure: z.union([
+    z.literal(3),
+    z.literal(6),
+    z.literal(9),
+    z.literal(12),
+    z.literal(18),
+    z.literal(24),
+  ]),
   depositShare: z.number().min(0.2).max(0.95),
   email: z.email("Enter the customer's email address"),
   channel: z.enum(ENTRY_CHANNELS),
@@ -50,6 +57,12 @@ export async function createAssistedApplication(
   const ctx = await loadLeadForStaff(p.data.leadId)
   if (!ctx)
     return { ok: false, error: 'That customer record has no load or plan yet. Complete it first.' }
+  if (!ctx.tenures.includes(p.data.tenure)) {
+    return {
+      ok: false,
+      error: `${p.data.tenure} months is not offered for this customer's estimate. Choose another length.`,
+    }
+  }
   const lead = ctx.lead
   const admin = createAdminClient()
 
@@ -76,7 +89,7 @@ export async function createAssistedApplication(
     .update({ full_name: fullName || null, phone_e164: lead.phone_e164, state: lead.state })
     .eq('id', userId)
 
-  const v = priceVariant(ctx.estimate, p.data.plan, p.data.tenure, p.data.depositShare)
+  const v = priceVariant(ctx.estimate, p.data.plan, p.data.tenure, p.data.depositShare, ctx.tenures)
   const { error: quoteError } = await admin.from('quotes').insert({
     owner_id: userId,
     waitlist_id: lead.id,

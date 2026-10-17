@@ -8,6 +8,7 @@ import { Proof } from '@/components/landing/Proof'
 import { Savings } from '@/components/landing/Savings'
 import { sampleHomeItems } from '@/lib/load/load.fixture'
 import { computeLoadTotals } from '@/lib/load/totals'
+import { offeredTenures } from '@/lib/pricing/tenures'
 import { buildEstimate } from '@/lib/quotes/buildEstimate'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 import { launchMode } from '@/config/site'
@@ -17,6 +18,7 @@ export const revalidate = 3600
 
 export default async function HomePage() {
   const [settings, lateFee] = await Promise.all([getQuoteSettings(), lateFeeSettings()])
+  const tenures = offeredTenures(settings.pricing.pricingRateByTenure)
   const comfortEstimate = buildEstimate(computeLoadTotals(sampleHomeItems), 'Lagos', 0.2, settings)
   const comfort = comfortEstimate.plans.comfort
   const example = {
@@ -34,6 +36,7 @@ export default async function HomePage() {
     total: comfort.quote.systemPrice,
     // Installation costs count too: any SAMPLE price used hides the amounts.
     sample: comfortEstimate.sample,
+    maxMonths: Math.max(...tenures),
   }
   return (
     <>
@@ -44,7 +47,7 @@ export default async function HomePage() {
         {!example.sample && <Savings />}
         <Proof />
         <Partners vendors={launchMode() === 'live'} />
-        <Faq lockAfterDays={lateFee.lockAfterDays} />
+        <Faq lockAfterDays={lateFee.lockAfterDays} tenures={tenures} />
       </main>
       <Footer />
     </>

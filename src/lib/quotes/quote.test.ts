@@ -88,3 +88,32 @@ describe('quoteReference / validUntil / estimateIsStale', () => {
     expect(estimateIsStale(null, 7, now)).toBe(true)
   })
 })
+
+describe('priceVariant: longer tenures', () => {
+  it('18 months uses the 18-month rate captured in the estimate', async () => {
+    const { buildEstimate } = await import('./buildEstimate')
+    const { priceVariant, TenureNotOfferedError } = await import('./quote')
+    const { DEFAULT_QUOTE_SETTINGS } = await import('@/lib/settings/schemas')
+    const { computeLoadTotals } = await import('@/lib/load/totals')
+    const { sampleHomeItems } = await import('@/lib/load/load.fixture')
+    const settings = {
+      ...DEFAULT_QUOTE_SETTINGS,
+      pricing: {
+        ...DEFAULT_QUOTE_SETTINGS.pricing,
+        pricingRateByTenure: { 3: 0.24, 6: 0.24, 9: 0.24, 12: 0.24, 18: 0.3 },
+      },
+    }
+    const est = buildEstimate(computeLoadTotals(sampleHomeItems), 'Lagos', 0.2, settings)
+    expect(est.pricingRateByTenure).toEqual({ 3: 0.24, 6: 0.24, 9: 0.24, 12: 0.24, 18: 0.3 })
+    const v18 = priceVariant(est, 'comfort', 18, 0.2)
+    expect(v18.quote.snapshot.pricingRateAnnual).toBe(0.3)
+    expect(v18.quote.instalments).toHaveLength(18)
+    expect(v18.quote.monthly).toBeLessThan(priceVariant(est, 'comfort', 12, 0.2).quote.monthly)
+
+    // 24 months was never offered with this estimate; 18 is refused once switched off.
+    expect(() => priceVariant(est, 'comfort', 24, 0.2)).toThrow(TenureNotOfferedError)
+    expect(() => priceVariant(est, 'comfort', 18, 0.2, [3, 6, 9, 12])).toThrow(
+      TenureNotOfferedError,
+    )
+  })
+})

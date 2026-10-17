@@ -2,9 +2,9 @@
 
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { Fragment, useEffect, useMemo, useState, useTransition } from 'react'
 
-import { NairaField, PercentField } from '@/components/admin/NairaField'
+import { NairaField, OptionalPercentField, PercentField } from '@/components/admin/NairaField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -21,7 +21,13 @@ import {
 } from '@/lib/pricing/adminSchemas'
 import { draftFunders, draftToSettings } from '@/lib/pricing/draft'
 import { SAMPLE_PACKAGES, buildPreview, type Preview } from '@/lib/pricing/preview'
-import { TENURES, type TenureMonths } from '@/lib/pricing/types'
+import {
+  ESTIMATE_TENURE,
+  financedShare,
+  offeredTenures,
+  tenureRateProblem,
+} from '@/lib/pricing/tenures'
+import type { TenureMonths } from '@/lib/pricing/types'
 import { PLANS, PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import { SIZE_BANDS } from '@/lib/settings/schemas'
 import type { Plan } from '@/lib/sizing/types'
@@ -159,9 +165,18 @@ export function PricingWorkbench({
 export function PricePreview({ draft }: { draft: PricingDraft }) {
   const [pkg, setPkg] = useState(SAMPLE_PACKAGES[0]!.id)
   const [plan, setPlan] = useState<Plan>('comfort')
-  const [tenure, setTenure] = useState<TenureMonths>(12)
+  const [picked, setTenure] = useState<TenureMonths>(ESTIMATE_TENURE)
   const [pct, setPct] = useState(20)
   const debounced = useDebounced(draft, 150)
+  // Only switched-on tenures with a full rate can be previewed (as customers would see them).
+  const onTenures = offeredTenures(
+    Object.fromEntries(
+      debounced.rates
+        .filter((r) => tenureRateProblem(r, debounced.minDepositShare) === null && r.enabled)
+        .map((r) => [r.tenureMonths, 0]),
+    ),
+  )
+  const tenure = onTenures.includes(picked) ? picked : ESTIMATE_TENURE
 
   const result = useMemo<{ preview: Preview } | { error: string }>(() => {
     try {
@@ -225,7 +240,7 @@ export function PricePreview({ draft }: { draft: PricingDraft }) {
         </label>
       </div>
       <div className="mt-2 flex gap-1" role="group" aria-label="Tenure">
-        {TENURES.map((t) => (
+        {onTenures.map((t) => (
           <button
             key={t}
             type="button"
@@ -389,6 +404,51 @@ function PreviewBody({
           Red = loss. Amber = below the minimum net margin ({formatPercent(minNetMarginShare)}) →
           needs super admin.
         </p>
+      </div>
+
+      <div>
+        <p className="text-brand-dark text-xs font-semibold">
+          Each payment plan length (best funder that lends that long)
+        </p>
+        <table className="mt-1 w-full text-xs" data-testid="preview-tenures">
+          <thead className="text-muted-foreground text-left">
+            <tr>
+              <th className="py-1">Length</th>
+              <th className="py-1 text-right">Monthly</th>
+              <th className="py-1 text-right">Net profit</th>
+              <th className="py-1 text-right">Return</th>
+            </tr>
+          </thead>
+          <tbody>
+            {p.tenures.map((t) => {
+              const profit = t.funder?.profit
+              const share = profit && t.systemPrice > 0 ? profit.netProfit / t.systemPrice : 0
+              const bad = !profit || profit.netProfit < 0
+              const low = !bad && share < minNetMarginShare
+              return (
+                <tr key={t.tenureMonths} className="border-t border-black/5">
+                  <td className="py-1">
+                    {t.tenureMonths} mo{' '}
+                    <span className="text-muted-foreground">
+                      {t.funder ? t.funder.name : 'no funder lends this long'}
+                    </span>
+                  </td>
+                  <td className="py-1 text-right tabular-nums">{formatNaira(t.monthly)}</td>
+                  <td
+                    className={`py-1 text-right font-semibold tabular-nums ${bad ? 'text-red-700' : low ? 'text-amber-700' : 'text-brand-green'}`}
+                  >
+                    {profit ? formatNaira(profit.netProfit) : '—'}
+                  </td>
+                  <td className="py-1 text-right tabular-nums">
+                    {profit?.annualReturnOnDrawn == null
+                      ? '—'
+                      : formatPercent(profit.annualReturnOnDrawn, 1)}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
 
       <div>
@@ -578,66 +638,107 @@ function RatesForm({ draft, onChange }: FormProps) {
       ...draft,
       rates: draft.rates.map((r) => (r.tenureMonths === t ? { ...r, ...patch } : r)),
     })
+  const minDeposit = draft.minDepositShare
   return (
     <div>
       <h2 className="text-brand-dark text-xl font-semibold">
-        Financing rates <SampleBadge show={draft.sample.rates} />
+        Payment plan lengths and financing rates <SampleBadge show={draft.sample.rates} />
       </h2>
       <p className="text-muted-foreground text-sm">
-        Pricing rate = expected funder rate + Go4Solar spread + default buffer. Customer prices stay
-        the same whichever funder later approves the loan.
+        Pricing rate = expected funder rate + Go4Solar spread + default buffer, per year. Customers
+        only see lengths that are switched on; 12 months always stays on (estimates use it).
+        Customer prices stay the same whichever funder later approves the loan, and existing quotes
+        keep their own rates.
       </p>
-      <table className="mt-4 w-full max-w-2xl text-sm">
-        <thead className="bg-brand-green text-left text-white">
-          <tr>
-            {[
-              'Tenure',
-              'Expected funder rate',
-              'Go4Solar spread',
-              'Default buffer',
-              'Pricing rate (auto)',
-            ].map((h) => (
-              <th key={h} className="px-2 py-2 font-semibold">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {draft.rates.map((r) => (
-            <tr key={r.tenureMonths} className="border-b">
-              <td className="px-2 py-2 font-semibold">{r.tenureMonths} months</td>
-              <td className="px-2 py-2">
-                <PercentField
-                  value={r.expectedFunderRate}
-                  onChange={(v) => update(r.tenureMonths, { expectedFunderRate: v })}
-                  aria-label={`Expected funder rate ${r.tenureMonths} months`}
-                />
-              </td>
-              <td className="px-2 py-2">
-                <PercentField
-                  value={r.spread}
-                  onChange={(v) => update(r.tenureMonths, { spread: v })}
-                  aria-label={`Spread ${r.tenureMonths} months`}
-                />
-              </td>
-              <td className="px-2 py-2">
-                <PercentField
-                  value={r.defaultBuffer}
-                  onChange={(v) => update(r.tenureMonths, { defaultBuffer: v })}
-                  aria-label={`Default buffer ${r.tenureMonths} months`}
-                />
-              </td>
-              <td
-                className="px-2 py-2 font-bold tabular-nums"
-                data-testid={`rate-${r.tenureMonths}`}
-              >
-                {formatPercent(r.expectedFunderRate + r.spread + r.defaultBuffer, 1)}
-              </td>
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full max-w-3xl text-sm">
+          <thead className="bg-brand-green text-left text-white">
+            <tr>
+              {[
+                'Length',
+                'On',
+                'Expected funder rate',
+                'Go4Solar spread',
+                'Default buffer',
+                'Pricing rate (auto)',
+                `Financing adds (at ${formatPercent(minDeposit)} deposit)`,
+              ].map((h) => (
+                <th key={h} className="px-2 py-2 font-semibold">
+                  {h}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {draft.rates.map((r) => {
+              const parts = [r.expectedFunderRate, r.spread, r.defaultBuffer]
+              const rate = parts.every((x) => x !== null)
+                ? parts.reduce<number>((a, x) => a + (x ?? 0), 0)
+                : null
+              const f = rate === null ? null : financedShare(rate, r.tenureMonths)
+              const adds =
+                f === null || f * (1 - minDeposit) >= 1 ? null : 1 / (1 - f * (1 - minDeposit)) - 1
+              const problem = tenureRateProblem(r, minDeposit)
+              return (
+                <Fragment key={r.tenureMonths}>
+                  <tr className={`border-b ${r.enabled ? '' : 'text-muted-foreground'}`}>
+                    <td className="px-2 py-2 font-semibold">{r.tenureMonths} months</td>
+                    <td className="px-2 py-2">
+                      <Checkbox
+                        checked={r.enabled}
+                        disabled={r.tenureMonths === ESTIMATE_TENURE}
+                        onCheckedChange={(v) => update(r.tenureMonths, { enabled: v === true })}
+                        aria-label={`Offer ${r.tenureMonths} months`}
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <OptionalPercentField
+                        value={r.expectedFunderRate}
+                        onChange={(v) => update(r.tenureMonths, { expectedFunderRate: v })}
+                        aria-label={`Expected funder rate ${r.tenureMonths} months`}
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <OptionalPercentField
+                        value={r.spread}
+                        onChange={(v) => update(r.tenureMonths, { spread: v })}
+                        aria-label={`Spread ${r.tenureMonths} months`}
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <OptionalPercentField
+                        value={r.defaultBuffer}
+                        onChange={(v) => update(r.tenureMonths, { defaultBuffer: v })}
+                        aria-label={`Default buffer ${r.tenureMonths} months`}
+                      />
+                    </td>
+                    <td
+                      className="px-2 py-2 font-bold tabular-nums"
+                      data-testid={`rate-${r.tenureMonths}`}
+                    >
+                      {rate === null ? '—' : formatPercent(rate, 1)}
+                    </td>
+                    <td className="px-2 py-2 tabular-nums">
+                      {adds === null ? '—' : `+${formatPercent(adds, 1)}`}
+                    </td>
+                  </tr>
+                  {problem && (
+                    <tr>
+                      <td colSpan={7} className="px-2 pb-2 text-xs text-red-700" role="alert">
+                        {problem}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-muted-foreground mt-2 text-xs">
+        &ldquo;Financing adds&rdquo; is how much the price is above cost plus base margins at the
+        lowest deposit: a longer plan adds more, because the rate runs for more years.
+      </p>
     </div>
   )
 }

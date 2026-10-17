@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import type { CurrentEnergy } from '@/lib/energy/currentSpend'
 import { formatNaira } from '@/lib/money'
-import { TENURES, type TenureMonths } from '@/lib/pricing/types'
+import type { TenureMonths } from '@/lib/pricing/types'
 import { PLANS, PLAN_LABELS, type Estimate } from '@/lib/quotes/buildEstimate'
 import { priceVariant } from '@/lib/quotes/quote'
 import type { Plan } from '@/lib/sizing/types'
@@ -30,6 +30,7 @@ export function PlansChooser({
   reference,
   whatsappNumber,
   fallbackNumber,
+  tenures,
 }: {
   leadId: string
   firstName: string
@@ -39,11 +40,15 @@ export function PlansChooser({
   reference: string
   whatsappNumber: string
   fallbackNumber: string
+  /** Payment-plan lengths this customer may choose (switched-off ones are never shown). */
+  tenures: readonly TenureMonths[]
 }) {
   const router = useRouter()
   const minPct = Math.round(estimate.plans.comfort.quote.snapshot.minDepositShare * 100)
   const [pct, setPct] = useState(minPct)
-  const [tenure, setTenure] = useState<TenureMonths>(12)
+  const [tenure, setTenure] = useState<TenureMonths>(
+    tenures.includes(12) ? 12 : (tenures[tenures.length - 1] ?? 12),
+  )
   const [cashPlan, setCashPlan] = useState<Plan>('comfort')
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const [pending, start] = useTransition()
@@ -122,8 +127,12 @@ export function PlansChooser({
         </div>
         <div>
           <p className="text-sm font-medium">Spread the rest over</p>
-          <div className="mt-2 grid grid-cols-4 gap-2" role="group" aria-label="Tenure">
-            {TENURES.map((t) => (
+          <div
+            className={`mt-2 grid gap-2 ${tenures.length > 4 ? 'grid-cols-3' : 'grid-cols-4'}`}
+            role="group"
+            aria-label="Tenure"
+          >
+            {tenures.map((t) => (
               <button
                 key={t}
                 type="button"
@@ -151,7 +160,10 @@ export function PlansChooser({
           const realistic = v.size.realisticBackupHours
           return (
             <div key={p} className="space-y-2" data-testid={`plan-${p}`}>
-              <PlanCard estimate={v} advice={adviceFor(v, current, estimate.pricingRateByTenure)} />
+              <PlanCard
+                estimate={v}
+                advice={adviceFor(v, current, estimate.pricingRateByTenure, tenures)}
+              />
               <div className="space-y-1 px-1 text-sm">
                 <p>
                   <span className="text-muted-foreground">Panels:</span> {v.size.panelCount} (

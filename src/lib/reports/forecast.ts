@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { testProfileIds } from '@/lib/approvals/admin'
 import { unitCostsRow } from '@/lib/approvals/server'
 import type { ScenarioInputs, WaitlistLeadSummary } from '@/lib/forecast/scenario'
-import type { QuoteResult } from '@/lib/pricing/types'
+import type { QuoteResult, TenureMonths } from '@/lib/pricing/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
 
@@ -62,8 +62,11 @@ export async function defaultInputs(): Promise<ScenarioInputs> {
 
   const loans = (loansRes.data ?? []).filter((l) => !testIds.has(l.consumer_id))
   const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
-  const mix = { 3: 0, 6: 0, 9: 0, 12: 0 } as Record<3 | 6 | 9 | 12, number>
-  for (const l of loans) mix[l.tenure as 3 | 6 | 9 | 12] += 1 / loans.length
+  const mix: Record<TenureMonths, number> = { 3: 0, 6: 0, 9: 0, 12: 0, 18: 0, 24: 0 }
+  for (const l of loans) {
+    const t = l.tenure as TenureMonths
+    if (t in mix) mix[t] += 1 / loans.length
+  }
   if (!loans.length) {
     mix[12] = 1
     sample.push(`System price, cost and tenure mix (${PRD}: ₦2,475,248 / ₦1,800,000, 12 months)`)
@@ -163,6 +166,9 @@ export const scenarioInputsSchema = z.object({
     6: z.number().min(0),
     9: z.number().min(0),
     12: z.number().min(0),
+    // Scenarios saved before 18/24-month plans existed have no share for them.
+    18: z.number().min(0).default(0),
+    24: z.number().min(0).default(0),
   }),
   funderAnnualRate: z.number().min(0).max(2),
   ownFundShare: z.number().min(0).max(1),

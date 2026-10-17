@@ -11,6 +11,7 @@ import { LockBadge } from '@/components/admin/LockBadge'
 import { formatNaira } from '@/lib/money'
 import { defaultInputs } from '@/lib/reports/forecast'
 import { profitDashboard } from '@/lib/reports/profit'
+import { TENURES } from '@/lib/pricing/types'
 
 export const metadata: Metadata = { title: 'Profit' }
 export const dynamic = 'force-dynamic'
@@ -147,7 +148,7 @@ export default async function ProfitPage({ searchParams }: { searchParams: Promi
           aria-label="Tenure"
         >
           <option value="">All tenures</option>
-          {[3, 6, 9, 12].map((t) => (
+          {TENURES.map((t) => (
             <option key={t} value={t}>
               {t} months
             </option>
