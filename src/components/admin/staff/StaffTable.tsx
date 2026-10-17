@@ -10,7 +10,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { STAFF_ROLES, type StaffRole } from '@/lib/auth/staffRoles'
 
-import { inviteStaff, setStaffDisabled, updateStaff } from '@/app/admin/(shell)/staff/actions'
+import {
+  inviteStaff,
+  resendStaffInvite,
+  setStaffDisabled,
+  updateStaff,
+} from '@/app/admin/(shell)/staff/actions'
 
 export type StaffRowView = {
   id: string
@@ -36,6 +41,7 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
   const [role, setRole] = useState<StaffRole>(initial.role)
   const [assisted, setAssisted] = useState(initial.assistedEntry)
   const [error, setError] = useState<string | null>(null)
+  const [sent, setSent] = useState(false)
   const [pending, start] = useTransition()
   const dirty = role !== initial.role || assisted !== initial.assistedEntry
 
@@ -52,6 +58,16 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
     start(async () => {
       const r = await setStaffDisabled({ profileId: initial.id, disabled: !initial.disabled })
       if (r.ok) router.refresh()
+      else setError(r.error)
+    })
+  }
+
+  function resend() {
+    setError(null)
+    setSent(false)
+    start(async () => {
+      const r = await resendStaffInvite({ profileId: initial.id })
+      if (r.ok) setSent(true)
       else setError(r.error)
     })
   }
@@ -101,9 +117,21 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
             >
               {initial.disabled ? 'Enable' : 'Disable'}
             </Button>
+          )}{' '}
+          {!initial.isMe && !initial.disabled && (
+            <Button type="button" size="sm" variant="outline" onClick={resend} disabled={pending}>
+              Resend invite
+            </Button>
           )}
         </td>
       </tr>
+      {sent && (
+        <tr>
+          <td colSpan={5} className="text-brand-green px-3 pb-2 text-sm" role="status">
+            New link sent to {initial.email}. It works once and expires after 1 hour.
+          </td>
+        </tr>
+      )}
       {error && (
         <tr>
           <td colSpan={5} className="px-3 pb-2">
