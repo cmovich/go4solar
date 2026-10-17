@@ -158,3 +158,7 @@ STILL TO DO before switching Production to live mode:
 19. Rotate the Supabase database password after launch.
 20. Switch Production NEXT_PUBLIC_LAUNCH_MODE from prelaunch to live, redeploy,
     and run a full smoke test on go4solar.app.
+21. Set up custom SMTP for Supabase Auth emails (invites, password resets) so they
+    come from no-reply@go4solar.app and aren't limited to a few per hour. Use Resend
+    on a subdomain (e.g. send.go4solar.app) — its DNS records must not touch the root
+    domain's mail settings.
