@@ -13,7 +13,13 @@ import {
   marginsSchema,
   ratesSchema,
   unitCostsSchema,
+  type ComponentDraft,
 } from '@/lib/pricing/adminSchemas'
+import {
+  componentDbErrorMessage,
+  componentIssueMessage,
+  duplicateSkuMessage,
+} from '@/lib/pricing/componentErrors'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
 import { createClient } from '@/lib/supabase/server'
@@ -79,14 +85,24 @@ export async function saveMargins(input: unknown): Promise<Result> {
   return done()
 }
 
+/**
+ * Saves the whole components list in one request (one database transaction): either every row
+ * is saved or none is. Rows are matched on id; new rows have no id and get one from the
+ * database default (`defaultToNull: false`; otherwise the missing id is sent as null).
+ */
 export async function saveComponents(input: unknown): Promise<Result> {
   const session = await superAdmin()
   if (!session) return DENIED
+  const drafts = (Array.isArray(input) ? input : []) as ComponentDraft[]
   const parsed = componentsSchema.safeParse(input)
-  if (!parsed.success) return invalid(parsed.error)
-  const skus = parsed.data.map((c) => c.sku)
-  if (new Set(skus).size !== skus.length)
-    return { ok: false, error: 'SKUs must be unique', field: 'sku' }
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    return issue
+      ? { ok: false, error: componentIssueMessage(issue, drafts), field: issue.path.join('.') }
+      : { ok: false, error: 'Check the values' }
+  }
+  const duplicate = duplicateSkuMessage(parsed.data)
+  if (duplicate) return { ok: false, error: duplicate, field: 'sku' }
 
   const supabase = await createClient()
   const { data: current } = await supabase
@@ -94,7 +110,7 @@ export async function saveComponents(input: unknown): Promise<Result> {
     .select('id, sku, unit_cost, active, stock_sizes')
   const rows = parsed.data.map((c) => ({
     ...(c.id ? { id: c.id } : {}),
-    sku: c.sku,
+    sku: c.sku.toUpperCase(),
     name: c.name,
     category: c.category,
     unit_cost: c.unitCost,
@@ -103,8 +119,13 @@ export async function saveComponents(input: unknown): Promise<Result> {
     active: c.active,
     sample: c.sample,
   }))
-  const { error } = await supabase.from('components').upsert(rows, { onConflict: 'sku' })
-  if (error) return { ok: false, error: error.message }
+  const { error } = await supabase
+    .from('components')
+    .upsert(rows, { onConflict: 'id', defaultToNull: false })
+  if (error) {
+    console.error(`[pricing] components not saved: ${error.code} ${error.message}`)
+    return { ok: false, error: componentDbErrorMessage(error, parsed.data) }
+  }
   await audit(
     session,
     'pricing.components.update',
