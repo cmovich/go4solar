@@ -33,7 +33,7 @@ import {
   type Estimate,
   type PlanEstimate,
 } from '@/lib/quotes/buildEstimate'
-import type { TenureMonths } from '@/lib/pricing/types'
+import type { RateByTenure, TenureMonths } from '@/lib/pricing/types'
 import type { Plan } from '@/lib/sizing/types'
 import {
   BUSINESS_TYPES,
@@ -645,12 +645,17 @@ export type PlanAdvice = {
 export function adviceFor(
   estimate: PlanEstimate,
   current: CurrentEnergy | null,
-  rates?: Record<TenureMonths, number>,
+  rates?: RateByTenure,
+  /** Lengths the customer may choose (default: every length in the estimate). */
+  tenures?: readonly TenureMonths[],
 ): PlanAdvice | null {
   if (!current) return null
   return {
     monthlySpend: current.monthlySpend,
-    recommendedTenure: recommendTenure(monthlyByTenure(estimate, rates), current.monthlySpend),
+    recommendedTenure: recommendTenure(
+      monthlyByTenure(estimate, rates, tenures),
+      current.monthlySpend,
+    ),
     co2AvoidedKgPerYear: co2Avoided(estimate.plan, current),
   }
 }

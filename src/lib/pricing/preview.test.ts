@@ -11,10 +11,10 @@ import { SAMPLE_PACKAGES, buildPreview, type PreviewFunder } from './preview'
 const s = DEFAULT_QUOTE_SETTINGS
 const unitCosts = { kycPerLoan: 10000, feePerInstalment: 300, lossProvisionShare: 0.02 }
 const funders: PreviewFunder[] = [
-  { id: 'a', name: 'SPEWA programme funds', annualRate: 0.16, status: 'active' },
-  { id: 'b', name: 'Trade Lenda', annualRate: 0.2, status: 'active' },
-  { id: 'c', name: 'Go4Solar own fund', annualRate: 0, status: 'active' },
-  { id: 'd', name: 'Paused funder', annualRate: 0.3, status: 'paused' },
+  { id: 'a', name: 'SPEWA programme funds', annualRate: 0.16, maxTenure: 12, status: 'active' },
+  { id: 'b', name: 'Trade Lenda', annualRate: 0.2, maxTenure: 24, status: 'active' },
+  { id: 'c', name: 'Go4Solar own fund', annualRate: 0, maxTenure: 12, status: 'active' },
+  { id: 'd', name: 'Paused funder', annualRate: 0.3, maxTenure: 24, status: 'paused' },
 ]
 
 describe('buildPreview', () => {
@@ -95,7 +95,7 @@ describe('buildPreview', () => {
   it('a negative margin shows as a negative net profit (never clamped)', () => {
     const p = buildPreview({
       ...base,
-      funders: [{ id: 'x', name: 'Expensive', annualRate: 0.9, status: 'active' }],
+      funders: [{ id: 'x', name: 'Expensive', annualRate: 0.9, maxTenure: 12, status: 'active' }],
       tenureMonths: 12,
       depositShare: 0.2,
     })
@@ -108,5 +108,64 @@ describe('buildPreview', () => {
       const p = buildPreview({ ...base, totals: pkg.totals, tenureMonths: 12, depositShare: 0.2 })
       expect(p.size.inverterKva).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('buildPreview: per-tenure profit and funder maximum tenure', () => {
+  const totals = computeLoadTotals(sampleHomeItems)
+  const longer = {
+    ...s,
+    pricing: {
+      ...s.pricing,
+      pricingRateByTenure: { 3: 0.24, 6: 0.24, 9: 0.24, 12: 0.24, 18: 0.26, 24: 0.28 },
+    },
+  }
+  const base = {
+    settings: longer,
+    totals,
+    state: 'Lagos' as const,
+    plan: 'comfort' as const,
+    funders,
+    unitCosts,
+    depositShare: 0.2,
+  }
+
+  it('one row per switched-on tenure: monthly, net profit and return with the best eligible funder', () => {
+    const p = buildPreview({ ...base, tenureMonths: 12 })
+    expect(p.tenures.map((t) => t.tenureMonths)).toEqual([3, 6, 9, 12, 18, 24])
+    const at12 = p.tenures.find((t) => t.tenureMonths === 12)!
+    // Own fund (0%) is the cheapest funder that lends for 12 months.
+    expect(at12.funder?.name).toBe('Go4Solar own fund')
+    const at24 = p.tenures.find((t) => t.tenureMonths === 24)!
+    // Only Trade Lenda lends for 24 months (the paused funder never counts).
+    expect(at24.funder?.name).toBe('Trade Lenda')
+    expect(at24.monthly).toBeLessThan(at12.monthly)
+    const direct = loanProfit({
+      systemPrice: at24.systemPrice,
+      costPrice: p.costPrice,
+      deposit: Math.round(at24.systemPrice * 0.2),
+      tenureMonths: 24,
+      funderAnnualRate: 0.2,
+      funderMethod: 'flat',
+      unitCosts,
+    })
+    expect(at24.funder?.profit).toEqual(direct)
+  })
+
+  it('no funder lends for that long: shown as none (the plan cannot be funded)', () => {
+    const shortOnly = funders.map((f) => ({ ...f, maxTenure: 12 as const }))
+    const p = buildPreview({ ...base, funders: shortOnly, tenureMonths: 12 })
+    expect(p.tenures.find((t) => t.tenureMonths === 24)?.funder).toBeNull()
+  })
+
+  it("at 24 months, funders whose maximum is shorter are left out of Go4Solar's side", () => {
+    const p = buildPreview({ ...base, tenureMonths: 24 })
+    expect(p.funders.map((f) => f.name)).toEqual(['Trade Lenda'])
+  })
+
+  it('a switched-off tenure cannot be previewed', () => {
+    expect(() => buildPreview({ ...base, settings: s, tenureMonths: 24 })).toThrow(
+      '24 months is switched off',
+    )
   })
 })

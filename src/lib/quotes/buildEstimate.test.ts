@@ -188,6 +188,19 @@ describe('monthlyByTenure', () => {
   })
 })
 
+describe('monthlyByTenure: offered tenures only', () => {
+  it('lists the tenures captured in the estimate, including 18/24 when switched on', () => {
+    const withLong = {
+      ...s,
+      pricing: { ...s.pricing, pricingRateByTenure: { 6: 0.24, 12: 0.24, 24: 0.28 } },
+    }
+    const est = buildEstimate(totals, 'Lagos', 0.2, withLong)
+    const rows = monthlyByTenure(est.plans.comfort, est.pricingRateByTenure)
+    expect(rows.map((r) => r.tenureMonths)).toEqual([6, 12, 24])
+    expect(rows[2]!.monthly).toBeLessThan(rows[1]!.monthly)
+  })
+})
+
 describe('settings changes and stored estimates', () => {
   it('a sizing change alters the next estimate but never a stored one', () => {
     const before = buildEstimate(totals, 'Lagos', 0.2, s)

@@ -23,6 +23,8 @@ export const INPUT_FIELDS: { path: string; label: string; kind: InputKind }[] = 
   { path: 'tenureMix.6', label: 'Tenure mix: 6 months', kind: 'percent' },
   { path: 'tenureMix.9', label: 'Tenure mix: 9 months', kind: 'percent' },
   { path: 'tenureMix.12', label: 'Tenure mix: 12 months', kind: 'percent' },
+  { path: 'tenureMix.18', label: 'Tenure mix: 18 months', kind: 'percent' },
+  { path: 'tenureMix.24', label: 'Tenure mix: 24 months', kind: 'percent' },
   { path: 'funderAnnualRate', label: 'Funder rate per year', kind: 'percent' },
   { path: 'ownFundShare', label: 'Share funded from own fund', kind: 'percent' },
   { path: 'unitCosts.kycPerLoan', label: 'KYC per loan', kind: 'naira' },

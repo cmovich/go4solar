@@ -49,6 +49,12 @@ export function priceQuote(input: QuoteInput): QuoteResult {
   )
   const C = costWithMargins + installCost
   const f = (input.pricingRateAnnual * tenureMonths) / 12
+  // Near f(1 − d) = 1 the price runs away (and beyond it turns negative): refuse such a rate.
+  if (f * (1 - depositShare) >= 1) {
+    throw new RangeError(
+      `The pricing rate ${Math.round(input.pricingRateAnnual * 100)}% a year is too high for ${tenureMonths} months`,
+    )
+  }
   const systemPrice = roundNaira(C / (1 - f * (1 - depositShare)))
 
   // One markup rate across all equipment lines.

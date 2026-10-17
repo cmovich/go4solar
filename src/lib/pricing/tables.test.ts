@@ -262,6 +262,49 @@ describe('pricingFromRows', () => {
   })
 })
 
+describe('pricingFromRows: longer tenures', () => {
+  const longer: PricingRateRow[] = [
+    ...rates,
+    {
+      tenure_months: 18,
+      enabled: true,
+      expected_funder_rate: 0.16,
+      spread: 0.08,
+      default_buffer: 0.02,
+      pricing_rate: 0.26,
+      sample: false,
+    },
+    {
+      tenure_months: 24,
+      enabled: false,
+      expected_funder_rate: null,
+      spread: null,
+      default_buffer: null,
+      pricing_rate: null,
+      sample: false,
+    },
+  ]
+
+  it('only switched-on tenures get a rate (customers never see the others)', () => {
+    const p = pricingFromRows({ margins, rates: longer })
+    expect(p.pricingRateByTenure).toEqual({ 3: 0.24, 6: 0.24, 9: 0.24, 12: 0.24, 18: 0.26 })
+  })
+
+  it('a switched-off 3-month row disappears too; rows from before the switch existed count as on', () => {
+    const p = pricingFromRows({
+      margins,
+      rates: longer.map((r) => (r.tenure_months === 3 ? { ...r, enabled: false } : r)),
+    })
+    expect(Object.keys(p.pricingRateByTenure)).toEqual(['6', '9', '12', '18'])
+  })
+
+  it('12 months is required (estimates are priced at 12)', () => {
+    expect(() =>
+      pricingFromRows({ margins, rates: rates.filter((r) => r.tenure_months !== 12) }),
+    ).toThrow(/12 months/)
+  })
+})
+
 describe('installBandFor', () => {
   it('small ≤ 3.5 kVA, medium ≤ 7.5 kVA, large above', () => {
     expect(installBandFor(1)).toBe('small')

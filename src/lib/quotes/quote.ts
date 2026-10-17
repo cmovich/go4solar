@@ -1,5 +1,6 @@
 import { roundNaira } from '@/lib/money'
 import { priceQuote } from '@/lib/pricing/price'
+import { offeredTenures } from '@/lib/pricing/tenures'
 import type { QuoteSnapshot, TenureMonths } from '@/lib/pricing/types'
 import type { Plan } from '@/lib/sizing/types'
 
@@ -26,6 +27,14 @@ export function estimateIsStale(
   return now.getTime() - new Date(pricedAt).getTime() > validityDays * DAY_MS
 }
 
+/** The customer asked for a payment-plan length this estimate does not offer. */
+export class TenureNotOfferedError extends RangeError {
+  constructor(public readonly tenureMonths: number) {
+    super(`${tenureMonths} months is not offered for this estimate`)
+    this.name = 'TenureNotOfferedError'
+  }
+}
+
 /**
  * One plan of a stored estimate at a chosen tenure and deposit. Uses ONLY the estimate's own
  * snapshot (lines, margins, installation) and the per-tenure rates captured with it, so later
@@ -36,7 +45,12 @@ export function priceVariant(
   plan: Plan,
   tenureMonths: TenureMonths,
   depositShare: number,
+  /** Tenures switched on today (current settings); a tenure switched off since is refused. */
+  enabledNow?: readonly TenureMonths[],
 ): RepricedPlan {
+  if (!offeredTenures(estimate.pricingRateByTenure, enabledNow).includes(tenureMonths)) {
+    throw new TenureNotOfferedError(tenureMonths)
+  }
   const base = estimate.plans[plan]
   const snap = base.quote.snapshot
   const rate = estimate.pricingRateByTenure?.[tenureMonths] ?? snap.pricingRateAnnual

@@ -1,6 +1,7 @@
 import type { PriceList, QuoteSettings } from '@/lib/settings/schemas'
 
 import type { PricingDraft } from './adminSchemas'
+import type { RateByTenure } from './types'
 import type { PreviewFunder } from './preview'
 
 /**
@@ -34,11 +35,15 @@ export function draftToSettings(d: PricingDraft): QuoteSettings {
     ]),
   ) as PriceList['installByState']
 
-  const rate = (t: 3 | 6 | 9 | 12) => {
-    const r = d.rates.find((x) => x.tenureMonths === t)
-    return r ? r.expectedFunderRate + r.spread + r.defaultBuffer : 0
+  // Only switched-on tenures with all three parts get a rate, exactly as saved settings would.
+  const pricingRateByTenure: RateByTenure = {}
+  for (const r of d.rates) {
+    const { expectedFunderRate: a, spread: b, defaultBuffer: c } = r
+    if (r.enabled && a !== null && b !== null && c !== null)
+      pricingRateByTenure[r.tenureMonths] = a + b + c
   }
-  const pricingRateByTenure = { 3: rate(3), 6: rate(6), 9: rate(9), 12: rate(12) }
+  const twelve = pricingRateByTenure[12]
+  if (twelve === undefined) throw new Error('12 months must be switched on with a pricing rate')
 
   return {
     sizing: d.sizing,
@@ -68,8 +73,8 @@ export function draftToSettings(d: PricingDraft): QuoteSettings {
     pricing: {
       sample: d.sample.margins || d.sample.rates,
       marginByCategory: { ...d.margins },
-      pricingRateByTenure,
-      pricingRateAnnual: pricingRateByTenure[12],
+      pricingRateByTenure: { ...pricingRateByTenure, 12: twelve },
+      pricingRateAnnual: twelve,
     },
   }
 }
@@ -79,6 +84,7 @@ export function draftFunders(d: PricingDraft): PreviewFunder[] {
     id: f.id,
     name: f.name,
     annualRate: f.annualRate,
+    maxTenure: f.maxTenure,
     status: f.status,
   }))
 }

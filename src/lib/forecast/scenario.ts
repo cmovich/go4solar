@@ -1,4 +1,4 @@
-import type { TenureMonths } from '@/lib/pricing/types'
+import { TENURES, type TenureMonths } from '@/lib/pricing/types'
 import { loanProfit } from '@/lib/profit/loanProfit'
 import type { UnitCosts } from '@/lib/profit/types'
 
@@ -23,7 +23,8 @@ export type ScenarioInputs = {
   avgCostPrice: number
   depositShare: number
   /** Share of customers on each tenure (normalised; need not add up to exactly 1). */
-  tenureMix: Record<TenureMonths, number>
+  /** Share of customers per tenure (any tenure left out counts as 0). */
+  tenureMix: Partial<Record<TenureMonths, number>>
   funderAnnualRate: number
   /** Share of the money drawn that comes from Go4Solar's own fund (no interest). */
   ownFundShare: number
@@ -39,8 +40,6 @@ export type ScenarioInputs = {
 }
 
 export type ScenarioVariant = 'low' | 'base' | 'high'
-
-const TENURES: TenureMonths[] = [3, 6, 9, 12]
 
 /** Net profit and money drawn for one average system, weighted over the tenure mix. */
 export function perSystem(i: ScenarioInputs): {

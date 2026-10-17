@@ -71,6 +71,7 @@ export default async function PlansPage({
             reference={quoteReference(ctx.lead.id)}
             whatsappNumber={process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? ''}
             fallbackNumber={siteConfig.phones[0]}
+            tenures={ctx.tenures}
           />
         </div>
       </main>

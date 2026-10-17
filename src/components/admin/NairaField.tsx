@@ -90,3 +90,36 @@ export function PercentField({
     </div>
   )
 }
+
+/** A percentage that may be left blank (null = not set yet), e.g. a new tenure's rate. */
+export function OptionalPercentField({
+  value,
+  onChange,
+  'aria-label': ariaLabel,
+}: {
+  value: number | null
+  onChange: (share: number | null) => void
+  'aria-label'?: string
+}) {
+  return (
+    <div className="relative">
+      <Input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        step={0.1}
+        aria-label={ariaLabel}
+        placeholder="—"
+        value={value === null ? '' : Math.round(value * 10000) / 100}
+        onChange={(e) => {
+          const n = parseFloat(e.target.value)
+          onChange(e.target.value.trim() === '' || Number.isNaN(n) ? null : Math.max(0, n) / 100)
+        }}
+        className="h-10 pr-7 text-sm tabular-nums"
+      />
+      <span className="text-muted-foreground pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm">
+        %
+      </span>
+    </div>
+  )
+}

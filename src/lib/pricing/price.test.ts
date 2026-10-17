@@ -161,3 +161,19 @@ describe('priceQuote — deposit range', () => {
     ).toThrow(DepositOutOfRangeError)
   })
 })
+
+describe('priceQuote safety for long tenures', () => {
+  it('refuses a rate where the financed share reaches 100% (the formula would break)', async () => {
+    const { priceQuote } = await import('./price')
+    expect(() =>
+      priceQuote({
+        lines: [{ sku: 'X', name: 'x', category: 'panels', unitCost: 100000, qty: 1 }],
+        installCost: 0,
+        marginByCategory: { panels: 0, battery: 0, inverter: 0, accessories: 0 },
+        pricingRateAnnual: 0.7,
+        tenureMonths: 24,
+        depositShare: 0.2,
+      }),
+    ).toThrow(/too high for 24 months/)
+  })
+})

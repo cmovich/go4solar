@@ -2,10 +2,11 @@ import type { LoadTotals } from '@/lib/load/types'
 import { isLaunchState, type NgStateId } from '@/lib/nigeria/states'
 import { priceQuote } from '@/lib/pricing/price'
 import { installBandFor } from '@/lib/pricing/tables'
+import { offeredTenures } from '@/lib/pricing/tenures'
 import {
-  TENURES,
   type QuoteLineInput,
   type QuoteResult,
+  type RateByTenure,
   type TenureMonths,
 } from '@/lib/pricing/types'
 import type { PriceList, QuoteSettings } from '@/lib/settings/schemas'
@@ -36,8 +37,11 @@ export type Estimate = {
   tenureMonths: typeof ESTIMATE_TENURE
   /** True when sample (placeholder) prices were used. */
   sample: boolean
-  /** Pricing rate per tenure at the time of the estimate (for the tenure comparison). */
-  pricingRateByTenure: Record<TenureMonths, number>
+  /**
+   * Pricing rate per tenure at the time of the estimate: only the tenures switched on then.
+   * This is the estimate's snapshot of which payment-plan lengths it offers.
+   */
+  pricingRateByTenure: RateByTenure
   plans: Record<Plan, PlanEstimate>
   /** When the estimate was priced (ISO). Set by the server action that stores it. */
   pricedAt?: string
@@ -193,8 +197,8 @@ export function repriceEstimate(
  */
 export function monthlyByTenure(
   plan: PlanEstimate,
-  rates?: Record<TenureMonths, number>,
-  tenures: readonly TenureMonths[] = TENURES,
+  rates?: RateByTenure,
+  tenures: readonly TenureMonths[] = offeredTenures(rates),
 ): { tenureMonths: TenureMonths; monthly: number }[] {
   const snap = plan.quote.snapshot
   return tenures.map((tenureMonths) => ({

@@ -12,7 +12,7 @@ import { DEFAULT_SIZING_SETTINGS } from '@/lib/sizing/defaults'
 import { createClient } from '@/lib/supabase/server'
 
 import { INSTALL_STATES, SIZE_KEY, type PricingDraft } from './adminSchemas'
-import type { TenureMonths } from './types'
+import { TENURES, type TenureMonths } from './types'
 
 function num(v: unknown): number {
   const n = typeof v === 'string' ? parseFloat(v) : Number(v)
@@ -76,12 +76,19 @@ export async function loadPricingDraft(includeTestFunders = false): Promise<Pric
       inverter: num(marginOf('inverter')?.margin ?? 0),
       accessories: num(marginOf('accessories')?.margin ?? 0),
     },
-    rates: ([3, 6, 9, 12] as const).map((t) => ({
-      tenureMonths: t,
-      expectedFunderRate: num(rateOf(t)?.expected_funder_rate ?? 0),
-      spread: num(rateOf(t)?.spread ?? 0),
-      defaultBuffer: num(rateOf(t)?.default_buffer ?? 0),
-    })),
+    // Every tenure; one without a row yet (before migration 0019) shows as off and blank.
+    rates: TENURES.map((t) => {
+      const r = rateOf(t)
+      const part = (v: number | string | null | undefined) =>
+        v === null || v === undefined ? null : num(v)
+      return {
+        tenureMonths: t,
+        enabled: r ? (r.enabled ?? true) : false,
+        expectedFunderRate: part(r?.expected_funder_rate),
+        spread: part(r?.spread),
+        defaultBuffer: part(r?.default_buffer),
+      }
+    }),
     installation: INSTALL_STATES.flatMap((state) =>
       (['small', 'medium', 'large'] as const).map((sizeBand) => ({
         state,

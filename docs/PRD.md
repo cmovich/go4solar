@@ -179,7 +179,7 @@ After "Who is this solar for?" (and the business screen), one screen — the sam
 - Fuel CO₂ per year = litres × emission factor (diesel 2.66 kg/L, petrol 2.31 kg/L).
 - Grid kWh per year = yearly grid spend ÷ tariff per kWh; grid CO₂ = kWh × grid factor (0.40 kg/kWh, **unverified** until confirmed against a published Nigerian grid factor).
 - CO₂ avoided by a plan = all the fuel CO₂ (every plan replaces the generator) plus the grid CO₂ for the 24-Hour Independence plan only.
-- Recommended tenure = the shortest of 3, 6, 9 or 12 months whose monthly payment is at or below today's monthly spend ("Pays for itself"). If even 12 months is above it, the app suggests a higher deposit instead.
+- Recommended tenure = the shortest switched-on length (3, 6, 9, 12, 18 or 24 months) whose monthly payment is at or below today's monthly spend ("Pays for itself"). If even the longest is above it, the app suggests a higher deposit instead.
 
 **On the plan cards:** "You spend ₦X a month on power today" beside the plan's monthly payment and "then ₦0"; a "Pays for itself over N months" badge; and "Avoids about N tonnes of CO₂ a year".
 
@@ -323,7 +323,7 @@ Consumers pay no interest. They pay one fixed price for the system, split into a
 | Base margin per category | Panels, batteries, inverters, accessories each with their own % |
 | Installation and logistics | Fixed amount per job size, per launch state |
 | Funders | Each funder's interest rate (per year), tenure limits, minimum and maximum amount, balance available |
-| Pricing rate per tenure | The rate used in every quote for 3, 6, 9 and 12 months: target funder cost + Go4Solar spread + default buffer |
+| Pricing rate per tenure | The rate used in every quote for each payment-plan length (3, 6, 9, 12, 18 and 24 months): target funder cost + Go4Solar spread + default buffer, per year. Each length is switched on or off; 18 and 24 start off with no rate, and 12 months always stays on. Customers never see a switched-off length. Changes are audited; quotes keep their snapshot. |
 | Minimum deposit by credit band | 20% for all at launch; lower (e.g. 10%) can be switched on per band later |
 
 ### The price calculator
@@ -333,7 +333,7 @@ P = \frac{C}{1 - f \times (1 - d)}
 ```
 
 - C = cost price of all items + base margins + installation and logistics.
-- f = pricing rate for the chosen tenure, as a share of the money financed (e.g. 24% per year × 12 months = 0.24).
+- f = pricing rate for the chosen tenure, as a share of the money financed (e.g. 24% per year × 12 months = 0.24; × 18 months = 0.36; × 24 months = 0.48). The same yearly rate therefore costs the customer more on a longer plan. A rate where f × (1 − minimum deposit) reaches 0.75 is refused (the price would pass 4× the cost).
 - d = deposit share (0.2 for 20%, 0.5 for 50%).
 - Deposit = P × d; monthly instalment = (P − deposit) ÷ months.
 

@@ -20,6 +20,8 @@ import {
   componentIssueMessage,
   duplicateSkuMessage,
 } from '@/lib/pricing/componentErrors'
+import { DEFAULT_MIN_DEPOSIT_SHARE } from '@/lib/pricing/price'
+import { tenureListProblem, tenureRateProblem } from '@/lib/pricing/tenures'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
 import { createClient } from '@/lib/supabase/server'
@@ -143,12 +145,24 @@ export async function saveRates(input: unknown): Promise<Result> {
   if (!parsed.success) return invalid(parsed.error)
 
   const supabase = await createClient()
-  const { data: current } = await supabase
-    .from('pricing_rates')
-    .select('tenure_months, expected_funder_rate, spread, default_buffer')
+  // The rate limit for long tenures depends on the lowest deposit allowed.
+  const { data: minRow } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'min_deposit_share')
+    .maybeSingle()
+  const minDeposit = z.number().safeParse(minRow?.value).data ?? DEFAULT_MIN_DEPOSIT_SHARE
+  const problem =
+    tenureListProblem(parsed.data) ??
+    parsed.data.map((r) => tenureRateProblem(r, minDeposit)).find((p) => p !== null) ??
+    null
+  if (problem) return { ok: false, error: problem }
+
+  const { data: current } = await supabase.from('pricing_rates').select('*')
   const { error } = await supabase.from('pricing_rates').upsert(
     parsed.data.map((r) => ({
       tenure_months: r.tenureMonths,
+      enabled: r.enabled,
       expected_funder_rate: r.expectedFunderRate,
       spread: r.spread,
       default_buffer: r.defaultBuffer,
@@ -156,6 +170,7 @@ export async function saveRates(input: unknown): Promise<Result> {
     })),
   )
   if (error) return { ok: false, error: error.message }
+  // Old quotes keep their snapshot; only new quotes use these rates.
   await audit(
     session,
     'pricing.rates.update',

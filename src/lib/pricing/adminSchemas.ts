@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { CATEGORY_IDS, type CategoryId } from '@/lib/load/types'
 import { SIZE_BANDS, energySettingsSchema, sizingSettingsSchema } from '@/lib/settings/schemas'
 
+import { TENURES } from './types'
+
 /** Zod schemas shared by the pricing forms (client) and their server actions. */
 
 export const COMPONENT_CATEGORIES = ['panels', 'battery', 'inverter', 'accessories'] as const
@@ -45,13 +47,23 @@ export const marginsSchema = z.object({
 })
 export type MarginsDraft = z.infer<typeof marginsSchema>
 
+const tenureSchema = z.union([
+  z.literal(3),
+  z.literal(6),
+  z.literal(9),
+  z.literal(12),
+  z.literal(18),
+  z.literal(24),
+])
+/** One tenure: switched on/off, and its pricing rate parts (blank until set). */
 export const rateRowSchema = z.object({
-  tenureMonths: z.union([z.literal(3), z.literal(6), z.literal(9), z.literal(12)]),
-  expectedFunderRate: share,
-  spread: share,
-  defaultBuffer: share,
+  tenureMonths: tenureSchema,
+  enabled: z.boolean(),
+  expectedFunderRate: share.nullable(),
+  spread: share.nullable(),
+  defaultBuffer: share.nullable(),
 })
-export const ratesSchema = z.array(rateRowSchema).length(4)
+export const ratesSchema = z.array(rateRowSchema).length(TENURES.length)
 export type RateDraft = z.infer<typeof rateRowSchema>
 
 export const INSTALL_STATES = ['FCT', 'Kaduna', 'Lagos', 'Other'] as const
@@ -96,7 +108,7 @@ export const funderSchema = z.object({
   upfrontFeeShare: share,
   minAmount: z.number().min(0),
   maxAmount: z.number().min(0).nullable(),
-  maxTenure: z.union([z.literal(3), z.literal(6), z.literal(9), z.literal(12)]),
+  maxTenure: tenureSchema,
   balanceAvailable: z.number().min(0),
   status: z.enum(['active', 'paused']),
 })
