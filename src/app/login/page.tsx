@@ -18,9 +18,9 @@ export const dynamic = 'force-dynamic'
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; link?: string }>
+  searchParams: Promise<{ next?: string; link?: string; password?: string }>
 }) {
-  const { next, link } = await searchParams
+  const { next, link, password } = await searchParams
 
   // Already signed in: skip the form.
   const { user, role } = await getSessionInfo()
@@ -39,6 +39,11 @@ export default async function LoginPage({
             className="h-12 w-auto"
           />
         </Link>
+        {password === 'set' && (
+          <p className="bg-brand-mist text-brand-dark rounded-md px-4 py-2 text-sm" role="status">
+            Your password is saved. Sign in with it now.
+          </p>
+        )}
         {link === 'expired' && (
           <p className="rounded-md bg-amber-50 px-4 py-2 text-sm text-amber-900" role="status">
             That sign-in link has expired or was already used. Ask Go4Solar to send you a new one.

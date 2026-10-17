@@ -1,6 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
+import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -97,6 +98,13 @@ export function LoginForm({
           {...form.register('password')}
         />
         {errors.password && <p className="text-destructive text-sm">{errors.password.message}</p>}
+        {mode === 'signin' && (
+          <p className="text-right text-sm">
+            <Link href="/forgot-password" className="text-brand-blue hover:underline">
+              Forgot password?
+            </Link>
+          </p>
+        )}
       </div>
 
       {serverError && (

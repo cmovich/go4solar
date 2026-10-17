@@ -51,7 +51,8 @@ Production.
   - `http://localhost:3000/**`
   - `http://localhost:3100/**`
 
-These are used by staff invite emails, which return to `/login` on the site the invite came from.
+These are used by staff invite and "Forgot password?" emails, which return to `/auth/callback` on
+the site the link came from, then open "Set your password".
 
 ## 3. Domain (Vercel + Namecheap)
 
