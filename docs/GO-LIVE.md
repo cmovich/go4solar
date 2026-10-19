@@ -49,8 +49,10 @@ Production.
   - `https://go4solar-git-phase-1-moses-semakos-projects.vercel.app/**`
   - `https://*-moses-semakos-projects.vercel.app/**` (every preview link)
   - `http://localhost:3000/**`
+  - `http://localhost:3200/**` (the e2e tests' own port)
   - `http://localhost:3100/**`
 
+The e2e suites run on fixed ports 3200 (prelaunch) and 3100 (live), never 3000.
 These are used by staff invite and "Forgot password?" emails, which return to `/auth/callback` on
 the site the link came from, then open "Set your password".
 

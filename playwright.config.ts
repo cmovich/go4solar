@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const port = 3000
+// Go4Solar's own fixed port: other projects on this computer use 3000 (live suite: 3100).
+const port = 3200
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${port}`
 
 export default defineConfig({
@@ -29,7 +30,7 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: 'npm run build && npm run start',
+        command: `npm run build && npx next start -p ${port}`,
         url: baseURL,
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,
