@@ -78,3 +78,24 @@ describe('loanProfit — rules', () => {
     expect(p.directCosts).toBe(10000 + 3600 + Math.round(0.1 * (2475248 - 495050)))
   })
 })
+
+describe('longer tenures cost more funder interest', () => {
+  it('24 months costs twice the funder interest of 12 on the same money drawn', async () => {
+    const { loanProfit } = await import('./loanProfit')
+    const base = {
+      systemPrice: 2_000_000,
+      costPrice: 1_500_000,
+      deposit: 400_000,
+      funderAnnualRate: 0.16,
+      funderMethod: 'flat' as const,
+      unitCosts: { kycPerLoan: 0, feePerInstalment: 0, lossProvisionShare: 0 },
+    }
+    const at12 = loanProfit({ ...base, tenureMonths: 12 })
+    const at18 = loanProfit({ ...base, tenureMonths: 18 })
+    const at24 = loanProfit({ ...base, tenureMonths: 24 })
+    expect(at12.funderInterest).toBe(176_000) // 1,100,000 × 16% × 1 year
+    expect(at18.funderInterest).toBe(264_000)
+    expect(at24.funderInterest).toBe(352_000)
+    expect(at24.customerMonthly).toBe(66_667) // 1,600,000 ÷ 24
+  })
+})

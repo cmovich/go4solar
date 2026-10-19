@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
 
+import type { TenureMonths } from '@/lib/pricing/types'
+
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +19,8 @@ export type LeadOption = {
   phone: string
   state: string
   email: string | null
+  /** Payment-plan lengths this customer may choose. */
+  tenures: TenureMonths[]
 }
 
 const select = 'border-input h-11 w-full rounded-md border bg-white px-3'
@@ -112,7 +116,7 @@ export function AssistedApplicationForm({ leads }: { leads: LeadOption[] }) {
             value={tenure}
             onChange={(e) => setTenure(Number(e.target.value))}
           >
-            {[3, 6, 9, 12].map((t) => (
+            {(leads.find((l) => l.id === leadId)?.tenures ?? [12]).map((t) => (
               <option key={t} value={t}>
                 {t}
               </option>

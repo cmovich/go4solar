@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: `%s · ${siteConfig.name}`,
   },
   description:
-    'Go4Solar imports solar systems directly from the manufacturers so Nigerian homes and small businesses can pay from a 20% deposit and spread the rest over up to 12 months.',
+    'Go4Solar imports solar systems directly from the manufacturers so Nigerian homes and small businesses can pay from a 20% deposit and spread the rest over monthly payments.',
   metadataBase: new URL(siteConfig.url),
 }
 

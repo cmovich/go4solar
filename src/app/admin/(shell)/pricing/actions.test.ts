@@ -68,7 +68,7 @@ const staffData: Record<string, unknown[]> = {
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => fakeClient(staffData) }))
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => fakeClient({}) }))
 
-const { saveComponents, saveMargins, saveLateFee } = await import('./actions')
+const { saveComponents, saveMargins, saveLateFee, saveRates } = await import('./actions')
 
 const superAdmin: SessionInfo = {
   user: { id: 'u-sa', email: 'sa@example.org' },
@@ -267,5 +267,67 @@ describe('saveComponents', () => {
     })
     expect(upserts()).toHaveLength(1)
     expect(audits()).toEqual([])
+  })
+})
+
+// Longer payment plans: every tenure has an on/off switch and its own rate (audited).
+describe('saveRates', () => {
+  const row = (t: number, over: object = {}) => ({
+    tenureMonths: t,
+    enabled: t <= 12,
+    expectedFunderRate: t <= 12 ? 0.16 : null,
+    spread: t <= 12 ? 0.06 : null,
+    defaultBuffer: t <= 12 ? 0.02 : null,
+    ...over,
+  })
+  const all = (over: Record<number, object> = {}) =>
+    [3, 6, 9, 12, 18, 24].map((t) => row(t, over[t]))
+
+  beforeEach(() => getSessionInfo.mockResolvedValue(superAdmin))
+
+  it('saves all six tenures with their switch; 18 and 24 can stay off with no rate', async () => {
+    expect(await saveRates(all())).toEqual({ ok: true })
+    const up = calls.find((c) => c.table === 'pricing_rates' && c.op === 'upsert')
+    const rows = up?.payload as Record<string, unknown>[]
+    expect(rows).toHaveLength(6)
+    expect(rows[4]).toEqual({
+      tenure_months: 18,
+      enabled: false,
+      expected_funder_rate: null,
+      spread: null,
+      default_buffer: null,
+      sample: false,
+    })
+    expect(calls).toContainEqual(
+      expect.objectContaining({
+        table: 'audit_log',
+        payload: expect.objectContaining({ action: 'pricing.rates.update' }),
+      }),
+    )
+  })
+
+  it('switching 24 months on without a rate is refused in plain words; nothing written', async () => {
+    const r = await saveRates(all({ 24: { enabled: true } }))
+    expect(r).toMatchObject({
+      ok: false,
+      error: '24 months: enter the funder rate, spread and buffer before switching it on.',
+    })
+    expect(calls.filter((c) => c.op !== 'select')).toEqual([])
+  })
+
+  it('a rate too high for 24 months is refused', async () => {
+    const r = await saveRates(
+      all({ 24: { enabled: true, expectedFunderRate: 0.3, spread: 0.15, defaultBuffer: 0.05 } }),
+    )
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toMatch(/^24 months: a 50% yearly rate is too high/)
+  })
+
+  it('12 months cannot be switched off', async () => {
+    const r = await saveRates(all({ 12: { enabled: false } }))
+    expect(r).toMatchObject({
+      ok: false,
+      error: '12 months must stay switched on: estimates are priced at 12 months.',
+    })
   })
 })

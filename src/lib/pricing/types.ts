@@ -1,6 +1,9 @@
-export type TenureMonths = 3 | 6 | 9 | 12
+/** Every tenure the system knows. Which ones customers may choose is set in /admin/pricing. */
+export const TENURES = [3, 6, 9, 12, 18, 24] as const
+export type TenureMonths = (typeof TENURES)[number]
 
-export const TENURES: readonly TenureMonths[] = [3, 6, 9, 12]
+/** Yearly pricing rate per tenure; only tenures that are switched on have a rate. */
+export type RateByTenure = Partial<Record<TenureMonths, number>>
 
 export type ComponentCategory = 'panels' | 'battery' | 'inverter' | 'accessories'
 

@@ -1,6 +1,7 @@
 import type { PriceList, PricingSettings, SizeBand } from '@/lib/settings/schemas'
 
-import type { ComponentCategory, TenureMonths } from './types'
+import { ESTIMATE_TENURE } from './tenures'
+import { TENURES, type ComponentCategory, type RateByTenure } from './types'
 
 /** The pricing tables as the app reads them (numeric columns already numbers). */
 export type ComponentRow = {
@@ -15,9 +16,11 @@ export type ComponentRow = {
 export type CategoryMarginRow = { category: ComponentCategory; margin: number; sample: boolean }
 export type PricingRateRow = {
   tenure_months: number
-  expected_funder_rate: number
-  spread: number
-  default_buffer: number
+  /** Missing on rows read before migration 0019: those count as switched on. */
+  enabled?: boolean
+  expected_funder_rate: number | null
+  spread: number | null
+  default_buffer: number | null
   pricing_rate: number | null
   sample: boolean
 }
@@ -124,14 +127,18 @@ export function pricingFromRows(input: {
     if (!row) throw new Error(`No margin for category ${c}`)
     return Number(row.margin)
   }
-  const rateFor = (t: TenureMonths) => {
+  // Only switched-on tenures with a full rate are offered (customers never see the others).
+  const pricingRateByTenure: RateByTenure = {}
+  for (const t of TENURES) {
     const row = input.rates.find((r) => r.tenure_months === t)
-    if (!row) throw new Error(`No pricing rate for ${t} months`)
-    return row.pricing_rate !== null
-      ? Number(row.pricing_rate)
-      : Number(row.expected_funder_rate) + Number(row.spread) + Number(row.default_buffer)
+    if (!row || row.enabled === false) continue
+    const { expected_funder_rate: a, spread: b, default_buffer: c } = row
+    if (row.pricing_rate !== null) pricingRateByTenure[t] = Number(row.pricing_rate)
+    else if (a !== null && b !== null && c !== null)
+      pricingRateByTenure[t] = Number(a) + Number(b) + Number(c)
   }
-  const pricingRateByTenure = { 3: rateFor(3), 6: rateFor(6), 9: rateFor(9), 12: rateFor(12) }
+  const twelve = pricingRateByTenure[ESTIMATE_TENURE]
+  if (twelve === undefined) throw new Error('No pricing rate for 12 months')
   return {
     sample: input.margins.some((m) => m.sample) || input.rates.some((r) => r.sample),
     marginByCategory: {
@@ -140,7 +147,7 @@ export function pricingFromRows(input: {
       inverter: margin('inverter'),
       accessories: margin('accessories'),
     },
-    pricingRateByTenure,
-    pricingRateAnnual: pricingRateByTenure[12],
+    pricingRateByTenure: { ...pricingRateByTenure, 12: twelve },
+    pricingRateAnnual: twelve,
   }
 }

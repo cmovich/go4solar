@@ -13,7 +13,10 @@ const base = {
 }
 
 describe('compareTenures — PRD "Which repayment plans make more money" table', () => {
-  const rows = compareTenures(base, TENURES)
+  const rows = compareTenures(
+    base,
+    TENURES.filter((t) => t <= 12),
+  )
 
   it('returns one row per tenure, in the order asked', () => {
     expect(rows.map((r) => r.tenureMonths)).toEqual([3, 6, 9, 12])

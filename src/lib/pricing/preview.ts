@@ -10,13 +10,25 @@ import { sizeSystem } from '@/lib/sizing/size'
 import type { Plan, SystemSize } from '@/lib/sizing/types'
 
 import { priceQuote } from './price'
+import { offeredTenures } from './tenures'
 import type { ComponentCategory, QuoteResult, TenureMonths } from './types'
 
 export type PreviewFunder = {
   id: string
   name: string
   annualRate: number
+  /** Longest tenure this funder lends for; longer plans cannot use it. */
+  maxTenure: TenureMonths
   status: 'active' | 'paused'
+}
+
+/** One switched-on tenure in the preview, with the most profitable funder that lends for it. */
+export type PreviewTenure = {
+  tenureMonths: TenureMonths
+  systemPrice: number
+  monthly: number
+  /** null when no active funder lends for this long (the plan cannot be funded). */
+  funder: { id: string; name: string; annualRate: number; profit: LoanProfit } | null
 }
 
 export type PreviewInput = {
@@ -52,8 +64,10 @@ export type Preview = {
   deposit: number
   balance: number
   monthly: number
-  /** Go4Solar's side with each ACTIVE funder. */
+  /** Go4Solar's side with each ACTIVE funder that lends for the chosen tenure. */
   funders: { id: string; name: string; annualRate: number; profit: LoanProfit }[]
+  /** Every switched-on tenure: monthly payment, net profit and return. */
+  tenures: PreviewTenure[]
   /** System price as the deposit moves from 20% to 95%. */
   curve: { depositPct: number; systemPrice: number; monthly: number }[]
   quote: QuoteResult
@@ -98,17 +112,44 @@ function zeroByCategory(cooling: number): LoadTotals['byCategoryW'] {
   }
 }
 
-function priceAt(input: PreviewInput, size: SystemSize, depositShare: number): QuoteResult {
+function priceAt(
+  input: PreviewInput,
+  size: SystemSize,
+  depositShare: number,
+  tenureMonths: TenureMonths = input.tenureMonths,
+): QuoteResult {
   const { settings: s } = input
+  const rate = s.pricing.pricingRateByTenure[tenureMonths]
+  if (rate === undefined) throw new Error(`${tenureMonths} months is switched off`)
   return priceQuote({
     lines: linesFor(size, s.priceList),
     installCost: installCostFor(input.state, size.inverterKva, s.priceList),
     marginByCategory: s.pricing.marginByCategory,
-    pricingRateAnnual: s.pricing.pricingRateByTenure[input.tenureMonths],
-    tenureMonths: input.tenureMonths,
+    pricingRateAnnual: rate,
+    tenureMonths,
     depositShare,
     minDepositShare: s.minDepositShare,
   })
+}
+
+/** Go4Solar's side of a quote with each active funder that lends for its tenure. */
+function sideWith(input: PreviewInput, quote: QuoteResult, tenureMonths: TenureMonths) {
+  return input.funders
+    .filter((f) => f.status === 'active' && f.maxTenure >= tenureMonths)
+    .map((f) => ({
+      id: f.id,
+      name: f.name,
+      annualRate: f.annualRate,
+      profit: loanProfit({
+        systemPrice: quote.systemPrice,
+        costPrice: quote.costPrice,
+        deposit: quote.deposit,
+        tenureMonths,
+        funderAnnualRate: f.annualRate,
+        funderMethod: 'flat',
+        unitCosts: input.unitCosts,
+      }),
+    }))
 }
 
 /**
@@ -135,22 +176,19 @@ export function buildPreview(input: PreviewInput): Preview {
     }
   })
 
-  const funders = input.funders
-    .filter((f) => f.status === 'active')
-    .map((f) => ({
-      id: f.id,
-      name: f.name,
-      annualRate: f.annualRate,
-      profit: loanProfit({
-        systemPrice: quote.systemPrice,
-        costPrice: quote.costPrice,
-        deposit: quote.deposit,
-        tenureMonths: input.tenureMonths,
-        funderAnnualRate: f.annualRate,
-        funderMethod: 'flat',
-        unitCosts: input.unitCosts,
-      }),
-    }))
+  const funders = sideWith(input, quote, input.tenureMonths)
+  const tenures: PreviewTenure[] = offeredTenures(input.settings.pricing.pricingRateByTenure).map(
+    (t) => {
+      const q = t === input.tenureMonths ? quote : priceAt(input, size, input.depositShare, t)
+      const best = sideWith(input, q, t).sort((a, b) => b.profit.netProfit - a.profit.netProfit)[0]
+      return {
+        tenureMonths: t,
+        systemPrice: q.systemPrice,
+        monthly: q.monthly,
+        funder: best ?? null,
+      }
+    },
+  )
 
   const minPct = Math.max(20, Math.round(input.settings.minDepositShare * 100))
   const curve: Preview['curve'] = []
@@ -174,6 +212,7 @@ export function buildPreview(input: PreviewInput): Preview {
     balance: quote.balance,
     monthly: quote.monthly,
     funders,
+    tenures,
     curve,
     quote,
   }

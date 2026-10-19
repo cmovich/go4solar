@@ -1333,29 +1333,32 @@ export type Database = {
       }
       pricing_rates: {
         Row: {
-          default_buffer: number
-          expected_funder_rate: number
+          default_buffer: number | null
+          enabled: boolean
+          expected_funder_rate: number | null
           pricing_rate: number | null
           sample: boolean
-          spread: number
+          spread: number | null
           tenure_months: number
           updated_at: string
         }
         Insert: {
-          default_buffer: number
-          expected_funder_rate: number
+          default_buffer?: number | null
+          enabled?: boolean
+          expected_funder_rate?: number | null
           pricing_rate?: number | null
           sample?: boolean
-          spread: number
+          spread?: number | null
           tenure_months: number
           updated_at?: string
         }
         Update: {
-          default_buffer?: number
-          expected_funder_rate?: number
+          default_buffer?: number | null
+          enabled?: boolean
+          expected_funder_rate?: number | null
           pricing_rate?: number | null
           sample?: boolean
-          spread?: number
+          spread?: number | null
           tenure_months?: number
           updated_at?: string
         }

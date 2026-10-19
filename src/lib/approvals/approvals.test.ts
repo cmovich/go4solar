@@ -57,6 +57,22 @@ describe('eligibleFunders', () => {
   })
 })
 
+describe('eligibleFunders: 18 and 24-month plans', () => {
+  it('a 24-month plan can only use funders that lend for 24 months', () => {
+    const long = { ...loan, tenure: 24 as const }
+    const list = [
+      funder({ id: 'twelve', maxTenure: 12 }),
+      funder({ id: 'eighteen', maxTenure: 18 }),
+      funder({ id: 'twenty-four', maxTenure: 24 }),
+    ]
+    expect(eligibleFunders(list, long).map((f) => f.id)).toEqual(['twenty-four'])
+    expect(eligibleFunders(list, { ...loan, tenure: 18 as const }).map((f) => f.id)).toEqual([
+      'eighteen',
+      'twenty-four',
+    ])
+  })
+})
+
 describe('funderOptions', () => {
   it('profit per funder from the profit engine, minus the payment fees actually recorded', () => {
     const [o] = funderOptions([funder()], loan, unitCosts, {
