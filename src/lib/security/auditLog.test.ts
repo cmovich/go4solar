@@ -135,6 +135,30 @@ describe.skipIf(!hasDb || !migrated)('permanent audit log (migration 0020)', () 
     expect(still?.action).toBe(row!.action)
   }, 30_000)
 
+  it('site-media: only super admin / Content staff upload; nobody else uploads or deletes; everyone can view', async () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    const path = `test/${randomUUID()}.png`
+    const anon = createClient<Database>(url!, anonKey!, { auth: { persistSession: false } })
+    const put = (c: SupabaseClient<Database>, p: string) =>
+      c.storage.from('site-media').upload(p, png, { contentType: 'image/png' })
+
+    // A visitor and a signed-in customer cannot upload.
+    expect((await put(anon, `test/${randomUUID()}.png`)).error).not.toBeNull()
+    expect((await put(customer, `test/${randomUUID()}.png`)).error).not.toBeNull()
+    // Content staff can.
+    expect((await put(staff, path)).error).toBeNull()
+    // Anyone can view it through the public address.
+    const res = await fetch(`${url}/storage/v1/object/public/site-media/${path}`)
+    expect(res.status).toBe(200)
+    // Visitors and customers cannot delete it (the file stays) …
+    await anon.storage.from('site-media').remove([path])
+    await customer.storage.from('site-media').remove([path])
+    expect((await fetch(`${url}/storage/v1/object/public/site-media/${path}`)).status).toBe(200)
+    // Content staff cannot delete either yet (deleting needs a read policy too; see the 0021
+    // proposal). The site never deletes pictures; the server removes this test file.
+    expect((await admin.storage.from('site-media').remove([path])).error).toBeNull()
+  }, 60_000)
+
   it('testimonials: cannot be published without both consents; test rows never shown to visitors', async () => {
     const base = {
       client_name: 'Amaka',

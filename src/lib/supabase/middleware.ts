@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import type { Database } from './database.types'
 import { hasSupabaseEnv, publicSupabaseEnv } from './env'
+import { withVerifiedUser } from './requestUser'
 
 /**
  * Refreshes the Supabase auth cookies on every request so Server Components always see a
@@ -15,7 +16,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   // throw a clear "Missing NEXT_PUBLIC_SUPABASE_URL…" error when they call createClient().
   if (!hasSupabaseEnv()) {
     console.warn('[supabase] NEXT_PUBLIC_SUPABASE_URL / ANON_KEY not set; skipping session refresh')
-    return response
+    return NextResponse.next({ request: { headers: withVerifiedUser(request.headers, null) } })
   }
   const { url, anonKey } = publicSupabaseEnv()
 
@@ -35,7 +36,14 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   })
 
   // Do not add code between createServerClient and getUser(): it can log users out at random.
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  return response
+  // Forward the verified user to server code (audit attribution); keep any refreshed cookies.
+  const forwarded = NextResponse.next({
+    request: { headers: withVerifiedUser(request.headers, user?.id ?? null) },
+  })
+  response.cookies.getAll().forEach((c) => forwarded.cookies.set(c))
+  return forwarded
 }

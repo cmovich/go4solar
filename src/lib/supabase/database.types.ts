@@ -2016,6 +2016,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      audit_actor: {
+        Args: never
+        Returns: {
+          email: string
+          id: string
+          role: string
+        }[]
+      }
+      audit_redact: { Args: { j: Json }; Returns: Json }
       draw_from_funder: {
         Args: { p_amount: number; p_funder: string }
         Returns: number
@@ -2030,6 +2039,7 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: never; Returns: boolean }
+      is_staff_role: { Args: { r: string }; Returns: boolean }
       is_test_identity: {
         Args: { p_email: string; p_phone: string }
         Returns: boolean
