@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { formatNaira, formatPercent } from '@/lib/money'
+import { stateLabel } from '@/lib/nigeria/states'
 import {
   COMPONENT_CATEGORIES,
   COMPONENT_CATEGORY_LABELS,
@@ -757,7 +758,8 @@ function InstallationForm({ draft, onChange }: FormProps) {
         Installation and logistics <SampleBadge show={draft.sample.installation} />
       </h2>
       <p className="text-muted-foreground text-sm">
-        Fixed amount per job size and state. Never marked up.
+        Fixed amount per job size, for each state. Never marked up. &ldquo;Other&rdquo; is used for
+        older records saved without a state.
       </p>
       <table className="mt-4 w-full max-w-2xl text-sm">
         <thead className="bg-brand-green text-left text-white">
@@ -773,7 +775,9 @@ function InstallationForm({ draft, onChange }: FormProps) {
         <tbody>
           {INSTALL_STATES.map((state) => (
             <tr key={state} className="border-b">
-              <td className="px-2 py-2 font-semibold">{state === 'FCT' ? 'Abuja (FCT)' : state}</td>
+              <td className="px-2 py-2 font-semibold">
+                {state === 'Other' ? 'Other (fallback)' : stateLabel(state)}
+              </td>
               {SIZE_BANDS.map((band) => (
                 <td key={band} className="px-2 py-2">
                   <NairaField

@@ -188,7 +188,7 @@ describe('priceListFromRows', () => {
 
   it('installation is per state and size band', () => {
     expect(list.installByState.Lagos).toEqual({ small: 200000, medium: 300000, large: 400000 })
-    expect(list.installByState.FCT.small).toBe(150000)
+    expect(list.installByState.FCT?.small).toBe(150000)
     expect(list.installByState.Other.large).toBe(400000)
   })
 
@@ -259,6 +259,33 @@ describe('pricingFromRows', () => {
       ),
     })
     expect(p.pricingRateByTenure[3]).toBeCloseTo(0.28, 6)
+  })
+})
+
+describe('priceListFromRows: a price for any state', () => {
+  it('any state row becomes its own price; "Other" stays the fallback', () => {
+    const p = priceListFromRows({
+      components,
+      installs: [
+        ...installs,
+        { state: 'Kano', size_band: 'small', amount: 175000, sample: false },
+        { state: 'Kano', size_band: 'medium', amount: 260000, sample: false },
+        { state: 'Kano', size_band: 'large', amount: 350000, sample: false },
+      ],
+      panelWatts: 550,
+    })
+    expect(p.installByState.Kano).toEqual({ small: 175000, medium: 260000, large: 350000 })
+    expect(p.installByState.Other).toEqual({ small: 200000, medium: 300000, large: 400000 })
+  })
+
+  it('"Other" is required (every state without its own price uses it)', () => {
+    expect(() =>
+      priceListFromRows({
+        components,
+        installs: installs.filter((r) => r.state !== 'Other'),
+        panelWatts: 550,
+      }),
+    ).toThrow(/Other/)
   })
 })
 

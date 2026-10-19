@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { CATEGORY_IDS, type CategoryId } from '@/lib/load/types'
+import { NG_STATE_IDS } from '@/lib/nigeria/states'
 import { SIZE_BANDS, energySettingsSchema, sizingSettingsSchema } from '@/lib/settings/schemas'
 
 import { TENURES } from './types'
@@ -66,13 +67,16 @@ export const rateRowSchema = z.object({
 export const ratesSchema = z.array(rateRowSchema).length(TENURES.length)
 export type RateDraft = z.infer<typeof rateRowSchema>
 
-export const INSTALL_STATES = ['FCT', 'Kaduna', 'Lagos', 'Other'] as const
+/** Every state has its own installation price; "Other" is the fallback (and older records). */
+export const INSTALL_STATES = [...NG_STATE_IDS, 'Other'] as const
 export const installationRowSchema = z.object({
-  state: z.enum(INSTALL_STATES),
+  state: z.enum(INSTALL_STATES as unknown as [string, ...string[]]),
   sizeBand: z.enum(SIZE_BANDS),
   amount: z.number().min(0).max(1_000_000_000),
 })
-export const installationSchema = z.array(installationRowSchema).length(12)
+export const installationSchema = z
+  .array(installationRowSchema)
+  .length(INSTALL_STATES.length * SIZE_BANDS.length)
 export type InstallationDraft = z.infer<typeof installationRowSchema>
 
 export const unitCostsSchema = z.object({

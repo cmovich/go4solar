@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 
 import { GENERATOR_LABELS, GENERATOR_TYPES } from '@/lib/energy/currentSpend'
-import { STATE_GROUPS, stateLabel } from '@/lib/nigeria/states'
+import { NG_STATE_IDS, stateLabel } from '@/lib/nigeria/states'
 import { PLANS, PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import type { ConsumerFilters } from '@/lib/waitlist/admin'
 import {
@@ -70,14 +70,10 @@ export function WaitlistFilters({
         State
         <select name="state" defaultValue={filters.state ?? ''} className={`${select} mt-1 block`}>
           <option value="">All</option>
-          {STATE_GROUPS.map((g) => (
-            <optgroup key={g.label} label={g.label}>
-              {g.ids.map((s) => (
-                <option key={s} value={s}>
-                  {stateLabel(s)}
-                </option>
-              ))}
-            </optgroup>
+          {NG_STATE_IDS.map((s) => (
+            <option key={s} value={s}>
+              {stateLabel(s)}
+            </option>
           ))}
         </select>
       </label>

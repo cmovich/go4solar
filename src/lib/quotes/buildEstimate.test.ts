@@ -63,12 +63,26 @@ describe('buildEstimate — PRD sample home, Lagos, 20% deposit', () => {
     expect(i.quote.lines.find((l) => l.category === 'battery')?.qty).toBe(4)
   })
 
-  it('launch states use their own installation price; every other state uses "Other"', () => {
+  it('every state can have its own installation price; a state without one uses "Other"', () => {
     expect(buildEstimate(totals, 'FCT', 0.2, s).plans.essential.quote.installCost).toBe(150000)
-    expect(buildEstimate(totals, 'Kaduna', 0.2, s).plans.essential.quote.installCost).toBe(150000)
     expect(buildEstimate(totals, 'Lagos', 0.2, s).plans.essential.quote.installCost).toBe(200000)
-    expect(buildEstimate(totals, 'Enugu', 0.2, s).plans.essential.quote.installCost).toBe(200000)
     expect(buildEstimate(totals, 'Kano', 0.2, s).plans.essential.quote.installCost).toBe(200000)
+    const withKano = {
+      ...s,
+      priceList: {
+        ...s.priceList,
+        installByState: {
+          ...s.priceList.installByState,
+          Kano: { small: 175000, medium: 260000, large: 350000 },
+        },
+      },
+    }
+    expect(buildEstimate(totals, 'Kano', 0.2, withKano).plans.essential.quote.installCost).toBe(
+      175000,
+    )
+    expect(buildEstimate(totals, 'Enugu', 0.2, withKano).plans.essential.quote.installCost).toBe(
+      200000,
+    )
   })
 
   it('sizing does not depend on the state (only the installation price does)', () => {

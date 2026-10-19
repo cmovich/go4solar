@@ -1,5 +1,5 @@
 import type { LoadTotals } from '@/lib/load/types'
-import { isLaunchState, type NgStateId } from '@/lib/nigeria/states'
+import type { NgStateId } from '@/lib/nigeria/states'
 import { priceQuote } from '@/lib/pricing/price'
 import { installBandFor } from '@/lib/pricing/tables'
 import { offeredTenures } from '@/lib/pricing/tenures'
@@ -53,7 +53,7 @@ export type RepricedPlan = PlanEstimate & {
 }
 
 /**
- * Installation and logistics: launch states have their own price, everywhere else is "Other";
+ * Installation and logistics: the state's own price (set in /admin/pricing), else "Other";
  * within a state the amount depends on the inverter size band.
  */
 export function installCostFor(
@@ -61,9 +61,7 @@ export function installCostFor(
   inverterKva: number,
   priceList: PriceList,
 ): number {
-  const byBand = isLaunchState(state)
-    ? priceList.installByState[state]
-    : priceList.installByState.Other
+  const byBand = priceList.installByState[state] ?? priceList.installByState.Other
   return byBand[installBandFor(inverterKva)]
 }
 

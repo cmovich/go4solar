@@ -27,8 +27,9 @@ const badgesFor = (sample: boolean, maxMonths: number) => [
 ]
 
 /**
- * "0% interest" may only appear next to the total amount payable, so while prices are SAMPLE
- * prices (totals hidden) the hero makes no interest claim.
+ * Headline "Go 4 Solar, Pay Easy, No Interest". Any interest claim must sit next to the total
+ * amount payable, so while prices are SAMPLE prices (totals hidden) the hero drops "No Interest"
+ * and "no interest attached" until real prices are saved.
  */
 export function Hero({ example }: { example: HeroExample }) {
   const badges = badgesFor(example.sample, example.maxMonths)
@@ -64,23 +65,24 @@ export function Hero({ example }: { example: HeroExample }) {
 
         <div className="grid gap-12 pt-10 pb-24 sm:pt-16 sm:pb-32 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-center">
           <div className="max-w-3xl">
-            <h1 className="text-4xl leading-[1.05] font-bold tracking-tight sm:text-6xl">
-              Solar on monthly payments.
-              <br />
-              <span className="text-brand-gold">
-                {example.sample ? 'One fixed price.' : 'Zero interest.'}
-              </span>
+            {/* Three short lines on a phone, two on wider screens. */}
+            <h1 className="text-[2.6rem] leading-[1.05] font-bold tracking-tight sm:text-6xl">
+              <span className="block sm:inline">Go 4 Solar,</span>{' '}
+              <span className="block sm:inline">Pay Easy{example.sample ? '' : ','}</span>
+              {!example.sample && (
+                <>
+                  {' '}
+                  <span className="text-brand-gold block">No Interest</span>
+                </>
+              )}
             </h1>
             <p className="mt-6 max-w-2xl text-lg text-white/85 sm:text-xl">
               {example.sample
-                ? `We import directly from the manufacturers, so you pay less upfront. Start with 20%, spread the rest over up to ${example.maxMonths} months.`
-                : `We import directly from the manufacturers, so you pay less upfront and never pay interest. Start with 20%, spread the rest over up to ${example.maxMonths} months.`}
+                ? 'Starting from 20% deposit. You get your solar installed.'
+                : 'Starting from 20% deposit. You get your solar installed, no interest attached.'}
             </p>
-            {/* The example card (with the total) is desktop-only; phones see the total here. */}
-            <p
-              className="mt-3 text-sm font-semibold text-white/85 lg:hidden"
-              data-testid="hero-total"
-            >
+            {/* The no-interest claim always sits next to the total payable (phones and desktop). */}
+            <p className="mt-3 text-sm font-semibold text-white/85" data-testid="hero-total">
               {example.sample
                 ? PRICE_LATER_TEXT
                 : `Example: total amount payable ${formatNaira(example.total)}, 0% interest.`}

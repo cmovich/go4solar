@@ -87,7 +87,7 @@ export function Footer() {
         </div>
 
         <p className="mt-12 border-t border-white/10 pt-6 text-xs text-white/60">
-          © {year} {siteConfig.legalName}. Serving Abuja (FCT), Kaduna and Lagos.
+          © {year} {siteConfig.legalName}. Serving homes and businesses across Nigeria.
         </p>
       </Container>
     </Band>

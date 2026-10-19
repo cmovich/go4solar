@@ -1,6 +1,6 @@
 import type { PriceList, QuoteSettings } from '@/lib/settings/schemas'
 
-import type { PricingDraft } from './adminSchemas'
+import { INSTALL_STATES, type PricingDraft } from './adminSchemas'
 import type { RateByTenure } from './types'
 import type { PreviewFunder } from './preview'
 
@@ -24,7 +24,7 @@ export function draftToSettings(d: PricingDraft): QuoteSettings {
   }
 
   const installByState = Object.fromEntries(
-    (['FCT', 'Kaduna', 'Lagos', 'Other'] as const).map((state) => [
+    INSTALL_STATES.map((state) => [
       state,
       Object.fromEntries(
         (['small', 'medium', 'large'] as const).map((band) => [

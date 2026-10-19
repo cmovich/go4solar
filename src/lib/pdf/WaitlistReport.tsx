@@ -247,7 +247,7 @@ export function WaitlistReport({
       <Page size="A4" style={s.page}>
         <Band
           title="Waiting list report"
-          sub="Prelaunch demand · Abuja (FCT), Kaduna, Lagos"
+          sub="Prelaunch demand · across Nigeria"
           right={`Generated ${when}`}
         />
         <Footer />
