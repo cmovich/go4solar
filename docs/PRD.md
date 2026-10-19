@@ -846,3 +846,27 @@ All 12 original questions are answered (see Decisions agreed on 8 October 2026).
 - [ ] **WhatsApp Business:** verify the business account and number for the advisor.
 - [ ] **Store location:** where OEM shipments are received and released for each launch state.
 - [ ] **Forecast inputs:** real unit costs (KYC, payment fees), loss provision rate, monthly overhead budget and year-1 customer target, to replace the illustration.
+
+
+## Home-page content and the permanent audit log (added 2026-10-19)
+
+- **Testimonials** (`/admin/testimonials`, super admin and content staff): client first name, city,
+  quote (max 220 characters), system size, installer name, installer photo (cropped to 400 × 400,
+  shown as a circle) and job photo (cropped to 1200 × 800). Pictures are cropped and compressed in
+  the browser (WebP, JPG fallback), checked again on the server (real file type, size, at most
+  10 MB) and stored in the public `site-media` bucket. A testimonial can only be published with
+  both written-consent ticks (client and installer). The home page shows published testimonials as
+  a carousel (moves every 6 s, pauses on hover/touch/focus, swipe, arrows, dots, keyboard, no
+  movement for reduced-motion users, lazy-loaded pictures); with none published the section is
+  hidden. Rows made by test accounts never reach the live site.
+- **Partners** (`/admin/partners`): name, logo (fitted inside 400 × 200, transparency kept, safe SVG
+  allowed), optional website (opens in a new tab), order, show/hide. Home page "Our partners" row:
+  greyscale logos, colour on hover, the name as text when there is no logo; hidden when none show.
+- **Audit log** (`/admin/audit`, super admin): database triggers on every table staff can change
+  record the table, row, action, before and after values (secrets hidden), the person (id, email
+  and role at the time) and the time, so nothing is missed even if app code forgets. Server writes
+  carry the signed-in person (`x-g4s-actor-id`, trusted only on service-role requests). Staff
+  sign-ins, two-factor checks and sign-outs are recorded. The log is append-only for everyone,
+  including the service role, and is excluded from retention and test-data clean-up. The page
+  filters by person, dates (Lagos), table and action, shows before → after for each changed field,
+  and downloads as CSV (the download itself is recorded). No edit or delete anywhere.

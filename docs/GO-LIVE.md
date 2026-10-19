@@ -156,6 +156,8 @@ STILL TO DO before switching Production to live mode:
 16. Real overheads entered for the forecasts; verify the grid CO2 factor.
 17. Test-data clean-up: reviewed query, database backup first, count-only run
     first, deletes only is_test rows; staff accounts and real leads untouched.
+    Never include audit_log: it is permanent (the database refuses any update or
+    delete on it, even for the service role).
 18. Decide on RETENTION_ENABLED (weekly clean-up job is count-only until then).
 19. Rotate the Supabase database password after launch.
 20. Switch Production NEXT_PUBLIC_LAUNCH_MODE from prelaunch to live, redeploy,
