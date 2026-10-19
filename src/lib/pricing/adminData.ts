@@ -120,7 +120,7 @@ export async function loadPricingDraft(includeTestFunders = false): Promise<Pric
     sample: {
       components: (components.data ?? []).some((c) => c.active && c.sample),
       margins: (margins.data ?? []).some((m) => m.sample),
-      rates: (rates.data ?? []).some((r) => r.sample),
+      rates: (rates.data ?? []).some((r) => (r.enabled ?? true) && r.sample),
       installation: (installs.data ?? []).some((i) => i.sample),
       unitCosts: unitCosts.data?.sample ?? false,
     },

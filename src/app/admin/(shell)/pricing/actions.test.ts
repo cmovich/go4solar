@@ -68,7 +68,8 @@ const staffData: Record<string, unknown[]> = {
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => fakeClient(staffData) }))
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => fakeClient({}) }))
 
-const { saveComponents, saveMargins, saveLateFee, saveRates } = await import('./actions')
+const { confirmSamplePrices, saveComponents, saveMargins, saveLateFee, saveRates } =
+  await import('./actions')
 
 const superAdmin: SessionInfo = {
   user: { id: 'u-sa', email: 'sa@example.org' },
@@ -329,5 +330,58 @@ describe('saveRates', () => {
       ok: false,
       error: '12 months must stay switched on: estimates are priced at 12 months.',
     })
+  })
+})
+
+// "Confirm as real price": approve a SAMPLE row without changing it (audited).
+describe('confirmSamplePrices', () => {
+  beforeEach(() => getSessionInfo.mockResolvedValue(superAdmin))
+  const updates = (table: string) => calls.filter((c) => c.table === table && c.op === 'update')
+
+  it('super admin with two-factor only', async () => {
+    getSessionInfo.mockResolvedValue({ ...superAdmin, aal: 'aal1' })
+    expect((await confirmSamplePrices({ section: 'margins' })).ok).toBe(false)
+    getSessionInfo.mockResolvedValue(creditOfficer)
+    expect((await confirmSamplePrices({ section: 'margins' })).ok).toBe(false)
+    expect(calls).toEqual([])
+  })
+
+  it('one component: only its SAMPLE flag changes, never its price', async () => {
+    const id = '11111111-1111-4111-8111-111111111111'
+    expect(await confirmSamplePrices({ section: 'components', keys: [id] })).toEqual({ ok: true })
+    expect(updates('components').map((u) => u.payload)).toEqual([{ sample: false }])
+    expect(calls).toContainEqual(
+      expect.objectContaining({
+        table: 'audit_log',
+        op: 'insert',
+        payload: expect.objectContaining({
+          action: 'pricing.sample.confirm',
+          entity: 'components',
+          after: { section: 'components', keys: [id] },
+        }),
+      }),
+    )
+  })
+
+  it('a whole section at once (margins), and tenure rates only for switched-on lengths', async () => {
+    expect(await confirmSamplePrices({ section: 'margins' })).toEqual({ ok: true })
+    expect(updates('category_margins').map((u) => u.payload)).toEqual([{ sample: false }])
+    expect(await confirmSamplePrices({ section: 'rates', keys: ['12'] })).toEqual({ ok: true })
+    expect(updates('pricing_rates').map((u) => u.payload)).toEqual([{ sample: false }])
+  })
+
+  it('installation rows by state and size; unit costs; energy (a settings value)', async () => {
+    expect(
+      await confirmSamplePrices({ section: 'installation', keys: ['Lagos:small', 'Other:large'] }),
+    ).toEqual({ ok: true })
+    expect(updates('installation_costs')).toHaveLength(2)
+    expect(await confirmSamplePrices({ section: 'unit-costs' })).toEqual({ ok: true })
+    expect(updates('unit_costs').map((u) => u.payload)).toEqual([{ sample: false }])
+  })
+
+  it('refuses unknown sections or malformed keys', async () => {
+    expect((await confirmSamplePrices({ section: 'funders' })).ok).toBe(false)
+    expect((await confirmSamplePrices({ section: 'installation', keys: ['Lagos'] })).ok).toBe(false)
+    expect(calls).toEqual([])
   })
 })

@@ -289,6 +289,48 @@ describe('priceListFromRows: a price for any state', () => {
   })
 })
 
+describe('website SAMPLE rule (same as the admin banner)', () => {
+  it('a switched-off tenure marked SAMPLE never hides prices', () => {
+    const p = pricingFromRows({
+      margins: margins.map((m) => ({ ...m, sample: false })),
+      rates: [
+        ...rates.map((r) => ({ ...r, sample: false })),
+        {
+          tenure_months: 24,
+          enabled: false,
+          expected_funder_rate: null,
+          spread: null,
+          default_buffer: null,
+          pricing_rate: null,
+          sample: true,
+        },
+      ],
+    })
+    expect(p.sample).toBe(false)
+  })
+
+  it('any ACTIVE SAMPLE component hides prices, even one this quote does not use', () => {
+    const real = components.map((c) => ({ ...c, sample: false }))
+    const confirmedInstalls = installs.map((r) => ({ ...r, sample: false }))
+    expect(
+      priceListFromRows({ components: real, installs: confirmedInstalls, panelWatts: 550 }).sample,
+    ).toBe(false)
+    const withSpare = [
+      ...real,
+      { ...real.find((c) => c.category === 'inverter')!, sku: 'INV-99', sample: true },
+    ]
+    expect(
+      priceListFromRows({ components: withSpare, installs: confirmedInstalls, panelWatts: 550 })
+        .sample,
+    ).toBe(true)
+    const inactiveSpare = withSpare.map((c) => (c.sku === 'INV-99' ? { ...c, active: false } : c))
+    expect(
+      priceListFromRows({ components: inactiveSpare, installs: confirmedInstalls, panelWatts: 550 })
+        .sample,
+    ).toBe(false)
+  })
+})
+
 describe('pricingFromRows: longer tenures', () => {
   const longer: PricingRateRow[] = [
     ...rates,

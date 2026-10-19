@@ -302,3 +302,92 @@ export async function saveEnergySizing(input: unknown): Promise<Result> {
   revalidatePath('/waitlist')
   return done()
 }
+
+const confirmSchema = z.object({
+  section: z.enum(['components', 'margins', 'rates', 'installation', 'unit-costs', 'energy']),
+  /** Rows to confirm; omitted = every SAMPLE row in the section ("Confirm all in this section"). */
+  keys: z.array(z.string().min(1).max(80)).max(200).optional(),
+})
+const INSTALL_KEY = /^([A-Za-z ]+):(small|medium|large)$/
+
+/**
+ * "Confirm as real price": clears the SAMPLE flag without changing any value, for one row or a
+ * whole section. Super admin only; audited (the database trigger also records each row).
+ */
+export async function confirmSamplePrices(input: unknown): Promise<Result> {
+  const session = await superAdmin()
+  if (!session) return DENIED
+  const parsed = confirmSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: 'Check the request' }
+  const { section, keys } = parsed.data
+  if (section === 'installation' && keys?.some((k) => !INSTALL_KEY.test(k))) {
+    return { ok: false, error: 'Check the request' }
+  }
+  if (section === 'rates' && keys?.some((k) => !/^\d{1,2}$/.test(k))) {
+    return { ok: false, error: 'Check the request' }
+  }
+
+  const supabase = await createClient()
+  const off = { sample: false }
+  let error: { message: string } | null = null
+  let entity: string = section
+  if (section === 'components') {
+    entity = 'components'
+    let q = supabase.from('components').update(off).eq('sample', true).eq('active', true)
+    if (keys) q = q.in('id', keys)
+    ;({ error } = await q)
+  } else if (section === 'margins') {
+    entity = 'category_margins'
+    let q = supabase.from('category_margins').update(off).eq('sample', true)
+    if (keys) q = q.in('category', keys as ('panels' | 'battery' | 'inverter' | 'accessories')[])
+    ;({ error } = await q)
+  } else if (section === 'rates') {
+    // Switched-off tenures are never shown to customers: they need no confirming.
+    entity = 'pricing_rates'
+    let q = supabase.from('pricing_rates').update(off).eq('sample', true).eq('enabled', true)
+    if (keys) q = q.in('tenure_months', keys.map(Number))
+    ;({ error } = await q)
+  } else if (section === 'installation') {
+    entity = 'installation_costs'
+    if (!keys) {
+      ;({ error } = await supabase.from('installation_costs').update(off).eq('sample', true))
+    } else {
+      for (const k of keys) {
+        const [, state, band] = INSTALL_KEY.exec(k)!
+        const r = await supabase
+          .from('installation_costs')
+          .update(off)
+          .eq('state', state!)
+          .eq('size_band', band as 'small' | 'medium' | 'large')
+        if (r.error) {
+          error = r.error
+          break
+        }
+      }
+    }
+  } else if (section === 'unit-costs') {
+    entity = 'unit_costs'
+    ;({ error } = await supabase.from('unit_costs').update(off).eq('id', 1))
+  } else {
+    entity = 'settings.energy'
+    const { data } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'energy')
+      .maybeSingle()
+    const value = data?.value
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      try {
+        await saveSetting(session, 'energy', { ...value, sample: false }, 'pricing.energy.update')
+      } catch {
+        return { ok: false, error: 'Could not confirm. Please try again.' }
+      }
+    }
+  }
+  if (error) return { ok: false, error: 'Could not confirm. Please try again.' }
+  await audit(session, 'pricing.sample.confirm', entity, null, {
+    section,
+    keys: keys ?? 'all',
+  } as Json)
+  return done()
+}
