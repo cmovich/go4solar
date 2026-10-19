@@ -2,6 +2,9 @@ import { Faq } from '@/components/landing/Faq'
 import { lateFeeSettings } from '@/lib/agreements/server'
 import { Footer } from '@/components/landing/Footer'
 import { Hero } from '@/components/landing/Hero'
+import { PartnerLogos } from '@/components/landing/PartnerLogos'
+import { Testimonials } from '@/components/landing/Testimonials'
+import { activePartners, publishedTestimonials } from '@/lib/content/server'
 import { HowItWorks } from '@/components/landing/HowItWorks'
 import { Partners } from '@/components/landing/Partners'
 import { Proof } from '@/components/landing/Proof'
@@ -17,7 +20,12 @@ import { launchMode } from '@/config/site'
 export const revalidate = 3600
 
 export default async function HomePage() {
-  const [settings, lateFee] = await Promise.all([getQuoteSettings(), lateFeeSettings()])
+  const [settings, lateFee, testimonials, partners] = await Promise.all([
+    getQuoteSettings(),
+    lateFeeSettings(),
+    publishedTestimonials(),
+    activePartners(),
+  ])
   const tenures = offeredTenures(settings.pricing.pricingRateByTenure)
   const comfortEstimate = buildEstimate(computeLoadTotals(sampleHomeItems), 'Lagos', 0.2, settings)
   const comfort = comfortEstimate.plans.comfort
@@ -46,7 +54,9 @@ export default async function HomePage() {
         {/* Illustrative naira figures: hidden while any price is still a SAMPLE price. */}
         {!example.sample && <Savings />}
         <Proof />
+        <Testimonials items={testimonials} />
         <Partners vendors={launchMode() === 'live'} />
+        <PartnerLogos partners={partners} />
         <Faq lockAfterDays={lateFee.lockAfterDays} tenures={tenures} />
       </main>
       <Footer />

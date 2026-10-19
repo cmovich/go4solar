@@ -37,9 +37,11 @@ test.describe('landing page', () => {
 
   test('has every section in order and the partner links', async ({ page }) => {
     await page.goto('/')
-    const headings = await page.getByRole('heading', { level: 2 }).allTextContents()
+    const all = await page.getByRole('heading', { level: 2 }).allTextContents()
     const sample = await samplePrices(page)
-    expect(headings).toEqual([
+    // Customer stories and partner logos appear only when staff have published some.
+    const dataDriven = ['What our customers say', 'Our partners']
+    expect(all.filter((h) => !dataDriven.includes(h))).toEqual([
       'From appliances to installed solar in four steps',
       // The Savings comparison (naira amounts) is hidden while prices are SAMPLE prices.
       ...(sample ? [] : ['A generator costs you every month, forever']),
@@ -47,6 +49,11 @@ test.describe('landing page', () => {
       'Grow with Go4Solar',
       'Questions people ask before they start',
     ])
+    // When shown: stories after the track record, partner logos after "Grow with Go4Solar".
+    const at = (h: string) => all.indexOf(h)
+    if (at('What our customers say') >= 0)
+      expect(at('What our customers say')).toBe(at('20+ homes and businesses already financed') + 1)
+    if (at('Our partners') >= 0) expect(at('Our partners')).toBe(at('Grow with Go4Solar') + 1)
     await expect(page.getByRole('link', { name: 'Become a partner installer' })).toHaveAttribute(
       'href',
       '/partners/installer',

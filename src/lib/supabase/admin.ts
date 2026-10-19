@@ -2,6 +2,7 @@ import 'server-only'
 
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
+import { actorFetch } from './actor'
 import type { Database } from './database.types'
 import { publicSupabaseEnv } from './env'
 
@@ -17,5 +18,7 @@ export function createAdminClient() {
 
   return createSupabaseClient<Database>(url, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
+    // Writes carry the signed-in staff member's id for the audit triggers.
+    global: { fetch: actorFetch() },
   })
 }

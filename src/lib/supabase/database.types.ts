@@ -301,43 +301,44 @@ export type Database = {
       audit_log: {
         Row: {
           action: string
+          actor_email: string | null
           actor_id: string | null
+          actor_role: string | null
           after: Json | null
           before: Json | null
           created_at: string
           entity: string
           entity_id: string | null
           id: string
+          source: string
         }
         Insert: {
           action: string
+          actor_email?: string | null
           actor_id?: string | null
+          actor_role?: string | null
           after?: Json | null
           before?: Json | null
           created_at?: string
           entity: string
           entity_id?: string | null
           id?: string
+          source?: string
         }
         Update: {
           action?: string
+          actor_email?: string | null
           actor_id?: string | null
+          actor_role?: string | null
           after?: Json | null
           before?: Json | null
           created_at?: string
           entity?: string
           entity_id?: string | null
           id?: string
+          source?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: 'audit_log_actor_id_fkey'
-            columns: ['actor_id']
-            isOneToOne: false
-            referencedRelation: 'profiles'
-            referencedColumns: ['id']
-          },
-        ]
+        Relationships: []
       }
       cash_referrals: {
         Row: {
@@ -1199,6 +1200,45 @@ export type Database = {
         }
         Relationships: []
       }
+      partners: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          is_test: boolean
+          logo: string | null
+          name: string
+          sort_order: number
+          updated_at: string
+          website_url: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_test?: boolean
+          logo?: string | null
+          name: string
+          sort_order?: number
+          updated_at?: string
+          website_url?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_test?: boolean
+          logo?: string | null
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -1676,6 +1716,63 @@ export type Database = {
           },
         ]
       }
+      testimonials: {
+        Row: {
+          client_city: string
+          client_name: string
+          client_quote: string
+          consent_client: boolean
+          consent_installer: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          installer_name: string
+          installer_photo: string | null
+          is_test: boolean
+          job_photo: string | null
+          published: boolean
+          sort_order: number
+          system_size: string
+          updated_at: string
+        }
+        Insert: {
+          client_city: string
+          client_name: string
+          client_quote: string
+          consent_client?: boolean
+          consent_installer?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          installer_name: string
+          installer_photo?: string | null
+          is_test?: boolean
+          job_photo?: string | null
+          published?: boolean
+          sort_order?: number
+          system_size: string
+          updated_at?: string
+        }
+        Update: {
+          client_city?: string
+          client_name?: string
+          client_quote?: string
+          consent_client?: boolean
+          consent_installer?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          installer_name?: string
+          installer_photo?: string | null
+          is_test?: boolean
+          job_photo?: string | null
+          published?: boolean
+          sort_order?: number
+          system_size?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       unit_costs: {
         Row: {
           fee_per_instalment: number
@@ -1919,6 +2016,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      audit_actor: {
+        Args: never
+        Returns: {
+          email: string
+          id: string
+          role: string
+        }[]
+      }
+      audit_redact: { Args: { j: Json }; Returns: Json }
       draw_from_funder: {
         Args: { p_amount: number; p_funder: string }
         Returns: number
@@ -1933,6 +2039,7 @@ export type Database = {
         Returns: boolean
       }
       is_staff: { Args: never; Returns: boolean }
+      is_staff_role: { Args: { r: string }; Returns: boolean }
       is_test_identity: {
         Args: { p_email: string; p_phone: string }
         Returns: boolean

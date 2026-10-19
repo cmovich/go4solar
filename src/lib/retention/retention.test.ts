@@ -106,3 +106,11 @@ describe('retentionDryRun', () => {
     expect(retentionDryRun({ RETENTION_ENABLED: 'true' }, false)).toBe(false)
   })
 })
+
+describe('the audit log is never cleaned up', () => {
+  it('the retention job has no code that deletes audit_log rows', async () => {
+    const { readFileSync } = await import('node:fs')
+    const src = readFileSync('src/lib/retention/server.ts', 'utf8')
+    expect(src).not.toMatch(/from\('audit_log'\)[\s\S]{0,80}\.delete\(/)
+  })
+})
