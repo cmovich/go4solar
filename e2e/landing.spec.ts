@@ -13,14 +13,29 @@ test.describe('landing page', () => {
 
     const h1 = page.getByRole('heading', { level: 1 })
     await expect(h1).toBeVisible()
-    await expect(h1).toContainText('Solar on monthly payments.')
     // While any price is a SAMPLE price the hero makes no interest claim (no total is shown).
-    if (await samplePrices(page)) await expect(h1).toContainText('One fixed price.')
-    else await expect(h1).toContainText('Zero interest.')
-
-    await expect(
-      page.getByText('We import directly from the manufacturers, so you pay less upfront'),
-    ).toBeVisible()
+    const total = page.getByTestId('hero-total')
+    await expect(total).toBeVisible() // directly under the explainer, on phones and desktop
+    if (await samplePrices(page)) {
+      await expect(h1).toHaveText('Go 4 Solar, Pay Easy')
+      await expect(
+        page.getByText('Starting from 20% deposit. You get your solar installed.', { exact: true }),
+      ).toBeVisible()
+      await expect(page.getByText(/no interest/i)).toHaveCount(0)
+    } else {
+      await expect(h1).toHaveText('Go 4 Solar, Pay Easy, No Interest')
+      await expect(
+        page.getByText(
+          'Starting from 20% deposit. You get your solar installed, no interest attached.',
+        ),
+      ).toBeVisible()
+      await expect(total).toContainText('total amount payable ₦')
+    }
+    // The headline fits a 375 px phone without sideways scrolling.
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth,
+    )
+    expect(overflow).toBe(false)
     await expect(
       page.getByText('20+ homes and businesses financed · ~1 MW installed'),
     ).toBeVisible()
@@ -63,6 +78,11 @@ test.describe('landing page', () => {
     // Track-record tiles
     await expect(page.getByText('₦30M+')).toBeVisible()
     await expect(page.getByText('in solar financing')).toBeVisible()
+    await expect(page.getByText('₦300M+')).toBeVisible()
+    await expect(page.getByText('worth of installations')).toBeVisible()
+    // Nationwide: no three-state wording anywhere on the page.
+    await expect(page.getByText(/Abuja|Kaduna|3 states/)).toHaveCount(0)
+    await expect(page.getByText('Serving homes and businesses across Nigeria.')).toBeVisible()
   })
 
   test('savings example shows the total amount payable beside 0% interest', async ({ page }) => {
@@ -108,4 +128,32 @@ test.describe('landing page', () => {
     await page.waitForTimeout(500)
     expect(errors).toEqual([])
   })
+})
+
+test('the hero headline fits a 375 px phone (no sideways scroll, no cut-off words)', async ({
+  browser,
+}) => {
+  const page = await browser.newPage({
+    viewport: { width: 375, height: 812 },
+    storageState: 'e2e/storage-state.json',
+  })
+  await page.goto('/')
+  const h1 = page.getByRole('heading', { level: 1 })
+  await expect(h1).toBeVisible()
+  const box = await h1.boundingBox()
+  expect(box!.width).toBeLessThanOrEqual(375 - 16 * 2 + 1)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
+  await page.screenshot({ path: test.info().outputPath('hero-375.png') })
+  // Every track-record figure fits inside its tile.
+  for (const value of ['20+', '₦30M+', '₦300M+', '~1 MW']) {
+    const fits = await page.getByText(value, { exact: true }).evaluate((el) => {
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      const text = range.getBoundingClientRect()
+      const tile = el.parentElement!.getBoundingClientRect()
+      return text.right <= tile.right - 8 // stays inside the tile, clear of its edge
+    })
+    expect(fits, value).toBe(true)
+  }
+  await page.close()
 })

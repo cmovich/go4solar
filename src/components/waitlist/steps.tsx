@@ -24,7 +24,7 @@ import {
 import { computeLoadTotals } from '@/lib/load/totals'
 import type { LoadItem } from '@/lib/load/types'
 import { formatNaira, formatPercent } from '@/lib/money'
-import { STATE_GROUPS, stateLabel, type NgStateId } from '@/lib/nigeria/states'
+import { NG_STATE_IDS, stateLabel, type NgStateId } from '@/lib/nigeria/states'
 import {
   PLANS,
   PLAN_LABELS,
@@ -314,7 +314,7 @@ export type NameValues = {
   lga: string
 }
 
-/** All 36 states + FCT: launch states first, then a divider, then the rest A–Z. */
+/** All 36 states + FCT, A–Z (Go4Solar serves all of Nigeria). */
 export function StateSelect({
   id,
   name,
@@ -334,14 +334,10 @@ export function StateSelect({
       onChange={(e) => onChange(e.target.value as NgStateId)}
       className={select}
     >
-      {STATE_GROUPS.map((g, i) => (
-        <optgroup key={g.label} label={i === 0 ? g.label : `── ${g.label}`}>
-          {g.ids.map((s) => (
-            <option key={s} value={s}>
-              {stateLabel(s)}
-            </option>
-          ))}
-        </optgroup>
+      {NG_STATE_IDS.map((s) => (
+        <option key={s} value={s}>
+          {stateLabel(s)}
+        </option>
       ))}
     </select>
   )

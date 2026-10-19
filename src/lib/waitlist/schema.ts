@@ -18,14 +18,10 @@ export const STATE_LABELS: Record<string, string> = Object.fromEntries(
 /** Legacy 'Other' rows from before the review. */
 STATE_LABELS.Other = 'Other'
 
-/** Installer coverage is still asked per launch state (+ Other). */
-export const INSTALLER_STATES = ['FCT', 'Kaduna', 'Lagos', 'Other'] as const
-export const INSTALLER_STATE_LABELS: Record<(typeof INSTALLER_STATES)[number], string> = {
-  FCT: 'Abuja (FCT)',
-  Kaduna: 'Kaduna',
-  Lagos: 'Lagos',
-  Other: 'Other',
-}
+/** Installers tick every state they cover, from all 36 states + FCT. */
+export const INSTALLER_STATES = NG_STATE_IDS
+/** Labels for installer states; older sign-ups may still say "Other". */
+export const INSTALLER_STATE_LABELS: Record<string, string> = STATE_LABELS
 
 export const READY_WHEN = ['now', '30_days', 'later'] as const
 export const READY_WHEN_LABELS: Record<(typeof READY_WHEN)[number], string> = {
@@ -176,7 +172,7 @@ export const installerSchema = z.object({
   phone: phoneSchema,
   whatsapp: phoneSchema.optional(),
   email: z.email('Enter a valid email address').optional().or(z.literal('')),
-  states: z.array(z.enum(INSTALLER_STATES)).min(1, 'Pick at least one state'),
+  states: z.array(stateSchema).min(1, 'Pick at least one state'),
   lgas: z.string().trim().max(300).optional(),
   yearsInBusiness: z.number().int().min(0).max(80),
   installationsCompleted: z.number().int().min(0).max(100000),

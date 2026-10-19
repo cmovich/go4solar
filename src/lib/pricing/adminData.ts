@@ -93,8 +93,12 @@ export async function loadPricingDraft(includeTestFunders = false): Promise<Pric
       (['small', 'medium', 'large'] as const).map((sizeBand) => ({
         state,
         sizeBand,
+        // A state without its own price yet starts as a copy of "Other" (what it is charged today).
         amount: num(
-          installs.data?.find((i) => i.state === state && i.size_band === sizeBand)?.amount ?? 0,
+          (
+            installs.data?.find((i) => i.state === state && i.size_band === sizeBand) ??
+            installs.data?.find((i) => i.state === 'Other' && i.size_band === sizeBand)
+          )?.amount ?? 0,
         ),
       })),
     ),

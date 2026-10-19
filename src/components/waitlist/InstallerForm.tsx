@@ -106,7 +106,8 @@ export function InstallerForm() {
 
       <fieldset>
         <legend className="text-sm font-medium">States you serve</legend>
-        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <p className="text-muted-foreground mt-1 text-xs">Tick every state you cover.</p>
+        <div className="mt-2 grid max-h-80 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">
           {INSTALLER_STATES.map((id) => (
             <label
               key={id}

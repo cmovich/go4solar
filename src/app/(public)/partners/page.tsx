@@ -7,7 +7,7 @@ import { siteConfig } from '@/config/site'
 export const metadata: Metadata = {
   title: 'Partner with Go4Solar',
   description:
-    'Installers: join the Go4Solar partner network in Abuja, Kaduna and Lagos. We bring verified customers; you install genuine equipment and get paid on time.',
+    'Installers: join the Go4Solar partner network across Nigeria. We bring verified customers; you install genuine equipment and get paid on time.',
 }
 
 const POINTS = [
@@ -56,9 +56,8 @@ export default function PartnersPage() {
           Grow with Go4Solar
         </h1>
         <p className="text-muted-foreground mt-3 max-w-2xl text-base">
-          We are building a network of trusted solar installers in Abuja, Kaduna and Lagos. We find
-          the customers and handle their payment plans; you do what you do best: quality
-          installations.
+          We are building a network of trusted solar installers across Nigeria. We find the
+          customers and handle their payment plans; you do what you do best: quality installations.
         </p>
 
         <ul className="mt-8 grid gap-4 sm:grid-cols-3">

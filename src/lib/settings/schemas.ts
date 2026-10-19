@@ -32,6 +32,7 @@ const installByBandSchema = z.object({
   medium: z.number().nonnegative(),
   large: z.number().nonnegative(),
 })
+type InstallByBand = z.infer<typeof installByBandSchema>
 
 const costed = {
   sku: z.string().min(1),
@@ -48,13 +49,14 @@ export const priceListSchema = z.object({
   accessoriesByKva: z
     .array(z.object({ maxKva: z.number().positive(), unitCost: z.number().nonnegative() }))
     .min(1),
-  /** Installation + logistics per launch state (and Other), per inverter size band. */
-  installByState: z.object({
-    FCT: installByBandSchema,
-    Kaduna: installByBandSchema,
-    Lagos: installByBandSchema,
-    Other: installByBandSchema,
-  }),
+  /**
+   * Installation + logistics per state, per inverter size band. Any state can have its own price;
+   * "Other" is required and used for every state without one.
+   */
+  installByState: z
+    .record(z.string(), installByBandSchema)
+    .refine((m) => 'Other' in m, 'An "Other" installation price is required')
+    .transform((m) => m as Record<string, InstallByBand> & { Other: InstallByBand }),
 })
 
 export type PriceList = z.infer<typeof priceListSchema>

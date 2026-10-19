@@ -45,7 +45,6 @@ function sizeOf(row: ComponentRow, key: 'watts' | 'kwh' | 'kva' | 'maxKva'): num
   return typeof v === 'number' && Number.isFinite(v) ? v : null
 }
 
-const STATES = ['FCT', 'Kaduna', 'Lagos', 'Other'] as const
 const BANDS: readonly SizeBand[] = ['small', 'medium', 'large']
 
 /**
@@ -74,12 +73,17 @@ export function priceListFromRows(input: {
   if (inverters.length === 0) throw new Error('No active inverter components in the price list')
   if (accessories.length === 0) throw new Error('No active accessories tier in the price list')
 
+  // Every state with rows gets its own price; "Other" (required) covers the rest.
+  const states = [...new Set(input.installs.map((r) => r.state))]
+  if (!states.includes('Other')) throw new Error('No installation cost for Other')
   const installByState = Object.fromEntries(
-    STATES.map((state) => [
+    states.map((state) => [
       state,
       Object.fromEntries(
         BANDS.map((band) => {
-          const row = input.installs.find((r) => r.state === state && r.size_band === band)
+          const row =
+            input.installs.find((r) => r.state === state && r.size_band === band) ??
+            input.installs.find((r) => r.state === 'Other' && r.size_band === band)
           if (!row) throw new Error(`No installation cost for ${state} / ${band}`)
           return [band, Number(row.amount)]
         }),

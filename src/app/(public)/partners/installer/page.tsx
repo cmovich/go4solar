@@ -41,8 +41,8 @@ export default function InstallerPartnerPage() {
           Become a Go4Solar partner installer
         </h1>
         <p className="text-muted-foreground mt-3 max-w-2xl text-base">
-          We are building our installer network in Abuja, Kaduna and Lagos ahead of launch. Tell us
-          about your business and we will be in touch.
+          We are building our installer network across Nigeria. Tell us about your business and we
+          will be in touch.
         </p>
         <div className="mt-8">
           <InstallerForm />

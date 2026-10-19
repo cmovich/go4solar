@@ -1,7 +1,5 @@
 export type LaunchMode = 'prelaunch' | 'live'
 
-export type LaunchState = 'FCT' | 'Kaduna' | 'Lagos'
-
 export const siteConfig = {
   name: 'Go4Solar',
   legalName: 'Go4Solar Energy Limited',
@@ -9,7 +7,6 @@ export const siteConfig = {
   email: 'Contact@go4solar.app',
   phones: ['08182112423', '08037142948', '08083143614'] as const,
   url: 'https://www.go4solar.app',
-  launchStates: ['FCT', 'Kaduna', 'Lagos'] as const satisfies readonly LaunchState[],
 } as const
 
 /**

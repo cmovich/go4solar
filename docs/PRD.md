@@ -33,7 +33,7 @@ Semako approved all three changes above, the sizing logic, the payout rules and 
 | Collateral | Every financed system registered on the National Collateral Registry |
 | Installer quotes | Go4Solar markup applied automatically; app suggests the Go4Solar quote when cheaper, user decides |
 | Cash buyers (100% upfront) | Referred to the nearest verified vendor |
-| Launch states | Abuja, Kaduna and Lagos |
+| Coverage | Nationwide: all 36 states + FCT (changed 2026-10-19; launch was Abuja, Kaduna and Lagos) |
 | Payments | Paystack |
 | Advisor support | Up to 5 staff, 08:00–20:00 daily; WhatsApp AI covers the remaining hours |
 | Programmes | Go4Solar's own grants and events, with funders and manufacturers, open to consumers, installers and vendors |
@@ -65,7 +65,7 @@ Nigerian households and SMEs pay heavily for grid tariffs and generator fuel, bu
 - Convert the existing waiting list into financed installations through the app, not WhatsApp and paper.
 - Approve or decline a complete application within 48 hours.
 - Keep repayments more than 30 days late under 5% of the loan book.
-- Onboard enough verified installers and vendors to serve Abuja, Kaduna and Lagos first.
+- Onboard enough verified installers and vendors to serve customers across Nigeria.
 
 ### Success metrics
 
@@ -97,7 +97,9 @@ The landing page has one job: get the visitor to start the load calculator. Ever
 
 The hero sells two facts competitors cannot match together: **no interest** and **direct-import prices**. Recommended hero:
 
-> **Solar on monthly payments. Zero interest.** We import directly from the manufacturers, so you pay less upfront and never pay interest. Start with 20%, spread the rest over up to 12 months. \[Calculate my load\]
+> **Go 4 Solar, Pay Easy, No Interest.** Starting from 20% deposit. You get your solar installed, no interest attached. *Example: total amount payable ₦X, 0% interest.* \[Calculate my load\]
+
+(Adopted 2026-10-19. The example total payable sits directly under the explainer on phones and desktop. While any price is a SAMPLE price the hero shows "Go 4 Solar, Pay Easy" and "Starting from 20% deposit. You get your solar installed." with no interest claim. Page title and share cards: "Go4Solar — Go 4 Solar, Pay Easy", no interest claim, because they cannot show the total. Previous hero: "Solar on monthly payments. Zero interest.")
 
 Three supporting badges sit directly under the button:
 
@@ -150,7 +152,7 @@ Go4Solar sends a link (WhatsApp, email, social media). The flow asks for one thi
 3. **"Preparing your quotes…"** loading screen with a short animation.
 4. **Phone number** screen (swipe in): phone number for calls, with a WhatsApp number below and a "same as phone" tick.
 5. Short loading pause, then the **email** screen, then another short pause.
-6. **Name** screen: first name and surname, plus state and LGA of installation. The state is a dropdown of all 36 states + FCT ("Abuja (FCT)"): Abuja (FCT), Kaduna and Lagos first, then a divider, then the rest A–Z; LGA is free text. Non-launch states are priced with the "Other" installation tier so demand everywhere is measured. Plus a consent tick to be contacted ("I agree that Go4Solar may contact me by phone, WhatsApp and email about my solar plan, and store my details as described in the Privacy Policy."), stored with a timestamp.
+6. **Name** screen: first name and surname, plus state and LGA of installation. The state is a dropdown of all 36 states + FCT ("Abuja (FCT)") in one A–Z list; LGA is free text. Each state has its own installation price (a state without one uses the "Other" price). Plus a consent tick to be contacted ("I agree that Go4Solar may contact me by phone, WhatsApp and email about my solar plan, and store my details as described in the Privacy Policy."), stored with a timestamp.
 7. **"Who is this solar for?"** — My home / My business. A business adds one screen: business name, business type (shop, office, school, clinic/hospital, hotel, restaurant, workshop/factory, church/mosque, farm, other), CAC number (optional), contact person's role, number of staff, operating hours per day and days per week. Both pathways then get the **current energy spend** screen (see the section below) before the plans.
 8. **"Here are your plans, \[First name\]"**: the three plans (Essential, Comfort, 24-Hour Independence), each marked **Estimate** and priced at the 20% starting deposit. The user taps one.
 9. **Contribution** screen for the chosen plan: "How much can you pay upfront?" A slider runs from 20% to 95%. As it moves up, the total cost, the upfront amount and the monthly payment update live, with a line such as "You save ₦202,500 by paying 50%." The user also answers "When can you pay this?" (Now / Within 30 days / Later).
@@ -293,7 +295,7 @@ The engine uses standard off-grid sizing. Admin can change every constant.
 - DoD (usable depth of discharge) = 0.8 for lithium (LiFePO4), 0.5 for lead-acid. Default to lithium; lead-acid only as an option. Inverter efficiency = 0.9.
 - Results round **up** to the next size actually stocked by vendors (for example 3.5 kVA, 5 kVA, 10 kVA; 2.5 kWh battery modules).
 - Worked example (480 W running, 3.72 kWh/day): Essential 2.5 kWh · 2 × 550 W; Comfort 7.5 kWh · 4 × 550 W; 24-Hour Independence 10 kWh · 4 × 550 W. Battery, panel count and system price never decrease from Essential to Comfort to Independence.
-- Sizing does not depend on the state; only the installation and logistics price does (launch states have their own price, every other state uses the "Other" tier).
+- Sizing does not depend on the state; only the installation and logistics price does (each state has its own price; a state without one uses the "Other" price).
 
 ### Route B — Upload an installer's quote
 
@@ -321,7 +323,7 @@ Consumers pay no interest. They pay one fixed price for the system, split into a
 | --- | --- |
 | Cost price per component | Landed cost from OEM partners, or the price a registered vendor buys at for Go4Solar |
 | Base margin per category | Panels, batteries, inverters, accessories each with their own % |
-| Installation and logistics | Fixed amount per job size, per launch state |
+| Installation and logistics | Fixed amount per job size, per state (all 36 + FCT; "Other" as the fallback) |
 | Funders | Each funder's interest rate (per year), tenure limits, minimum and maximum amount, balance available |
 | Pricing rate per tenure | The rate used in every quote for each payment-plan length (3, 6, 9, 12, 18 and 24 months): target funder cost + Go4Solar spread + default buffer, per year. Each length is switched on or off; 18 and 24 start off with no rate, and 12 months always stays on. Customers never see a switched-off length. Changes are audited; quotes keep their snapshot. |
 | Minimum deposit by credit band | 20% for all at launch; lower (e.g. 10%) can be switched on per band later |
@@ -844,7 +846,7 @@ All 12 original questions are answered (see Decisions agreed on 8 October 2026).
 - [ ] **Collateral Registry:** apply for registered-user access at the National Collateral Registry.
 - [ ] **Paystack direct debit:** confirm which banks are supported; open a Mono account as backup.
 - [ ] **WhatsApp Business:** verify the business account and number for the advisor.
-- [ ] **Store location:** where OEM shipments are received and released for each launch state.
+- [ ] **Store location:** where OEM shipments are received and released for each region served.
 - [ ] **Forecast inputs:** real unit costs (KYC, payment fees), loss provision rate, monthly overhead budget and year-1 customer target, to replace the illustration.
 
 

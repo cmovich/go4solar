@@ -140,7 +140,7 @@ test.describe('solar plan sign-up (waiting list)', () => {
   // Eleven screens plus a staff login: give each test more than the default 30 s.
   test.describe.configure({ timeout: 120_000 })
 
-  test('the state dropdown lists all 37 states with the launch states first', async ({ page }) => {
+  test('the state dropdown lists all 37 states A–Z (nationwide)', async ({ page }) => {
     const phone = freshPhone()
     await page.goto('/waitlist')
     await addLedAndFridge(page)
@@ -156,11 +156,11 @@ test.describe('solar plan sign-up (waiting list)', () => {
 
     const options = page.getByLabel('State of installation').locator('option')
     await expect(options).toHaveCount(37)
-    await expect(options.nth(0)).toHaveText('Abuja (FCT)')
-    await expect(options.nth(1)).toHaveText('Kaduna')
-    await expect(options.nth(2)).toHaveText('Lagos')
-    await expect(options.nth(3)).toHaveText('Abia')
+    await expect(options.nth(0)).toHaveText('Abia')
+    await expect(options.nth(1)).toHaveText('Abuja (FCT)')
+    await expect(options.nth(2)).toHaveText('Adamawa')
     await expect(options.last()).toHaveText('Zamfara')
+    await expect(page.getByLabel('State of installation').locator('optgroup')).toHaveCount(0)
   })
 
   test('individual pathway: home → plans → contribution → thank you → home', async ({ page }) => {
@@ -264,6 +264,7 @@ test.describe('solar plan sign-up (waiting list)', () => {
     await page.getByLabel('Your name').fill('Tunde Installs')
     await page.getByLabel('Phone', { exact: true }).fill(freshPhone())
     await page.getByLabel('Abuja (FCT)').check()
+    await page.getByLabel('Kano').check() // any of the 37 states
     await page.getByLabel('Years in business').fill('5')
     await page.getByLabel('Installations completed').fill('40')
     await page.getByLabel(/I agree that Go4Solar may contact me/).check()
