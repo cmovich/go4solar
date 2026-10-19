@@ -10,6 +10,8 @@ type Call = { table: string; op: string; payload?: unknown; match?: unknown }
 const calls: Call[] = []
 let rows: Record<string, unknown>[] = []
 const uploads: { path: string; type: string }[] = []
+const removed: string[][] = []
+let removeFails = false
 
 function fakeClient() {
   return {
@@ -56,6 +58,12 @@ function fakeClient() {
           uploads.push({ path, type: o.contentType })
           return { error: null }
         },
+        remove: async (paths: string[]) => {
+          removed.push(paths)
+          return removeFails
+            ? { data: null, error: { message: 'storage down' } }
+            : { data: paths.map((name) => ({ name })), error: null }
+        },
       }),
     },
   }
@@ -75,6 +83,8 @@ const T2 = '22222222-2222-4222-8222-222222222222'
 beforeEach(() => {
   calls.length = 0
   uploads.length = 0
+  removed.length = 0
+  removeFails = false
   rows = []
   getSessionInfo.mockResolvedValue(content)
 })
@@ -190,5 +200,80 @@ describe('uploadSiteImage', () => {
       error: 'That picture is larger than 10 MB.',
     })
     expect(uploads).toEqual([])
+  })
+})
+
+// Old pictures never linger: replaced or deleted ones are removed from site-media (audited).
+describe('old pictures are removed automatically', () => {
+  const base = {
+    clientName: 'Amaka',
+    clientCity: 'Ikeja',
+    clientQuote: 'Quiet nights.',
+    systemSize: '3.5 kVA',
+    installerName: 'Musa',
+    consentClient: true,
+    consentInstaller: true,
+  }
+  const audits = () => calls.filter((c) => c.table === 'audit_log' && c.op === 'insert')
+
+  it('replacing the job photo deletes the old file; the unchanged face photo stays', async () => {
+    rows = [
+      { id: T1, published: false, installer_photo: 'installer/a.webp', job_photo: 'job/old.webp' },
+    ]
+    const r = await actions.saveTestimonial({
+      ...base,
+      id: T1,
+      installerPhoto: 'installer/a.webp',
+      jobPhoto: 'job/new.webp',
+    })
+    expect(r).toEqual({ ok: true })
+    expect(removed).toEqual([['job/old.webp']])
+    expect(audits()[0]?.payload).toMatchObject({
+      actor_id: 'c1',
+      action: 'site_media.delete',
+      entity: 'testimonials',
+      entity_id: T1,
+      before: { files: ['job/old.webp'] },
+    })
+  })
+
+  it('nothing changed: nothing deleted', async () => {
+    rows = [
+      { id: T1, published: false, installer_photo: 'installer/a.webp', job_photo: 'job/b.webp' },
+    ]
+    await actions.saveTestimonial({
+      ...base,
+      id: T1,
+      installerPhoto: 'installer/a.webp',
+      jobPhoto: 'job/b.webp',
+    })
+    expect(removed).toEqual([])
+    expect(audits()).toEqual([])
+  })
+
+  it('deleting a testimonial deletes both its photos', async () => {
+    rows = [{ id: T1, installer_photo: 'installer/a.webp', job_photo: 'job/b.webp' }]
+    expect(await actions.deleteTestimonial({ id: T1 })).toEqual({ ok: true })
+    expect(removed).toEqual([['installer/a.webp', 'job/b.webp']])
+    expect(audits()).toHaveLength(1)
+  })
+
+  it('a new partner logo deletes the old one; deleting a partner deletes its logo', async () => {
+    rows = [{ id: T2, logo: 'logo/old.png' }]
+    await actions.savePartner({ id: T2, name: 'SPEWA', logo: 'logo/new.png', websiteUrl: '' })
+    expect(removed).toEqual([['logo/old.png']])
+    removed.length = 0
+    rows = [{ id: T2, logo: 'logo/new.png' }]
+    expect(await actions.deletePartner({ id: T2 })).toEqual({ ok: true })
+    expect(removed).toEqual([['logo/new.png']])
+  })
+
+  it('if storage fails, the save still stands (the file is only logged, never blocks)', async () => {
+    removeFails = true
+    rows = [{ id: T2, logo: 'logo/old.png' }]
+    expect(
+      await actions.savePartner({ id: T2, name: 'SPEWA', logo: 'logo/new.png', websiteUrl: '' }),
+    ).toEqual({ ok: true })
+    expect(audits()).toEqual([])
   })
 })

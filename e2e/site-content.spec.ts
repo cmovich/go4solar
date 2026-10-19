@@ -9,6 +9,23 @@ config({ path: '.env.local', quiet: true })
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY
 
+const serviceClient = () => createClient(url!, service!, { auth: { persistSession: false } })
+
+/** The partner's stored logo path, and whether that file is still in site-media. */
+async function logoOf(name: string): Promise<string | null> {
+  const { data } = await serviceClient()
+    .from('partners')
+    .select('logo')
+    .eq('name', name)
+    .maybeSingle()
+  return (data?.logo as string | null) ?? null
+}
+async function fileExists(path: string): Promise<boolean> {
+  const [folder, file] = path.split('/')
+  const { data } = await serviceClient().storage.from('site-media').list(folder, { search: file })
+  return (data ?? []).some((f) => f.name === file)
+}
+
 /** Migration 0020 applied? (testimonials, partners and the new audit columns.) */
 async function migrated(): Promise<boolean> {
   if (!url || !service) return false
@@ -79,6 +96,24 @@ test.describe('home-page content and the permanent audit log', () => {
       ).toHaveAttribute('target', '_blank')
     })
 
+    // A new logo replaces the old one: the old file is removed from storage automatically.
+    const first = await logoOf(name)
+    expect(first && (await fileExists(first))).toBe(true)
+    await page.goto('/admin/partners')
+    await row.getByRole('button', { name: 'Edit' }).click()
+    await upload(page, /^Logo/, 'logo2.png', solidPng(600, 300, [27, 78, 155]))
+    await expect(page.getByTestId('partner-editor').locator('img')).toHaveAttribute(
+      'src',
+      /^blob:/,
+      { timeout: 20_000 },
+    )
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByTestId('partner-editor')).toHaveCount(0, { timeout: 20_000 })
+    await expect.poll(() => logoOf(name), { timeout: 20_000 }).not.toBe(first)
+    const second = (await logoOf(name))!
+    expect(await fileExists(first!)).toBe(false)
+    expect(await fileExists(second)).toBe(true)
+
     await page.goto('/admin/partners')
     await row.getByRole('button', { name: 'Hide' }).click()
     await expect(row).toContainText('Hidden', { timeout: 20_000 })
@@ -90,6 +125,8 @@ test.describe('home-page content and the permanent audit log', () => {
     page.once('dialog', (d) => d.accept())
     await row.getByRole('button', { name: 'Delete' }).click()
     await expect(row).toHaveCount(0, { timeout: 20_000 })
+    // Deleting the partner removed its logo file too.
+    await expect.poll(() => fileExists(second), { timeout: 20_000 }).toBe(false)
 
     // The audit log has the add, the change and the delete, by the e2e staff member.
     await page.goto('/admin/audit?table=partners')
@@ -97,6 +134,7 @@ test.describe('home-page content and the permanent audit log', () => {
     await expect(table).toContainText('Added to partners')
     await expect(table).toContainText('Changed partners')
     await expect(table).toContainText('Deleted from partners')
+    await expect(table).toContainText('site_media.delete')
     await expect(table).toContainText(process.env.E2E_STAFF_EMAIL!)
     await expect(table.getByRole('button')).toHaveCount(0) // nothing can be edited or deleted
     await snap(page, 'admin-audit')

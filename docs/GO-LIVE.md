@@ -166,3 +166,6 @@ STILL TO DO before switching Production to live mode:
     come from no-reply@go4solar.app and aren't limited to a few per hour. Use Resend
     on a subdomain (e.g. send.go4solar.app) — its DNS records must not touch the root
     domain's mail settings.
+22. Long live-mode e2e journey is flaky (slow screen updates over the remote
+    database; data saves correctly). Split it into shorter tests and re-check
+    after item 12 (parallel queries).

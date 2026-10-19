@@ -23,10 +23,47 @@ const DENIED = {
   error: 'Only a super admin or content staff can change the home page.',
 } as const
 
-async function contentStaff(): Promise<boolean> {
+/** The signed-in content staff member (super admin or Content, with two-factor), or null. */
+async function contentStaff(): Promise<string | null> {
   const s = await getSessionInfo()
-  return Boolean(s.user && (s.role === 'super_admin' || s.role === 'content') && s.aal === 'aal2')
+  return s.user && (s.role === 'super_admin' || s.role === 'content') && s.aal === 'aal2'
+    ? s.user.id
+    : null
 }
+
+type Db = Awaited<ReturnType<typeof createClient>>
+
+/**
+ * Removes pictures that are no longer used (replaced, or their row deleted) and records it in the
+ * audit log. Never blocks the save: a storage failure is only logged.
+ */
+async function removeOldMedia(
+  supabase: Db,
+  actorId: string,
+  entity: 'testimonials' | 'partners',
+  id: string,
+  paths: (string | null | undefined)[],
+) {
+  const files = [...new Set(paths.filter((p): p is string => Boolean(p)))]
+  if (files.length === 0) return
+  const { error } = await supabase.storage.from('site-media').remove(files)
+  if (error) {
+    console.error(`[site-media] could not remove old files: ${error.message}`)
+    return
+  }
+  await supabase.from('audit_log').insert({
+    actor_id: actorId,
+    action: 'site_media.delete',
+    entity,
+    entity_id: id,
+    before: { files },
+    after: null,
+  })
+}
+
+/** Old paths the new values no longer use. */
+const replaced = (before: (string | null)[], after: (string | null)[]) =>
+  before.filter((p) => p !== null && !after.includes(p))
 
 function changed(admin: string) {
   revalidatePath('/')
@@ -50,7 +87,8 @@ const EXT: Record<string, string> = {
 
 /** Stores a picture the browser has already cropped and compressed; checks the real bytes again. */
 export async function uploadSiteImage(form: FormData): Promise<Result<{ path: string }>> {
-  if (!(await contentStaff())) return DENIED
+  const actor = await contentStaff()
+  if (!actor) return DENIED
   const kind = form.get('kind')
   const file = form.get('file')
   if (typeof kind !== 'string' || !(kind in MEDIA_KINDS) || !(file instanceof File)) {
@@ -82,7 +120,8 @@ export async function uploadSiteImage(form: FormData): Promise<Result<{ path: st
 export async function saveTestimonial(
   input: unknown,
 ): Promise<Result<{ id?: string; unpublished?: boolean }>> {
-  if (!(await contentStaff())) return DENIED
+  const actor = await contentStaff()
+  if (!actor) return DENIED
   const parsed = testimonialSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: firstError(parsed.error) }
   const d = parsed.data
@@ -101,7 +140,7 @@ export async function saveTestimonial(
   if (d.id) {
     const { data: current } = await supabase
       .from('testimonials')
-      .select('published')
+      .select('published, installer_photo, job_photo')
       .eq('id', d.id)
       .maybeSingle()
     // Without both consents a testimonial can never stay on the home page.
@@ -111,6 +150,16 @@ export async function saveTestimonial(
       .update({ ...row, ...(unpublish ? { published: false } : {}) })
       .eq('id', d.id)
     if (error) return { ok: false, error: 'Could not save the testimonial. Please try again.' }
+    await removeOldMedia(
+      supabase,
+      actor,
+      'testimonials',
+      d.id,
+      replaced(
+        [current?.installer_photo ?? null, current?.job_photo ?? null],
+        [row.installer_photo, row.job_photo],
+      ),
+    )
     changed('/admin/testimonials')
     return unpublish ? { ok: true, unpublished: true } : { ok: true }
   }
@@ -123,7 +172,8 @@ export async function saveTestimonial(
 }
 
 export async function setTestimonialPublished(input: unknown): Promise<Result> {
-  if (!(await contentStaff())) return DENIED
+  const actor = await contentStaff()
+  if (!actor) return DENIED
   const parsed = publishSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'Check the request' }
   const supabase = await createClient()
@@ -171,36 +221,56 @@ async function move(table: 'testimonials' | 'partners', input: unknown): Promise
 }
 
 export async function moveTestimonial(input: unknown): Promise<Result> {
-  if (!(await contentStaff())) return DENIED
+  const actor = await contentStaff()
+  if (!actor) return DENIED
   return move('testimonials', input)
 }
 
 export async function deleteTestimonial(input: unknown): Promise<Result> {
-  if (!(await contentStaff())) return DENIED
+  const actor = await contentStaff()
+  if (!actor) return DENIED
   const parsed = idSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'Check the request' }
-  const { error } = await (
-    await createClient()
-  )
+  const supabase = await createClient()
+  const { data: current } = await supabase
     .from('testimonials')
-    .delete()
+    .select('installer_photo, job_photo')
     .eq('id', parsed.data.id)
+    .maybeSingle()
+  const { error } = await supabase.from('testimonials').delete().eq('id', parsed.data.id)
   if (error) return { ok: false, error: 'Could not delete it. Please try again.' }
+  await removeOldMedia(supabase, actor, 'testimonials', parsed.data.id, [
+    current?.installer_photo,
+    current?.job_photo,
+  ])
   changed('/admin/testimonials')
   return { ok: true }
 }
 
 // ------------------------------------------------------------------ partners
 export async function savePartner(input: unknown): Promise<Result> {
-  if (!(await contentStaff())) return DENIED
+  const actor = await contentStaff()
+  if (!actor) return DENIED
   const parsed = partnerSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: firstError(parsed.error) }
   const d = parsed.data
   const row = { name: d.name, logo: d.logo ?? null, website_url: d.websiteUrl || null }
   const supabase = await createClient()
   if (d.id) {
+    const { data: current } = await supabase
+      .from('partners')
+      .select('logo')
+      .eq('id', d.id)
+      .maybeSingle()
     const { error } = await supabase.from('partners').update(row).eq('id', d.id)
     if (error) return { ok: false, error: 'Could not save the partner. Please try again.' }
+    await removeOldMedia(
+      supabase,
+      actor,
+      'partners',
+      d.id,
+      replaced([current?.logo ?? null], [row.logo]),
+    )
   } else {
     const { data: all } = await supabase.from('partners').select('sort_order')
     const next = Math.max(0, ...(all ?? []).map((r) => Number(r.sort_order) || 0)) + 1
@@ -212,7 +282,8 @@ export async function savePartner(input: unknown): Promise<Result> {
 }
 
 export async function setPartnerActive(input: unknown): Promise<Result> {
-  if (!(await contentStaff())) return DENIED
+  const actor = await contentStaff()
+  if (!actor) return DENIED
   const parsed = activeSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'Check the request' }
   const { error } = await (
@@ -227,16 +298,25 @@ export async function setPartnerActive(input: unknown): Promise<Result> {
 }
 
 export async function movePartner(input: unknown): Promise<Result> {
-  if (!(await contentStaff())) return DENIED
+  const actor = await contentStaff()
+  if (!actor) return DENIED
   return move('partners', input)
 }
 
 export async function deletePartner(input: unknown): Promise<Result> {
-  if (!(await contentStaff())) return DENIED
+  const actor = await contentStaff()
+  if (!actor) return DENIED
   const parsed = idSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'Check the request' }
-  const { error } = await (await createClient()).from('partners').delete().eq('id', parsed.data.id)
+  const supabase = await createClient()
+  const { data: current } = await supabase
+    .from('partners')
+    .select('logo')
+    .eq('id', parsed.data.id)
+    .maybeSingle()
+  const { error } = await supabase.from('partners').delete().eq('id', parsed.data.id)
   if (error) return { ok: false, error: 'Could not delete it. Please try again.' }
+  await removeOldMedia(supabase, actor, 'partners', parsed.data.id, [current?.logo])
   changed('/admin/partners')
   return { ok: true }
 }

@@ -135,7 +135,7 @@ describe.skipIf(!hasDb || !migrated)('permanent audit log (migration 0020)', () 
     expect(still?.action).toBe(row!.action)
   }, 30_000)
 
-  it('site-media: only super admin / Content staff upload; nobody else uploads or deletes; everyone can view', async () => {
+  it('site-media: only super admin / Content staff upload or delete; everyone can view', async () => {
     const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
     const path = `test/${randomUUID()}.png`
     const anon = createClient<Database>(url!, anonKey!, { auth: { persistSession: false } })
@@ -154,9 +154,16 @@ describe.skipIf(!hasDb || !migrated)('permanent audit log (migration 0020)', () 
     await anon.storage.from('site-media').remove([path])
     await customer.storage.from('site-media').remove([path])
     expect((await fetch(`${url}/storage/v1/object/public/site-media/${path}`)).status).toBe(200)
-    // Content staff cannot delete either yet (deleting needs a read policy too; see the 0021
-    // proposal). The site never deletes pictures; the server removes this test file.
-    expect((await admin.storage.from('site-media').remove([path])).error).toBeNull()
+    // … content staff can (migration 0021), and the file is really gone.
+    const { data: removed, error: removeError } = await staff.storage
+      .from('site-media')
+      .remove([path])
+    expect(removeError).toBeNull()
+    expect(removed?.map((o) => o.name)).toEqual([path])
+    const { data: left } = await admin.storage
+      .from('site-media')
+      .list('test', { search: path.slice(5) })
+    expect(left ?? []).toEqual([])
   }, 60_000)
 
   it('testimonials: cannot be published without both consents; test rows never shown to visitors', async () => {
