@@ -91,9 +91,9 @@ export function priceListFromRows(input: {
     ]),
   ) as PriceList['installByState']
 
-  const used = [panel, battery, ...inverters, ...accessories]
   return {
-    sample: used.some((c) => c.sample) || input.installs.some((r) => r.sample),
+    // Any ACTIVE SAMPLE component hides prices, as the admin banner counts it (sampleStatus.ts).
+    sample: active.some((c) => c.sample) || input.installs.some((r) => r.sample),
     currency: 'NGN',
     panel: {
       sku: panel.sku,
@@ -144,7 +144,10 @@ export function pricingFromRows(input: {
   const twelve = pricingRateByTenure[ESTIMATE_TENURE]
   if (twelve === undefined) throw new Error('No pricing rate for 12 months')
   return {
-    sample: input.margins.some((m) => m.sample) || input.rates.some((r) => r.sample),
+    // Switched-off tenures are never offered, so they never hide prices (see sampleStatus.ts).
+    sample:
+      input.margins.some((m) => m.sample) ||
+      input.rates.some((r) => r.enabled !== false && r.sample),
     marginByCategory: {
       panels: margin('panels'),
       battery: margin('battery'),
