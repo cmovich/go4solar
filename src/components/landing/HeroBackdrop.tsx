@@ -3,6 +3,8 @@
 import { getImageProps } from 'next/image'
 import { useEffect, useState } from 'react'
 
+import { HERO_PHONE_OVERLAY } from '@/lib/media/contrast'
+
 export type HeroSlide = { desktop: string; mobile: string }
 
 const ROTATE_MS = 6000
@@ -74,8 +76,14 @@ export function HeroBackdrop({ slides }: { slides: HeroSlide[] }) {
           <Slide slide={slide} first={i === 0} />
         </div>
       ))}
-      {/* Dark-green overlay: strongest behind the text (left), lighter on the right. */}
-      <div className="from-brand-dark/95 via-brand-dark/85 to-brand-dark/70 absolute inset-0 bg-gradient-to-b sm:bg-gradient-to-r" />
+      {/* Phones: a lighter, even overlay so the photo shows (white text stays ≥ 4.5:1, tested). */}
+      <div
+        data-testid="hero-overlay-phone"
+        className="absolute inset-0 sm:hidden"
+        style={{ backgroundColor: `rgb(14 59 34 / ${HERO_PHONE_OVERLAY})` }}
+      />
+      {/* Larger screens: strongest behind the text (left), lighter on the right. */}
+      <div className="from-brand-dark/95 via-brand-dark/85 to-brand-dark/70 absolute inset-0 hidden bg-gradient-to-r sm:block" />
     </div>
   )
 }

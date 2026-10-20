@@ -20,6 +20,9 @@ export type HeroExample = {
   maxMonths: number
 }
 
+/** Hero explainer (Semako, 2026-10-20; no interest claim, so the same in every price mode). */
+export const EXPLAINER = 'Starting from 20% deposit. Get your solar installed and pay monthly.'
+
 /** Under the hero explainer (Semako, 2026-10-20). */
 export const TOTAL_ON_EVERY_PLAN = 'Total amount payable is shown on every plan before you sign.'
 
@@ -39,7 +42,7 @@ const badgesFor = (sample: boolean, maxMonths: number) => [
 export function Hero({ example }: { example: HeroExample }) {
   const badges = badgesFor(example.sample, example.maxMonths)
   return (
-    <Band angled accent>
+    <Band angled accent accentDesktopOnly>
       <HeroBackdrop slides={HERO_SLIDES} />
       <Container className="relative z-10">
         <header className="flex items-center justify-between py-5">
@@ -61,7 +64,7 @@ export function Hero({ example }: { example: HeroExample }) {
         </header>
 
         <div className="grid gap-12 pt-10 pb-24 sm:pt-16 sm:pb-32 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-center">
-          <div className="max-w-3xl">
+          <div className="max-w-3xl max-sm:[text-shadow:0_1px_2px_rgb(0_0_0/0.55),0_0_14px_rgb(0_0_0/0.35)]">
             {/* Three short lines on a phone, two on wider screens. */}
             <h1 className="text-[2.6rem] leading-[1.05] font-bold tracking-tight sm:text-6xl">
               <span className="block sm:inline">Go 4 Solar,</span>{' '}
@@ -73,21 +76,22 @@ export function Hero({ example }: { example: HeroExample }) {
                 </>
               )}
             </h1>
-            <p className="mt-6 max-w-2xl text-lg text-white/85 sm:text-xl">
-              {example.sample
-                ? 'Starting from 20% deposit. You get your solar installed.'
-                : 'Starting from 20% deposit. You get your solar installed, no interest attached.'}
+            <p className="mt-6 max-w-2xl text-lg text-white sm:text-xl sm:text-white/85">
+              {EXPLAINER}
             </p>
             {/* Decision 2026-10-20 (CLAUDE.md §9): the hero's no-interest claim carries this line
                 instead of an example total; every plan, quote and agreement shows the total. */}
-            <p className="mt-3 text-sm font-semibold text-white/85" data-testid="hero-total">
+            <p
+              className="mt-3 text-sm font-semibold text-white sm:text-white/85"
+              data-testid="hero-total"
+            >
               {example.sample ? PRICE_LATER_TEXT : TOTAL_ON_EVERY_PLAN}
             </p>
 
             <div className="mt-8">
               <Link
                 href="/calculate"
-                className="bg-brand-orange hover:bg-brand-orange/90 focus-visible:ring-brand-gold focus-visible:ring-offset-brand-dark text-brand-dark inline-flex h-14 w-full items-center justify-center rounded-lg px-8 text-lg font-semibold shadow-lg shadow-black/20 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto"
+                className="bg-brand-orange hover:bg-brand-orange/90 focus-visible:ring-brand-gold focus-visible:ring-offset-brand-dark text-brand-dark inline-flex h-14 w-full items-center justify-center rounded-lg px-8 text-lg font-semibold shadow-lg shadow-black/20 transition-colors [text-shadow:none] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto"
               >
                 Calculate my load
               </Link>
@@ -97,15 +101,15 @@ export function Hero({ example }: { example: HeroExample }) {
               {badges.map((b) => (
                 <li
                   key={b.title}
-                  className="rounded-lg border border-white/15 bg-white/5 px-4 py-3 backdrop-blur-sm"
+                  className="bg-brand-dark/40 rounded-lg border border-white/15 px-4 py-3 backdrop-blur-sm sm:bg-white/5"
                 >
                   <p className="text-brand-gold text-base font-semibold">{b.title}</p>
-                  <p className="mt-1 text-sm text-white/80">{b.line}</p>
+                  <p className="mt-1 text-sm text-white sm:text-white/80">{b.line}</p>
                 </li>
               ))}
             </ul>
 
-            <p className="mt-8 text-sm font-medium text-white/70">
+            <p className="mt-8 text-sm font-medium text-white sm:text-white/70">
               20+ homes and businesses financed · ~1 MW installed
             </p>
           </div>

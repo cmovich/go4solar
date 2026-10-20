@@ -16,21 +16,22 @@ test.describe('landing page', () => {
     // While any price is a SAMPLE price the hero makes no interest claim (no total is shown).
     const total = page.getByTestId('hero-total')
     await expect(total).toBeVisible() // directly under the explainer, on phones and desktop
+    await expect(
+      page.getByText('Starting from 20% deposit. Get your solar installed and pay monthly.', {
+        exact: true,
+      }),
+    ).toBeVisible()
     if (await samplePrices(page)) {
       await expect(h1).toHaveText('Go 4 Solar, Pay Easy')
-      await expect(
-        page.getByText('Starting from 20% deposit. You get your solar installed.', { exact: true }),
-      ).toBeVisible()
       await expect(page.getByText(/no interest/i)).toHaveCount(0)
     } else {
       await expect(h1).toHaveText('Go 4 Solar, Pay Easy, No Interest')
-      await expect(
-        page.getByText(
-          'Starting from 20% deposit. You get your solar installed, no interest attached.',
-        ),
-      ).toBeVisible()
       await expect(total).toHaveText('Total amount payable is shown on every plan before you sign.')
     }
+    // The orange corner triangle is for larger screens only.
+    const triangle = page.locator('section').first().getByTestId('band-accent')
+    if (test.info().project.name === 'mobile') await expect(triangle).toBeHidden()
+    else await expect(triangle).toBeVisible()
     // The headline fits a 375 px phone without sideways scrolling.
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth,
