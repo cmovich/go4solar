@@ -42,6 +42,8 @@ const costed = {
 
 export const priceListSchema = z.object({
   sample: z.boolean().default(false),
+  /** Components left out because their specs are incomplete (shown to admin as a note). */
+  skipped: z.array(z.object({ sku: z.string(), reason: z.string() })).optional(),
   currency: z.literal('NGN').default('NGN'),
   panel: z.object({ ...costed, watts: z.number().positive() }),
   batteryModule: z.object({ ...costed, kwh: z.number().positive() }),

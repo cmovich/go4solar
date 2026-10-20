@@ -20,11 +20,25 @@ import {
   componentIssueMessage,
   duplicateSkuMessage,
 } from '@/lib/pricing/componentErrors'
+import { SPEC_FIELDS, specProblems } from '@/lib/components/specs'
 import { DEFAULT_MIN_DEPOSIT_SHARE } from '@/lib/pricing/price'
 import { tenureListProblem, tenureRateProblem } from '@/lib/pricing/tenures'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
 import { createClient } from '@/lib/supabase/server'
+
+/** Only this category's known spec fields, without empty values. */
+function cleanSpecs(
+  category: keyof typeof SPEC_FIELDS,
+  specs: Record<string, number | string | null>,
+): Record<string, number | string> {
+  const keys = new Set(SPEC_FIELDS[category].map((f) => f.key))
+  return Object.fromEntries(
+    Object.entries(specs).filter(
+      (e): e is [string, number | string] => keys.has(e[0]) && e[1] !== null && e[1] !== '',
+    ),
+  )
+}
 
 type Result = { ok: true } | { ok: false; error: string; field?: string }
 
@@ -105,12 +119,24 @@ export async function saveComponents(input: unknown): Promise<Result> {
   }
   const duplicate = duplicateSkuMessage(parsed.data)
   if (duplicate) return { ok: false, error: duplicate, field: 'sku' }
+  // Specs must make sense (missing ones are allowed: the row shows "Specs missing").
+  const cleaned = parsed.data.map((c) => cleanSpecs(c.category, c.specs))
+  for (const [i, c] of parsed.data.entries()) {
+    const problem = specProblems({ ...c, specs: cleaned[i] })[0]
+    if (problem) {
+      return {
+        ok: false,
+        error: `Row ${i + 1} (${c.sku}): ${problem}. Nothing was saved.`,
+        field: `${i}.specs`,
+      }
+    }
+  }
 
   const supabase = await createClient()
   const { data: current } = await supabase
     .from('components')
     .select('id, sku, unit_cost, active, stock_sizes')
-  const rows = parsed.data.map((c) => ({
+  const rows = parsed.data.map((c, i) => ({
     ...(c.id ? { id: c.id } : {}),
     sku: c.sku.toUpperCase(),
     name: c.name,
@@ -120,6 +146,8 @@ export async function saveComponents(input: unknown): Promise<Result> {
     source: c.source,
     active: c.active,
     sample: c.sample,
+    nominal_voltage: c.nominalVoltage,
+    specs: cleaned[i]!,
   }))
   const { error } = await supabase
     .from('components')

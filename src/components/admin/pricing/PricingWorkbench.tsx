@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Fragment, useEffect, useMemo, useState, useTransition } from 'react'
 
 import { NairaField, OptionalPercentField, PercentField } from '@/components/admin/NairaField'
+import { SpecsBadge, SpecsEditor, VoltageField } from '@/components/admin/pricing/ComponentSpecs'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -12,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { formatNaira, formatPercent } from '@/lib/money'
+import { missingSpecs, usableComponents } from '@/lib/components/specs'
 import { stateLabel } from '@/lib/nigeria/states'
 import {
   COMPONENT_CATEGORIES,
@@ -473,11 +475,26 @@ function SampleBadge({ show }: { show: boolean }) {
 }
 
 function ComponentsForm({ draft, onChange }: FormProps) {
-  const update = (i: number, patch: Partial<ComponentDraft>) =>
+  // A price edit confirms the row (clears SAMPLE); voltage and spec edits do not.
+  const update = (i: number, patch: Partial<ComponentDraft>, clearsSample = true) =>
     onChange({
       ...draft,
-      components: draft.components.map((c, j) => (j === i ? { ...c, ...patch, sample: false } : c)),
+      components: draft.components.map((c, j) =>
+        j === i ? { ...c, ...patch, ...(clearsSample ? { sample: false } : {}) } : c,
+      ),
     })
+  const [open, setOpen] = useState<Set<number>>(new Set())
+  const [onlyMissing, setOnlyMissing] = useState(false)
+  const toggle = (i: number) =>
+    setOpen((s) => {
+      const next = new Set(s)
+      if (next.has(i)) next.delete(i)
+      else next.add(i)
+      return next
+    })
+  const usage = usableComponents(draft.components.map((c, i) => ({ ...c, id: c.id ?? `new-${i}` })))
+  const skippedBySku = new Map(usage.skipped.map((s) => [s.sku, s.reason]))
+  const missingCount = draft.components.filter((c) => c.active && missingSpecs(c).length > 0).length
   const add = () =>
     onChange({
       ...draft,
@@ -492,6 +509,8 @@ function ComponentsForm({ draft, onChange }: FormProps) {
           source: 'oem',
           active: true,
           sample: false,
+          nominalVoltage: null,
+          specs: {},
         },
       ],
     })
@@ -502,13 +521,45 @@ function ComponentsForm({ draft, onChange }: FormProps) {
         Components <SampleBadge show={draft.sample.components} />
       </h2>
       <p className="text-muted-foreground text-sm">
-        Landed cost per unit. The sizing engine picks by size.
+        Landed cost per unit. The sizing engine picks by size. Open &ldquo;Specs&rdquo; on a row to
+        enter its datasheet values; items with missing specs are not used by quotes once another
+        item in the same category has complete specs.
       </p>
+      <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
+        <label className="flex items-center gap-2">
+          <Checkbox
+            checked={onlyMissing}
+            onCheckedChange={(v) => setOnlyMissing(v === true)}
+            aria-label="Show only rows missing specs"
+          />
+          Show only rows missing specs ({missingCount})
+        </label>
+        {usage.categoriesWithoutSpecs.length > 0 && (
+          <p className="text-xs text-amber-900" data-testid="specs-category-note">
+            No{' '}
+            {usage.categoriesWithoutSpecs
+              .map((c) => COMPONENT_CATEGORY_LABELS[c].toLowerCase())
+              .join(', ')}{' '}
+            item has complete specs yet, so quotes still use them all until one does.
+          </p>
+        )}
+      </div>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-brand-green text-left text-white">
             <tr>
-              {['SKU', 'Name', 'Category', 'Size', 'Unit cost', 'Source', 'Active', ''].map((h) => (
+              {[
+                'SKU',
+                'Name',
+                'Category',
+                'Size',
+                'Volts',
+                'Unit cost',
+                'Source',
+                'Active',
+                'Specs',
+                '',
+              ].map((h) => (
                 <th key={h} className="px-2 py-2 font-semibold whitespace-nowrap">
                   {h}
                 </th>
@@ -516,88 +567,130 @@ function ComponentsForm({ draft, onChange }: FormProps) {
             </tr>
           </thead>
           <tbody>
-            {draft.components.map((c, i) => (
-              <tr key={c.id ?? `new-${i}`} className={i % 2 ? 'bg-brand-mist/60' : ''}>
-                <td className="px-2 py-1">
-                  <Input
-                    value={c.sku}
-                    onChange={(e) => update(i, { sku: e.target.value })}
-                    className="h-9 w-28 font-mono text-xs"
-                    aria-label="SKU"
-                  />
-                </td>
-                <td className="px-2 py-1">
-                  <Input
-                    value={c.name}
-                    onChange={(e) => update(i, { name: e.target.value })}
-                    className="h-9 min-w-48"
-                    aria-label="Name"
-                  />
-                </td>
-                <td className="px-2 py-1">
-                  <select
-                    value={c.category}
-                    onChange={(e) =>
-                      update(i, { category: e.target.value as ComponentDraft['category'] })
-                    }
-                    className="border-input h-9 rounded-md border bg-white px-2 text-sm"
-                    aria-label="Category"
-                  >
-                    {COMPONENT_CATEGORIES.map((k) => (
-                      <option key={k} value={k}>
-                        {COMPONENT_CATEGORY_LABELS[k]}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-2 py-1">
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      step="any"
-                      value={c.size}
-                      onChange={(e) => update(i, { size: parseFloat(e.target.value) || 0 })}
-                      className="h-9 w-20 text-sm"
-                      aria-label="Size"
-                    />
-                    <span className="text-muted-foreground text-xs">{sizeLabel[c.category]}</span>
-                  </div>
-                </td>
-                <td className="px-2 py-1">
-                  <NairaField
-                    value={c.unitCost}
-                    onChange={(v) => update(i, { unitCost: v })}
-                    className="w-32"
-                    aria-label="Unit cost"
-                  />
-                </td>
-                <td className="px-2 py-1">
-                  <select
-                    value={c.source}
-                    onChange={(e) =>
-                      update(i, { source: e.target.value as ComponentDraft['source'] })
-                    }
-                    className="border-input h-9 rounded-md border bg-white px-2 text-sm"
-                    aria-label="Source"
-                  >
-                    <option value="oem">OEM</option>
-                    <option value="vendor">Vendor</option>
-                  </select>
-                </td>
-                <td className="px-2 py-1 text-center">
-                  <Checkbox
-                    checked={c.active}
-                    onCheckedChange={(v) => update(i, { active: v === true })}
-                    aria-label="Active"
-                  />
-                </td>
-                <td className="px-2 py-1">
-                  <SampleBadge show={c.sample} />
-                </td>
-              </tr>
-            ))}
+            {draft.components.map((c, i) =>
+              onlyMissing && missingSpecs(c).length === 0 ? null : (
+                <Fragment key={c.id ?? `new-${i}`}>
+                  <tr className={i % 2 ? 'bg-brand-mist/60' : ''} data-testid="component-row">
+                    <td className="px-2 py-1">
+                      <Input
+                        value={c.sku}
+                        onChange={(e) => update(i, { sku: e.target.value })}
+                        className="h-9 w-28 font-mono text-xs"
+                        aria-label="SKU"
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Input
+                        value={c.name}
+                        onChange={(e) => update(i, { name: e.target.value })}
+                        className="h-9 min-w-48"
+                        aria-label="Name"
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <select
+                        value={c.category}
+                        onChange={(e) =>
+                          update(i, { category: e.target.value as ComponentDraft['category'] })
+                        }
+                        className="border-input h-9 rounded-md border bg-white px-2 text-sm"
+                        aria-label="Category"
+                      >
+                        {COMPONENT_CATEGORIES.map((k) => (
+                          <option key={k} value={k}>
+                            {COMPONENT_CATEGORY_LABELS[k]}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-2 py-1">
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          min={0}
+                          step="any"
+                          value={c.size}
+                          onChange={(e) => update(i, { size: parseFloat(e.target.value) || 0 })}
+                          className="h-9 w-20 text-sm"
+                          aria-label="Size"
+                        />
+                        <span className="text-muted-foreground text-xs">
+                          {sizeLabel[c.category]}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-2 py-1">
+                      <VoltageField
+                        value={c.nominalVoltage}
+                        onChange={(v) => update(i, { nominalVoltage: v }, false)}
+                        label={`Nominal voltage ${c.sku}`}
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <NairaField
+                        value={c.unitCost}
+                        onChange={(v) => update(i, { unitCost: v })}
+                        className="w-32"
+                        aria-label="Unit cost"
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <select
+                        value={c.source}
+                        onChange={(e) =>
+                          update(i, { source: e.target.value as ComponentDraft['source'] })
+                        }
+                        className="border-input h-9 rounded-md border bg-white px-2 text-sm"
+                        aria-label="Source"
+                      >
+                        <option value="oem">OEM</option>
+                        <option value="vendor">Vendor</option>
+                      </select>
+                    </td>
+                    <td className="px-2 py-1 text-center">
+                      <Checkbox
+                        checked={c.active}
+                        onCheckedChange={(v) => update(i, { active: v === true })}
+                        aria-label="Active"
+                      />
+                    </td>
+                    <td className="px-2 py-1 whitespace-nowrap">
+                      <SpecsBadge
+                        category={c.category}
+                        nominalVoltage={c.nominalVoltage}
+                        specs={c.specs}
+                      />{' '}
+                      <button
+                        type="button"
+                        onClick={() => toggle(i)}
+                        aria-expanded={open.has(i)}
+                        className="text-brand-blue text-xs font-semibold underline"
+                      >
+                        {open.has(i) ? 'Hide specs' : 'Specs'}
+                      </button>
+                    </td>
+                    <td className="px-2 py-1">
+                      <SampleBadge show={c.sample} />
+                    </td>
+                  </tr>
+                  {open.has(i) && (
+                    <tr className={i % 2 ? 'bg-brand-mist/60' : ''}>
+                      <td colSpan={10} className="px-2 pb-3">
+                        <SpecsEditor
+                          sku={c.sku}
+                          category={c.category}
+                          nominalVoltage={c.nominalVoltage}
+                          specs={c.specs}
+                          skippedReason={skippedBySku.get(c.sku) ?? null}
+                          onChange={(specs) => update(i, { specs }, false)}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ),
+            )}
           </tbody>
         </table>
       </div>

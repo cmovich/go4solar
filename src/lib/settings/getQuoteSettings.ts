@@ -32,7 +32,8 @@ export async function getQuoteSettings(): Promise<QuoteSettings> {
       .in('key', ['sizing', 'min_deposit_share', 'energy']),
     admin
       .from('components')
-      .select('sku, name, category, unit_cost, stock_sizes, active, sample')
+      // Every column: nominal_voltage and specs exist from migration 0022.
+      .select('*')
       .eq('active', true),
     admin.from('category_margins').select('category, margin, sample'),
     // Every column: `enabled` exists from migration 0019 (rows without it count as switched on).

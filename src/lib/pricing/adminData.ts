@@ -24,6 +24,16 @@ function sizeFrom(category: keyof typeof SIZE_KEY, sizes: unknown): number {
   return num((sizes as Record<string, unknown>)[SIZE_KEY[category]])
 }
 
+/** Datasheet values saved on a component (numbers or text only). */
+function specsOf(v: unknown): Record<string, number | string> {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {}
+  return Object.fromEntries(
+    Object.entries(v as Record<string, unknown>).filter(
+      (e): e is [string, number | string] => typeof e[1] === 'number' || typeof e[1] === 'string',
+    ),
+  )
+}
+
 /** Loads every pricing table and the relevant settings rows as the signed-in staff user (RLS). */
 /** Test funders (is_test) only appear when asked (Funders page "Show test data"). */
 export async function loadPricingDraft(includeTestFunders = false): Promise<PricingDraft> {
@@ -69,6 +79,12 @@ export async function loadPricingDraft(includeTestFunders = false): Promise<Pric
       source: c.source,
       active: c.active,
       sample: c.sample,
+      nominalVoltage:
+        (c as { nominal_voltage?: number | null }).nominal_voltage === null ||
+        (c as { nominal_voltage?: number | null }).nominal_voltage === undefined
+          ? null
+          : num((c as { nominal_voltage: number }).nominal_voltage),
+      specs: specsOf((c as { specs?: unknown }).specs),
     })),
     margins: {
       panels: num(marginOf('panels')?.margin ?? 0),

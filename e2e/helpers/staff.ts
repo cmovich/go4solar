@@ -15,7 +15,8 @@ async function freshCode(secret: string): Promise<string> {
   for (;;) {
     const window = Math.floor(Date.now() / 30_000)
     const secondsLeft = 30 - Math.floor((Date.now() / 1000) % 30)
-    if (secondsLeft >= 5) {
+    // Leave time to submit inside the same window (Supabase rejects a code older than the last one used).
+    if (secondsLeft >= 20) {
       try {
         closeSync(openSync(path.join(tmpdir(), `g4s-e2e-totp-${window}`), 'wx'))
         return totp(secret)
@@ -29,7 +30,7 @@ async function freshCode(secret: string): Promise<string> {
 
 /** Signs in as the e2e staff member (super admin, made by global-setup) with the authenticator. */
 export async function loginAsStaff(page: Page) {
-  test.setTimeout(Math.max(test.info().timeout, 150_000))
+  test.setTimeout(Math.max(test.info().timeout, 300_000))
   await page.goto('/login')
   await page.getByLabel('Email').fill(process.env.E2E_STAFF_EMAIL!)
   await page.getByLabel('Password').fill(process.env.E2E_STAFF_PASSWORD!)
