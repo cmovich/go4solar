@@ -3,8 +3,10 @@
  *   public/brand/go4solar-logo.png        full colour, transparent, trimmed
  *   public/brand/go4solar-logo-white.png  for dark green: the sun and panels stay in colour, the
  *                                         lettering ("Go4solar" and the tagline) turns white
+ *   src/lib/pdf/assets/go4solar-logo.png  the colour logo again, for every PDF
  * Run: npm run logo:build
  */
+import { copyFileSync } from 'node:fs'
 import path from 'node:path'
 
 import sharp from 'sharp'
@@ -17,7 +19,10 @@ const TEXT_FROM_Y = 240
 const PAD = 8
 
 async function main() {
-  const { data, info } = await sharp(SOURCE).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const { data, info } = await sharp(SOURCE)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
   const white = Buffer.from(data)
   for (let y = TEXT_FROM_Y; y < info.height; y++) {
     for (let x = 0; x < info.width; x++) {
@@ -32,12 +37,24 @@ async function main() {
   ] as const) {
     const trimmed = await sharp(pixels, raw).trim({ threshold: 1 }).png().toBuffer()
     await sharp(trimmed)
-      .extend({ top: PAD, bottom: PAD, left: PAD, right: PAD, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .extend({
+        top: PAD,
+        bottom: PAD,
+        left: PAD,
+        right: PAD,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      })
       .png({ compressionLevel: 9 })
       .toFile(path.join(OUT, name))
     const m = await sharp(path.join(OUT, name)).metadata()
     console.log(`${name}  ${m.width}×${m.height}`)
   }
+  // PDFs (agreements, waiting-list report, forecasts) use the same colour logo.
+  copyFileSync(
+    path.join(OUT, 'go4solar-logo.png'),
+    path.join(ROOT, 'src/lib/pdf/assets/go4solar-logo.png'),
+  )
+  console.log('src/lib/pdf/assets/go4solar-logo.png  (copy for PDFs)')
 }
 
 void main()
