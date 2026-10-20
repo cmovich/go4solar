@@ -1,7 +1,6 @@
 'use client'
 
 import { Activity } from 'lucide-react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
@@ -14,6 +13,7 @@ import { navFor } from './nav'
 import { Button } from '@/components/ui/button'
 
 import { signOut } from '@/app/login/actions'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 
 const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super admin',
@@ -64,14 +64,8 @@ export function AdminShell({
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[240px_minmax(0,1fr)]">
       <aside className="bg-brand-dark hidden flex-col px-4 py-5 text-white lg:flex">
-        <Link href="/admin" className="mb-6 inline-flex self-start rounded-md bg-white px-3 py-1.5">
-          <Image
-            src="/brand/go4solar-logo.png"
-            alt={siteConfig.name}
-            width={130}
-            height={42}
-            className="h-8 w-auto"
-          />
+        <Link href="/admin" className="mb-6 inline-flex self-start">
+          <BrandLogo onDark className="h-14 w-auto" />
         </Link>
         {nav}
         <p className="mt-auto pt-6 text-xs text-white/50">Back office · {siteConfig.name}</p>
@@ -90,14 +84,8 @@ export function AdminShell({
               <Activity className="h-5 w-5" aria-hidden />
               <span className="sr-only">Menu</span>
             </button>
-            <Link href="/admin" className="inline-flex rounded-md bg-white px-2 py-1 lg:hidden">
-              <Image
-                src="/brand/go4solar-logo.png"
-                alt={siteConfig.name}
-                width={110}
-                height={36}
-                className="h-7 w-auto"
-              />
+            <Link href="/admin" className="inline-flex lg:hidden">
+              <BrandLogo className="h-9 w-auto" />
             </Link>
           </div>
           <div className="flex items-center gap-3 text-sm">

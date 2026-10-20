@@ -1,3 +1,7 @@
+import { closeSync, openSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+
 import { config } from 'dotenv'
 import { createClient } from '@supabase/supabase-js'
 
@@ -75,6 +79,14 @@ export default async function globalSetup() {
     code: totp(enrol.totp.secret),
   })
   if (verifyError) throw verifyError
+  // That code's 30 s window is now used: tests signing in must wait for the next one.
+  try {
+    closeSync(
+      openSync(path.join(tmpdir(), `g4s-e2e-totp-${Math.floor(Date.now() / 30_000)}`), 'wx'),
+    )
+  } catch {
+    // Already reserved.
+  }
   await user.auth.signOut()
 
   // 4. hand over to the tests
