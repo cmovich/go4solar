@@ -2,10 +2,42 @@
 export type Rgb = [number, number, number]
 
 /**
- * Dark-green overlay over the hero photo on phones (0–1). 0.68 keeps white text at 4.8:1 or more
- * on the brightest pixel of every current hero photo (was a 95% → 70% gradient: 5.0:1 or more).
+ * Hero overlay: dark green, light over most of the photo (30–32 %) and darker only behind the
+ * headline and explainer, fading out toward the bottom (phones) or the right (wider screens).
+ * Stops are [position 0–1, opacity 0–1]. Readability is tested on every hero photo.
  */
-export const HERO_PHONE_OVERLAY = 0.68
+export type OverlayStops = readonly (readonly [number, number])[]
+export const HERO_OVERLAY_PHONE: OverlayStops = [
+  [0, 0.65],
+  [0.45, 0.65],
+  [0.65, 0.32],
+  [1, 0.3],
+]
+export const HERO_OVERLAY_DESKTOP: OverlayStops = [
+  [0, 0.7],
+  [0.4, 0.7],
+  [0.62, 0.56],
+  [0.8, 0.32],
+  [1, 0.32],
+]
+
+/** Opacity of the overlay at a position (linear between stops, like CSS linear-gradient). */
+export function overlayAt(stops: OverlayStops, t: number): number {
+  const [first] = stops
+  if (!first || t <= first[0]) return first?.[1] ?? 0
+  for (let i = 1; i < stops.length; i++) {
+    const [p0, a0] = stops[i - 1]!
+    const [p1, a1] = stops[i]!
+    if (t <= p1) return a0 + (a1 - a0) * ((t - p0) / (p1 - p0 || 1))
+  }
+  return stops[stops.length - 1]![1]
+}
+
+/** The CSS gradient for a set of stops, in brand-dark. */
+export function overlayCss(direction: 'to bottom' | 'to right', stops: OverlayStops): string {
+  const parts = stops.map(([p, a]) => `rgb(14 59 34 / ${a}) ${Math.round(p * 100)}%`)
+  return `linear-gradient(${direction}, ${parts.join(', ')})`
+}
 
 /** brand-dark #0E3B22 */
 export const BRAND_DARK: Rgb = [0x0e, 0x3b, 0x22]

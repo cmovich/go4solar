@@ -42,7 +42,7 @@ const badgesFor = (sample: boolean, maxMonths: number) => [
 export function Hero({ example }: { example: HeroExample }) {
   const badges = badgesFor(example.sample, example.maxMonths)
   return (
-    <Band angled accent accentDesktopOnly>
+    <Band angled accent>
       <HeroBackdrop slides={HERO_SLIDES} />
       <Container className="relative z-10">
         <header className="flex items-center justify-between py-5">
@@ -64,7 +64,7 @@ export function Hero({ example }: { example: HeroExample }) {
         </header>
 
         <div className="grid gap-12 pt-10 pb-24 sm:pt-16 sm:pb-32 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-center">
-          <div className="max-w-3xl max-sm:[text-shadow:0_1px_2px_rgb(0_0_0/0.55),0_0_14px_rgb(0_0_0/0.35)]">
+          <div className="max-w-3xl [text-shadow:0_1px_3px_rgb(0_0_0/0.6),0_0_18px_rgb(0_0_0/0.45)]">
             {/* Three short lines on a phone, two on wider screens. */}
             <h1 className="text-[2.6rem] leading-[1.05] font-bold tracking-tight sm:text-6xl">
               <span className="block sm:inline">Go 4 Solar,</span>{' '}
@@ -76,15 +76,10 @@ export function Hero({ example }: { example: HeroExample }) {
                 </>
               )}
             </h1>
-            <p className="mt-6 max-w-2xl text-lg text-white sm:text-xl sm:text-white/85">
-              {EXPLAINER}
-            </p>
+            <p className="mt-6 max-w-2xl text-lg text-white sm:text-xl">{EXPLAINER}</p>
             {/* Decision 2026-10-20 (CLAUDE.md §9): the hero's no-interest claim carries this line
                 instead of an example total; every plan, quote and agreement shows the total. */}
-            <p
-              className="mt-3 text-sm font-semibold text-white sm:text-white/85"
-              data-testid="hero-total"
-            >
+            <p className="mt-3 text-sm font-semibold text-white" data-testid="hero-total">
               {example.sample ? PRICE_LATER_TEXT : TOTAL_ON_EVERY_PLAN}
             </p>
 
@@ -101,15 +96,15 @@ export function Hero({ example }: { example: HeroExample }) {
               {badges.map((b) => (
                 <li
                   key={b.title}
-                  className="bg-brand-dark/40 rounded-lg border border-white/15 px-4 py-3 backdrop-blur-sm sm:bg-white/5"
+                  className="bg-brand-dark/60 rounded-lg border border-white/15 px-4 py-3 backdrop-blur-sm"
                 >
                   <p className="text-brand-gold text-base font-semibold">{b.title}</p>
-                  <p className="mt-1 text-sm text-white sm:text-white/80">{b.line}</p>
+                  <p className="mt-1 text-sm text-white">{b.line}</p>
                 </li>
               ))}
             </ul>
 
-            <p className="mt-8 text-sm font-medium text-white sm:text-white/70">
+            <p className="bg-brand-dark/60 mt-8 inline-block rounded-md px-2 py-1 text-sm font-medium text-white">
               20+ homes and businesses financed · ~1 MW installed
             </p>
           </div>

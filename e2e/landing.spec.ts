@@ -28,10 +28,8 @@ test.describe('landing page', () => {
       await expect(h1).toHaveText('Go 4 Solar, Pay Easy, No Interest')
       await expect(total).toHaveText('Total amount payable is shown on every plan before you sign.')
     }
-    // The orange corner triangle is for larger screens only.
-    const triangle = page.locator('section').first().getByTestId('band-accent')
-    if (test.info().project.name === 'mobile') await expect(triangle).toBeHidden()
-    else await expect(triangle).toBeVisible()
+    // The orange corner triangle shows on phones and desktop.
+    await expect(page.locator('section').first().getByTestId('band-accent')).toBeVisible()
     // The headline fits a 375 px phone without sideways scrolling.
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth,
