@@ -397,9 +397,11 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          nominal_voltage: number | null
           sample: boolean
           sku: string
           source: Database['public']['Enums']['component_source']
+          specs: Json
           stock_sizes: Json
           unit_cost: number
           updated_at: string
@@ -410,9 +412,11 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          nominal_voltage?: number | null
           sample?: boolean
           sku: string
           source?: Database['public']['Enums']['component_source']
+          specs?: Json
           stock_sizes?: Json
           unit_cost: number
           updated_at?: string
@@ -423,9 +427,11 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          nominal_voltage?: number | null
           sample?: boolean
           sku?: string
           source?: Database['public']['Enums']['component_source']
+          specs?: Json
           stock_sizes?: Json
           unit_cost?: number
           updated_at?: string

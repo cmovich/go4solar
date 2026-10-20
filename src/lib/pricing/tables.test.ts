@@ -331,6 +331,38 @@ describe('website SAMPLE rule (same as the admin banner)', () => {
   })
 })
 
+describe('priceListFromRows: component specs (Part A)', () => {
+  const panelSpecs = { wp: 550, voc: 49.6, vmp: 41.9, isc: 14, imp: 13.1, tempCoeffPmax: -0.35 }
+  it('a panel with missing specs is skipped once another panel has full specs', () => {
+    const rows = [
+      ...components.filter((c) => c.category !== 'panels'),
+      {
+        ...components.find((c) => c.category === 'panels')!,
+        sku: 'PNL-OK',
+        nominal_voltage: 24,
+        specs: panelSpecs,
+      },
+      {
+        ...components.find((c) => c.category === 'panels')!,
+        sku: 'PNL-NOSPEC',
+        nominal_voltage: null,
+        specs: {},
+      },
+    ]
+    const p = priceListFromRows({ components: rows, installs, panelWatts: 550 })
+    expect(p.panel.sku).toBe('PNL-OK')
+    expect(p.skipped).toContainEqual({
+      sku: 'PNL-NOSPEC',
+      reason: expect.stringMatching(/^Specs missing/),
+    })
+  })
+  it('with no specs anywhere yet, everything is still used (quotes keep working)', () => {
+    const p = priceListFromRows({ components, installs, panelWatts: 550 })
+    expect(p.inverters.length).toBeGreaterThan(0)
+    expect(p.skipped ?? []).toEqual([])
+  })
+})
+
 describe('pricingFromRows: longer tenures', () => {
   const longer: PricingRateRow[] = [
     ...rates,

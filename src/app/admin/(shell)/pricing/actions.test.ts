@@ -385,3 +385,39 @@ describe('confirmSamplePrices', () => {
     expect(calls).toEqual([])
   })
 })
+
+// Part A: component specs are saved with the row; impossible values are refused, naming the row.
+describe('saveComponents: specs', () => {
+  beforeEach(() => getSessionInfo.mockResolvedValue(superAdmin))
+  const panel = {
+    sku: 'PNL-550',
+    name: '550 W panel',
+    category: 'panels',
+    unitCost: 120000,
+    size: 550,
+    source: 'oem',
+    active: true,
+    sample: false,
+    nominalVoltage: 24,
+    specs: { wp: 550, voc: 49.6, vmp: 41.9, isc: 14, imp: 13.1, tempCoeffPmax: -0.35, junk: '' },
+  }
+
+  it('saves the nominal voltage and the specs (empty values dropped)', async () => {
+    expect(await saveComponents([panel])).toEqual({ ok: true })
+    const rows = calls.find((c) => c.table === 'components' && c.op === 'upsert')
+      ?.payload as Record<string, unknown>[]
+    expect(rows[0]).toMatchObject({
+      nominal_voltage: 24,
+      specs: { wp: 550, voc: 49.6, vmp: 41.9, isc: 14, imp: 13.1, tempCoeffPmax: -0.35 },
+    })
+  })
+
+  it('an impossible spec is refused in plain words, naming the row; nothing saved', async () => {
+    const r = await saveComponents([{ ...panel, specs: { ...panel.specs, vmp: 52 } }])
+    expect(r).toMatchObject({
+      ok: false,
+      error: 'Row 1 (PNL-550): Vmp must be lower than Voc. Nothing was saved.',
+    })
+    expect(calls.filter((c) => c.op === 'upsert')).toEqual([])
+  })
+})

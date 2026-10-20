@@ -62,6 +62,8 @@ test.describe('home-page content and the permanent audit log', () => {
   let context: BrowserContext
   let page: Page
   test.beforeAll(async ({ browser }) => {
+    // Desktop only: do not spend a staff sign-in (authenticator window) on the phone run.
+    test.skip(test.info().project.name === 'mobile', 'one browser is enough')
     test.skip(!(await migrated()), 'needs migration 0020')
     context = await browser.newContext({ storageState: 'e2e/storage-state.json' })
     page = await context.newPage()

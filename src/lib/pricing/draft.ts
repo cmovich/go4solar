@@ -1,3 +1,4 @@
+import { usableComponents } from '@/lib/components/specs'
 import type { PriceList, QuoteSettings } from '@/lib/settings/schemas'
 
 import { INSTALL_STATES, type PricingDraft } from './adminSchemas'
@@ -9,7 +10,9 @@ import type { PreviewFunder } from './preview'
  * preview reflects every keystroke exactly as a new quote would. Pure.
  */
 export function draftToSettings(d: PricingDraft): QuoteSettings {
-  const active = d.components.filter((c) => c.active)
+  // Same rule as real quotes: items with missing specs are skipped once their category has a
+  // complete one (src/lib/components/specs.ts).
+  const active = usableComponents(d.components.map((c) => ({ ...c, id: c.id ?? c.sku }))).usable
   const panels = active.filter((c) => c.category === 'panels')
   const panel = panels.find((p) => p.size === d.sizing.panelWatts) ?? panels[0]
   const battery = active.find((c) => c.category === 'battery')

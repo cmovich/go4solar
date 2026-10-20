@@ -3,6 +3,8 @@
 import { getImageProps } from 'next/image'
 import { useEffect, useState } from 'react'
 
+import { HERO_OVERLAY_DESKTOP, HERO_OVERLAY_PHONE, overlayCss } from '@/lib/media/contrast'
+
 export type HeroSlide = { desktop: string; mobile: string }
 
 const ROTATE_MS = 6000
@@ -74,8 +76,17 @@ export function HeroBackdrop({ slides }: { slides: HeroSlide[] }) {
           <Slide slide={slide} first={i === 0} />
         </div>
       ))}
-      {/* Dark-green overlay: strongest behind the text (left), lighter on the right. */}
-      <div className="from-brand-dark/95 via-brand-dark/85 to-brand-dark/70 absolute inset-0 bg-gradient-to-b sm:bg-gradient-to-r" />
+      {/* Light over most of the photo, darker only behind the text (readability tested). */}
+      <div
+        data-testid="hero-overlay-phone"
+        className="absolute inset-0 sm:hidden"
+        style={{ backgroundImage: overlayCss('to bottom', HERO_OVERLAY_PHONE) }}
+      />
+      <div
+        data-testid="hero-overlay-desktop"
+        className="absolute inset-0 hidden sm:block"
+        style={{ backgroundImage: overlayCss('to right', HERO_OVERLAY_DESKTOP) }}
+      />
     </div>
   )
 }

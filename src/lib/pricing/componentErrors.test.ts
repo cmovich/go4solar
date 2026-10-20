@@ -16,6 +16,8 @@ const row = (sku: string, extra: Partial<ComponentDraft> = {}): ComponentDraft =
   source: 'oem',
   active: true,
   sample: false,
+  nominalVoltage: null,
+  specs: {},
   ...extra,
 })
 

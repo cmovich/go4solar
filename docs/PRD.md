@@ -97,7 +97,7 @@ The landing page has one job: get the visitor to start the load calculator. Ever
 
 The hero sells two facts competitors cannot match together: **no interest** and **direct-import prices**. Recommended hero:
 
-> **Go 4 Solar, Pay Easy, No Interest.** Starting from 20% deposit. You get your solar installed, no interest attached. *Total amount payable is shown on every plan before you sign.* \[Calculate my load\]
+> **Go 4 Solar, Pay Easy, No Interest.** Starting from 20% deposit. Get your solar installed and pay monthly. *Total amount payable is shown on every plan before you sign.* \[Calculate my load\]
 
 (Adopted 2026-10-19; updated 2026-10-20. Under the explainer the hero shows the small line "Total amount payable is shown on every plan before you sign." instead of an example total: Semako's decision, recorded in CLAUDE.md section 9. Every plan, quote, application review, deposit page, dashboard and agreement shows the total amount payable. While any price is a SAMPLE price the hero shows "Go 4 Solar, Pay Easy" and "Starting from 20% deposit. You get your solar installed." with no interest claim and "Your exact price will be confirmed when we contact you." Page title and share cards: "Go4Solar — Go 4 Solar, Pay Easy", no interest claim. Previous hero: "Solar on monthly payments. Zero interest.")
 

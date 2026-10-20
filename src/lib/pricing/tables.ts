@@ -1,3 +1,4 @@
+import { usableComponents, type Specs } from '@/lib/components/specs'
 import type { PriceList, PricingSettings, SizeBand } from '@/lib/settings/schemas'
 
 import { ESTIMATE_TENURE } from './tenures'
@@ -12,6 +13,9 @@ export type ComponentRow = {
   stock_sizes: unknown
   active: boolean
   sample: boolean
+  /** From migration 0022 (missing before it: treated as "no specs yet"). */
+  nominal_voltage?: number | null
+  specs?: unknown
 }
 export type CategoryMarginRow = { category: ComponentCategory; margin: number; sample: boolean }
 export type PricingRateRow = {
@@ -57,7 +61,20 @@ export function priceListFromRows(input: {
   installs: InstallationCostRow[]
   panelWatts: number
 }): PriceList {
-  const active = input.components.filter((c) => c.active)
+  // Only components the engine may use: items with missing specs are skipped (with a note) once
+  // their category has at least one item with complete specs (src/lib/components/specs.ts).
+  const { usable, skipped } = usableComponents(
+    input.components.map((c) => ({
+      ...c,
+      id: c.sku,
+      nominalVoltage:
+        c.nominal_voltage === null || c.nominal_voltage === undefined
+          ? null
+          : Number(c.nominal_voltage),
+      specs: (c.specs && typeof c.specs === 'object' ? c.specs : {}) as Specs,
+    })),
+  )
+  const active = usable
   const panels = active.filter((c) => c.category === 'panels')
   const panel = panels.find((p) => sizeOf(p, 'watts') === input.panelWatts) ?? panels[0]
   const battery = active.find((c) => c.category === 'battery')
@@ -92,8 +109,10 @@ export function priceListFromRows(input: {
   ) as PriceList['installByState']
 
   return {
+    skipped,
     // Any ACTIVE SAMPLE component hides prices, as the admin banner counts it (sampleStatus.ts).
-    sample: active.some((c) => c.sample) || input.installs.some((r) => r.sample),
+    sample:
+      input.components.some((c) => c.active && c.sample) || input.installs.some((r) => r.sample),
     currency: 'NGN',
     panel: {
       sku: panel.sku,

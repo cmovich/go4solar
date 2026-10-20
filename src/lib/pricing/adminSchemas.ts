@@ -34,6 +34,10 @@ export const componentDraftSchema = z.object({
   source: z.enum(['oem', 'vendor']),
   active: z.boolean(),
   sample: z.boolean(),
+  /** Nominal system voltage (12/24/48 or another value); null until entered. */
+  nominalVoltage: z.number().positive().max(1000).nullable().default(null),
+  /** Datasheet values per category (see src/lib/components/specs.ts); missing ones are omitted. */
+  specs: z.record(z.string(), z.union([z.number(), z.string()]).nullable()).default({}),
 })
 export type ComponentDraft = z.infer<typeof componentDraftSchema>
 export const componentsSchema = z.array(componentDraftSchema).min(1)
