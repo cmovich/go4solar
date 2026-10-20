@@ -51,3 +51,5 @@ next-env.d.ts
 
 # Hero photo originals stay on Semako's computer (see docs/GO-LIVE.md)
 hero-originals/
+# Logo originals stay on Semako's computer (npm run logo:build makes the site versions)
+logo-originals/

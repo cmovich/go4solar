@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import Link from 'next/link'
 
 import { siteConfig } from '@/config/site'
@@ -6,6 +5,7 @@ import { normalisePhoneNG } from '@/lib/money'
 import { whatsappHref } from '@/lib/whatsapp'
 
 import { Band, Container } from './Band'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 
 function telHref(phone: string): string {
   try {
@@ -22,15 +22,7 @@ export function Footer() {
       <Container>
         <div className="grid gap-10 md:grid-cols-3">
           <div>
-            <span className="inline-flex rounded-lg bg-white px-4 py-2">
-              <Image
-                src="/brand/go4solar-logo.png"
-                alt={siteConfig.name}
-                width={300}
-                height={96}
-                className="h-16 w-auto sm:h-[4.5rem]"
-              />
-            </span>
+            <BrandLogo onDark className="h-20 w-auto sm:h-24" />
             <p className="mt-4 text-sm text-white/75">
               Solar on monthly payments for Nigerian homes and small businesses. Direct from the
               manufacturers, one fixed price shown in full before you sign.

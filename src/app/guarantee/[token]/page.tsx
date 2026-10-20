@@ -1,8 +1,6 @@
 import type { Metadata } from 'next'
-import Image from 'next/image'
 
 import { GuarantorFlow } from '@/components/agreements/GuarantorFlow'
-import { siteConfig } from '@/config/site'
 import {
   guaranteeContext,
   nextGuarantorStep,
@@ -14,6 +12,7 @@ import { checkSummaries } from '@/lib/applications/server'
 import { clientIp } from '@/lib/ratelimit/clientIp'
 import { hitRateLimit } from '@/lib/ratelimit/hitRateLimit'
 import { headers } from 'next/headers'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 
 export const metadata: Metadata = {
   title: 'Guarantor request',
@@ -75,16 +74,7 @@ export default async function GuaranteePage({ params }: { params: Promise<{ toke
     <>
       <header className="bg-brand-dark">
         <div className="mx-auto max-w-3xl px-4 py-3 sm:px-6">
-          <span className="inline-flex rounded-md bg-white px-3 py-1.5">
-            <Image
-              src="/brand/go4solar-logo.png"
-              alt={siteConfig.name}
-              width={150}
-              height={48}
-              priority
-              className="h-9 w-auto"
-            />
-          </span>
+          <BrandLogo onDark priority className="h-12 w-auto" />
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">

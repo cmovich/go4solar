@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 import { testEmail, testPhone } from './helpers/test-identity'
-import { totp } from './helpers/totp'
+import { loginAsStaff } from './helpers/staff'
 
 const hasStaff = () => Boolean(process.env.E2E_STAFF_EMAIL && process.env.E2E_STAFF_TOTP_SECRET)
 
@@ -122,18 +122,6 @@ async function finishFromPlans(page: Page, expectAdvice: boolean) {
   await expect(page.getByRole('link', { name: 'Back to home' })).toBeVisible()
   // Prelaunch: back to the landing page after ~5 s.
   await page.waitForURL((u) => u.pathname === '/', { timeout: 10000 })
-}
-
-async function loginAsStaff(page: Page) {
-  await page.goto('/login')
-  await page.getByLabel('Email').fill(process.env.E2E_STAFF_EMAIL!)
-  await page.getByLabel('Password').fill(process.env.E2E_STAFF_PASSWORD!)
-  await page.getByRole('button', { name: 'Sign in' }).click()
-  await page.waitForURL(/\/admin\/mfa/)
-  await page.getByLabel('6-digit code').fill(totp(process.env.E2E_STAFF_TOTP_SECRET!))
-  await page.getByRole('button', { name: 'Verify' }).click()
-  await page.waitForURL(/\/admin$/)
-  await expect(page.getByRole('heading', { name: 'Back office' })).toBeVisible()
 }
 
 test.describe('solar plan sign-up (waiting list)', () => {

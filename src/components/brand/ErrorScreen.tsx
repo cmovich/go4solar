@@ -1,7 +1,7 @@
-import Image from 'next/image'
 import Link from 'next/link'
 
 import { siteConfig } from '@/config/site'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 
 /** Brand-style full page for 404 / errors. Never shows technical details. */
 export function ErrorScreen({
@@ -17,15 +17,7 @@ export function ErrorScreen({
 }) {
   return (
     <main className="bg-brand-dark flex min-h-screen flex-col items-center justify-center px-4 py-16 text-center text-white">
-      <span className="inline-flex rounded-md bg-white px-3 py-1.5">
-        <Image
-          src="/brand/go4solar-logo.png"
-          alt={siteConfig.name}
-          width={150}
-          height={48}
-          className="h-9 w-auto"
-        />
-      </span>
+      <BrandLogo onDark className="h-14 w-auto" />
       <p className="text-brand-gold mt-10 text-sm font-bold tracking-widest">{code}</p>
       <h1 className="mt-2 text-3xl font-bold">{title}</h1>
       <p className="mt-3 max-w-md text-white/80">{body}</p>

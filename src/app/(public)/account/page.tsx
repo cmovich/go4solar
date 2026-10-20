@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
@@ -13,6 +12,7 @@ import { quoteReference } from '@/lib/quotes/quote'
 import type { Plan } from '@/lib/sizing/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { currentVisitorHash } from '@/lib/waitlist/token'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 
 export const metadata: Metadata = { title: 'Create your account' }
 export const dynamic = 'force-dynamic'
@@ -57,16 +57,7 @@ export default async function AccountPage({
       <header className="bg-brand-dark">
         <div className="mx-auto flex max-w-xl items-center justify-between px-4 py-3 sm:px-6">
           <Link href="/" aria-label={`${siteConfig.name} home`}>
-            <span className="inline-flex rounded-md bg-white px-3 py-1.5">
-              <Image
-                src="/brand/go4solar-logo.png"
-                alt={siteConfig.name}
-                width={150}
-                height={48}
-                priority
-                className="h-9 w-auto"
-              />
-            </span>
+            <BrandLogo onDark priority className="h-12 w-auto" />
           </Link>
         </div>
       </header>

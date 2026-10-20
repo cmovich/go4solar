@@ -1,8 +1,8 @@
-import Image from 'next/image'
 import Link from 'next/link'
 
 import { Footer } from '@/components/landing/Footer'
 import { siteConfig } from '@/config/site'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 
 /** Shared layout for /privacy and /terms; `draft` shows the notice above the footer. */
 export function LegalPage({
@@ -21,18 +21,8 @@ export function LegalPage({
     <>
       <header className="bg-brand-dark">
         <div className="mx-auto flex max-w-3xl items-center px-4 py-3 sm:px-6">
-          <Link
-            href="/"
-            aria-label={`${siteConfig.name} home`}
-            className="inline-flex rounded-md bg-white px-3 py-1.5"
-          >
-            <Image
-              src="/brand/go4solar-logo.png"
-              alt={siteConfig.name}
-              width={150}
-              height={48}
-              className="h-9 w-auto"
-            />
+          <Link href="/" aria-label={`${siteConfig.name} home`} className="inline-flex">
+            <BrandLogo onDark className="h-14 w-auto" />
           </Link>
         </div>
       </header>

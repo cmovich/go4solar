@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import Link from 'next/link'
 
 import { HERO_SLIDES } from '@/config/heroSlides'
@@ -8,6 +7,7 @@ import { PRICE_LATER_TEXT } from '@/lib/waitlist/schema'
 
 import { Band, Container } from './Band'
 import { HeroBackdrop } from './HeroBackdrop'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 
 export type HeroExample = {
   rows: { label: string; value: string }[]
@@ -19,6 +19,9 @@ export type HeroExample = {
   /** Longest payment plan switched on in /admin/pricing. */
   maxMonths: number
 }
+
+/** Under the hero explainer (Semako, 2026-10-20). */
+export const TOTAL_ON_EVERY_PLAN = 'Total amount payable is shown on every plan before you sign.'
 
 const badgesFor = (sample: boolean, maxMonths: number) => [
   sample
@@ -42,16 +45,7 @@ export function Hero({ example }: { example: HeroExample }) {
         <header className="flex items-center justify-between py-5">
           <Link href="/" aria-label={`${siteConfig.name} home`}>
             {/* The logo is dark-on-transparent; a white plate keeps it legible on green. */}
-            <span className="inline-flex rounded-lg bg-white px-4 py-2">
-              <Image
-                src="/brand/go4solar-logo.png"
-                alt={siteConfig.name}
-                width={300}
-                height={96}
-                priority
-                className="h-16 w-auto sm:h-[4.5rem]"
-              />
-            </span>
+            <BrandLogo onDark priority className="h-20 w-auto sm:h-24" />
           </Link>
           <nav className="hidden items-center gap-6 text-sm font-medium text-white/85 sm:flex">
             <a href="#how-it-works" className="hover:text-white">
@@ -84,11 +78,10 @@ export function Hero({ example }: { example: HeroExample }) {
                 ? 'Starting from 20% deposit. You get your solar installed.'
                 : 'Starting from 20% deposit. You get your solar installed, no interest attached.'}
             </p>
-            {/* The no-interest claim always sits next to the total payable (phones and desktop). */}
+            {/* Decision 2026-10-20 (CLAUDE.md §9): the hero's no-interest claim carries this line
+                instead of an example total; every plan, quote and agreement shows the total. */}
             <p className="mt-3 text-sm font-semibold text-white/85" data-testid="hero-total">
-              {example.sample
-                ? PRICE_LATER_TEXT
-                : `Example: total amount payable ${formatNaira(example.total)}, 0% interest.`}
+              {example.sample ? PRICE_LATER_TEXT : TOTAL_ON_EVERY_PLAN}
             </p>
 
             <div className="mt-8">

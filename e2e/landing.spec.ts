@@ -29,7 +29,7 @@ test.describe('landing page', () => {
           'Starting from 20% deposit. You get your solar installed, no interest attached.',
         ),
       ).toBeVisible()
-      await expect(total).toContainText('total amount payable ₦')
+      await expect(total).toHaveText('Total amount payable is shown on every plan before you sign.')
     }
     // The headline fits a 375 px phone without sideways scrolling.
     const overflow = await page.evaluate(
@@ -187,4 +187,16 @@ test('hero photos: reduced motion shows the first photo only', async ({ browser 
   await page.waitForTimeout(7000)
   await expect(page.locator('[data-slide]')).toHaveCount(1)
   await page.close()
+})
+
+test('logo: the white version (no white plate) wherever it sits on dark green', async ({
+  page,
+}) => {
+  await page.goto('/')
+  const logos = page.getByRole('img', { name: 'Go4Solar', exact: true })
+  // Hero header and footer.
+  await expect(logos).toHaveCount(2)
+  for (const img of await logos.all()) {
+    await expect(img).toHaveAttribute('src', /go4solar-logo-white/)
+  }
 })
