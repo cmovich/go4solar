@@ -50,3 +50,11 @@ describe('PDF assets are packaged with the server functions', () => {
     expect(PDFKIT_STANDARD_FONTS_GLOB).toBe('./node_modules/pdfkit/js/standard-fonts/**/*')
   })
 })
+
+describe('PDF logo', () => {
+  it('is the current colour logo (the same file the website uses), not the old one', async () => {
+    const pdfLogo = readFileSync('src/lib/pdf/assets/go4solar-logo.png')
+    expect(pdfLogo.equals(readFileSync('public/brand/go4solar-logo.png'))).toBe(true)
+    expect(pdfLogo.equals(readFileSync('public/brand/go4solar-logo-old.png'))).toBe(false)
+  })
+})
