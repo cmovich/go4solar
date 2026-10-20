@@ -25,7 +25,7 @@ export function Band({ children, className, angled = false, accent = false, id }
       {accent && (
         <span
           aria-hidden
-          className="bg-brand-orange absolute top-0 right-0 h-20 w-20 sm:h-28 sm:w-28"
+          className="bg-brand-orange absolute top-0 right-0 z-20 h-20 w-20 sm:h-28 sm:w-28"
           style={{ clipPath: 'polygon(100% 0, 0 0, 100% 100%)' }}
         />
       )}

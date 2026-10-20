@@ -1,11 +1,13 @@
 import Image from 'next/image'
 import Link from 'next/link'
 
+import { HERO_SLIDES } from '@/config/heroSlides'
 import { siteConfig } from '@/config/site'
 import { formatNaira } from '@/lib/money'
 import { PRICE_LATER_TEXT } from '@/lib/waitlist/schema'
 
 import { Band, Container } from './Band'
+import { HeroBackdrop } from './HeroBackdrop'
 
 export type HeroExample = {
   rows: { label: string; value: string }[]
@@ -35,7 +37,8 @@ export function Hero({ example }: { example: HeroExample }) {
   const badges = badgesFor(example.sample, example.maxMonths)
   return (
     <Band angled accent>
-      <Container>
+      <HeroBackdrop slides={HERO_SLIDES} />
+      <Container className="relative z-10">
         <header className="flex items-center justify-between py-5">
           <Link href="/" aria-label={`${siteConfig.name} home`}>
             {/* The logo is dark-on-transparent; a white plate keeps it legible on green. */}

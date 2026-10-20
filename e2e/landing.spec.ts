@@ -157,3 +157,34 @@ test('the hero headline fits a 375 px phone (no sideways scroll, no cut-off word
   }
   await page.close()
 })
+
+test('hero photos: one loads with the page, small enough for slow phones; the rest come later', async ({
+  page,
+}) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
+  const backdrop = page.locator('[data-slide]')
+  await expect(backdrop.first()).toBeAttached()
+  await page.waitForLoadState('load')
+  // After loading, all photos are on the page (each crossfades in turn).
+  await expect(backdrop).toHaveCount(4, { timeout: 5000 })
+  const sizes = await page.evaluate(() =>
+    performance
+      .getEntriesByType('resource')
+      .filter((r) => r.name.includes('/_next/image') && r.name.includes('hero-1-'))
+      .map((r) => (r as PerformanceResourceTiming).transferSize),
+  )
+  // The first photo is served as WebP/AVIF sized to the screen: well under 150 KB.
+  for (const bytes of sizes) expect(bytes).toBeLessThan(150 * 1024)
+})
+
+test('hero photos: reduced motion shows the first photo only', async ({ browser }) => {
+  const page = await browser.newPage({
+    reducedMotion: 'reduce',
+    storageState: 'e2e/storage-state.json',
+  })
+  await page.goto('/')
+  await page.waitForLoadState('load')
+  await page.waitForTimeout(7000)
+  await expect(page.locator('[data-slide]')).toHaveCount(1)
+  await page.close()
+})

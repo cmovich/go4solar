@@ -26,3 +26,25 @@ export function containFit(
   const scale = Math.min(1, maxW / srcW, maxH / srcH)
   return { width: Math.round(srcW * scale), height: Math.round(srcH * scale) }
 }
+
+/**
+ * Like coverCrop, but the window is centred on a focus point (fx, fy as 0–1 of the photo's width
+ * and height) as far as the photo's edges allow — e.g. to keep the panels in the middle.
+ */
+export function focalCrop(
+  srcW: number,
+  srcH: number,
+  dstW: number,
+  dstH: number,
+  fx: number,
+  fy: number,
+): { sx: number; sy: number; sw: number; sh: number } {
+  const { sw, sh } = coverCrop(srcW, srcH, dstW, dstH)
+  const clamp = (v: number, max: number) => Math.min(Math.max(0, Math.round(v)), max)
+  return {
+    sx: clamp(fx * srcW - sw / 2, srcW - sw),
+    sy: clamp(fy * srcH - sh / 2, srcH - sh),
+    sw,
+    sh,
+  }
+}
