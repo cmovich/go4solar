@@ -132,3 +132,20 @@ describe('uploadProblem (server check of a processed upload)', () => {
     )
   })
 })
+
+describe('focalCrop (keep a chosen point, e.g. the panels, as central as the frame allows)', () => {
+  it('centred focus = the plain centre crop', async () => {
+    const { focalCrop } = await import('./crop')
+    expect(focalCrop(4000, 3000, 1920, 1080, 0.5, 0.5)).toEqual(coverCrop(4000, 3000, 1920, 1080))
+  })
+  it('moves the window toward the focus but never past the edge of the photo', async () => {
+    const { focalCrop } = await import('./crop')
+    // 3:2 photo to a 4:5 portrait: the window is narrower than the photo.
+    const right = focalCrop(3000, 2000, 1080, 1350, 0.7, 0.5)
+    expect(right).toEqual({ sx: 1300, sy: 0, sw: 1600, sh: 2000 }) // centred on x = 2100
+    const edge = focalCrop(3000, 2000, 1080, 1350, 0.99, 0.5)
+    expect(edge.sx + edge.sw).toBe(3000) // stops at the right edge
+    const top = focalCrop(3000, 3000, 1920, 1080, 0.5, 0.0)
+    expect(top.sy).toBe(0)
+  })
+})

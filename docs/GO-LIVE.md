@@ -169,3 +169,24 @@ STILL TO DO before switching Production to live mode:
 22. Long live-mode e2e journey is flaky (slow screen updates over the remote
     database; data saves correctly). Split it into shorter tests and re-check
     after item 12 (parallel queries).
+
+## 8. Home page hero photos (add or swap)
+
+The hero background crossfades between photos (about 6 s each; people who ask for reduced motion
+see the first only). Originals stay on your computer; only optimised copies are committed.
+
+1. Put the original photos (any name, any size; at least 1920 × 1350 is best) in the folder
+   `hero-originals/` at the top of the project. This folder is never committed (`.gitignore`).
+2. List them, in the order you want, in `scripts/hero-photos.json`. For each photo, `fx`/`fy` is
+   the point to keep in the middle (0 = left/top, 1 = right/bottom; 0.5 = centre), separately for
+   the desktop crop (1920 × 1080) and the phone crop (1080 × 1350). Example:
+   `{ "source": "my-roof.jpg", "desktop": { "fx": 0.5, "fy": 0.6 }, "mobile": { "fx": 0.4, "fy": 0.5 } }`
+3. Run `npm run hero:build`. It writes `public/brand/hero/hero-N-desktop.jpg` (≤ 400 KB) and
+   `hero-N-mobile.jpg` (≤ 300 KB) for each photo, deletes old ones, and updates
+   `src/config/heroSlides.ts`. It warns if a photo is too small (it would look soft).
+4. Look at the new files in `public/brand/hero/`; adjust `fx`/`fy` and run again if the panels
+   are not central.
+5. Commit `public/brand/hero/`, `scripts/hero-photos.json` and `src/config/heroSlides.ts`, then push
+   (PR as usual). The site serves them as WebP/AVIF sized to each screen, so phones download far
+   less than the JPEG sizes above. Only the first photo loads with the page; the rest load after.
+

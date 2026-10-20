@@ -13,7 +13,8 @@
     "e2e": "playwright test && playwright test -c playwright.live.config.ts",
     "make-admin": "tsx scripts/make-super-admin.ts",
     "db:types": "supabase gen types typescript --linked --schema public > src/lib/supabase/database.types.ts",
-    "e2e:live": "playwright test -c playwright.live.config.ts"
+    "e2e:live": "playwright test -c playwright.live.config.ts",
+    "hero:build": "tsx scripts/hero-images.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

@@ -1,0 +1,25 @@
+{
+  "_comment": "Hero background photos, in order (hero-1, hero-2, ...). Originals live in hero-originals/ (not committed). fx/fy = the point to keep central (0-1 across / down). Run: npm run hero:build",
+  "photos": [
+    {
+      "source": "hero-image1.jpg",
+      "desktop": { "fx": 0.55, "fy": 0.45 },
+      "mobile": { "fx": 0.55, "fy": 0.5 }
+    },
+    {
+      "source": "heroimage2.jpg",
+      "desktop": { "fx": 0.45, "fy": 0.62 },
+      "mobile": { "fx": 0.35, "fy": 0.5 }
+    },
+    {
+      "source": "hero-image3.jpg",
+      "desktop": { "fx": 0.55, "fy": 0.62 },
+      "mobile": { "fx": 0.64, "fy": 0.5 }
+    },
+    {
+      "source": "hero-work.jpg",
+      "desktop": { "fx": 0.5, "fy": 0.5 },
+      "mobile": { "fx": 0.52, "fy": 0.5 }
+    }
+  ]
+}

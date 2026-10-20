@@ -48,3 +48,6 @@ next-env.d.ts
 /playwright-report
 /blob-report
 /playwright/.cache
+
+# Hero photo originals stay on Semako's computer (see docs/GO-LIVE.md)
+hero-originals/
