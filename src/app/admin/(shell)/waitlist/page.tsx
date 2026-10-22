@@ -3,6 +3,7 @@ import Link from 'next/link'
 
 import { ClearWaitlistButton } from '@/components/admin/waitlist/ClearWaitlistButton'
 import { ConsumerTable } from '@/components/admin/waitlist/ConsumerTable'
+import { DeleteTestEntriesButton } from '@/components/admin/waitlist/DeleteTestEntriesButton'
 import { HeadlineCards } from '@/components/admin/waitlist/HeadlineCards'
 import { InstallerTable } from '@/components/admin/waitlist/InstallerTable'
 import { WaitlistFilters } from '@/components/admin/waitlist/WaitlistFilters'
@@ -11,7 +12,15 @@ import { includeTestData } from '@/lib/testmode/server'
 import { Button } from '@/components/ui/button'
 import { requireStaffWithMfa } from '@/lib/auth/roles'
 import { createClient } from '@/lib/supabase/server'
-import { headline, listConsumers, listInstallers, type ConsumerFilters } from '@/lib/waitlist/admin'
+import {
+  countTestEntries,
+  duplicateMap,
+  headline,
+  listConsumers,
+  listInstallers,
+  type ConsumerFilters,
+} from '@/lib/waitlist/admin'
+import { canDeleteWaitlist } from '@/lib/waitlist/duplicates'
 
 import { exportIsRecent } from './actions'
 
@@ -43,14 +52,31 @@ export default async function WaitlistAdminPage({
   }
 
   const supabase = await createClient()
-  const [stats, rows, installers, recentExport, { data: canAssist }] = await Promise.all([
+  const [
+    stats,
+    rows,
+    installers,
+    recentExport,
+    { data: canAssist },
+    { data: deletePermission },
+    duplicates,
+    testCount,
+  ] = await Promise.all([
     headline(filters.includeTest),
     tab === 'installers' ? Promise.resolve([]) : listConsumers(filters),
     tab === 'installers' ? listInstallers(filters.includeTest) : Promise.resolve([]),
     exportIsRecent(),
     supabase.rpc('has_permission', { target: 'assisted_entry' }),
+    supabase.rpc('has_permission', { target: 'waitlist_delete' }),
+    duplicateMap(
+      tab === 'installers' ? 'waitlist_installers' : 'waitlist_consumers',
+      filters.includeTest,
+    ),
+    countTestEntries(),
   ])
   const isSuperAdmin = session.role === 'super_admin'
+  const canDelete = canDeleteWaitlist(session.role, Boolean(deletePermission))
+  const dupes = Object.fromEntries(duplicates)
 
   const tabs = [
     { id: 'complete', label: `Complete (${stats.complete})` },
@@ -92,6 +118,7 @@ export default async function WaitlistAdminPage({
               <Link href="/admin/waitlist/new">Add on behalf of customer</Link>
             </Button>
           )}
+          {canDelete && <DeleteTestEntriesButton count={testCount} />}
           {isSuperAdmin && (
             <ClearWaitlistButton
               exportRecent={recentExport}
@@ -127,11 +154,11 @@ export default async function WaitlistAdminPage({
       </nav>
 
       {tab === 'installers' ? (
-        <InstallerTable rows={installers} />
+        <InstallerTable rows={installers} duplicates={dupes} canDelete={canDelete} />
       ) : (
         <>
           <WaitlistFilters tab={tab} filters={filters} />
-          <ConsumerTable rows={rows} />
+          <ConsumerTable rows={rows} duplicates={dupes} canDelete={canDelete} />
         </>
       )}
     </main>

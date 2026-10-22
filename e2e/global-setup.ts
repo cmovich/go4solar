@@ -9,11 +9,9 @@ import { TEST_EMAIL_DOMAIN } from './helpers/test-identity'
 import { totp } from './helpers/totp'
 
 /**
- * Prepares a staff test account for the admin e2e tests:
- *  1. creates (or reuses) a confirmed user with a known password,
- *  2. makes it a super_admin,
- *  3. removes old authenticator factors and enrols + verifies a fresh TOTP factor,
- *  4. exposes the credentials to the tests through process.env (same process as the runner).
+ * Prepares two staff test accounts for the admin e2e tests (a super admin and an operations
+ * member without extra permissions), each with a known password and a fresh TOTP factor, and
+ * exposes the credentials to the tests through process.env (same process as the runner).
  * Skipped entirely when the Supabase env vars are absent; the admin tests then skip too.
  */
 export default async function globalSetup() {
@@ -26,11 +24,7 @@ export default async function globalSetup() {
     return
   }
 
-  const email = `e2e-staff@${TEST_EMAIL_DOMAIN}`
-  const password = `E2e-${service.slice(-12)}!`
-  const admin = createClient(url, service, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
+  const admin = serviceClient(url, service)
 
   // Local runs all share one IP: reset the per-IP quotas so repeated runs are not rate-limited.
   await admin
@@ -40,6 +34,50 @@ export default async function globalSetup() {
       'key.like.waitlist:%,key.like.waitlist-phone:%,key.like.vision:%,key.like.otp-send:%,key.like.otp-verify:%,key.like.sig-otp:%,key.like.sig-verify:%,key.like.login:%,key.like.login-email:%,key.like.signup:%,key.like.guarantee-open:%,key.like.guarantee-steps:%,key.like.export:%,key.like.forgot:%,key.like.forgot-email:%',
     )
 
+  const staff = await prepareStaff(
+    url,
+    anon,
+    admin,
+    `e2e-staff@${TEST_EMAIL_DOMAIN}`,
+    'super_admin',
+    `E2e-${service.slice(-12)}!`,
+  )
+  // A second staff member with an ordinary role and no extra permissions (Part W: cannot delete).
+  const ops = await prepareStaff(
+    url,
+    anon,
+    admin,
+    `e2e-ops@${TEST_EMAIL_DOMAIN}`,
+    'operations',
+    `E2e-ops-${service.slice(-12)}!`,
+  )
+  await admin.from('staff_permissions').delete().eq('profile_id', ops.userId)
+
+  // 4. hand over to the tests
+  process.env.E2E_STAFF_EMAIL = staff.email
+  process.env.E2E_STAFF_PASSWORD = staff.password
+  process.env.E2E_STAFF_TOTP_SECRET = staff.secret
+  process.env.E2E_OPS_EMAIL = ops.email
+  process.env.E2E_OPS_PASSWORD = ops.password
+  process.env.E2E_OPS_TOTP_SECRET = ops.secret
+}
+
+const serviceClient = (url: string, service: string) =>
+  createClient(url, service, { auth: { persistSession: false, autoRefreshToken: false } })
+type Admin = ReturnType<typeof serviceClient>
+
+/**
+ * 1. creates (or reuses) a confirmed user with a known password, 2. sets the role,
+ * 3. removes old authenticator factors and enrols + verifies a fresh TOTP factor.
+ */
+async function prepareStaff(
+  url: string,
+  anon: string,
+  admin: Admin,
+  email: string,
+  role: 'super_admin' | 'operations',
+  password: string,
+) {
   // 1. user
   let userId: string | undefined
   const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 })
@@ -52,14 +90,14 @@ export default async function globalSetup() {
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name: 'E2E Staff' },
+      user_metadata: { full_name: role === 'super_admin' ? 'E2E Staff' : 'E2E Operations' },
     })
     if (error) throw error
     userId = data.user.id
   }
 
   // 2. role
-  await admin.from('profiles').update({ role: 'super_admin' }).eq('id', userId)
+  await admin.from('profiles').update({ role }).eq('id', userId)
 
   // 3. MFA: wipe old factors, enrol a new one as the user, verify it with a computed code
   const { data: factors } = await admin.auth.admin.mfa.listFactors({ userId })
@@ -89,8 +127,5 @@ export default async function globalSetup() {
   }
   await user.auth.signOut()
 
-  // 4. hand over to the tests
-  process.env.E2E_STAFF_EMAIL = email
-  process.env.E2E_STAFF_PASSWORD = password
-  process.env.E2E_STAFF_TOTP_SECRET = enrol.totp.secret
+  return { userId, email, password, secret: enrol.totp.secret }
 }

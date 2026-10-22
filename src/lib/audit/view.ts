@@ -30,7 +30,15 @@ export function describeAction(action: string, entity: string): string {
   if (action === 'auth.sign_in') return 'Signed in'
   if (action === 'auth.sign_out') return 'Signed out'
   if (action === 'auth.two_factor') return 'Passed two-factor check'
+  if (action === 'waitlist.delete') return 'Deleted a waiting-list entry'
+  if (action === 'waitlist.delete_test') return 'Deleted all test entries'
   return action
+}
+
+/** Deletions keep the whole old row: the page shows it in full so it can be restored. */
+export function deletedRow(action: string, before: unknown): Record<string, unknown> | null {
+  if (action !== 'db.delete' && action !== 'waitlist.delete') return null
+  return isObject(before) ? before : null
 }
 
 export type AuditRow = {

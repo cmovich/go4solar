@@ -23,6 +23,8 @@ export type StaffRowView = {
   fullName: string | null
   role: StaffRole
   assistedEntry: boolean
+  /** May delete waiting-list entries (super admins always can). */
+  waitlistDelete: boolean
   disabled: boolean
   isMe: boolean
 }
@@ -40,15 +42,24 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
   const router = useRouter()
   const [role, setRole] = useState<StaffRole>(initial.role)
   const [assisted, setAssisted] = useState(initial.assistedEntry)
+  const [canDelete, setCanDelete] = useState(initial.waitlistDelete)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
   const [pending, start] = useTransition()
-  const dirty = role !== initial.role || assisted !== initial.assistedEntry
+  const dirty =
+    role !== initial.role ||
+    assisted !== initial.assistedEntry ||
+    canDelete !== initial.waitlistDelete
 
   function save() {
     setError(null)
     start(async () => {
-      const r = await updateStaff({ profileId: initial.id, role, assistedEntry: assisted })
+      const r = await updateStaff({
+        profileId: initial.id,
+        role,
+        assistedEntry: assisted,
+        waitlistDelete: canDelete,
+      })
       if (r.ok) router.refresh()
       else setError(r.error)
     })
@@ -102,6 +113,14 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
             aria-label={`Assisted entry for ${initial.email}`}
           />
         </td>
+        <td className="px-3 py-2 text-center">
+          <Checkbox
+            checked={role === 'super_admin' || canDelete}
+            disabled={role === 'super_admin'}
+            onCheckedChange={(v) => setCanDelete(v === true)}
+            aria-label={`Delete waiting-list entries for ${initial.email}`}
+          />
+        </td>
         <td className="px-3 py-2">{initial.disabled ? 'Disabled' : 'Active'}</td>
         <td className="px-3 py-2 whitespace-nowrap">
           <Button type="button" size="sm" onClick={save} disabled={!dirty || pending}>
@@ -127,14 +146,14 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
       </tr>
       {sent && (
         <tr>
-          <td colSpan={5} className="text-brand-green px-3 pb-2 text-sm" role="status">
+          <td colSpan={6} className="text-brand-green px-3 pb-2 text-sm" role="status">
             New link sent to {initial.email}. It works once and expires after 1 hour.
           </td>
         </tr>
       )}
       {error && (
         <tr>
-          <td colSpan={5} className="px-3 pb-2">
+          <td colSpan={6} className="px-3 pb-2">
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
@@ -151,6 +170,7 @@ export function StaffTable({ rows }: { rows: StaffRowView[] }) {
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState<StaffRole>('operations')
   const [assisted, setAssisted] = useState(false)
+  const [canDelete, setCanDelete] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const [pending, start] = useTransition()
 
@@ -158,7 +178,13 @@ export function StaffTable({ rows }: { rows: StaffRowView[] }) {
     e.preventDefault()
     setMessage(null)
     start(async () => {
-      const r = await inviteStaff({ email, fullName, role, assistedEntry: assisted })
+      const r = await inviteStaff({
+        email,
+        fullName,
+        role,
+        assistedEntry: assisted,
+        waitlistDelete: canDelete,
+      })
       if (r.ok) {
         setMessage({ ok: true, text: `Invitation sent to ${email}.` })
         setEmail('')
@@ -212,6 +238,10 @@ export function StaffTable({ rows }: { rows: StaffRowView[] }) {
               <Checkbox checked={assisted} onCheckedChange={(v) => setAssisted(v === true)} />{' '}
               Assisted entry
             </label>
+            <label className="flex h-10 items-center gap-2 text-sm">
+              <Checkbox checked={canDelete} onCheckedChange={(v) => setCanDelete(v === true)} />{' '}
+              Delete waiting list
+            </label>
             <Button type="submit" disabled={pending}>
               {pending ? 'Sending…' : 'Invite'}
             </Button>
@@ -231,11 +261,13 @@ export function StaffTable({ rows }: { rows: StaffRowView[] }) {
         <table className="w-full text-sm" data-testid="staff-table">
           <thead className="bg-brand-green text-left text-white">
             <tr>
-              {['Person', 'Role', 'Assisted entry', 'Status', ''].map((h) => (
-                <th key={h} className="px-3 py-2 font-semibold whitespace-nowrap">
-                  {h}
-                </th>
-              ))}
+              {['Person', 'Role', 'Assisted entry', 'Delete waiting list', 'Status', ''].map(
+                (h) => (
+                  <th key={h} className="px-3 py-2 font-semibold whitespace-nowrap">
+                    {h}
+                  </th>
+                ),
+              )}
             </tr>
           </thead>
           <tbody>

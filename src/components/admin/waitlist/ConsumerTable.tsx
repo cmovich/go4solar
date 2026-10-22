@@ -14,6 +14,7 @@ import { CATEGORY_LABELS } from '@/lib/load/categories'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import type { ConsumerLead } from '@/lib/waitlist/admin'
+import type { DuplicateMatch } from '@/lib/waitlist/duplicates'
 import {
   APPLICANT_TYPE_LABELS,
   BUSINESS_TYPE_LABELS,
@@ -21,6 +22,9 @@ import {
   READY_WHEN_LABELS,
   STATE_LABELS,
 } from '@/lib/waitlist/schema'
+
+import { DeleteEntryButton } from './DeleteEntryButton'
+import { DuplicateBadge } from './DuplicateBadge'
 
 const date = (iso: string) =>
   new Date(iso).toLocaleString('en-NG', {
@@ -33,7 +37,15 @@ function stateLabelOf(s: string | null) {
   return s ? (STATE_LABELS[s] ?? s) : '—'
 }
 
-export function ConsumerTable({ rows }: { rows: ConsumerLead[] }) {
+export function ConsumerTable({
+  rows,
+  duplicates,
+  canDelete,
+}: {
+  rows: ConsumerLead[]
+  duplicates: Record<string, DuplicateMatch>
+  canDelete: boolean
+}) {
   const [open, setOpen] = useState<ConsumerLead | null>(null)
 
   if (rows.length === 0) {
@@ -59,9 +71,10 @@ export function ConsumerTable({ rows }: { rows: ConsumerLead[] }) {
                 'Total',
                 'Ready',
                 'Entered by',
-              ].map((h) => (
-                <th key={h} className="px-3 py-2 font-semibold whitespace-nowrap">
-                  {h}
+                ...(canDelete ? [''] : []),
+              ].map((h, k) => (
+                <th key={k} className="px-3 py-2 font-semibold whitespace-nowrap">
+                  {h || <span className="sr-only">Delete</span>}
                 </th>
               ))}
             </tr>
@@ -81,11 +94,7 @@ export function ConsumerTable({ rows }: { rows: ConsumerLead[] }) {
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
-                  {r.duplicateOf && (
-                    <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-900">
-                      duplicate
-                    </span>
-                  )}
+                  <DuplicateBadge match={duplicates[r.id]} />
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.applicantType ? (
@@ -131,6 +140,15 @@ export function ConsumerTable({ rows }: { rows: ConsumerLead[] }) {
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.enteredByName ?? <span className="text-muted-foreground">Self</span>}
                 </td>
+                {canDelete && (
+                  <td className="px-1 py-0.5">
+                    <DeleteEntryButton
+                      table="consumers"
+                      id={r.id}
+                      label={r.firstName ? `${r.firstName} ${r.surname ?? ''}`.trim() : r.phone}
+                    />
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

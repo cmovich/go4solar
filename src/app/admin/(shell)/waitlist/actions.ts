@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 
 import { requireStaffWithMfa } from '@/lib/auth/roles'
 import { computeLoadTotals } from '@/lib/load/totals'
@@ -8,8 +9,10 @@ import { co2Avoided, currentEnergy, recommendTenure } from '@/lib/energy/current
 import { buildEstimate, monthlyByTenure, repriceEstimate } from '@/lib/quotes/buildEstimate'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { Json } from '@/lib/supabase/database.types'
 import { createClient } from '@/lib/supabase/server'
-import { lastExportAt } from '@/lib/waitlist/admin'
+import { countTestEntries, lastExportAt } from '@/lib/waitlist/admin'
+import { canDeleteWaitlist, deleteReasonSchema } from '@/lib/waitlist/duplicates'
 import { sendWaitlistConfirmation } from '@/lib/waitlist/messages'
 import { assistedEntrySchema, type EnergyRecord } from '@/lib/waitlist/schema'
 
@@ -211,4 +214,112 @@ export async function assistedEntry(input: unknown): Promise<StaffActionResult<{
   })
   revalidatePath('/admin/waitlist')
   return { ok: true, id: data.id }
+}
+
+const TABLES = { consumers: 'waitlist_consumers', installers: 'waitlist_installers' } as const
+
+/** Super admin, or staff with the waitlist_delete permission (checked again by RLS on delete). */
+async function deleter() {
+  const session = await requireStaffWithMfa()
+  const supabase = await createClient()
+  const { data: permitted } = await supabase.rpc('has_permission', { target: 'waitlist_delete' })
+  return canDeleteWaitlist(session.role, Boolean(permitted)) ? { session, supabase } : null
+}
+const NOT_ALLOWED = 'Only a super admin or staff with the delete permission can delete entries.'
+
+const deleteEntrySchema = z.object({
+  table: z.enum(['consumers', 'installers']),
+  id: z.uuid(),
+  reason: z.unknown().optional(),
+  note: z.unknown().optional(),
+})
+
+/** The old row for the audit log, without the visitor's secret cookie hash. */
+function auditCopy(row: Record<string, unknown>): Json {
+  const copy = { ...row }
+  delete copy.visitor_token_hash
+  return copy as Json
+}
+
+/**
+ * Delete one waiting-list entry with a reason. The delete runs as the staff member (RLS decides
+ * too); the database trigger logs the full old row and this adds a 'waitlist.delete' row with the
+ * reason, so the entry can be restored from the audit log.
+ */
+export async function deleteWaitlistEntry(
+  input: unknown,
+): Promise<StaffActionResult<{ id: string }>> {
+  const who = await deleter()
+  if (!who) return { ok: false, error: NOT_ALLOWED }
+  const parsed = deleteEntrySchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: 'Check the request.' }
+  const why = deleteReasonSchema.safeParse({ reason: parsed.data.reason, note: parsed.data.note })
+  if (!why.success) {
+    return { ok: false, error: why.error.issues[0]?.message ?? 'Choose a reason.', field: 'note' }
+  }
+  const table = TABLES[parsed.data.table]
+  const admin = createAdminClient()
+  const { data: row } = await admin.from(table).select('*').eq('id', parsed.data.id).maybeSingle()
+  if (!row) return { ok: false, error: 'This entry was already deleted.' }
+
+  const { data: gone, error } = await who.supabase
+    .from(table)
+    .delete()
+    .eq('id', parsed.data.id)
+    .select('id')
+  if (error || !gone?.length) return { ok: false, error: 'Could not delete this entry.' }
+
+  await admin.from('audit_log').insert({
+    actor_id: who.session.user!.id,
+    action: 'waitlist.delete',
+    entity: table,
+    entity_id: parsed.data.id,
+    before: auditCopy(row as Record<string, unknown>),
+    after: { reason: why.data.reason, note: why.data.note ?? null },
+  })
+  revalidatePath('/admin/waitlist')
+  return { ok: true, id: parsed.data.id }
+}
+
+/**
+ * Delete every test entry (is_test = true only). The count shown in the dialog must still be
+ * right, so nothing new is deleted unseen. One 'waitlist.delete_test' audit row lists every id.
+ */
+export async function deleteAllTestEntries(input: {
+  expected: number
+}): Promise<StaffActionResult<{ deleted: number }>> {
+  const who = await deleter()
+  if (!who) return { ok: false, error: NOT_ALLOWED }
+  const now = await countTestEntries()
+  if (now !== input.expected) {
+    return {
+      ok: false,
+      error: `The number of test entries changed (now ${now}). Check and try again.`,
+    }
+  }
+  if (now === 0) return { ok: true, deleted: 0 }
+
+  const [consumers, installers] = await Promise.all([
+    who.supabase.from('waitlist_consumers').delete().eq('is_test', true).select('id'),
+    who.supabase.from('waitlist_installers').delete().eq('is_test', true).select('id'),
+  ])
+  if (consumers.error || installers.error) {
+    return { ok: false, error: 'Could not delete the test entries. Please try again.' }
+  }
+  const consumerIds = (consumers.data ?? []).map((r) => r.id)
+  const installerIds = (installers.data ?? []).map((r) => r.id)
+  const deleted = consumerIds.length + installerIds.length
+
+  await createAdminClient()
+    .from('audit_log')
+    .insert({
+      actor_id: who.session.user!.id,
+      action: 'waitlist.delete_test',
+      entity: 'waitlist',
+      entity_id: null,
+      before: { count: deleted, consumers: consumerIds, installers: installerIds },
+      after: { count: 0 },
+    })
+  revalidatePath('/admin/waitlist')
+  return { ok: true, deleted }
 }

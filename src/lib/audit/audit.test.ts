@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { auditCsv, auditDiff, describeAction } from './view'
+import { auditCsv, auditDiff, deletedRow, describeAction } from './view'
 
 describe('auditDiff (what changed)', () => {
   it('an update shows only the fields that changed', () => {
@@ -100,5 +100,22 @@ describe('parseAuditFilters (from the page address)', () => {
       table: null,
       action: null,
     })
+  })
+})
+
+describe('deleted rows (Part W)', () => {
+  it('a delete keeps the whole old row for restoring; other actions have none', () => {
+    const row = { id: 'w1', phone_e164: '+2348000001234', first_name: 'Ada' }
+    expect(deletedRow('db.delete', row)).toEqual(row)
+    expect(deletedRow('waitlist.delete', row)).toEqual(row)
+    expect(deletedRow('db.update', row)).toBeNull()
+    expect(deletedRow('db.delete', null)).toBeNull()
+  })
+
+  it('waiting-list deletes read in plain words', () => {
+    expect(describeAction('waitlist.delete', 'waitlist_consumers')).toBe(
+      'Deleted a waiting-list entry',
+    )
+    expect(describeAction('waitlist.delete_test', 'waitlist')).toBe('Deleted all test entries')
   })
 })
