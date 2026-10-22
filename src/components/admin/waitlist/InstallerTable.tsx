@@ -1,5 +1,9 @@
 import type { InstallerLead } from '@/lib/waitlist/admin'
+import type { DuplicateMatch } from '@/lib/waitlist/duplicates'
 import { INSTALLER_STATE_LABELS } from '@/lib/waitlist/schema'
+
+import { DeleteEntryButton } from './DeleteEntryButton'
+import { DuplicateBadge } from './DuplicateBadge'
 
 const date = (iso: string) =>
   new Date(iso).toLocaleString('en-NG', {
@@ -8,7 +12,15 @@ const date = (iso: string) =>
     timeStyle: 'short',
   })
 
-export function InstallerTable({ rows }: { rows: InstallerLead[] }) {
+export function InstallerTable({
+  rows,
+  duplicates,
+  canDelete,
+}: {
+  rows: InstallerLead[]
+  duplicates: Record<string, DuplicateMatch>
+  canDelete: boolean
+}) {
   if (rows.length === 0)
     return <p className="text-muted-foreground mt-6 text-sm">No installers yet.</p>
   return (
@@ -28,9 +40,10 @@ export function InstallerTable({ rows }: { rows: InstallerLead[] }) {
               'Installs',
               'CAC',
               'Entered by',
-            ].map((h) => (
-              <th key={h} className="px-3 py-2 font-semibold whitespace-nowrap">
-                {h}
+              ...(canDelete ? [''] : []),
+            ].map((h, k) => (
+              <th key={k} className="px-3 py-2 font-semibold whitespace-nowrap">
+                {h || <span className="sr-only">Delete</span>}
               </th>
             ))}
           </tr>
@@ -39,7 +52,10 @@ export function InstallerTable({ rows }: { rows: InstallerLead[] }) {
           {rows.map((r, i) => (
             <tr key={r.id} className={i % 2 ? 'bg-brand-mist/60' : 'bg-white'}>
               <td className="px-3 py-2 whitespace-nowrap">{date(r.created_at)}</td>
-              <td className="px-3 py-2 whitespace-nowrap">{r.name}</td>
+              <td className="px-3 py-2 whitespace-nowrap">
+                {r.name}
+                <DuplicateBadge match={duplicates[r.id]} />
+              </td>
               <td className="px-3 py-2 whitespace-nowrap">{r.business_name ?? '—'}</td>
               <td className="px-3 py-2 whitespace-nowrap tabular-nums">{r.phone_e164}</td>
               <td className="px-3 py-2 whitespace-nowrap">{r.email ?? '—'}</td>
@@ -57,6 +73,11 @@ export function InstallerTable({ rows }: { rows: InstallerLead[] }) {
               <td className="px-3 py-2 whitespace-nowrap">
                 {r.enteredByName ?? <span className="text-muted-foreground">Self</span>}
               </td>
+              {canDelete && (
+                <td className="px-1 py-0.5">
+                  <DeleteEntryButton table="installers" id={r.id} label={r.name} />
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

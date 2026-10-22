@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 import { requireRole, STAFF_ROLES } from '@/lib/auth/roles'
 import { AUDIT_PAGE_LIMIT, AUDIT_TABLES, auditEntries } from '@/lib/audit/server'
-import { auditDiff, describeAction, parseAuditFilters } from '@/lib/audit/view'
+import { auditDiff, deletedRow, describeAction, parseAuditFilters } from '@/lib/audit/view'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Audit log' }
@@ -114,6 +114,7 @@ export default async function AuditLogPage({
             <option value="staff.">Staff (app)</option>
             <option value="application.">Applications (app)</option>
             <option value="job.">Jobs (app)</option>
+            <option value="waitlist.">Waiting list (app)</option>
           </select>
         </label>
         <button
@@ -157,6 +158,7 @@ export default async function AuditLogPage({
           <tbody>
             {rows.map((r, i) => {
               const changes = auditDiff(r.before, r.after)
+              const oldRow = deletedRow(r.action, r.before)
               return (
                 <tr key={r.id} className={`align-top ${i % 2 ? 'bg-brand-mist/60' : 'bg-white'}`}>
                   <td className="px-3 py-2 whitespace-nowrap">{date(r.created_at)}</td>
@@ -198,6 +200,16 @@ export default async function AuditLogPage({
                           </li>
                         )}
                       </ul>
+                    )}
+                    {oldRow && (
+                      <details className="mt-1 text-xs" data-testid="audit-old-row">
+                        <summary className="text-brand-blue cursor-pointer">
+                          Full old row (for restoring)
+                        </summary>
+                        <pre className="bg-brand-mist mt-1 max-h-64 overflow-auto rounded p-2 break-all whitespace-pre-wrap">
+                          {JSON.stringify(oldRow, null, 2)}
+                        </pre>
+                      </details>
                     )}
                   </td>
                 </tr>

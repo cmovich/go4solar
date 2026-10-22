@@ -42,6 +42,9 @@ export default async function StaffPage() {
             assistedEntry: (perms ?? []).some(
               (x) => x.profile_id === p.id && x.permission === 'assisted_entry',
             ),
+            waitlistDelete: (perms ?? []).some(
+              (x) => x.profile_id === p.id && x.permission === 'waitlist_delete',
+            ),
             disabled: banned.has(p.id),
             isMe: p.id === session.user?.id,
           },
@@ -54,7 +57,7 @@ export default async function StaffPage() {
       <h1 className="text-brand-dark text-3xl font-bold">Staff</h1>
       <p className="text-muted-foreground mt-1 mb-6 text-sm">
         Every staff account needs two-factor login. Roles follow the PRD staff table; assisted entry
-        can be given to any role.
+        and deleting waiting-list entries can be given to any role.
       </p>
       <StaffTable rows={rows} />
     </main>

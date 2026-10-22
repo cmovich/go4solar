@@ -25,12 +25,38 @@ const inviteSchema = z.object({
   fullName: z.string().trim().min(2).max(80),
   role: roleSchema,
   assistedEntry: z.boolean(),
+  waitlistDelete: z.boolean().default(false),
 })
 const updateSchema = z.object({
   profileId: z.uuid(),
   role: roleSchema,
   assistedEntry: z.boolean(),
+  waitlistDelete: z.boolean().default(false),
 })
+
+type Permission = 'assisted_entry' | 'waitlist_delete'
+
+/** Give or take away one extra permission (only writes when it changes). */
+async function setPermission(
+  profileId: string,
+  permission: Permission,
+  had: boolean,
+  want: boolean,
+  grantedBy: string,
+) {
+  const admin = createAdminClient()
+  if (want && !had) {
+    await admin
+      .from('staff_permissions')
+      .upsert({ profile_id: profileId, permission, granted_by: grantedBy })
+  } else if (!want && had) {
+    await admin
+      .from('staff_permissions')
+      .delete()
+      .eq('profile_id', profileId)
+      .eq('permission', permission)
+  }
+}
 const disableSchema = z.object({ profileId: z.uuid(), disabled: z.boolean() })
 const resendSchema = z.object({ profileId: z.uuid() })
 
@@ -77,15 +103,13 @@ export async function inviteStaff(input: unknown): Promise<Result> {
     .update({ role: d.role, full_name: d.fullName })
     .eq('id', id)
   if (roleError) return { ok: false, error: roleError.message }
-  if (d.assistedEntry) {
-    await admin
-      .from('staff_permissions')
-      .upsert({ profile_id: id, permission: 'assisted_entry', granted_by: session.user!.id })
-  }
+  await setPermission(id, 'assisted_entry', false, d.assistedEntry, session.user!.id)
+  await setPermission(id, 'waitlist_delete', false, d.waitlistDelete, session.user!.id)
   await audit(session, 'staff.invite', id, null, {
     email: d.email,
     role: d.role,
     assistedEntry: d.assistedEntry,
+    waitlistDelete: d.waitlistDelete,
   })
   revalidatePath('/admin/staff')
   return { ok: true }
@@ -113,28 +137,18 @@ export async function updateStaff(input: unknown): Promise<Result> {
     .select('permission')
     .eq('profile_id', d.profileId)
   const hadAssisted = (perms ?? []).some((p) => p.permission === 'assisted_entry')
+  const hadDelete = (perms ?? []).some((p) => p.permission === 'waitlist_delete')
 
   const { error } = await admin.from('profiles').update({ role: d.role }).eq('id', d.profileId)
   if (error) return { ok: false, error: error.message }
-  if (d.assistedEntry && !hadAssisted) {
-    await admin.from('staff_permissions').upsert({
-      profile_id: d.profileId,
-      permission: 'assisted_entry',
-      granted_by: session.user!.id,
-    })
-  } else if (!d.assistedEntry && hadAssisted) {
-    await admin
-      .from('staff_permissions')
-      .delete()
-      .eq('profile_id', d.profileId)
-      .eq('permission', 'assisted_entry')
-  }
+  await setPermission(d.profileId, 'assisted_entry', hadAssisted, d.assistedEntry, session.user!.id)
+  await setPermission(d.profileId, 'waitlist_delete', hadDelete, d.waitlistDelete, session.user!.id)
   await audit(
     session,
     'staff.update',
     d.profileId,
-    { role: before?.role ?? null, assistedEntry: hadAssisted },
-    { role: d.role, assistedEntry: d.assistedEntry },
+    { role: before?.role ?? null, assistedEntry: hadAssisted, waitlistDelete: hadDelete },
+    { role: d.role, assistedEntry: d.assistedEntry, waitlistDelete: d.waitlistDelete },
   )
   revalidatePath('/admin/staff')
   return { ok: true }

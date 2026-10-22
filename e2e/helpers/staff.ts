@@ -28,15 +28,19 @@ async function freshCode(secret: string): Promise<string> {
   }
 }
 
-/** Signs in as the e2e staff member (super admin, made by global-setup) with the authenticator. */
-export async function loginAsStaff(page: Page) {
+/**
+ * Signs in as an e2e staff member made by global-setup, with the authenticator:
+ * 'staff' = super admin (default), 'ops' = operations role with no extra permissions.
+ */
+export async function loginAsStaff(page: Page, who: 'staff' | 'ops' = 'staff') {
+  const env = who === 'ops' ? 'E2E_OPS' : 'E2E_STAFF'
   test.setTimeout(Math.max(test.info().timeout, 300_000))
   await page.goto('/login')
-  await page.getByLabel('Email').fill(process.env.E2E_STAFF_EMAIL!)
-  await page.getByLabel('Password').fill(process.env.E2E_STAFF_PASSWORD!)
+  await page.getByLabel('Email').fill(process.env[`${env}_EMAIL`]!)
+  await page.getByLabel('Password').fill(process.env[`${env}_PASSWORD`]!)
   await page.getByRole('button', { name: 'Sign in' }).click()
   await page.waitForURL(/\/admin\/mfa/)
-  await page.getByLabel('6-digit code').fill(await freshCode(process.env.E2E_STAFF_TOTP_SECRET!))
+  await page.getByLabel('6-digit code').fill(await freshCode(process.env[`${env}_TOTP_SECRET`]!))
   await page.getByRole('button', { name: 'Verify' }).click()
   await page.waitForURL(/\/admin$/)
   await expect(page.getByRole('heading', { name: 'Back office' })).toBeVisible()

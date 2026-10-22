@@ -8,6 +8,8 @@ import { createClient } from '@/lib/supabase/server'
 
 import { co2Avoided, type GeneratorType } from '@/lib/energy/currentSpend'
 
+import { possibleDuplicates, type DuplicateMatch } from './duplicates'
+
 import {
   DEPOSIT_BANDS,
   depositBandOf,
@@ -285,4 +287,36 @@ export async function lastExportAt(): Promise<string | null> {
     .limit(1)
     .maybeSingle()
   return data?.created_at ?? null
+}
+
+/** How many test entries (is_test) exist, consumers and installers together, cleared or not. */
+export async function countTestEntries(): Promise<number> {
+  const supabase = await createClient()
+  const [{ count: c }, { count: i }] = await Promise.all([
+    supabase
+      .from('waitlist_consumers')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_test', true),
+    supabase
+      .from('waitlist_installers')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_test', true),
+  ])
+  return (c ?? 0) + (i ?? 0)
+}
+
+/**
+ * "Possible duplicate" for every entry: its phone or email matches another (non-cleared) entry
+ * in the same table. Test entries are compared only when test data is shown.
+ */
+export async function duplicateMap(
+  table: 'waitlist_consumers' | 'waitlist_installers',
+  includeTest = false,
+): Promise<Map<string, DuplicateMatch>> {
+  const supabase = await createClient()
+  let q = supabase.from(table).select('id, phone_e164, email').is('cleared_at', null).limit(10000)
+  if (!includeTest) q = q.eq('is_test', false)
+  const { data, error } = await q
+  if (error) throw new Error(`${table}: ${error.message}`)
+  return possibleDuplicates(data.map((r) => ({ id: r.id, phone: r.phone_e164, email: r.email })))
 }
