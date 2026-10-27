@@ -38,7 +38,12 @@ export function agreementValues(input: {
       ? `, a business registered with the Corporate Affairs Commission${input.business.rcNumber ? ` (${input.business.rcNumber})` : ''}, acting through its director or authorised signatory`
       : '',
     address: input.address,
-    systemDescription: `a ${input.size.inverterKva} kVA inverter, ${input.size.batteryKwh} kWh of lithium battery storage, ${input.size.panelCount} solar panels (${input.size.panelKw} kW), protection, cables and mounting, and installation`,
+    systemDescription:
+      `a ${input.size.inverterKva} kVA inverter, ${input.size.batteryKwh} kWh of lithium battery storage, ${input.size.panelCount} solar panels (${input.size.panelKw} kW), protection, cables and mounting, and installation` +
+      // Part B "allow round-down": the agreement states the shortfall.
+      (input.size.shortfall
+        ? `. The battery is smaller than this plan calls for: expect about ${input.size.shortfall.hours} hours less backup than planned.`
+        : ''),
     totalPayable: formatNaira(q.systemPrice),
     deposit: formatNaira(q.deposit),
     depositPct: formatPercent(q.snapshot.depositShare),

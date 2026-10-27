@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
 import type { LibraryItem } from '@/lib/calculator/store'
+
+import { dayNightDefaults } from './defaults'
 import { isCategoryId } from '@/lib/load/categories'
 import type { Database } from '@/lib/supabase/database.types'
 import { hasSupabaseEnv, publicSupabaseEnv } from '@/lib/supabase/env'
@@ -22,7 +24,8 @@ export async function fetchApplianceLibrary(): Promise<LibraryItem[]> {
 
   const { data, error } = await supabase
     .from('appliance_library')
-    .select('id, category, name, default_watts, surge_factor, duty_cycle, default_hours, sort')
+    // Every column: the day/night/essential defaults exist from migration 0024.
+    .select('*')
     .eq('active', true)
     .order('category')
     .order('sort')
@@ -43,6 +46,7 @@ export async function fetchApplianceLibrary(): Promise<LibraryItem[]> {
             surgeFactor: Number(row.surge_factor),
             dutyCycle: Number(row.duty_cycle),
             defaultHours: Number(row.default_hours),
+            ...dayNightDefaults(row),
           },
         ]
       : [],

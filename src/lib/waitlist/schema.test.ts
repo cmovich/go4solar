@@ -21,3 +21,24 @@ describe('installer coverage: any of the 37 states', () => {
     expect(INSTALLER_STATE_LABELS.Other).toBe('Other')
   })
 })
+
+describe('loadItemSchema (Part B)', () => {
+  it('keeps day/night hours and the essential tick; older items without them still pass', async () => {
+    const { loadItemSchema } = await import('./schema')
+    const base = {
+      id: 'a',
+      category: 'lighting',
+      name: 'LED bulb',
+      watts: 10,
+      qty: 1,
+      hoursPerDay: 6,
+      surgeFactor: 1,
+      dutyCycle: 1,
+      custom: false,
+    }
+    expect(
+      loadItemSchema.parse({ ...base, dayHours: 0, nightHours: 6, essential: true }),
+    ).toMatchObject({ dayHours: 0, nightHours: 6, essential: true })
+    expect(loadItemSchema.parse(base)).not.toHaveProperty('dayHours')
+  })
+})

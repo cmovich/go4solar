@@ -48,8 +48,21 @@ export function draftToSettings(d: PricingDraft): QuoteSettings {
   const twelve = pricingRateByTenure[12]
   if (twelve === undefined) throw new Error('12 months must be switched on with a pricing rate')
 
+  const specced = (c: (typeof active)[number]) => ({
+    nominalVoltage: c.nominalVoltage ?? null,
+    specs: Object.fromEntries(
+      Object.entries(c.specs ?? {}).filter(
+        (e): e is [string, number | string] => typeof e[1] === 'number' || typeof e[1] === 'string',
+      ),
+    ),
+  })
+  const batteries = active.filter((c) => c.category === 'battery')
+
   return {
     sizing: d.sizing,
+    sunHours: Object.fromEntries(
+      d.sunHours.map((r) => [r.state, { annual: r.annual, rainy: r.rainy }]),
+    ),
     energy: d.energy,
     minDepositShare: d.minDepositShare,
     priceList: {
@@ -57,7 +70,20 @@ export function draftToSettings(d: PricingDraft): QuoteSettings {
         [panel, battery, ...inverters, ...accessories].some((c) => c.sample) ||
         d.sample.installation,
       currency: 'NGN',
-      panel: { sku: panel.sku, name: panel.name, watts: panel.size, unitCost: panel.unitCost },
+      panel: {
+        sku: panel.sku,
+        name: panel.name,
+        watts: panel.size,
+        unitCost: panel.unitCost,
+        ...specced(panel),
+      },
+      batteries: batteries.map((b) => ({
+        sku: b.sku,
+        name: b.name,
+        kwh: b.size,
+        unitCost: b.unitCost,
+        ...specced(b),
+      })),
       batteryModule: {
         sku: battery.sku,
         name: battery.name,
@@ -69,6 +95,7 @@ export function draftToSettings(d: PricingDraft): QuoteSettings {
         name: i.name,
         kva: i.size,
         unitCost: i.unitCost,
+        ...specced(i),
       })),
       accessoriesByKva: accessories.map((a) => ({ maxKva: a.size, unitCost: a.unitCost })),
       installByState,

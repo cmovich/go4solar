@@ -34,6 +34,7 @@ import {
   type PlanEstimate,
 } from '@/lib/quotes/buildEstimate'
 import type { RateByTenure, TenureMonths } from '@/lib/pricing/types'
+import { backupLines } from '@/lib/sizing/describe'
 import type { Plan } from '@/lib/sizing/types'
 import {
   BUSINESS_TYPES,
@@ -699,10 +700,16 @@ export function PlanCard({
         <div>
           <dt className="text-muted-foreground">Panels</dt>
           <dd className="font-semibold">
-            {size.panelCount} × {Math.round((size.panelKw * 1000) / size.panelCount)} W
+            {size.panelCount} ×{' '}
+            {size.panelWatts ?? Math.round((size.panelKw * 1000) / size.panelCount)} W
           </dd>
         </div>
       </dl>
+      <ul className="text-brand-dark mt-3 space-y-0.5 text-sm" data-testid={`backup-${plan}`}>
+        {backupLines(size, plan).map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
       {showPrices ? (
         <>
           <p className="text-brand-dark mt-4 text-2xl font-bold tracking-tight">

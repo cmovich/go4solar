@@ -20,6 +20,9 @@ const led: LibraryItem = {
   surgeFactor: 1,
   dutyCycle: 1,
   defaultHours: 6,
+  defaultDayHours: 0,
+  defaultNightHours: 6,
+  defaultEssential: true,
 }
 const fridge: LibraryItem = {
   id: 'lib-fridge',
@@ -29,6 +32,9 @@ const fridge: LibraryItem = {
   surgeFactor: 3,
   dutyCycle: 0.4,
   defaultHours: 24,
+  defaultDayHours: 12,
+  defaultNightHours: 12,
+  defaultEssential: true,
 }
 const tv: LibraryItem = {
   id: 'lib-tv',
@@ -38,6 +44,9 @@ const tv: LibraryItem = {
   surgeFactor: 1,
   dutyCycle: 1,
   defaultHours: 6,
+  defaultDayHours: 2.5,
+  defaultNightHours: 3.5,
+  defaultEssential: false,
 }
 const fan: LibraryItem = {
   id: 'lib-fan',
@@ -47,6 +56,9 @@ const fan: LibraryItem = {
   surgeFactor: 1,
   dutyCycle: 1,
   defaultHours: 8,
+  defaultDayHours: 3,
+  defaultNightHours: 5,
+  defaultEssential: true,
 }
 
 describe('calculator store', () => {
@@ -60,6 +72,9 @@ describe('calculator store', () => {
         watts: 10,
         qty: 1,
         hoursPerDay: 6,
+        dayHours: 0,
+        nightHours: 6,
+        essential: true,
         surgeFactor: 1,
         dutyCycle: 1,
         custom: false,
@@ -120,7 +135,8 @@ describe('calculator store', () => {
     items = addLibraryItem(items, tv, 'tv43')
     items = addLibraryItem(items, fan, 'fan')
     items = updateItem(items, 'fan', { qty: 2 })
-    expect(items).toEqual(sampleHomeItems)
+    // Same as the fixture, plus each item's day/night hours and essential tick (Part B).
+    expect(items).toEqual(sampleHomeItems.map((i) => expect.objectContaining(i)))
     const t = computeLoadTotals(items)
     expect(t.runningW).toBe(480)
     expect(t.surgeW).toBe(780)
@@ -145,5 +161,52 @@ describe('parseStoredItems', () => {
     const bad = { ...sampleHomeItems[0]!, watts: 99999 }
     const json = JSON.stringify({ version: 1, items: [bad, sampleHomeItems[1]] })
     expect(parseStoredItems(json)).toEqual([sampleHomeItems[1]])
+  })
+})
+
+// Part B: hours in the day and at night, and the "essential" tick.
+describe('day and night hours, essential', () => {
+  it('a library item starts with its day/night defaults and essential tick', () => {
+    const [item] = addLibraryItem([], led, 'n1')
+    expect(item).toMatchObject({ dayHours: 0, nightHours: 6, hoursPerDay: 6, essential: true })
+  })
+
+  it('a custom item starts with 2 h day + 2 h night, not essential', () => {
+    const [item] = addCustomItem([], { name: 'Pump', watts: 500, category: 'water_outdoor' }, 'c1')
+    expect(item).toMatchObject({ dayHours: 2, nightHours: 2, hoursPerDay: 4, essential: false })
+  })
+
+  it('changing day or night hours keeps hours per day as their sum', () => {
+    const items = addLibraryItem([], tv, 't1')
+    const after = updateItem(items, 't1', { nightHours: 5 })
+    expect(after[0]).toMatchObject({ dayHours: 2.5, nightHours: 5, hoursPerDay: 7.5 })
+  })
+
+  it('the essential tick can be changed', () => {
+    const items = addLibraryItem([], tv, 't1')
+    expect(updateItem(items, 't1', { essential: true })[0]!.essential).toBe(true)
+  })
+
+  it('saved items keep day/night hours and the tick; older saves without them still load', () => {
+    const saved = JSON.stringify({
+      version: 1,
+      items: [
+        { ...addLibraryItem([], tv, 't1')[0] },
+        {
+          id: 'old',
+          category: 'lighting',
+          name: 'Old bulb',
+          watts: 10,
+          qty: 1,
+          hoursPerDay: 6,
+          surgeFactor: 1,
+          dutyCycle: 1,
+          custom: false,
+        },
+      ],
+    })
+    const [a, b] = parseStoredItems(saved)
+    expect(a).toMatchObject({ dayHours: 2.5, nightHours: 3.5, essential: false })
+    expect(b).not.toHaveProperty('dayHours')
   })
 })

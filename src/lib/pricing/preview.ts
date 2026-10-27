@@ -1,13 +1,13 @@
-import { sampleHomeItems } from '@/lib/load/load.fixture'
+import { makeItem, sampleHomeItems } from '@/lib/load/load.fixture'
 import { computeLoadTotals } from '@/lib/load/totals'
 import type { LoadTotals } from '@/lib/load/types'
 import type { NgStateId } from '@/lib/nigeria/states'
 import { loanProfit } from '@/lib/profit/loanProfit'
 import type { LoanProfit, UnitCosts } from '@/lib/profit/types'
-import { installCostFor, linesFor } from '@/lib/quotes/buildEstimate'
-import type { QuoteSettings } from '@/lib/settings/schemas'
+import { equipmentFromPriceList, installCostFor, linesFor } from '@/lib/quotes/buildEstimate'
+import { DEFAULT_SUN_HOURS, type QuoteSettings } from '@/lib/settings/schemas'
 import { sizeSystem } from '@/lib/sizing/size'
-import type { Plan, SystemSize } from '@/lib/sizing/types'
+import type { GridInput, Plan, SystemSize } from '@/lib/sizing/types'
 
 import { priceQuote } from './price'
 import { offeredTenures } from './tenures'
@@ -40,6 +40,8 @@ export type PreviewInput = {
   depositShare: number
   funders: PreviewFunder[]
   unitCosts: UnitCosts
+  /** Grid supply to test with (null = no grid). */
+  grid?: GridInput | null
 }
 
 export type PreviewLine = {
@@ -78,39 +80,70 @@ export const SAMPLE_PACKAGES: { id: string; label: string; totals: LoadTotals }[
   { id: 'small-home', label: 'Small home · 480 W', totals: computeLoadTotals(sampleHomeItems) },
   {
     id: 'family-home',
+    // Semako's test home: 2,000 W, 1,000 W of it essential, 6 h in the day and 6 h at night.
     label: 'Family home · 2 kW',
-    totals: {
-      runningW: 2000,
-      surgeW: 3200,
-      dailyKwh: 18,
-      byCategoryW: zeroByCategory(2000),
-      heavyItems: [],
-    },
+    totals: computeLoadTotals([
+      makeItem({
+        id: 'ess',
+        category: 'cooling',
+        name: 'Essential items',
+        watts: 1000,
+        essential: true,
+        dayHours: 6,
+        nightHours: 6,
+        hoursPerDay: 12,
+      }),
+      makeItem({
+        id: 'rest',
+        category: 'cooling',
+        name: 'Other items',
+        watts: 1000,
+        dayHours: 6,
+        nightHours: 6,
+        hoursPerDay: 12,
+      }),
+    ]),
   },
   {
     id: 'shop',
     label: 'Shop · 3.5 kW',
-    totals: {
-      runningW: 3500,
-      surgeW: 6000,
-      dailyKwh: 30,
-      byCategoryW: zeroByCategory(3500),
-      heavyItems: [],
-    },
+    totals: computeLoadTotals([
+      makeItem({
+        id: 'fr',
+        category: 'business',
+        name: 'Commercial freezer',
+        watts: 400,
+        qty: 2,
+        surgeFactor: 3,
+        dutyCycle: 0.4,
+        essential: true,
+        dayHours: 12,
+        nightHours: 12,
+        hoursPerDay: 24,
+      }),
+      makeItem({
+        id: 'ac',
+        category: 'cooling',
+        name: 'AC 1.5 HP',
+        watts: 1300,
+        surgeFactor: 3,
+        dutyCycle: 0.5,
+        dayHours: 8,
+        nightHours: 0,
+        hoursPerDay: 8,
+      }),
+      makeItem({
+        id: 'eq',
+        category: 'business',
+        name: 'Shop equipment',
+        watts: 1400,
+        dayHours: 8,
+        nightHours: 2,
+        hoursPerDay: 10,
+      }),
+    ]),
   },
 ]
-
-function zeroByCategory(cooling: number): LoadTotals['byCategoryW'] {
-  return {
-    lighting: 0,
-    tv_electronics: 0,
-    kitchen: 0,
-    cooling,
-    laundry: 0,
-    water_outdoor: 0,
-    business: 0,
-  }
-}
 
 function priceAt(
   input: PreviewInput,
@@ -158,7 +191,11 @@ function sideWith(input: PreviewInput, quote: QuoteResult, tenureMonths: TenureM
  * Pure: safe to run on every keystroke.
  */
 export function buildPreview(input: PreviewInput): Preview {
-  const size = sizeSystem(input.totals, input.plan, input.settings.sizing)
+  const size = sizeSystem(input.totals, input.plan, input.settings.sizing, {
+    sun: input.settings.sunHours?.[input.state] ?? DEFAULT_SUN_HOURS,
+    grid: input.grid ?? null,
+    equipment: equipmentFromPriceList(input.settings.priceList),
+  })
   const quote = priceAt(input, size, input.depositShare)
 
   const lines: PreviewLine[] = quote.lines.map((l) => {

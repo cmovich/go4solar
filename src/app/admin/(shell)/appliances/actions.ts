@@ -32,7 +32,10 @@ export async function saveAppliance(input: unknown): Promise<Result> {
     default_watts: d.defaultWatts,
     surge_factor: d.surgeFactor,
     duty_cycle: d.dutyCycle,
-    default_hours: d.defaultHours,
+    default_hours: d.defaultDayHours + d.defaultNightHours,
+    default_day_hours: d.defaultDayHours,
+    default_night_hours: d.defaultNightHours,
+    default_essential: d.defaultEssential,
     sort: d.sort,
     active: d.active,
   }

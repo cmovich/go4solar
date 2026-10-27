@@ -275,27 +275,26 @@ Every quote carries this notice, as Semako specified:
 
 ### Sizing logic
 
-The engine uses standard off-grid sizing. Admin can change every constant.
+Part B (October 2026). Admin can change every number in /admin/pricing → Energy & sizing; every change is audited and stored quotes keep their snapshot.
 
-```latex
-\text{Inverter (kVA)} = \frac{\max(1.25 \times P_{\text{running}},\ P_{\text{surge}})}{0.8}
-```
+**Load.** Each appliance has watts, quantity, **hours in the day**, **hours at night** and an **Essential** tick (defaults from the appliance library). Daytime energy = Σ watts × qty × day hours × duty; night energy the same with night hours. Items saved before Part B split their hours 40% day / 60% night.
 
-```latex
-\text{Battery (kWh)} = \frac{P_{\text{running}} \times H_{\text{plan}}}{1000 \times \text{DoD} \times \eta_{\text{inverter}}}
-```
+**Plans.**
+- Essentials: the items marked essential, for 8 hours of night backup.
+- Comfort: every item at full load, for 8 hours of night backup with no grid.
+- 24-Hour Independence: every item at full load for the whole night (setting "night hours", default 12 h, about 6 pm – 6 am).
 
-```latex
-\text{Panels (kW)} = \frac{P_{\text{running}}/1000 + \text{Battery (kWh)} \times \text{DoD} / H_{\text{charge}}}{\text{derate}}
-```
+**Battery.** Night target = plan load × plan hours. With grid supply: minus the bypass energy (modes A and C: night-grid hours × plan load) and the grid charging energy (modes A and B: night-grid hours × min(inverter AC charge current, 40 A) × battery V × 1.1 × 0.9 × timing factor 0.5). Never below 1 h at full load, and with grid never below the no-grid-day floor (4 h Essentials and Comfort, 6 h 24-hour). Battery kWh = need ÷ DoD (0.9, LiFePO4) ÷ inverter efficiency (0.9), rounded **up** to the next battery size (2.5 kWh steps, or the cheapest set of identical batteries at the inverter's voltage once batteries have specs). "Allow round-down" (off by default) rounds to the nearest size and shows the shortfall on the plan and in the agreement. Grid only ever makes the battery smaller or backup longer.
 
-- P running = total running watts; P surge = largest motor surge plus everything else running.
-- H plan = backup hours at full running load, the same rule for every plan: Essential 3 h, Comfort 8 h, 24-Hour Independence 15 h (admin-editable). The battery is rounded **up** to whole modules (2.5 kWh steps), never less than one module.
-- Panels must run the load and refill a full battery within the charge window H charge = 7 hours of good sun (admin-editable), after the 0.75 derate for heat, dust and wiring. Panel sizing no longer uses peak sun hours or a night share; those settings stay for later features (energy dashboard, per-state yield).
-- DoD (usable depth of discharge) = 0.8 for lithium (LiFePO4), 0.5 for lead-acid. Default to lithium; lead-acid only as an option. Inverter efficiency = 0.9.
-- Results round **up** to the next size actually stocked by vendors (for example 3.5 kVA, 5 kVA, 10 kVA; 2.5 kWh battery modules).
-- Worked example (480 W running, 3.72 kWh/day): Essential 2.5 kWh · 2 × 550 W; Comfort 7.5 kWh · 4 × 550 W; 24-Hour Independence 10 kWh · 4 × 550 W. Battery, panel count and system price never decrease from Essential to Comfort to Independence.
-- Sizing does not depend on the state; only the installation and logistics price does (each state has its own price; a state without one uses the "Other" price).
+**Grid supply** (asked by the quote wizard): mode A charge + bypass, B charge only, C supply only, D none; pattern daily / not every day (hours on grid days) / can't be certain (1 h at night) / total blackout (no grid). A grid-confidence setting scales the stated hours. Day-grid hours (modes A and C) reduce the daytime energy the panels supply.
+
+**Panels.** kWp = (daytime energy − day grid + battery refill ÷ 0.95) ÷ (state sun hours × derate 0.77), rounded up to whole 550 W panels. Sun hours per state (sun_hours table, SAMPLE until confirmed): the yearly average for Essentials and Comfort (their cards say "In the rainy season, expect less backup on cloudy days."), the rainy season for 24-hour plans. Midday check: panels × derate ≥ daytime running load + charging. Then the string layout: panels per string so that Voc × 1.05 stays under the inverter's max PV Voc and Vmp stays inside its MPPT range.
+
+**Inverter.** The smallest stocked inverter ≥ plan load ÷ 0.8 that starts the biggest surge. Only if the panels exceed its max PV input, the string does not fit its MPPT range or the charging current is too high, it steps up (no cap), and the quote says why ("Inverter upsized to 7.5 kVA to connect your 14 panels."). Battery voltage always equals the inverter's. Specs come from each inverter's datasheet values (Pricing → Components); a missing spec uses a typical value from the assumed table, and admin lists every inverter with assumed specs.
+
+**Plan card.** Inverter kVA, battery kWh, panels count × W, backup with the plan's items on, backup at typical night use, with grid and "On days with no grid, backup ≈ X h", any shortfall, the rainy-season note and the upsize reason. Admin sees "How this was sized" (every number above) on each waiting-list lead, application quote and in the price preview.
+
+Worked example (Semako's test home: 2,000 W, 1,000 W essential, 6 h by day): Lagos with no grid gives Essentials 10 kWh · 7 panels · 3.5 kVA, Comfort 20 kWh · 14 panels · 7.5 kVA, 24-hour 30 kWh · 20 panels · 15 kVA; with 4 h of night grid (mode A): 5 kWh, 10 kWh and 17.5 kWh.
 
 ### Route B — Upload an installer's quote
 

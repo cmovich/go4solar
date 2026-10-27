@@ -31,6 +31,7 @@ const ACCESS: Record<Table, Access> = {
   agreement_templates: 'staff',
   agreements: 'own',
   appliance_library: 'public',
+  sun_hours: 'staff',
   applications: 'own',
   audit_log: 'staff',
   cash_referrals: 'staff',

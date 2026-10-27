@@ -12,7 +12,7 @@ import {
 import { GENERATOR_LABELS } from '@/lib/energy/currentSpend'
 import { CATEGORY_LABELS } from '@/lib/load/categories'
 import { formatNaira, formatPercent } from '@/lib/money'
-import { PLAN_LABELS } from '@/lib/quotes/buildEstimate'
+import { PLANS, PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import type { ConsumerLead } from '@/lib/waitlist/admin'
 import type { DuplicateMatch } from '@/lib/waitlist/duplicates'
 import {
@@ -22,6 +22,8 @@ import {
   READY_WHEN_LABELS,
   STATE_LABELS,
 } from '@/lib/waitlist/schema'
+
+import { SizingPanel } from '@/components/admin/SizingPanel'
 
 import { DeleteEntryButton } from './DeleteEntryButton'
 import { DuplicateBadge } from './DuplicateBadge'
@@ -247,6 +249,13 @@ export function ConsumerTable({
                 </div>
               )}
 
+              <div className="mt-6 space-y-2 px-4">
+                {(open.plan ? [open.plan] : PLANS).map((p) => {
+                  const size = open.sizes[p]
+                  return size ? <SizingPanel key={p} size={size} plan={p} /> : null
+                })}
+              </div>
+
               <div className="mt-6 px-4">
                 <p className="text-brand-dark text-sm font-semibold">
                   Load list · {open.loadTotals.runningW ?? 0} W running ·{' '}
@@ -258,7 +267,8 @@ export function ConsumerTable({
                       <th className="py-1">Appliance</th>
                       <th className="py-1 text-right">W</th>
                       <th className="py-1 text-right">Qty</th>
-                      <th className="py-1 text-right">h/day</th>
+                      <th className="py-1 text-right">Day h</th>
+                      <th className="py-1 text-right">Night h</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -272,7 +282,13 @@ export function ConsumerTable({
                         </td>
                         <td className="py-1 text-right tabular-nums">{i.watts}</td>
                         <td className="py-1 text-right tabular-nums">{i.qty}</td>
-                        <td className="py-1 text-right tabular-nums">{i.hoursPerDay}</td>
+                        <td className="py-1 text-right tabular-nums">{i.dayHours ?? '—'}</td>
+                        <td className="py-1 text-right tabular-nums">
+                          {i.nightHours ?? '—'}
+                          {i.essential && (
+                            <span className="text-brand-green ml-1 text-xs">essential</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

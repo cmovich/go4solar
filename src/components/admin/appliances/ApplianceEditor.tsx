@@ -86,18 +86,33 @@ function Row({ initial, canEdit }: { initial: ApplianceRowView; canEdit: boolean
             aria-label="Duty cycle"
           />
         </td>
-        <td className="px-2 py-1">
-          <Input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            max={24}
-            step={0.5}
-            value={row.defaultHours}
-            onChange={(e) => setRow({ ...row, defaultHours: num(e.target.value) })}
-            className={`${cell} w-20`}
+        {(
+          [
+            ['defaultDayHours', 'Day hours'],
+            ['defaultNightHours', 'Night hours'],
+          ] as const
+        ).map(([key, label]) => (
+          <td key={key} className="px-2 py-1">
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              max={24}
+              step={0.5}
+              value={row[key]}
+              onChange={(e) => setRow({ ...row, [key]: num(e.target.value) })}
+              className={`${cell} w-20`}
+              disabled={!canEdit}
+              aria-label={label}
+            />
+          </td>
+        ))}
+        <td className="px-2 py-1 text-center">
+          <Checkbox
+            checked={row.defaultEssential}
+            onCheckedChange={(v) => setRow({ ...row, defaultEssential: v === true })}
             disabled={!canEdit}
-            aria-label="Default hours"
+            aria-label="Essential by default"
           />
         </td>
         <td className="px-2 py-1">
@@ -130,7 +145,7 @@ function Row({ initial, canEdit }: { initial: ApplianceRowView; canEdit: boolean
       </tr>
       {error && (
         <tr>
-          <td colSpan={8} className="px-2 pb-2">
+          <td colSpan={10} className="px-2 pb-2">
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
@@ -199,13 +214,25 @@ export function ApplianceEditor({ rows, canEdit }: { rows: ApplianceRowView[]; c
                 />
               </label>
               <label className="text-xs">
-                Hours/day
+                Day hours
                 <Input
                   type="number"
                   step={0.5}
-                  value={adding.defaultHours}
+                  value={adding.defaultDayHours}
                   onChange={(e) =>
-                    setAdding({ ...adding, defaultHours: parseFloat(e.target.value) || 0 })
+                    setAdding({ ...adding, defaultDayHours: parseFloat(e.target.value) || 0 })
+                  }
+                  className="mt-1 h-9 w-24"
+                />
+              </label>
+              <label className="text-xs">
+                Night hours
+                <Input
+                  type="number"
+                  step={0.5}
+                  value={adding.defaultNightHours}
+                  onChange={(e) =>
+                    setAdding({ ...adding, defaultNightHours: parseFloat(e.target.value) || 0 })
                   }
                   className="mt-1 h-9 w-24"
                 />
@@ -228,7 +255,9 @@ export function ApplianceEditor({ rows, canEdit }: { rows: ApplianceRowView[]; c
                   defaultWatts: 10,
                   surgeFactor: 1,
                   dutyCycle: 1,
-                  defaultHours: 6,
+                  defaultDayHours: 0,
+                  defaultNightHours: 6,
+                  defaultEssential: false,
                   sort: 999,
                   active: true,
                 })
@@ -255,13 +284,22 @@ export function ApplianceEditor({ rows, canEdit }: { rows: ApplianceRowView[]; c
               <table className="w-full text-sm">
                 <thead className="bg-brand-green text-left text-white">
                   <tr>
-                    {['Name', 'Watts', 'Surge ×', 'Duty', 'Hours/day', 'Sort', 'Active', ''].map(
-                      (h) => (
-                        <th key={h} className="px-2 py-2 font-semibold whitespace-nowrap">
-                          {h}
-                        </th>
-                      ),
-                    )}
+                    {[
+                      'Name',
+                      'Watts',
+                      'Surge ×',
+                      'Duty',
+                      'Day h',
+                      'Night h',
+                      'Essential',
+                      'Sort',
+                      'Active',
+                      '',
+                    ].map((h) => (
+                      <th key={h} className="px-2 py-2 font-semibold whitespace-nowrap">
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>

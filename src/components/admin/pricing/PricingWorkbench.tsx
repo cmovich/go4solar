@@ -6,6 +6,7 @@ import { Fragment, useEffect, useMemo, useState, useTransition } from 'react'
 
 import { NairaField, OptionalPercentField, PercentField } from '@/components/admin/NairaField'
 import { SpecsBadge, SpecsEditor, VoltageField } from '@/components/admin/pricing/ComponentSpecs'
+import { SizingPanel } from '@/components/admin/SizingPanel'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -14,7 +15,8 @@ import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { missingSpecs, usableComponents } from '@/lib/components/specs'
-import { stateLabel } from '@/lib/nigeria/states'
+import { equipmentFrom } from '@/lib/sizing/equipment'
+import { NG_STATE_IDS, stateLabel, type NgStateId } from '@/lib/nigeria/states'
 import {
   COMPONENT_CATEGORIES,
   COMPONENT_CATEGORY_LABELS,
@@ -33,7 +35,7 @@ import {
 import type { TenureMonths } from '@/lib/pricing/types'
 import { PLANS, PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import { SIZE_BANDS } from '@/lib/settings/schemas'
-import type { Plan } from '@/lib/sizing/types'
+import type { GridInput, Plan } from '@/lib/sizing/types'
 
 import {
   saveComponents,
@@ -115,7 +117,11 @@ export function PricingWorkbench({
                   ? await saveUnitCosts(draft.unitCosts)
                   : section === 'late-fee'
                     ? await saveLateFee(draft.lateFee)
-                    : await saveEnergySizing({ energy: draft.energy, sizing: draft.sizing })
+                    : await saveEnergySizing({
+                        energy: draft.energy,
+                        sizing: draft.sizing,
+                        sunHours: draft.sunHours,
+                      })
       if (r.ok) {
         setSaved(true)
         router.refresh()
@@ -164,12 +170,55 @@ export function PricingWorkbench({
   )
 }
 
+/** Active inverters whose sizing uses assumed values, and which specs to enter (Part B). */
+function AssumedInverterSpecs({ components }: { components: PricingDraft['components'] }) {
+  const rows = equipmentFrom({
+    inverters: components
+      .filter((c) => c.active && c.category === 'inverter')
+      .map((c) => ({
+        sku: c.sku,
+        kva: c.size,
+        nominalVoltage: c.nominalVoltage ?? null,
+        specs: c.specs ?? {},
+      })),
+    panel: { sku: '', watts: 550, specs: {} },
+    batteries: [],
+  }).inverters.filter((i) => i.assumed.length > 0 || i.acChargeA === null)
+  if (rows.length === 0) return null
+  return (
+    <div
+      className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900"
+      data-testid="assumed-inverter-specs"
+    >
+      <p className="font-semibold">Inverters sized with assumed specs ({rows.length})</p>
+      <ul className="mt-1 space-y-0.5">
+        {rows.map((i) => (
+          <li key={i.sku}>
+            <strong>{i.sku}</strong>:{' '}
+            {[
+              ...i.assumed,
+              ...(i.acChargeA === null ? ['grid (AC) charge current (40 A used)'] : []),
+            ].join(', ')}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 // ----------------------------------------------------------------- preview
 export function PricePreview({ draft }: { draft: PricingDraft }) {
   const [pkg, setPkg] = useState(SAMPLE_PACKAGES[0]!.id)
   const [plan, setPlan] = useState<Plan>('comfort')
   const [picked, setTenure] = useState<TenureMonths>(ESTIMATE_TENURE)
   const [pct, setPct] = useState(20)
+  const [state, setState] = useState<NgStateId>('Lagos')
+  const [grid, setGrid] = useState<GridInput>({
+    mode: 'D',
+    pattern: 'daily',
+    dayHours: 0,
+    nightHours: 0,
+  })
   const debounced = useDebounced(draft, 150)
   // Only switched-on tenures with a full rate can be previewed (as customers would see them).
   const onTenures = offeredTenures(
@@ -189,18 +238,19 @@ export function PricePreview({ draft }: { draft: PricingDraft }) {
         preview: buildPreview({
           settings,
           totals,
-          state: 'Lagos',
+          state,
           plan,
           tenureMonths: tenure,
           depositShare: pct / 100,
           funders: draftFunders(debounced),
           unitCosts: debounced.unitCosts,
+          grid,
         }),
       }
     } catch (err) {
       return { error: (err as Error).message }
     }
-  }, [debounced, pkg, plan, tenure, pct])
+  }, [debounced, pkg, plan, tenure, pct, state, grid])
 
   return (
     <aside
@@ -242,6 +292,64 @@ export function PricePreview({ draft }: { draft: PricingDraft }) {
           </select>
         </label>
       </div>
+      <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+        <label className="text-xs">
+          State
+          <select
+            value={state}
+            onChange={(e) => setState(e.target.value as NgStateId)}
+            className="border-input mt-1 block h-9 w-full rounded-md border bg-white px-2 text-sm"
+          >
+            {NG_STATE_IDS.map((st) => (
+              <option key={st} value={st}>
+                {stateLabel(st)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs">
+          Grid
+          <select
+            value={grid.mode}
+            onChange={(e) => setGrid({ ...grid, mode: e.target.value as GridInput['mode'] })}
+            className="border-input mt-1 block h-9 w-full rounded-md border bg-white px-2 text-sm"
+            aria-label="Grid mode"
+          >
+            <option value="A">A · charge + bypass</option>
+            <option value="B">B · charge only</option>
+            <option value="C">C · supply only</option>
+            <option value="D">D · no grid</option>
+          </select>
+        </label>
+        {grid.mode !== 'D' && (
+          <>
+            <label className="text-xs">
+              Day grid hours
+              <Input
+                type="number"
+                min={0}
+                max={12}
+                step={0.5}
+                value={grid.dayHours}
+                onChange={(e) => setGrid({ ...grid, dayHours: Number(e.target.value) || 0 })}
+                className="mt-1 h-9 bg-white"
+              />
+            </label>
+            <label className="text-xs">
+              Night grid hours
+              <Input
+                type="number"
+                min={0}
+                max={12}
+                step={0.5}
+                value={grid.nightHours}
+                onChange={(e) => setGrid({ ...grid, nightHours: Number(e.target.value) || 0 })}
+                className="mt-1 h-9 bg-white"
+              />
+            </label>
+          </>
+        )}
+      </div>
       <div className="mt-2 flex gap-1" role="group" aria-label="Tenure">
         {onTenures.map((t) => (
           <button
@@ -279,6 +387,7 @@ export function PricePreview({ draft }: { draft: PricingDraft }) {
         </Alert>
       ) : (
         <PreviewBody
+          plan={plan}
           p={result.preview}
           tenure={tenure}
           minNetMarginShare={draft.unitCosts.minNetMarginShare}
@@ -290,10 +399,12 @@ export function PricePreview({ draft }: { draft: PricingDraft }) {
 
 function PreviewBody({
   p,
+  plan,
   tenure,
   minNetMarginShare,
 }: {
   p: Preview
+  plan: Plan
   tenure: TenureMonths
   minNetMarginShare: number
 }) {
@@ -303,6 +414,7 @@ function PreviewBody({
         {p.size.inverterKva} kVA · {p.size.batteryKwh} kWh · {p.size.panelCount} panels · markup{' '}
         {formatPercent(p.markupShare, 1)}
       </p>
+      <SizingPanel size={p.size} plan={plan} />
       <table className="w-full text-xs">
         <thead className="text-muted-foreground text-left">
           <tr>
@@ -523,8 +635,10 @@ function ComponentsForm({ draft, onChange }: FormProps) {
       <p className="text-muted-foreground text-sm">
         Landed cost per unit. The sizing engine picks by size. Open &ldquo;Specs&rdquo; on a row to
         enter its datasheet values; items with missing specs are not used by quotes once another
-        item in the same category has complete specs.
+        item in the same category has complete specs. Inverters are always used: a missing spec is
+        filled with a typical (assumed) value.
       </p>
+      <AssumedInverterSpecs components={draft.components} />
       <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
         <label className="flex items-center gap-2">
           <Checkbox
@@ -1098,65 +1212,220 @@ function EnergySizingForm({ draft, onChange }: FormProps) {
         </label>
       </div>
 
-      <div>
-        <h2 className="text-brand-dark text-xl font-semibold">Sizing settings</h2>
-        <p className="text-muted-foreground text-sm">
-          Changing these changes the next estimate only; stored estimates keep their snapshot.
-        </p>
-        <div className="mt-4 grid max-w-2xl gap-4 sm:grid-cols-3">
-          {(
-            [
-              [
-                'Essential backup hours',
-                s.backupHours.essential,
-                (v: number) => setS({ backupHours: { ...s.backupHours, essential: v } }),
-              ],
-              [
-                'Comfort backup hours',
-                s.backupHours.comfort,
-                (v: number) => setS({ backupHours: { ...s.backupHours, comfort: v } }),
-              ],
-              [
-                'Independence backup hours',
-                s.backupHours.independence,
-                (v: number) => setS({ backupHours: { ...s.backupHours, independence: v } }),
-              ],
-              [
-                'Charge window (hours of sun)',
-                s.chargeHours,
-                (v: number) => setS({ chargeHours: v }),
-              ],
-              ['Depth of discharge', s.dod, (v: number) => setS({ dod: v })],
-              [
-                'Inverter efficiency',
-                s.inverterEfficiency,
-                (v: number) => setS({ inverterEfficiency: v }),
-              ],
-              ['Panel derate', s.panelDerate, (v: number) => setS({ panelDerate: v })],
-              ['Panel watts', s.panelWatts, (v: number) => setS({ panelWatts: v })],
-              [
-                'Battery module (kWh)',
-                s.batteryStepKwh,
-                (v: number) => setS({ batteryStepKwh: v }),
-              ],
-              ['Inverter headroom', s.headroom, (v: number) => setS({ headroom: v })],
-              ['Power factor', s.powerFactor, (v: number) => setS({ powerFactor: v })],
-            ] as const
-          ).map(([label, value, set]) => (
-            <div key={label}>
-              <Label htmlFor={`sz-${label}`}>{label}</Label>
-              <Input
-                id={`sz-${label}`}
-                type="number"
-                step="any"
-                value={value}
-                onChange={(ev) => set(num(ev.target.value))}
-                className="h-10"
-              />
-            </div>
-          ))}
-        </div>
+      <SizingFields s={s} setS={setS} num={num} />
+      <SunHoursTable draft={draft} onChange={onChange} num={num} />
+    </div>
+  )
+}
+
+/** Peak sun hours per state. Editing a row clears its SAMPLE flag when saved. */
+function SunHoursTable({ draft, onChange, num }: FormProps & { num: (v: string) => number }) {
+  if (draft.sunHours.length === 0) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        Sun hours per state appear here once migration 0024 is applied.
+      </p>
+    )
+  }
+  const set = (state: string, patch: { annual?: number; rainy?: number }) =>
+    onChange({
+      ...draft,
+      sunHours: draft.sunHours.map((r) => (r.state === state ? { ...r, ...patch } : r)),
+    })
+  return (
+    <div>
+      <h2 className="text-brand-dark text-xl font-semibold">
+        Sun hours per state <SampleBadge show={draft.sunHours.some((r) => r.sample)} />
+      </h2>
+      <p className="text-muted-foreground text-sm">
+        Peak sun hours a day. Essentials and Comfort use the yearly average; 24-hour plans use the
+        rainy season.
+      </p>
+      <div className="mt-3 max-h-96 overflow-auto rounded-xl border">
+        <table className="w-full text-sm" data-testid="sun-hours-table">
+          <thead className="bg-brand-green sticky top-0 text-left text-white">
+            <tr>
+              {['State', 'Yearly average', 'Rainy season', 'Source'].map((h) => (
+                <th key={h} className="px-2 py-2 font-semibold whitespace-nowrap">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {draft.sunHours.map((r) => (
+              <tr key={r.state} className="border-t">
+                <td className="px-2 py-1 whitespace-nowrap">
+                  {r.state === 'FCT' ? 'Abuja (FCT)' : r.state} <SampleBadge show={r.sample} />
+                </td>
+                {(['annual', 'rainy'] as const).map((k) => (
+                  <td key={k} className="px-2 py-1">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min={0.5}
+                      max={10}
+                      value={r[k]}
+                      onChange={(e) => set(r.state, { [k]: num(e.target.value) })}
+                      className="h-9 w-24 text-sm"
+                      aria-label={`${r.state} ${k === 'annual' ? 'yearly average' : 'rainy season'}`}
+                    />
+                  </td>
+                ))}
+                <td className="text-muted-foreground px-2 py-1 text-xs">{r.source}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+    </div>
+  )
+}
+
+type SizingDraft = FormProps['draft']['sizing']
+
+/** Part B sizing settings, grouped; every change is saved with the form and audited. */
+function SizingFields({
+  s,
+  setS,
+  num,
+}: {
+  s: SizingDraft
+  setS: (patch: Partial<SizingDraft>) => void
+  num: (v: string) => number
+}) {
+  const groups: {
+    title: string
+    note?: string
+    fields: [string, number, (v: number) => void][]
+  }[] = [
+    {
+      title: 'Backup',
+      note: 'Night = no sun. 24-hour plans cover the whole night at full load; Comfort covers its hours at full load; Essentials covers its hours for the items marked essential.',
+      fields: [
+        ['Night hours (24-hour plan)', s.nightHours, (v) => setS({ nightHours: v })],
+        [
+          'Comfort night hours',
+          s.planNightHours.comfort,
+          (v) => setS({ planNightHours: { ...s.planNightHours, comfort: v } }),
+        ],
+        [
+          'Essentials night hours',
+          s.planNightHours.essential,
+          (v) => setS({ planNightHours: { ...s.planNightHours, essential: v } }),
+        ],
+        [
+          'Minimum backup at full load (hours)',
+          s.minBackupFullLoadHours,
+          (v) => setS({ minBackupFullLoadHours: v }),
+        ],
+        [
+          'No-grid day floor: Essentials (h)',
+          s.noGridDayMinHours.essential,
+          (v) => setS({ noGridDayMinHours: { ...s.noGridDayMinHours, essential: v } }),
+        ],
+        [
+          'No-grid day floor: Comfort (h)',
+          s.noGridDayMinHours.comfort,
+          (v) => setS({ noGridDayMinHours: { ...s.noGridDayMinHours, comfort: v } }),
+        ],
+        [
+          'No-grid day floor: 24-hour (h)',
+          s.noGridDayMinHours.independence,
+          (v) => setS({ noGridDayMinHours: { ...s.noGridDayMinHours, independence: v } }),
+        ],
+      ],
+    },
+    {
+      title: 'Battery',
+      fields: [
+        ['Depth of discharge (0.9 = LiFePO4)', s.dod, (v) => setS({ dod: v })],
+        ['Inverter efficiency', s.inverterEfficiency, (v) => setS({ inverterEfficiency: v })],
+        ['Battery step when no specs (kWh)', s.batteryStepKwh, (v) => setS({ batteryStepKwh: v })],
+      ],
+    },
+    {
+      title: 'Panels and inverter',
+      fields: [
+        ['Panel derate', s.panelDerate, (v) => setS({ panelDerate: v })],
+        ['Refill efficiency', s.refillEfficiency, (v) => setS({ refillEfficiency: v })],
+        ['Panel watts (fallback)', s.panelWatts, (v) => setS({ panelWatts: v })],
+        ['Power factor (inverter ≥ load ÷ this)', s.powerFactor, (v) => setS({ powerFactor: v })],
+        ['Voc safety factor', s.vocSafetyFactor, (v) => setS({ vocSafetyFactor: v })],
+      ],
+    },
+    {
+      title: 'Grid supply',
+      note: 'Night battery need = target − grid bypass (modes A, C) − grid charging (modes A, B).',
+      fields: [
+        [
+          'Grid charge current (A, default and cap)',
+          s.grid.acChargeAmps,
+          (v) => setS({ grid: { ...s.grid, acChargeAmps: v } }),
+        ],
+        [
+          'Charging voltage factor',
+          s.grid.chargeVoltageFactor,
+          (v) => setS({ grid: { ...s.grid, chargeVoltageFactor: v } }),
+        ],
+        [
+          'Charge efficiency',
+          s.grid.chargeEfficiency,
+          (v) => setS({ grid: { ...s.grid, chargeEfficiency: v } }),
+        ],
+        [
+          'Timing factor',
+          s.grid.timingFactor,
+          (v) => setS({ grid: { ...s.grid, timingFactor: v } }),
+        ],
+        [
+          'Grid confidence (1 = 100%)',
+          s.grid.confidence,
+          (v) => setS({ grid: { ...s.grid, confidence: v } }),
+        ],
+        [
+          '"Can\'t be certain" night hours',
+          s.grid.uncertainNightHours,
+          (v) => setS({ grid: { ...s.grid, uncertainNightHours: v } }),
+        ],
+        ['Night share for older items', s.nightShare, (v) => setS({ nightShare: v })],
+      ],
+    },
+  ]
+  return (
+    <div>
+      <h2 className="text-brand-dark text-xl font-semibold">Sizing settings</h2>
+      <p className="text-muted-foreground text-sm">
+        Changing these changes the next estimate only; stored estimates keep their snapshot.
+      </p>
+      {groups.map((g) => (
+        <section key={g.title} className="mt-5">
+          <h3 className="text-brand-dark font-semibold">{g.title}</h3>
+          {g.note && <p className="text-muted-foreground text-xs">{g.note}</p>}
+          <div className="mt-2 grid max-w-3xl gap-4 sm:grid-cols-3">
+            {g.fields.map(([label, value, set]) => (
+              <div key={label}>
+                <Label htmlFor={`sz-${label}`}>{label}</Label>
+                <Input
+                  id={`sz-${label}`}
+                  type="number"
+                  step="any"
+                  value={value}
+                  onChange={(ev) => set(num(ev.target.value))}
+                  className="h-10"
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+      <label className="mt-5 flex items-center gap-2 text-sm">
+        <Checkbox
+          checked={s.allowRoundDown}
+          onCheckedChange={(v) => setS({ allowRoundDown: v === true })}
+        />
+        Allow the battery to round down to the nearest size (the shortfall is shown on the plan)
+      </label>
     </div>
   )
 }

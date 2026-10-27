@@ -58,15 +58,16 @@ test.describe('waiting-list delete', () => {
     await dialog.getByLabel('Duplicate').check()
     await dialog.getByRole('button', { name: 'Delete', exact: true }).click()
     await expect(dialog).toBeHidden()
-    // The page reloads its data from the (remote, sometimes slow) database.
-    await expect(row).toHaveCount(0, { timeout: 30_000 })
+    await expect(row).toBeHidden()
     // The sheet must not have opened from the click.
     await expect(page.getByText('Complete sign-up ·')).toHaveCount(0)
 
-    // The twin is no longer a duplicate of anything.
+    // After a reload the row stays gone and the twin is no longer a duplicate of anything.
+    await page.reload()
+    await expect(row).toHaveCount(0)
     const twin = page.getByTestId('consumer-row').filter({ hasText: `Delete2 ${surname}` })
     await expect(twin).toBeVisible()
-    await expect(twin.getByTestId('possible-duplicate')).toHaveCount(0, { timeout: 30_000 })
+    await expect(twin.getByTestId('possible-duplicate')).toHaveCount(0)
 
     // Database: gone, and both audit rows name the staff member.
     const db = serviceClient()

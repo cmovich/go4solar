@@ -9,6 +9,7 @@ import {
   ResendLinkButton,
   type FunderChoice,
 } from '@/components/admin/applications/DecisionPanel'
+import { SizingPanel } from '@/components/admin/SizingPanel'
 import { LockBadge } from '@/components/admin/LockBadge'
 import { applicationDetail } from '@/lib/approvals/admin'
 import { slaState } from '@/lib/approvals/rules'
@@ -368,6 +369,7 @@ export default async function ApplicationPage({
 
       {tab === 'quote' && d.quote && (
         <div className="space-y-3 text-sm">
+          {d.size && d.plan && <SizingPanel size={d.size} plan={d.plan} />}
           <table className="w-full">
             <thead>
               <tr className="bg-brand-green text-left text-white">

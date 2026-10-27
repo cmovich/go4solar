@@ -101,9 +101,21 @@ export const lateFeeSchema = z.object({
 })
 export type LateFeeDraft = z.infer<typeof lateFeeSchema>
 
+/** One state's peak sun hours (sun_hours table, Part B). */
+export const sunHoursRowSchema = z.object({
+  state: z.string().min(2).max(40),
+  annual: z.number().gt(0).max(10),
+  rainy: z.number().gt(0).max(10),
+  source: z.string().max(120),
+  sample: z.boolean(),
+})
+export type SunHoursRow = z.infer<typeof sunHoursRowSchema>
+
 export const energySizingSchema = z.object({
   energy: energySettingsSchema,
   sizing: sizingSettingsSchema,
+  /** Missing before migration 0024 (nothing to save then). */
+  sunHours: z.array(sunHoursRowSchema).max(40).optional(),
 })
 export type EnergySizingDraft = z.infer<typeof energySizingSchema>
 
@@ -132,6 +144,8 @@ export type PricingDraft = {
   lateFee: LateFeeDraft
   energy: EnergySizingDraft['energy']
   sizing: EnergySizingDraft['sizing']
+  /** Peak sun hours per state (empty before migration 0024). */
+  sunHours: SunHoursRow[]
   minDepositShare: number
   /** Which sections still hold SAMPLE rows. */
   sample: {
@@ -145,15 +159,24 @@ export type PricingDraft = {
 }
 
 /** Appliance library row (admin edits). */
-export const applianceSchema = z.object({
-  id: z.uuid().optional(),
-  category: z.enum(CATEGORY_IDS as [CategoryId, ...CategoryId[]]),
-  name: z.string().trim().min(2).max(80),
-  defaultWatts: z.number().int().min(1).max(10000),
-  surgeFactor: z.number().min(1).max(10),
-  dutyCycle: z.number().gt(0).max(1),
-  defaultHours: z.number().min(0).max(24),
-  sort: z.number().int().min(0).max(10000),
-  active: z.boolean(),
-})
+export const applianceSchema = z
+  .object({
+    id: z.uuid().optional(),
+    category: z.enum(CATEGORY_IDS as [CategoryId, ...CategoryId[]]),
+    name: z.string().trim().min(2).max(80),
+    defaultWatts: z.number().int().min(1).max(10000),
+    surgeFactor: z.number().min(1).max(10),
+    dutyCycle: z.number().gt(0).max(1),
+    /** Hours in the day (sun up) and at night: the calculator's starting values (Part B). */
+    defaultDayHours: z.number().min(0).max(24),
+    defaultNightHours: z.number().min(0).max(24),
+    /** Ticked "essential" in the calculator by default (the Essentials plan covers these). */
+    defaultEssential: z.boolean(),
+    sort: z.number().int().min(0).max(10000),
+    active: z.boolean(),
+  })
+  .refine((a) => a.defaultDayHours + a.defaultNightHours <= 24, {
+    message: 'Day and night hours add up to more than 24',
+    path: ['defaultNightHours'],
+  })
 export type ApplianceDraft = z.infer<typeof applianceSchema>

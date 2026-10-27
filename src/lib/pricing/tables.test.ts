@@ -179,9 +179,12 @@ describe('priceListFromRows', () => {
   const list = priceListFromRows({ components, installs, panelWatts: 550 })
 
   it('rebuilds the same price list the waiting list used from the seeded tables', () => {
-    expect(list.panel).toEqual(SAMPLE_PRICE_LIST.panel)
+    // Part B adds each component's specs (empty in the seed) for the sizing engine.
+    expect(list.panel).toMatchObject(SAMPLE_PRICE_LIST.panel)
     expect(list.batteryModule).toEqual(SAMPLE_PRICE_LIST.batteryModule)
-    expect(list.inverters).toEqual(SAMPLE_PRICE_LIST.inverters)
+    expect(
+      list.inverters.map(({ sku, name, kva, unitCost }) => ({ sku, name, kva, unitCost })),
+    ).toEqual(SAMPLE_PRICE_LIST.inverters)
     expect(list.accessoriesByKva).toEqual(SAMPLE_PRICE_LIST.accessoriesByKva)
     expect(list.sample).toBe(true)
   })

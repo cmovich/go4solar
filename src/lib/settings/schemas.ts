@@ -1,29 +1,61 @@
 import { z } from 'zod'
 
 import { DEFAULT_SIZING_SETTINGS } from '@/lib/sizing/defaults'
-import type { SizingSettings } from '@/lib/sizing/types'
+import type { GridInput, SizingSettings } from '@/lib/sizing/types'
 
 /** Settings rows are jsonb; these schemas validate them and give safe fallbacks. */
 
+const share = z.number().positive().max(1)
+const hours = z.number().min(0).max(24)
+
 export const sizingSettingsSchema = z.object({
-  headroom: z.number().positive(),
-  powerFactor: z.number().positive().max(1),
-  dod: z.number().positive().max(1),
-  inverterEfficiency: z.number().positive().max(1),
-  panelDerate: z.number().positive().max(1),
+  powerFactor: share,
+  dod: share,
+  inverterEfficiency: share,
+  refillEfficiency: share,
+  panelDerate: share,
   panelWatts: z.number().positive(),
-  backupHours: z.object({
-    essential: z.number().positive(),
-    comfort: z.number().positive(),
-    independence: z.number().positive(),
-  }),
-  chargeHours: z.number().positive().max(24),
-  inverterSizesKva: z.array(z.number().positive()).min(1),
   batteryStepKwh: z.number().positive(),
-  // Unused by the sizing engine since the waitlist review; kept for later features.
-  nightShare: z.number().min(0).max(1).optional(),
-  pshByState: z.record(z.string(), z.number().positive()).optional(),
+  nightHours: z.number().positive().max(24),
+  planNightHours: z.object({ essential: hours, comfort: hours }),
+  minBackupFullLoadHours: hours,
+  noGridDayMinHours: z.object({ essential: hours, comfort: hours, independence: hours }),
+  grid: z.object({
+    acChargeAmps: z.number().positive(),
+    chargeVoltageFactor: z.number().positive().max(2),
+    chargeEfficiency: share,
+    timingFactor: share,
+    confidence: z.number().min(0).max(1),
+    uncertainNightHours: hours,
+  }),
+  vocSafetyFactor: z.number().min(1).max(1.5),
+  allowRoundDown: z.boolean(),
+  nightShare: z.number().min(0).max(1),
 }) satisfies z.ZodType<SizingSettings>
+
+/** Grid supply answers stored on a lead or quote (Part B; asked by the wizard in Part E). */
+export const gridInputSchema = z.object({
+  mode: z.enum(['A', 'B', 'C', 'D']),
+  pattern: z.enum(['daily', 'some_days', 'uncertain', 'blackout']),
+  dayHours: z.number().min(0).max(24),
+  nightHours: z.number().min(0).max(24),
+}) satisfies z.ZodType<GridInput>
+
+/** A stored grid value, or null when missing or malformed (sized as no grid). */
+export function gridFrom(value: unknown): GridInput | null {
+  const parsed = gridInputSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
+}
+
+/** Peak sun hours per state (sun_hours table, SAMPLE until confirmed). */
+export const sunHoursSchema = z.object({
+  annual: z.number().positive(),
+  rainy: z.number().positive(),
+})
+export type SunHoursByState = Record<string, { annual: number; rainy: number }>
+
+/** Mirror of the Lagos row seeded in 0024, used when a state has no row. */
+export const DEFAULT_SUN_HOURS = { annual: 5.09, rainy: 4.46 }
 
 export const SIZE_BANDS = ['small', 'medium', 'large'] as const
 export type SizeBand = (typeof SIZE_BANDS)[number]
@@ -39,15 +71,22 @@ const costed = {
   name: z.string().min(1),
   unitCost: z.number().nonnegative(),
 }
+/** Part A specs carried for the sizing engine (missing on price lists stored before Part B). */
+const specced = {
+  nominalVoltage: z.number().positive().nullable().optional(),
+  specs: z.record(z.string(), z.union([z.number(), z.string(), z.null()])).optional(),
+}
 
 export const priceListSchema = z.object({
   sample: z.boolean().default(false),
   /** Components left out because their specs are incomplete (shown to admin as a note). */
   skipped: z.array(z.object({ sku: z.string(), reason: z.string() })).optional(),
   currency: z.literal('NGN').default('NGN'),
-  panel: z.object({ ...costed, watts: z.number().positive() }),
+  panel: z.object({ ...costed, ...specced, watts: z.number().positive() }),
   batteryModule: z.object({ ...costed, kwh: z.number().positive() }),
-  inverters: z.array(z.object({ ...costed, kva: z.number().positive() })).min(1),
+  /** Every active battery: the sizing engine picks from those with complete specs. */
+  batteries: z.array(z.object({ ...costed, ...specced, kwh: z.number().positive() })).optional(),
+  inverters: z.array(z.object({ ...costed, ...specced, kva: z.number().positive() })).min(1),
   accessoriesByKva: z
     .array(z.object({ maxKva: z.number().positive(), unitCost: z.number().nonnegative() }))
     .min(1),
@@ -134,6 +173,8 @@ export const SAMPLE_PRICING: PricingSettings = {
 
 export type QuoteSettings = {
   sizing: SizingSettings
+  /** Peak sun hours per state; a state without a row uses DEFAULT_SUN_HOURS. */
+  sunHours?: SunHoursByState
   priceList: PriceList
   pricing: PricingSettings
   minDepositShare: number

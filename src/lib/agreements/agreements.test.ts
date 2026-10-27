@@ -129,6 +129,28 @@ describe('agreement rendering', () => {
     lockAfterDays: 7,
   })
 
+  it('Part B: a rounded-down battery puts the shortfall in the agreement', () => {
+    expect(values.systemDescription).not.toMatch(/smaller/)
+    const short = agreementValues({
+      reference: 'G4S-1',
+      date: new Date(),
+      quote,
+      tenure: 6,
+      size: { ...est.plans.comfort.size, shortfall: { kwh: 0.7, hours: 0.64 } },
+      customerName: 'Chidi Eze',
+      business: null,
+      signerName: 'Chidi Eze',
+      signerTitle: null,
+      address: 'x',
+      lateFeeDaily: 0.0075,
+      lateFeeCap: 0.25,
+      lockAfterDays: 7,
+    })
+    expect(short.systemDescription).toContain(
+      'The battery is smaller than this plan calls for: expect about 0.64 hours less backup than planned.',
+    )
+  })
+
   it('every number comes from the stored quote snapshot', () => {
     expect(values.totalPayable).toBe(formatNaira(quote.systemPrice))
     expect(values.deposit).toBe(formatNaira(quote.deposit))

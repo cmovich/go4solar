@@ -7,6 +7,8 @@ import { NG_STATE_IDS } from '@/lib/nigeria/states'
 import { priceQuote } from '@/lib/pricing/price'
 import { DEFAULT_QUOTE_SETTINGS, SAMPLE_PRICE_LIST } from '@/lib/settings/schemas'
 
+import { LoadTooLargeError } from '@/lib/sizing/size'
+
 import { PLANS, buildEstimate, monthlyByTenure, repriceEstimate } from './buildEstimate'
 
 const totals = computeLoadTotals(sampleHomeItems) // 480 W, 780 W surge, 3.72 kWh/day
@@ -27,17 +29,20 @@ describe('buildEstimate — PRD sample home, Lagos, 20% deposit', () => {
     expect(est.state).toBe('Lagos')
   })
 
-  it('comfort plan: 1 kVA, 7.5 kWh (3 modules), 4 panels, priced from the sample list', () => {
+  it('comfort plan (Part B): 2.5 kVA, 5 kWh (2 modules), 4 panels, priced from the sample list', () => {
+    // 480 W × 8 h = 3.84 kWh ÷ 0.81 → 5 kWh. Panels: the midday check (480 W running + charging)
+    // needs 4 panels (2.2 kW), more than a 1 or 1.5 kVA inverter connects → 2.5 kVA.
     const c = est.plans.comfort
-    expect(c.size).toMatchObject({ inverterKva: 1, batteryKwh: 7.5, panelCount: 4 })
+    expect(c.size).toMatchObject({ inverterKva: 2.5, batteryKwh: 5, panelCount: 4 })
+    expect(c.size.inverterReason).toBe('Inverter upsized to 2.5 kVA to connect your 4 panels.')
     const lines = Object.fromEntries(c.quote.lines.map((l) => [l.category, l]))
     expect(lines.panels).toMatchObject({ sku: 'PNL-550', qty: 4, unitCost: 120000 })
-    expect(lines.battery).toMatchObject({ sku: 'BAT-2.5', qty: 3, unitCost: 450000 })
-    expect(lines.inverter).toMatchObject({ sku: 'INV-1', qty: 1, unitCost: 180000 })
-    expect(lines.accessories).toMatchObject({ qty: 1, unitCost: 60000 })
+    expect(lines.battery).toMatchObject({ sku: 'BAT-2.5', qty: 2, unitCost: 450000 })
+    expect(lines.inverter).toMatchObject({ sku: 'INV-2.5', qty: 1, unitCost: 350000 })
+    expect(lines.accessories).toMatchObject({ qty: 1, unitCost: 100000 })
     expect(c.quote.installCost).toBe(200000) // Lagos
-    // Cost price = 480,000 + 1,350,000 + 180,000 + 60,000 + 200,000
-    expect(c.quote.costPrice).toBe(2270000)
+    // Cost price = 480,000 + 900,000 + 350,000 + 100,000 + 200,000
+    expect(c.quote.costPrice).toBe(2030000)
     // Exactly what priceQuote gives for those lines (12 months, 20%).
     const direct = priceQuote({
       lines: c.quote.lines.map(({ sku, name, category, unitCost, qty }) => ({
@@ -57,10 +62,10 @@ describe('buildEstimate — PRD sample home, Lagos, 20% deposit', () => {
     expect(c.quote.monthly).toBe(direct.monthly)
   })
 
-  it('independence: 10 kWh (4 modules) and 4 panels', () => {
+  it('independence: 7.5 kWh (3 modules) and 5 panels (whole 12 h night, rainy-season sun)', () => {
     const i = est.plans.independence
-    expect(i.size).toMatchObject({ batteryKwh: 10, panelCount: 4 })
-    expect(i.quote.lines.find((l) => l.category === 'battery')?.qty).toBe(4)
+    expect(i.size).toMatchObject({ batteryKwh: 7.5, panelCount: 5 })
+    expect(i.quote.lines.find((l) => l.category === 'battery')?.qty).toBe(3)
   })
 
   it('every state can have its own installation price; a state without one uses "Other"', () => {
@@ -115,11 +120,11 @@ describe('buildEstimate — PRD sample home, Lagos, 20% deposit', () => {
       },
     ])
     const e = buildEstimate(big, 'Lagos', 0.2, s)
-    // 3600 W running, surge 7200 → 9000 VA → 10 kVA
-    expect(e.plans.essential.size.inverterKva).toBe(10)
+    // 3,600 W running ÷ 0.8 = 4.5 kVA → at least 5 kVA; the line is that inverter.
+    const kva = e.plans.essential.size.inverterKva
+    expect(kva).toBeGreaterThanOrEqual(5)
     const lines = Object.fromEntries(e.plans.essential.quote.lines.map((l) => [l.category, l]))
-    expect(lines.inverter).toMatchObject({ sku: 'INV-10' })
-    expect(lines.accessories).toMatchObject({ unitCost: 300000 })
+    expect(lines.inverter).toMatchObject({ sku: `INV-${kva}` })
   })
 })
 
@@ -131,43 +136,55 @@ describe('buildEstimate — invariants over random loads', () => {
     return seed / 4294967296
   }
   const randomTotals = (): LoadTotals => {
-    const runningW = Math.round(100 + rand() * 7900) // 100–8000 W (stays below the 20 kVA cap)
-    const surgeW = Math.round(runningW * (1 + rand())) // up to 2× running
-    const dailyKwh = Math.round(((runningW * (1 + rand() * 23)) / 1000) * 100) / 100 // 1–24 h/day
-    return {
-      runningW,
-      surgeW,
-      dailyKwh,
-      byCategoryW: {
-        lighting: runningW,
-        tv_electronics: 0,
-        kitchen: 0,
-        cooling: 0,
-        laundry: 0,
-        water_outdoor: 0,
-        business: 0,
-      },
-      heavyItems: [],
-    }
+    // 1–4 items, 50–2,000 W each, any day/night hours, some essential (stays under 20 kVA).
+    const count = 1 + Math.floor(rand() * 4)
+    return computeLoadTotals(
+      Array.from({ length: count }, (_, i) => {
+        const dayHours = Math.round(rand() * 12)
+        const nightHours = Math.round(rand() * 12)
+        return {
+          ...sampleHomeItems[0]!,
+          id: `r${i}`,
+          qty: 1,
+          watts: Math.round(50 + rand() * 1950),
+          surgeFactor: rand() < 0.3 ? 3 : 1,
+          essential: rand() < 0.5,
+          dayHours,
+          nightHours,
+          hoursPerDay: dayHours + nightHours,
+        }
+      }),
+    )
   }
 
   it('battery, panels and system price never decrease essential → comfort → independence', () => {
+    let sized = 0
     for (let i = 0; i < 300; i++) {
       const t = randomTotals()
       const state = NG_STATE_IDS[Math.floor(rand() * NG_STATE_IDS.length)]!
       const deposit = 0.2 + Math.round(rand() * 75) / 100
-      const e = buildEstimate(t, state, deposit, s)
+      let e
+      try {
+        e = buildEstimate(t, state, deposit, s)
+      } catch (err) {
+        // Big all-day, all-night loads can need more solar than any stocked inverter connects.
+        if (err instanceof LoadTooLargeError && err.cause === 'solar') continue
+        throw err
+      }
+      sized++
       const [es, co, ind] = [e.plans.essential, e.plans.comfort, e.plans.independence]
       const label = `load ${t.runningW} W / ${t.surgeW} W / ${t.dailyKwh} kWh, ${state}, ${deposit}`
       expect(co.size.batteryKwh, label).toBeGreaterThanOrEqual(es.size.batteryKwh)
       expect(ind.size.batteryKwh, label).toBeGreaterThanOrEqual(co.size.batteryKwh)
-      expect(co.size.panelCount, label).toBeGreaterThanOrEqual(es.size.panelCount)
-      expect(ind.size.panelCount, label).toBeGreaterThanOrEqual(co.size.panelCount)
-      expect(co.quote.systemPrice, label).toBeGreaterThanOrEqual(es.quote.systemPrice)
-      expect(ind.quote.systemPrice, label).toBeGreaterThanOrEqual(co.quote.systemPrice)
-      // and the same inverter for all three (it depends on the load, not the plan)
-      expect(ind.size.inverterKva, label).toBe(es.size.inverterKva)
+      // Solar needed never falls (whole panels can differ by the string layout).
+      expect(co.size.workings!.kwpNeeded, label).toBeGreaterThanOrEqual(es.size.workings!.kwpNeeded)
+      expect(ind.size.workings!.kwpNeeded, label).toBeGreaterThanOrEqual(
+        co.size.workings!.kwpNeeded,
+      )
+      expect(co.size.inverterKva, label).toBeGreaterThanOrEqual(es.size.inverterKva)
+      expect(ind.size.inverterKva, label).toBeGreaterThanOrEqual(co.size.inverterKva)
     }
+    expect(sized).toBeGreaterThan(200)
   })
 })
 
@@ -223,8 +240,8 @@ describe('settings changes and stored estimates', () => {
       ...s,
       sizing: {
         ...s.sizing,
-        chargeHours: 4,
-        backupHours: { ...s.sizing.backupHours, comfort: 12 },
+        panelDerate: 0.6,
+        planNightHours: { ...s.sizing.planNightHours, comfort: 10 },
       },
     }
     const after = buildEstimate(totals, 'Lagos', 0.2, changed)

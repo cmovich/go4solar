@@ -6,6 +6,7 @@ import {
 } from '@/components/admin/appliances/ApplianceEditor'
 import { requireRole } from '@/lib/auth/roles'
 import { isCategoryId } from '@/lib/load/categories'
+import { dayNightDefaults } from '@/lib/appliances/defaults'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = { title: 'Appliances' }
@@ -31,7 +32,7 @@ export default async function AppliancesPage() {
             defaultWatts: r.default_watts,
             surgeFactor: Number(r.surge_factor),
             dutyCycle: Number(r.duty_cycle),
-            defaultHours: Number(r.default_hours),
+            ...dayNightDefaults(r),
             sort: r.sort,
             active: r.active,
           },
@@ -43,8 +44,9 @@ export default async function AppliancesPage() {
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <h1 className="text-brand-dark text-3xl font-bold">Appliances</h1>
       <p className="text-muted-foreground mt-1 mb-6 text-sm">
-        Default watts, start-up surge, duty cycle and hours per day for every item in the
-        calculator. Changes reach the calculator within the hour.
+        Default watts, start-up surge, duty cycle, hours in the day and at night, and whether the
+        item starts ticked as essential, for every item in the calculator. Changes reach the
+        calculator within the hour.
       </p>
       <ApplianceEditor rows={rows} canEdit={session.role === 'super_admin'} />
     </main>

@@ -134,7 +134,10 @@ export type Database = {
         Row: {
           active: boolean
           category: Database['public']['Enums']['appliance_category']
+          default_day_hours: number
+          default_essential: boolean
           default_hours: number
+          default_night_hours: number
           default_watts: number
           duty_cycle: number
           id: string
@@ -145,7 +148,10 @@ export type Database = {
         Insert: {
           active?: boolean
           category: Database['public']['Enums']['appliance_category']
+          default_day_hours: number
+          default_essential?: boolean
           default_hours: number
+          default_night_hours: number
           default_watts: number
           duty_cycle?: number
           id?: string
@@ -156,7 +162,10 @@ export type Database = {
         Update: {
           active?: boolean
           category?: Database['public']['Enums']['appliance_category']
+          default_day_hours?: number
+          default_essential?: boolean
           default_hours?: number
+          default_night_hours?: number
           default_watts?: number
           duty_cycle?: number
           id?: string
@@ -1453,6 +1462,7 @@ export type Database = {
           created_at: string
           deposit_share: number
           energy: Json | null
+          grid: Json | null
           id: string
           load_items: Json
           load_totals: Json
@@ -1473,6 +1483,7 @@ export type Database = {
           created_at?: string
           deposit_share: number
           energy?: Json | null
+          grid?: Json | null
           id?: string
           load_items: Json
           load_totals: Json
@@ -1493,6 +1504,7 @@ export type Database = {
           created_at?: string
           deposit_share?: number
           energy?: Json | null
+          grid?: Json | null
           id?: string
           load_items?: Json
           load_totals?: Json
@@ -1686,6 +1698,33 @@ export type Database = {
         }
         Relationships: []
       }
+      sun_hours: {
+        Row: {
+          annual_psh: number
+          rainy_psh: number
+          sample: boolean
+          source: string
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          annual_psh: number
+          rainy_psh: number
+          sample?: boolean
+          source?: string
+          state: string
+          updated_at?: string
+        }
+        Update: {
+          annual_psh?: number
+          rainy_psh?: number
+          sample?: boolean
+          source?: string
+          state?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_permissions: {
         Row: {
           created_at: string
@@ -1826,6 +1865,7 @@ export type Database = {
           entry_channel: string | null
           estimate: Json | null
           first_name: string | null
+          grid: Json | null
           id: string
           is_test: boolean
           lga: string | null
@@ -1856,6 +1896,7 @@ export type Database = {
           entry_channel?: string | null
           estimate?: Json | null
           first_name?: string | null
+          grid?: Json | null
           id?: string
           is_test?: boolean
           lga?: string | null
@@ -1886,6 +1927,7 @@ export type Database = {
           entry_channel?: string | null
           estimate?: Json | null
           first_name?: string | null
+          grid?: Json | null
           id?: string
           is_test?: boolean
           lga?: string | null

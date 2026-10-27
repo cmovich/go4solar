@@ -16,6 +16,7 @@ import { hitRateLimit } from '@/lib/ratelimit/hitRateLimit'
 import { recordConsents } from '@/lib/consent/server'
 import { consentRecord } from '@/lib/consent/texts'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
+import { gridFrom } from '@/lib/settings/schemas'
 import type { Plan } from '@/lib/sizing/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendWaitlistConfirmation } from '@/lib/waitlist/messages'
@@ -166,10 +167,11 @@ export async function saveNameStep(input: unknown): Promise<ActionResult<{ estim
   let estimate: Estimate
   try {
     estimate = buildEstimate(
-      computeLoadTotals(row.load_items as LoadItem[]),
+      computeLoadTotals(row.load_items as LoadItem[], { nightShare: settings.sizing.nightShare }),
       parsed.data.state,
       settings.minDepositShare,
       settings,
+      gridFrom((row as { grid?: unknown }).grid),
     )
     estimate = { ...estimate, pricedAt: new Date().toISOString() }
   } catch (err) {
