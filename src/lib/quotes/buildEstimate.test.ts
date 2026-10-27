@@ -128,6 +128,37 @@ describe('buildEstimate — PRD sample home, Lagos, 20% deposit', () => {
   })
 })
 
+describe('Essentials sizes only the ticked items', () => {
+  it('2,000 W home with 1,000 W ticked: Essentials is smaller and cheaper than Comfort', () => {
+    const home = computeLoadTotals([
+      {
+        ...sampleHomeItems[0]!,
+        id: 'e',
+        qty: 1,
+        watts: 1000,
+        essential: true,
+        dayHours: 6,
+        nightHours: 6,
+        hoursPerDay: 12,
+      },
+      {
+        ...sampleHomeItems[0]!,
+        id: 'r',
+        qty: 1,
+        watts: 1000,
+        essential: false,
+        dayHours: 6,
+        nightHours: 6,
+        hoursPerDay: 12,
+      },
+    ])
+    const e = buildEstimate(home, 'FCT', 0.2, s)
+    expect(e.plans.essential.size.batteryKwh).toBeLessThan(e.plans.comfort.size.batteryKwh)
+    expect(e.plans.essential.size.panelCount).toBeLessThan(e.plans.comfort.size.panelCount)
+    expect(e.plans.essential.quote.systemPrice).toBeLessThan(e.plans.comfort.quote.systemPrice)
+  })
+})
+
 describe('buildEstimate — invariants over random loads', () => {
   // Deterministic pseudo-random so a failure is reproducible.
   let seed = 20261010
@@ -159,6 +190,7 @@ describe('buildEstimate — invariants over random loads', () => {
 
   it('battery, panels and system price never decrease essential → comfort → independence', () => {
     let sized = 0
+    let essentialSmaller = 0
     for (let i = 0; i < 300; i++) {
       const t = randomTotals()
       const state = NG_STATE_IDS[Math.floor(rand() * NG_STATE_IDS.length)]!
@@ -182,9 +214,18 @@ describe('buildEstimate — invariants over random loads', () => {
         co.size.workings!.kwpNeeded,
       )
       expect(co.size.inverterKva, label).toBeGreaterThanOrEqual(es.size.inverterKva)
+      // Essentials sizes only the ticked items: whenever an unticked item has load, it is smaller.
+      if (t.essential.count > 0 && t.essential.runningW < t.runningW) {
+        expect(es.size.workings!.planLoadW, label).toBeLessThan(co.size.workings!.planLoadW)
+        expect(es.size.workings!.targetKwh, label).toBeLessThan(co.size.workings!.targetKwh)
+        expect(es.size.batteryKwh, label).toBeLessThanOrEqual(co.size.batteryKwh)
+        expect(es.quote.systemPrice, label).toBeLessThanOrEqual(co.quote.systemPrice)
+        essentialSmaller++
+      }
       expect(ind.size.inverterKva, label).toBeGreaterThanOrEqual(co.size.inverterKva)
     }
     expect(sized).toBeGreaterThan(200)
+    expect(essentialSmaller).toBeGreaterThan(80)
   })
 })
 

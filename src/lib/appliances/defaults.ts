@@ -1,3 +1,5 @@
+import { defaultEssential } from '@/lib/load/essential'
+
 /** Calculator defaults of an appliance_library row: hours in the day, at night, essential tick. */
 export type DayNightDefaults = {
   defaultDayHours: number
@@ -14,6 +16,7 @@ const DAYTIME_CATEGORIES = ['kitchen', 'laundry', 'water_outdoor', 'business']
  */
 export function dayNightDefaults(row: {
   category: string
+  name?: string
   default_hours: number | string
   default_day_hours?: number | string | null
   default_night_hours?: number | string | null
@@ -38,5 +41,9 @@ export function dayNightDefaults(row: {
   else if (DAYTIME_CATEGORIES.includes(row.category)) night = 0
   else night = Math.min(Math.round(h * 0.6 * 2) / 2, 12)
   const day = h >= 24 ? 12 : Math.min(h - night, 12)
-  return { defaultDayHours: day, defaultNightHours: night, defaultEssential: false }
+  return {
+    defaultDayHours: day,
+    defaultNightHours: night,
+    defaultEssential: defaultEssential({ category: row.category, name: row.name ?? '' }),
+  }
 }

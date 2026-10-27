@@ -26,6 +26,13 @@ describe('dayNightDefaults (appliance_library row → calculator defaults)', () 
       defaultNightHours: 3.5,
     })
     expect(split('cooling', 8)).toMatchObject({ defaultDayHours: 3, defaultNightHours: 5 })
-    expect(split('lighting', 6).defaultEssential).toBe(false)
+    // Pre-ticks follow the default rule (lights, fans, TVs, phone charging).
+    expect(
+      dayNightDefaults({ category: 'lighting', name: 'LED bulb', default_hours: 6 })
+        .defaultEssential,
+    ).toBe(true)
+    expect(
+      dayNightDefaults({ category: 'kitchen', name: 'Fridge', default_hours: 24 }).defaultEssential,
+    ).toBe(false)
   })
 })

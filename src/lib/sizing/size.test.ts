@@ -130,8 +130,15 @@ describe('backup hours', () => {
   })
 
   it('typical night use: the battery against the customer’s own night energy', () => {
-    // Comfort Lagos no grid: 20 kWh × 0.81 = 16.2 kWh usable; night use 12 kWh over 12 h = 1 kW.
-    expect(size('comfort', SUN.Lagos).realisticBackupHours).toBe(16.2)
+    // Comfort Lagos no grid: 20 kWh × 0.81 = 16.2 kWh usable; night use 12 kWh over 12 h = 1 kW
+    // → 16.2 h, more than the night: shown as the whole 12 h night.
+    expect(size('comfort', SUN.Lagos).realisticBackupHours).toBe(12)
+    // Everything on all night (24 kWh over 12 h = 2 kW): 16.2 ÷ 2 = 8.1 h.
+    const allNight = computeLoadTotals([
+      makeItem({ id: 'a', watts: 2000, dayHours: 6, nightHours: 12, hoursPerDay: 18 }),
+    ])
+    const r = sizeSystem(allNight, 'comfort', s, { sun: SUN.Lagos, grid: null, equipment: eq })
+    expect(r.realisticBackupHours).toBe(8.1)
   })
 
   it('no night use → no typical-night figure', () => {

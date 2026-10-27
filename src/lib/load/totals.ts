@@ -5,6 +5,7 @@ import {
   type LoadSubset,
   type LoadTotals,
 } from './types'
+import { defaultEssential } from './essential'
 
 /** Items at or above this draw get the heavy-load warning (PRD Feature 3). */
 export const HEAVY_ITEM_WATTS = 1000
@@ -136,8 +137,9 @@ export function computeLoadTotals(
     dayKwh: all.dayKwh,
     nightKwh: all.nightKwh,
     dayRunningW: all.dayRunningW,
+    // Items saved before the Essential tick existed use the default pre-ticks.
     essential: subset(
-      items.filter((i) => i.essential),
+      items.filter((i) => i.essential ?? defaultEssential(i)),
       nightShare,
     ),
   }

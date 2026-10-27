@@ -21,13 +21,20 @@ export function Results({
   hasItems,
   launchMode,
   onContinue,
+  needsEssential = false,
+  onSuggestEssential,
 }: {
   totals: LoadTotals
   hasItems: boolean
   launchMode: LaunchMode
   /** When given, a Continue button replaces the link (waiting-list flow). */
   onContinue?: () => void
+  /** No item is ticked Essential yet: the Essentials plan needs at least one. */
+  needsEssential?: boolean
+  /** Tick the suggested items (lights, fans, TVs, phone charging). */
+  onSuggestEssential?: () => void
 }) {
+  const ready = hasItems && !needsEssential
   // Both modes: the details flow reads the saved appliances and skips the calculator.
   const nextHref = plansLinkFromCalculator(launchMode)
 
@@ -68,7 +75,29 @@ export function Results({
       )}
 
       <div className="mt-8">
-        {hasItems && onContinue ? (
+        {hasItems && needsEssential && (
+          <div
+            className="border-brand-orange bg-brand-orange/10 text-brand-dark mb-4 rounded-xl border-2 p-4 text-sm"
+            role="alert"
+            data-testid="essential-needed"
+          >
+            <p className="font-semibold">Tick at least one item as Essential.</p>
+            <p className="mt-1">
+              The Essentials plan keeps only those items on when the power goes. Most homes tick
+              lights, fans, TV and phone charging.
+            </p>
+            {onSuggestEssential && (
+              <button
+                type="button"
+                onClick={onSuggestEssential}
+                className="text-brand-blue mt-2 min-h-11 font-semibold underline"
+              >
+                Tick lights, fans, TV and phone charging
+              </button>
+            )}
+          </div>
+        )}
+        {ready && onContinue ? (
           <button
             type="button"
             onClick={onContinue}
@@ -76,7 +105,7 @@ export function Results({
           >
             Continue
           </button>
-        ) : hasItems ? (
+        ) : ready ? (
           <Link
             href={nextHref}
             prefetch={false}

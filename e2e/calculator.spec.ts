@@ -32,6 +32,30 @@ test.describe('load calculator', () => {
     await expect(page.getByRole('link', { name: 'See my solar plans' })).toBeVisible()
   })
 
+  test('Essential: lights start ticked; with nothing ticked the plans wait for one', async ({
+    page,
+  }) => {
+    await page.goto('/calculate')
+    await page.getByRole('button', { name: 'Kitchen Appliances' }).click()
+    await page.getByRole('button', { name: /^Fridge/ }).click()
+    const fridge = page.getByTestId('item-card').filter({ hasText: 'Fridge' })
+    await expect(fridge.getByLabel('Fridge is essential')).not.toBeChecked()
+    // Nothing essential yet: no way on to the plans until one item is ticked.
+    await expect(page.getByTestId('essential-needed')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'See my solar plans' })).toHaveCount(0)
+    await fridge.getByLabel('Fridge is essential').check()
+    await expect(page.getByTestId('essential-needed')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'See my solar plans' })).toBeVisible()
+
+    // A light is pre-ticked; the day and night hours are separate.
+    await page.getByRole('button', { name: 'Lighting' }).click()
+    await page.getByRole('button', { name: /^LED bulb/ }).click()
+    const led = page.getByTestId('item-card').filter({ hasText: 'LED bulb' })
+    await expect(led.getByLabel('LED bulb is essential')).toBeChecked()
+    await expect(led.getByLabel('Hours in the day')).toHaveValue('0')
+    await expect(led.getByLabel('Hours at night')).toHaveValue('6')
+  })
+
   test('the list survives a reload (localStorage)', async ({ page }) => {
     await page.goto('/calculate')
     await page.getByRole('button', { name: 'Lighting' }).click()

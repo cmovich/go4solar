@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { CATEGORY_IDS, type CategoryId, type LoadItem } from '@/lib/load/types'
+import { defaultEssential } from '@/lib/load/essential'
 import { LIMITS } from '@/lib/load/totals'
 
 /** One row of appliance_library, in camelCase. */
@@ -124,6 +125,11 @@ const storedSchema = z.object({
   items: z.array(z.unknown()),
 })
 
+/** True when at least one item is ticked Essential (the Essentials plan needs one). */
+export function hasEssential(items: LoadItem[]): boolean {
+  return items.some((i) => i.essential)
+}
+
 /** Parse a saved calculator state; corrupt data → []. Invalid single items are dropped. */
 export function parseStoredItems(raw: string | null): LoadItem[] {
   if (!raw) return []
@@ -132,7 +138,9 @@ export function parseStoredItems(raw: string | null): LoadItem[] {
     if (!parsed.success) return []
     return parsed.data.items.flatMap((i) => {
       const r = storedItemSchema.safeParse(i)
-      return r.success ? [r.data] : []
+      if (!r.success) return []
+      // Saved before the Essential tick: start with the default pre-ticks.
+      return [{ ...r.data, essential: r.data.essential ?? defaultEssential(r.data) }]
     })
   } catch {
     return []

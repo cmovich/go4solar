@@ -6,6 +6,7 @@ import { computeLoadTotals } from '@/lib/load/totals'
 import {
   addCustomItem,
   addLibraryItem,
+  hasEssential,
   parseStoredItems,
   removeItem,
   updateItem,
@@ -147,7 +148,7 @@ describe('calculator store', () => {
 describe('parseStoredItems', () => {
   it('returns the items when the stored JSON is valid', () => {
     const json = JSON.stringify({ version: 1, items: sampleHomeItems })
-    expect(parseStoredItems(json)).toEqual(sampleHomeItems)
+    expect(parseStoredItems(json)).toEqual(sampleHomeItems.map((i) => expect.objectContaining(i)))
   })
 
   it('returns [] for missing, corrupt or wrong-version data', () => {
@@ -160,7 +161,7 @@ describe('parseStoredItems', () => {
   it('drops items that fail the load limits instead of crashing', () => {
     const bad = { ...sampleHomeItems[0]!, watts: 99999 }
     const json = JSON.stringify({ version: 1, items: [bad, sampleHomeItems[1]] })
-    expect(parseStoredItems(json)).toEqual([sampleHomeItems[1]])
+    expect(parseStoredItems(json)).toEqual([expect.objectContaining(sampleHomeItems[1]!)])
   })
 })
 
@@ -180,6 +181,12 @@ describe('day and night hours, essential', () => {
     const items = addLibraryItem([], tv, 't1')
     const after = updateItem(items, 't1', { nightHours: 5 })
     expect(after[0]).toMatchObject({ dayHours: 2.5, nightHours: 5, hoursPerDay: 7.5 })
+  })
+
+  it('hasEssential: the calculator needs at least one essential item', () => {
+    const items = addLibraryItem([], tv, 't1')
+    expect(hasEssential(items)).toBe(false)
+    expect(hasEssential(updateItem(items, 't1', { essential: true }))).toBe(true)
   })
 
   it('the essential tick can be changed', () => {
@@ -208,5 +215,7 @@ describe('day and night hours, essential', () => {
     const [a, b] = parseStoredItems(saved)
     expect(a).toMatchObject({ dayHours: 2.5, nightHours: 3.5, essential: false })
     expect(b).not.toHaveProperty('dayHours')
+    // An older save gets the default pre-tick (lights are essential).
+    expect(b!.essential).toBe(true)
   })
 })

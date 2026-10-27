@@ -187,3 +187,21 @@ describe('day, night and essential totals', () => {
     ).toThrow(LoadValidationError)
   })
 })
+
+describe('essential items saved before the tick existed', () => {
+  it('count as essential by the default rule (lights, fans, TVs, phone charging)', () => {
+    const t = computeLoadTotals([
+      makeItem({
+        id: 'l',
+        category: 'lighting',
+        name: 'LED bulb',
+        watts: 10,
+        qty: 5,
+        essential: undefined,
+      }),
+      makeItem({ id: 'a', category: 'cooling', name: 'AC 1 HP', watts: 900, essential: undefined }),
+      makeItem({ id: 'x', category: 'cooling', name: 'Ceiling fan', watts: 75, essential: false }),
+    ])
+    expect(t.essential.runningW).toBe(50) // the bulbs; the fan was un-ticked on purpose
+  })
+})

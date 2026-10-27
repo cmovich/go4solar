@@ -297,6 +297,7 @@ export function sizeSystem(
     const workings: SizingWorkings = {
       plan,
       items,
+      nightHours: s.nightHours,
       planLoadW: load.runningW,
       fullLoadW: totals.runningW,
       surgeW: load.surgeW,
@@ -335,7 +336,9 @@ export function sizeSystem(
       panelWatts: panel.watts,
       stringLayout: layout!,
       backupHoursFullLoad,
-      realisticBackupHours: avgNightKw > 0 ? round1(usable / avgNightKw) : null,
+      // Never more than the night: beyond it the battery simply lasts all night.
+      realisticBackupHours:
+        avgNightKw > 0 ? Math.min(s.nightHours, round1(usable / avgNightKw)) : null,
       backupWithGridHours: grid
         ? Math.min(s.nightHours, round1(bypassHours + (usable + gridChargeKwh) / planLoadKw))
         : null,

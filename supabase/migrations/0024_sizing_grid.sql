@@ -93,10 +93,11 @@ alter table public.appliance_library
   add constraint appliance_library_day_night_check
     check (default_day_hours + default_night_hours <= 24);
 
+-- Pre-ticked "Essential" (Semako): lights, fans, TVs and phone charging. Same rule as
+-- defaultEssential() in src/lib/load/essential.ts; admin can change any row.
 update public.appliance_library set default_essential = true
 where category = 'lighting'
-   or name in ('Fridge', 'Standing fan', 'Ceiling fan', 'Wi-Fi router', 'Phone charger',
-               '32" TV', 'Decoder', 'CCTV / DVR', 'POS terminal', 'Electric fence');
+   or name ~* '\mfan\M' or name ~* '\mTV\M' or name ~* 'phone charg';
 
 -- 3. Grid supply at the customer's site (asked by the quote wizard, Part E):
 --    { mode: A|B|C|D, pattern: daily|some_days|uncertain|blackout, dayHours, nightHours }.

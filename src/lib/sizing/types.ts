@@ -111,6 +111,8 @@ export type SizingWorkings = {
   plan: Plan
   /** Items the plan covers: all, or the essential ones. */
   items: 'all' | 'essential'
+  /** The night-hours setting at the time. */
+  nightHours: number
   planLoadW: number
   fullLoadW: number
   surgeW: number
