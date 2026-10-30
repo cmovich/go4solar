@@ -1698,33 +1698,6 @@ export type Database = {
         }
         Relationships: []
       }
-      sun_hours: {
-        Row: {
-          annual_psh: number
-          rainy_psh: number
-          sample: boolean
-          source: string
-          state: string
-          updated_at: string
-        }
-        Insert: {
-          annual_psh: number
-          rainy_psh: number
-          sample?: boolean
-          source?: string
-          state: string
-          updated_at?: string
-        }
-        Update: {
-          annual_psh?: number
-          rainy_psh?: number
-          sample?: boolean
-          source?: string
-          state?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       staff_permissions: {
         Row: {
           created_at: string
@@ -1760,6 +1733,33 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      sun_hours: {
+        Row: {
+          annual_psh: number
+          rainy_psh: number
+          sample: boolean
+          source: string
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          annual_psh: number
+          rainy_psh: number
+          sample?: boolean
+          source?: string
+          state: string
+          updated_at?: string
+        }
+        Update: {
+          annual_psh?: number
+          rainy_psh?: number
+          sample?: boolean
+          source?: string
+          state?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       testimonials: {
         Row: {
