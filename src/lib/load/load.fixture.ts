@@ -63,6 +63,8 @@ export function makeItem(overrides: Partial<LoadItem> = {}): LoadItem {
     surgeFactor: 1,
     dutyCycle: 1,
     custom: false,
+    // Not essential unless a test says so (pass essential: undefined for an older save).
+    essential: false,
     ...overrides,
   }
 }

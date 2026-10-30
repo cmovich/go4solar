@@ -6,7 +6,7 @@ import { co2Avoided } from '@/lib/energy/currentSpend'
 import { lagosDate, lockStatus, type LockState } from '@/lib/payments/lock'
 import type { QuoteResult } from '@/lib/pricing/types'
 import { quoteReference } from '@/lib/quotes/quote'
-import type { Plan } from '@/lib/sizing/types'
+import type { Plan, SystemSize } from '@/lib/sizing/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database } from '@/lib/supabase/database.types'
 import type { EnergyRecord } from '@/lib/waitlist/schema'
@@ -141,6 +141,8 @@ export type ApplicationDetail = {
   reference: string | null
   quote: QuoteResult | null
   plan: Plan | null
+  /** The sizing stored with the quote ("How this was sized"). */
+  size: SystemSize | null
   checks: {
     id: string
     kind: string
@@ -177,7 +179,11 @@ export async function applicationDetail(id: string): Promise<ApplicationDetail |
   const app = ctx.app
   const [quoteRes, checks, docs, agreements, guaranteeRes, payments] = await Promise.all([
     app.quote_id
-      ? admin.from('quotes').select('id, result, plan, energy').eq('id', app.quote_id).maybeSingle()
+      ? admin
+          .from('quotes')
+          .select('id, result, plan, energy, system_size')
+          .eq('id', app.quote_id)
+          .maybeSingle()
       : { data: null },
     admin.from('kyc_checks').select('*').eq('subject_id', app.id).order('created_at'),
     admin
@@ -257,6 +263,7 @@ export async function applicationDetail(id: string): Promise<ApplicationDetail |
     reference: app.quote_id ? quoteReference(app.quote_id) : null,
     quote,
     plan,
+    size: (quoteRes.data?.system_size ?? null) as SystemSize | null,
     checks: (checks.data ?? []).map((c) => ({
       id: c.id,
       kind: c.kind,

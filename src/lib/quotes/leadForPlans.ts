@@ -8,6 +8,7 @@ import { isNgStateId, type NgStateId } from '@/lib/nigeria/states'
 import { offeredTenures } from '@/lib/pricing/tenures'
 import type { TenureMonths } from '@/lib/pricing/types'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
+import { gridFrom } from '@/lib/settings/schemas'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database } from '@/lib/supabase/database.types'
 import type { EnergyRecord } from '@/lib/waitlist/schema'
@@ -74,10 +75,13 @@ async function loadLead(id: string, visitorHash: string | null): Promise<LeadFor
   if (estimateIsStale(estimate.pricedAt ?? lead.created_at, validityDays)) {
     estimate = {
       ...buildEstimate(
-        computeLoadTotals(lead.load_items as LoadItem[]),
+        computeLoadTotals(lead.load_items as LoadItem[], {
+          nightShare: settings.sizing.nightShare,
+        }),
         lead.state,
         settings.minDepositShare,
         settings,
+        gridFrom(lead.grid),
       ),
       pricedAt: new Date().toISOString(),
     }

@@ -2,7 +2,7 @@
 
 import { Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -37,6 +37,7 @@ export function DeleteEntryButton({
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
+  const wrapper = useRef<HTMLSpanElement>(null)
 
   function confirm() {
     setError(null)
@@ -44,6 +45,9 @@ export function DeleteEntryButton({
       const r = await deleteWaitlistEntry({ table, id, reason, note: note || undefined })
       if (r.ok) {
         setOpen(false)
+        // Hide the row at once; the refresh (counts, badges) can take a while on slow links.
+        const row = wrapper.current?.closest('tr')
+        if (row) row.hidden = true
         router.refresh()
       } else setError(r.error)
     })
@@ -51,7 +55,7 @@ export function DeleteEntryButton({
 
   // Clicks inside the dialog (a portal) still bubble to the row in React: stop them here.
   return (
-    <span onClick={(e) => e.stopPropagation()}>
+    <span ref={wrapper} onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
         onClick={() => {

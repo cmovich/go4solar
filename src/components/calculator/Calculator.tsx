@@ -10,9 +10,11 @@ import {
   parseStoredItems,
   removeItem,
   serialiseItems,
+  hasEssential,
   updateItem,
   type LibraryItem,
 } from '@/lib/calculator/store'
+import { defaultEssential } from '@/lib/load/essential'
 import { computeLoadTotals } from '@/lib/load/totals'
 import type { CategoryId, LoadItem, LoadTotals } from '@/lib/load/types'
 
@@ -127,6 +129,10 @@ export function Calculator({
         hasItems={items.length > 0}
         launchMode={launchMode}
         onContinue={onContinue ? () => onContinue(items) : undefined}
+        needsEssential={items.length > 0 && !hasEssential(items)}
+        onSuggestEssential={() =>
+          setItems((prev) => prev.map((i) => (defaultEssential(i) ? { ...i, essential: true } : i)))
+        }
       />
 
       <TotalsBar totals={totals} />

@@ -26,8 +26,10 @@ test.describe('live mode: plans → account → phone code → application', () 
     await expect(
       page.getByText(/Backup hours assume every item on your list is switched on/),
     ).toBeVisible()
-    await expect(page.getByTestId('realistic-comfort')).toContainText(
-      'Your realistic backup: about',
+    // Part B backup lines on the plan card.
+    await expect(page.getByTestId('backup-comfort')).toContainText('Backup with everything on ≈')
+    await expect(page.getByTestId('backup-comfort')).toContainText(
+      'In the rainy season, expect less backup on cloudy days.',
     )
     await expect(page.getByTestId('plan-advice')).toHaveCount(3)
     await expect(page.getByTestId('plan-advice').first()).toContainText('₦70,200')

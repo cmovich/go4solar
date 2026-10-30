@@ -157,7 +157,6 @@ export function PlansChooser({
       <div className="space-y-6">
         {PLANS.map((p) => {
           const v = variants[p]
-          const realistic = v.size.realisticBackupHours
           return (
             <div key={p} className="space-y-2" data-testid={`plan-${p}`}>
               <PlanCard
@@ -170,10 +169,6 @@ export function PlansChooser({
                   {v.size.panelKw} kW) ·{' '}
                   <span className="text-muted-foreground">Total amount payable:</span>{' '}
                   <strong data-testid={`total-${p}`}>{formatNaira(v.quote.systemPrice)}</strong>
-                </p>
-                <p data-testid={`realistic-${p}`}>
-                  Your realistic backup:{' '}
-                  {realistic === null ? '—' : `about ${Math.round(realistic)} hours`}
                 </p>
                 {v.savingVsMin > 0 && (
                   <p className="text-brand-green font-semibold">

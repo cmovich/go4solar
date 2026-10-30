@@ -49,6 +49,7 @@ describe('SPEC_FIELDS', () => {
       'mpptMax',
       'maxChargeA',
       'surgeW',
+      'maxAcChargeA',
     ])
     expect(SPEC_FIELDS.battery.map((f) => f.key)).toEqual([
       'nominalV',
@@ -159,5 +160,32 @@ describe('usableComponents (what the engine and builder may use)', () => {
     const r = usableComponents(rows)
     expect(r.usable.map((c) => c.id)).toContain('b1')
     expect(r.categoriesWithoutSpecs).toEqual(['battery'])
+  })
+})
+
+// Part B: grid charging current is optional (40 A assumed when missing, with a warning), and an
+// inverter with missing specs stays usable: the sizing engine fills the gaps with assumed values.
+describe('inverter specs in Part B', () => {
+  it('the AC (grid) charge current is optional', () => {
+    expect(missingSpecs(inverter)).toEqual([])
+    expect(SPEC_FIELDS.inverter.find((f) => f.key === 'maxAcChargeA')).toMatchObject({
+      optional: true,
+    })
+  })
+
+  it('inverters with missing specs are never skipped', () => {
+    const { usable, skipped } = usableComponents([
+      { id: 'i1', sku: 'INV-3.5', active: true, ...inverter },
+      {
+        id: 'i2',
+        sku: 'INV-5',
+        category: 'inverter',
+        active: true,
+        nominalVoltage: null,
+        specs: {},
+      },
+    ])
+    expect(usable.map((u) => u.sku)).toEqual(['INV-3.5', 'INV-5'])
+    expect(skipped).toEqual([])
   })
 })

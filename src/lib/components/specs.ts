@@ -13,6 +13,8 @@ type NumberField = {
   kind: 'number'
   min: number
   max: number
+  /** Not needed for "Specs ✓" (the engine has a setting for it). */
+  optional?: true
 }
 type ChoiceField = {
   key: string
@@ -55,6 +57,7 @@ export const SPEC_FIELDS: Record<SpecCategory, SpecField[]> = {
     n('mpptMax', 'MPPT max', 'V', 10, 1500),
     n('maxChargeA', 'max charge current', 'A', 1, 1000),
     n('surgeW', 'surge W', 'W', 200, 500_000),
+    { ...n('maxAcChargeA', 'max grid (AC) charge current', 'A', 1, 1000), optional: true },
   ],
   battery: [
     n('nominalV', 'nominal V', 'V', 6, 800),
@@ -92,7 +95,9 @@ export function missingSpecs(c: Item): string[] {
   const specs = c.specs ?? {}
   return [
     ...(c.nominalVoltage === null ? ['nominal voltage'] : []),
-    ...SPEC_FIELDS[c.category].filter((f) => !present(specs[f.key])).map((f) => f.label),
+    ...SPEC_FIELDS[c.category]
+      .filter((f) => !(f.kind === 'number' && f.optional) && !present(specs[f.key]))
+      .map((f) => f.label),
   ]
 }
 
@@ -168,7 +173,9 @@ export function usableComponents<T extends Row>(
   const usable: T[] = []
   const skipped: { sku: string; reason: string }[] = []
   for (const r of active) {
-    if (complete(r) || categoriesWithoutSpecs.includes(r.category)) usable.push(r)
+    // Inverters are always usable: sizing fills missing specs from its assumed table (Part B).
+    if (complete(r) || r.category === 'inverter' || categoriesWithoutSpecs.includes(r.category))
+      usable.push(r)
     else skipped.push({ sku: r.sku, reason: `Specs missing: ${missingSpecs(r).join(', ')}` })
   }
   return { usable, skipped, categoriesWithoutSpecs }

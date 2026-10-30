@@ -34,6 +34,7 @@ import {
   type PlanEstimate,
 } from '@/lib/quotes/buildEstimate'
 import type { RateByTenure, TenureMonths } from '@/lib/pricing/types'
+import { backupLines, planBlurb } from '@/lib/sizing/describe'
 import type { Plan } from '@/lib/sizing/types'
 import {
   BUSINESS_TYPES,
@@ -623,13 +624,6 @@ export function BusinessStep({
 }
 
 // ----------------------------------------------------------------- 9. Plans
-const PLAN_BLURB: Record<Plan, string> = {
-  essential:
-    'About 3 hours of backup at full load. Grid most days; solar for outages and evenings.',
-  comfort: 'About 8 hours of backup at full load. Covers the evening and most of the night.',
-  independence:
-    'About 15 hours of backup at full load: runs through the night without grid or generator.',
-}
 
 export type PlanAdvice = {
   monthlySpend: number
@@ -686,7 +680,7 @@ export function PlanCard({
       <p className="text-brand-green text-sm font-semibold tracking-wide uppercase">
         {PLAN_LABELS[plan]}
       </p>
-      <p className="text-muted-foreground mt-1 text-sm">{PLAN_BLURB[plan]}</p>
+      <p className="text-muted-foreground mt-1 text-sm">{planBlurb(size, plan)}</p>
       <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
         <div>
           <dt className="text-muted-foreground">Inverter</dt>
@@ -699,10 +693,16 @@ export function PlanCard({
         <div>
           <dt className="text-muted-foreground">Panels</dt>
           <dd className="font-semibold">
-            {size.panelCount} × {Math.round((size.panelKw * 1000) / size.panelCount)} W
+            {size.panelCount} ×{' '}
+            {size.panelWatts ?? Math.round((size.panelKw * 1000) / size.panelCount)} W
           </dd>
         </div>
       </dl>
+      <ul className="text-brand-dark mt-3 space-y-0.5 text-sm" data-testid={`backup-${plan}`}>
+        {backupLines(size, plan).map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
       {showPrices ? (
         <>
           <p className="text-brand-dark mt-4 text-2xl font-bold tracking-tight">

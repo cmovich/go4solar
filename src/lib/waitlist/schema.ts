@@ -97,6 +97,10 @@ export const loadItemSchema = z.object({
   watts: z.number().min(LIMITS.watts.min).max(LIMITS.watts.max),
   qty: z.number().int().min(LIMITS.qty.min).max(LIMITS.qty.max),
   hoursPerDay: z.number().min(LIMITS.hoursPerDay.min).max(LIMITS.hoursPerDay.max),
+  // Part B: hours in the day / at night and the essential tick (older saves have none).
+  dayHours: z.number().min(0).max(24).optional(),
+  nightHours: z.number().min(0).max(24).optional(),
+  essential: z.boolean().optional(),
   surgeFactor: z.number().min(1).max(10),
   dutyCycle: z.number().gt(0).max(1),
   custom: z.boolean(),

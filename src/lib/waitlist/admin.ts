@@ -2,7 +2,7 @@ import 'server-only'
 
 import type { LoadItem, LoadTotals } from '@/lib/load/types'
 import type { Estimate, RepricedPlan } from '@/lib/quotes/buildEstimate'
-import type { Plan } from '@/lib/sizing/types'
+import type { Plan, SystemSize } from '@/lib/sizing/types'
 import type { Database } from '@/lib/supabase/database.types'
 import { createClient } from '@/lib/supabase/server'
 
@@ -54,6 +54,8 @@ export type ConsumerLead = {
   monthly: number | null
   financing: number | null
   sample: boolean
+  /** Each plan's sizing in the stored estimate ("How this was sized"). */
+  sizes: Partial<Record<Plan, SystemSize>>
   duplicateOf: string | null
   enteredBy: string | null
   enteredByName: string | null
@@ -118,6 +120,9 @@ function decode(row: ConsumerRow, names: Map<string, string>): ConsumerLead {
     monthly: quote?.monthly ?? null,
     financing: quote ? quote.systemPrice - quote.deposit : null,
     sample: est?.sample ?? false,
+    sizes: est?.plans
+      ? Object.fromEntries(Object.entries(est.plans).map(([p, v]) => [p, v.size]))
+      : {},
     duplicateOf: row.duplicate_of,
     enteredBy: row.entered_by,
     enteredByName: row.entered_by ? (names.get(row.entered_by) ?? null) : null,

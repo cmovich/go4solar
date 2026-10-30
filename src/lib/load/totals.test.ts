@@ -106,3 +106,102 @@ describe('computeLoadTotals', () => {
     })
   })
 })
+
+// Part B: day and night energy, and the essential items on their own.
+describe('day, night and essential totals', () => {
+  it('uses each item’s own day and night hours', () => {
+    const t = computeLoadTotals([
+      makeItem({ id: 'tv', watts: 100, qty: 2, dayHours: 2, nightHours: 4, hoursPerDay: 6 }),
+      makeItem({
+        id: 'fr',
+        watts: 150,
+        dutyCycle: 0.4,
+        dayHours: 12,
+        nightHours: 12,
+        hoursPerDay: 24,
+      }),
+    ])
+    expect(t.dayKwh).toBe(1.12) // 200×2 + 150×12×0.4 = 400 + 720 Wh
+    expect(t.nightKwh).toBe(1.52) // 200×4 + 150×12×0.4 = 800 + 720 Wh
+    expect(t.dayRunningW).toBe(350)
+  })
+
+  it('splits hours of older items (no day/night) with the night share', () => {
+    const t = computeLoadTotals([makeItem({ id: 'a', watts: 100, hoursPerDay: 10 })], {
+      nightShare: 0.6,
+    })
+    expect(t.nightKwh).toBe(0.6)
+    expect(t.dayKwh).toBe(0.4)
+  })
+
+  it('an item used only at night does not count as daytime running load', () => {
+    const t = computeLoadTotals([
+      makeItem({ id: 'l', watts: 50, dayHours: 0, nightHours: 6, hoursPerDay: 6 }),
+    ])
+    expect(t.dayRunningW).toBe(0)
+  })
+
+  it('totals the essential items on their own', () => {
+    const t = computeLoadTotals([
+      makeItem({
+        id: 'a',
+        watts: 400,
+        qty: 2,
+        essential: true,
+        dayHours: 6,
+        nightHours: 6,
+        hoursPerDay: 12,
+      }),
+      makeItem({
+        id: 'b',
+        watts: 300,
+        surgeFactor: 3,
+        essential: true,
+        dayHours: 0,
+        nightHours: 8,
+        hoursPerDay: 8,
+      }),
+      makeItem({
+        id: 'c',
+        watts: 1000,
+        surgeFactor: 3,
+        dayHours: 6,
+        nightHours: 0,
+        hoursPerDay: 6,
+      }),
+    ])
+    expect(t.runningW).toBe(2100)
+    expect(t.essential).toEqual({
+      count: 2,
+      runningW: 1100,
+      surgeW: 1700, // 1100 + 300 × (3 − 1)
+      dayKwh: 4.8,
+      nightKwh: 7.2,
+      dayRunningW: 800,
+    })
+  })
+
+  it('rejects day + night hours above 24', () => {
+    expect(() =>
+      computeLoadTotals([makeItem({ id: 'x', dayHours: 14, nightHours: 12, hoursPerDay: 24 })]),
+    ).toThrow(LoadValidationError)
+  })
+})
+
+describe('essential items saved before the tick existed', () => {
+  it('count as essential by the default rule (lights, fans, TVs, phone charging)', () => {
+    const t = computeLoadTotals([
+      makeItem({
+        id: 'l',
+        category: 'lighting',
+        name: 'LED bulb',
+        watts: 10,
+        qty: 5,
+        essential: undefined,
+      }),
+      makeItem({ id: 'a', category: 'cooling', name: 'AC 1 HP', watts: 900, essential: undefined }),
+      makeItem({ id: 'x', category: 'cooling', name: 'Ceiling fan', watts: 75, essential: false }),
+    ])
+    expect(t.essential.runningW).toBe(50) // the bulbs; the fan was un-ticked on purpose
+  })
+})

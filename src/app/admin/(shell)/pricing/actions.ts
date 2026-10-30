@@ -14,6 +14,7 @@ import {
   ratesSchema,
   unitCostsSchema,
   type ComponentDraft,
+  type SunHoursRow,
 } from '@/lib/pricing/adminSchemas'
 import {
   componentDbErrorMessage,
@@ -281,6 +282,40 @@ async function saveSetting(session: SessionInfo, key: string, value: Json, actio
   await audit(session, action, `settings.${key}`, (current?.value ?? null) as Json, value)
 }
 
+/**
+ * Peak sun hours: only rows whose values changed are written, and an edited row is no longer
+ * SAMPLE. The database trigger logs each row; one app audit row lists the changes.
+ */
+async function saveSunHours(session: SessionInfo, rows: SunHoursRow[]) {
+  const supabase = await createClient()
+  const { data: current, error } = await supabase.from('sun_hours').select('*')
+  if (error) throw new Error(error.message)
+  const changed = rows.filter((r) => {
+    const c = current?.find((x) => x.state === r.state)
+    return !c || Number(c.annual_psh) !== r.annual || Number(c.rainy_psh) !== r.rainy
+  })
+  if (changed.length === 0) return
+  const { error: upsertError } = await supabase.from('sun_hours').upsert(
+    changed.map((r) => ({
+      state: r.state,
+      annual_psh: r.annual,
+      rainy_psh: r.rainy,
+      source: r.source,
+      sample: false,
+    })),
+  )
+  if (upsertError) throw new Error(upsertError.message)
+  await audit(
+    session,
+    'pricing.sun_hours.update',
+    'sun_hours',
+    (current ?? [])
+      .filter((c) => changed.some((r) => r.state === c.state))
+      .map((c) => ({ state: c.state, annual: Number(c.annual_psh), rainy: Number(c.rainy_psh) })),
+    changed.map((r) => ({ state: r.state, annual: r.annual, rainy: r.rainy })),
+  )
+}
+
 export async function saveLateFee(input: unknown): Promise<Result> {
   const session = await superAdmin()
   if (!session) return DENIED
@@ -324,6 +359,7 @@ export async function saveEnergySizing(input: unknown): Promise<Result> {
       parsed.data.sizing as unknown as Json,
       'pricing.sizing.update',
     )
+    if (parsed.data.sunHours?.length) await saveSunHours(session, parsed.data.sunHours)
   } catch (err) {
     return { ok: false, error: (err as Error).message }
   }

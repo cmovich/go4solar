@@ -51,6 +51,15 @@ function sizeOf(row: ComponentRow, key: 'watts' | 'kwh' | 'kva' | 'maxKva'): num
 
 const BANDS: readonly SizeBand[] = ['small', 'medium', 'large']
 
+/** Specs as stored in the price list: numbers and strings only. */
+function cleanSpecs(specs: Specs): Record<string, number | string> {
+  return Object.fromEntries(
+    Object.entries(specs).filter(
+      (e): e is [string, number | string] => typeof e[1] === 'number' || typeof e[1] === 'string',
+    ),
+  )
+}
+
 /**
  * Build the in-memory price list the estimate engine uses from the pricing tables.
  * Picks the active panel whose wattage matches the sizing setting (else the first active panel),
@@ -78,6 +87,7 @@ export function priceListFromRows(input: {
   const panels = active.filter((c) => c.category === 'panels')
   const panel = panels.find((p) => sizeOf(p, 'watts') === input.panelWatts) ?? panels[0]
   const battery = active.find((c) => c.category === 'battery')
+  const batteries = active.filter((c) => c.category === 'battery' && sizeOf(c, 'kwh') !== null)
   const inverters = active
     .filter((c) => c.category === 'inverter' && sizeOf(c, 'kva') !== null)
     .sort((a, b) => sizeOf(a, 'kva')! - sizeOf(b, 'kva')!)
@@ -119,6 +129,8 @@ export function priceListFromRows(input: {
       name: panel.name,
       watts: sizeOf(panel, 'watts') ?? input.panelWatts,
       unitCost: Number(panel.unit_cost),
+      nominalVoltage: panel.nominalVoltage,
+      specs: cleanSpecs(panel.specs),
     },
     batteryModule: {
       sku: battery.sku,
@@ -126,11 +138,21 @@ export function priceListFromRows(input: {
       kwh: sizeOf(battery, 'kwh') ?? 2.5,
       unitCost: Number(battery.unit_cost),
     },
+    batteries: batteries.map((b) => ({
+      sku: b.sku,
+      name: b.name,
+      kwh: sizeOf(b, 'kwh')!,
+      unitCost: Number(b.unit_cost),
+      nominalVoltage: b.nominalVoltage,
+      specs: cleanSpecs(b.specs),
+    })),
     inverters: inverters.map((i) => ({
       sku: i.sku,
       name: i.name,
       kva: sizeOf(i, 'kva')!,
       unitCost: Number(i.unit_cost),
+      nominalVoltage: i.nominalVoltage,
+      specs: cleanSpecs(i.specs),
     })),
     accessoriesByKva: accessories.map((a) => ({
       maxKva: sizeOf(a, 'maxKva')!,

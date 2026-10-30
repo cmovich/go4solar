@@ -25,7 +25,7 @@ export async function getQuoteSettings(): Promise<QuoteSettings> {
   if (!hasSupabaseEnv() || !process.env.SUPABASE_SERVICE_ROLE_KEY) return DEFAULT_QUOTE_SETTINGS
   const admin = createAdminClient()
 
-  const [settings, components, margins, rates, installs] = await Promise.all([
+  const [settings, components, margins, rates, installs, sun] = await Promise.all([
     admin
       .from('settings')
       .select('key, value')
@@ -39,6 +39,8 @@ export async function getQuoteSettings(): Promise<QuoteSettings> {
     // Every column: `enabled` exists from migration 0019 (rows without it count as switched on).
     admin.from('pricing_rates').select('*'),
     admin.from('installation_costs').select('state, size_band, amount, sample'),
+    // From migration 0024; before it the query fails and every state uses the default.
+    admin.from('sun_hours').select('*'),
   ])
   for (const r of [settings, components, margins, rates, installs]) {
     if (r.error) {
@@ -80,8 +82,17 @@ export async function getQuoteSettings(): Promise<QuoteSettings> {
     )
   }
 
+  if (sun.error) console.error('[settings] could not read sun hours:', sun.error.message)
+  const sunHours = Object.fromEntries(
+    (sun.data ?? []).map((r: { state: string; annual_psh: unknown; rainy_psh: unknown }) => [
+      r.state,
+      { annual: Number(r.annual_psh), rainy: Number(r.rainy_psh) },
+    ]),
+  )
+
   return {
     sizing,
+    sunHours,
     priceList,
     pricing,
     minDepositShare: pick(

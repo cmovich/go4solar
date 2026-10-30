@@ -38,27 +38,30 @@ function specsOf(v: unknown): Record<string, number | string> {
 /** Test funders (is_test) only appear when asked (Funders page "Show test data"). */
 export async function loadPricingDraft(includeTestFunders = false): Promise<PricingDraft> {
   const supabase = await createClient()
-  const [components, margins, rates, installs, unitCosts, funders, settings] = await Promise.all([
-    supabase.from('components').select('*').order('category').order('unit_cost'),
-    supabase.from('category_margins').select('*'),
-    supabase.from('pricing_rates').select('*').order('tenure_months'),
-    supabase.from('installation_costs').select('*'),
-    supabase.from('unit_costs').select('*').eq('id', 1).maybeSingle(),
-    includeTestFunders
-      ? supabase.from('funders').select('*').order('created_at')
-      : supabase.from('funders').select('*').eq('is_test', false).order('created_at'),
-    supabase
-      .from('settings')
-      .select('key, value')
-      .in('key', [
-        'sizing',
-        'energy',
-        'late_fee_daily',
-        'late_fee_cap_share',
-        'lock_after_days_overdue',
-        'min_deposit_share',
-      ]),
-  ])
+  const [components, margins, rates, installs, unitCosts, funders, settings, sun] =
+    await Promise.all([
+      supabase.from('components').select('*').order('category').order('unit_cost'),
+      supabase.from('category_margins').select('*'),
+      supabase.from('pricing_rates').select('*').order('tenure_months'),
+      supabase.from('installation_costs').select('*'),
+      supabase.from('unit_costs').select('*').eq('id', 1).maybeSingle(),
+      includeTestFunders
+        ? supabase.from('funders').select('*').order('created_at')
+        : supabase.from('funders').select('*').eq('is_test', false).order('created_at'),
+      supabase
+        .from('settings')
+        .select('key, value')
+        .in('key', [
+          'sizing',
+          'energy',
+          'late_fee_daily',
+          'late_fee_cap_share',
+          'lock_after_days_overdue',
+          'min_deposit_share',
+        ]),
+      // From migration 0024; before it the query fails and the list is empty.
+      supabase.from('sun_hours').select('*').order('state'),
+    ])
   for (const r of [components, margins, rates, installs, unitCosts, funders, settings]) {
     if (r.error) throw new Error(`pricing data: ${r.error.message}`)
   }
@@ -131,6 +134,13 @@ export async function loadPricingDraft(includeTestFunders = false): Promise<Pric
     },
     energy: energy.success ? energy.data : DEFAULT_ENERGY_SETTINGS,
     sizing: sizing.success ? sizing.data : DEFAULT_SIZING_SETTINGS,
+    sunHours: (sun.error ? [] : (sun.data ?? [])).map((r) => ({
+      state: r.state,
+      annual: num(r.annual_psh),
+      rainy: num(r.rainy_psh),
+      source: r.source,
+      sample: r.sample,
+    })),
     minDepositShare:
       z.number().safeParse(byKey.min_deposit_share).data ?? DEFAULT_QUOTE_SETTINGS.minDepositShare,
     sample: {

@@ -9,9 +9,10 @@ import {
   type RateByTenure,
   type TenureMonths,
 } from '@/lib/pricing/types'
-import type { PriceList, QuoteSettings } from '@/lib/settings/schemas'
+import { DEFAULT_SUN_HOURS, type PriceList, type QuoteSettings } from '@/lib/settings/schemas'
+import { equipmentFrom } from '@/lib/sizing/equipment'
 import { sizeSystem } from '@/lib/sizing/size'
-import type { Plan, SystemSize } from '@/lib/sizing/types'
+import type { Equipment, GridInput, Plan, SunHours, SystemSize } from '@/lib/sizing/types'
 
 export const PLANS: readonly Plan[] = ['essential', 'comfort', 'independence']
 
@@ -31,6 +32,10 @@ export type PlanEstimate = {
 
 export type Estimate = {
   version: 1
+  /** Grid supply the plans were sized with (null/missing = no grid). */
+  grid?: GridInput | null
+  /** Sun hours of the state at the time (Part B). */
+  sun?: SunHours
   /** State of installation (any of the 36 states or FCT). */
   state: NgStateId
   depositShare: number
@@ -65,9 +70,34 @@ export function installCostFor(
   return byBand[installBandFor(inverterKva)]
 }
 
+/** What the sizing engine needs from the price list (specs, assumed where missing). */
+export function equipmentFromPriceList(priceList: PriceList): Equipment {
+  return equipmentFrom({
+    inverters: priceList.inverters.map((i) => ({
+      sku: i.sku,
+      kva: i.kva,
+      nominalVoltage: i.nominalVoltage ?? null,
+      specs: i.specs ?? {},
+    })),
+    panel: {
+      sku: priceList.panel.sku,
+      watts: priceList.panel.watts,
+      specs: priceList.panel.specs ?? {},
+    },
+    batteries: (priceList.batteries ?? []).map((b) => ({
+      sku: b.sku,
+      kwh: b.kwh,
+      unitCost: b.unitCost,
+      nominalVoltage: b.nominalVoltage ?? null,
+      specs: b.specs ?? {},
+    })),
+  })
+}
+
 /** Equipment lines for a sized system, from the admin price list. */
 export function linesFor(size: SystemSize, priceList: PriceList): QuoteLineInput[] {
   const inverter =
+    priceList.inverters.find((i) => i.sku === size.inverterSku) ??
     [...priceList.inverters].sort((a, b) => a.kva - b.kva).find((i) => i.kva >= size.inverterKva) ??
     priceList.inverters[priceList.inverters.length - 1]!
   const accessories =
@@ -75,7 +105,14 @@ export function linesFor(size: SystemSize, priceList: PriceList): QuoteLineInput
       .sort((a, b) => a.maxKva - b.maxKva)
       .find((t) => size.inverterKva <= t.maxKva) ??
     priceList.accessoriesByKva[priceList.accessoriesByKva.length - 1]!
-  const modules = Math.max(1, Math.round(size.batteryKwh / priceList.batteryModule.kwh))
+  // A battery picked from the catalogue (Part B), else whole modules of the default battery.
+  const picked = size.battery?.sku
+    ? priceList.batteries?.find((b) => b.sku === size.battery!.sku)
+    : undefined
+  const batteryLine = picked ?? priceList.batteryModule
+  const modules = picked
+    ? size.battery!.modules
+    : Math.max(1, Math.round(size.batteryKwh / priceList.batteryModule.kwh))
 
   return [
     {
@@ -86,10 +123,10 @@ export function linesFor(size: SystemSize, priceList: PriceList): QuoteLineInput
       qty: size.panelCount,
     },
     {
-      sku: priceList.batteryModule.sku,
-      name: priceList.batteryModule.name,
+      sku: batteryLine.sku,
+      name: batteryLine.name,
       category: 'battery',
-      unitCost: priceList.batteryModule.unitCost,
+      unitCost: batteryLine.unitCost,
       qty: modules,
     },
     {
@@ -128,18 +165,22 @@ function priceLines(
 }
 
 /**
- * The three plans for a load: size each with the sizing engine, build equipment lines from the
- * price list, and price at 12 months. Pure: no database access.
+ * The three plans for a load: size each with the sizing engine (the state's sun hours, the grid
+ * supply if known, the price list's equipment), build equipment lines from the price list, and
+ * price at 12 months. Pure: no database access.
  */
 export function buildEstimate(
   totals: LoadTotals,
   state: NgStateId,
   depositShare: number,
   s: QuoteSettings,
+  grid: GridInput | null = null,
 ): Estimate {
+  const sun = s.sunHours?.[state] ?? DEFAULT_SUN_HOURS
+  const equipment = equipmentFromPriceList(s.priceList)
   const plans = Object.fromEntries(
     PLANS.map((plan) => {
-      const size = sizeSystem(totals, plan, s.sizing)
+      const size = sizeSystem(totals, plan, s.sizing, { sun, grid, equipment })
       const quote = priceLines(
         linesFor(size, s.priceList),
         state,
@@ -153,6 +194,8 @@ export function buildEstimate(
 
   return {
     version: 1,
+    grid,
+    sun,
     state,
     depositShare,
     tenureMonths: ESTIMATE_TENURE,
