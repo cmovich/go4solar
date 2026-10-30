@@ -903,6 +903,54 @@ function PersonStep({
     splitRelationship(saved.relationship ?? ''),
   )
   const g = kind === 'guarantor'
+  const previous = g && !state.guarantor ? state.previousGuarantor : null
+  const [choseNew, setChoseNew] = useState(false)
+  if (previous && !choseNew) {
+    // A new application never reuses an earlier guarantor without asking (Semako, 30 Oct).
+    return (
+      <div className="space-y-5" data-testid="guarantor-reuse">
+        <Heading
+          title="Your guarantor"
+          lead={`Use ${previous.name} again, or choose a new guarantor?`}
+        />
+        <p className="bg-brand-mist rounded-lg px-4 py-3 text-sm">
+          {previous.name} · {previous.phone} · {previous.email}
+          {previous.relationship ? ` · ${previous.relationship}` : ''}
+        </p>
+        <p className="text-muted-foreground text-sm">
+          Either way, they get a new link: they confirm the amounts of this plan and sign again.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Button
+            type="button"
+            className={primary}
+            disabled={pending}
+            onClick={() =>
+              act(() =>
+                saveGuarantor({
+                  name: previous.name,
+                  phone: previous.phone,
+                  email: previous.email,
+                  ...splitRelationship(previous.relationship),
+                }),
+              )
+            }
+          >
+            Use {previous.name} again
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-12"
+            disabled={pending}
+            onClick={() => setChoseNew(true)}
+          >
+            Choose a new guarantor
+          </Button>
+        </div>
+      </div>
+    )
+  }
   return (
     <div className="space-y-5">
       <Heading

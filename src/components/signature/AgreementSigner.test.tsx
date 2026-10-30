@@ -98,6 +98,22 @@ describe('AgreementSigner', () => {
 })
 
 describe('reachedEnd', () => {
+  it('after the code is sent, the faded button says why: enter the 6-digit code', async () => {
+    setup()
+    scrollBox(1600)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /send my signing code/i }))
+    })
+    const signBtn = screen.getByRole('button', { name: 'Sign the agreement' })
+    expect(disabled(signBtn)).toBe(true)
+    expect(
+      screen.getByText('Enter the 6-digit code we sent to +234•••••4567 to sign.'),
+    ).toBeTruthy()
+    fireEvent.change(screen.getByLabelText(/Enter the 6-digit code/), { target: { value: '123456' } })
+    expect(disabled(signBtn)).toBe(false)
+    expect(screen.queryByText(/to sign\.$/)).toBeNull()
+  })
+
   it('needs the bottom of the box (with a small allowance)', () => {
     expect(reachedEnd({ scrollTop: 0, clientHeight: 400, scrollHeight: 2000 })).toBe(false)
     expect(reachedEnd({ scrollTop: 1590, clientHeight: 400, scrollHeight: 2000 })).toBe(true)

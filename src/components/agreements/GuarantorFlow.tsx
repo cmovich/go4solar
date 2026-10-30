@@ -98,11 +98,11 @@ export function GuarantorFlow({
         data-testid={`guarantee-${done}`}
       >
         <h1 className="text-brand-dark text-xl font-bold">
-          {done === 'signed' ? 'Thank you, you have signed' : 'Thank you for letting us know'}
+          {done === 'signed' ? 'You have signed. Thank you.' : 'Thank you for letting us know'}
         </h1>
         <p className="text-muted-foreground mt-2">
           {done === 'signed'
-            ? 'We have emailed you a copy of the signed guarantee.'
+            ? `${applicantName} has been told. We have emailed you a copy of the signed guarantee.`
             : `We have told ${applicantName} so they can ask someone else.`}
         </p>
       </section>

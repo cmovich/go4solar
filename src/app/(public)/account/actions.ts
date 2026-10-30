@@ -1,8 +1,10 @@
 'use server'
 
 import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
+import { sameApplicant } from '@/lib/applications/identity'
 import { sendEmailVerification, siteOrigin } from '@/lib/auth/emailVerification'
 import { getSessionInfo } from '@/lib/auth/session'
 import { OTP_TTL_MS, checkOtp, generateOtpCode, hashOtp } from '@/lib/otp/otp'
@@ -12,6 +14,8 @@ import { hitRateLimit } from '@/lib/ratelimit/hitRateLimit'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { currentVisitorHash } from '@/lib/waitlist/token'
+
+import { signedInAsMessage } from './messages'
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string; exists?: boolean }
 
@@ -42,6 +46,31 @@ async function quoteContext(quoteId: string) {
     .maybeSingle()
   if (!lead) return null
   return { quote, lead }
+}
+
+/**
+ * Whose phone gets the code, and may the profile take the quote's name? The signed-in account
+ * must be the person the quote is for, unless they chose "Continue as <account>": then the code
+ * goes to the account's own phone and the account's name is never overwritten.
+ */
+async function applicantFor(
+  userId: string,
+  lead: { first_name: string | null; surname: string | null; phone_e164: string },
+  asAccount: boolean,
+): Promise<{ ok: true; phone: string; fillProfile: boolean } | { ok: false; error: string }> {
+  const { data: profile } = await createAdminClient()
+    .from('profiles')
+    .select('full_name, phone_e164')
+    .eq('id', userId)
+    .maybeSingle()
+  const account = { fullName: profile?.full_name ?? null, phone: profile?.phone_e164 ?? null }
+  const quote = {
+    fullName: [lead.first_name, lead.surname].filter(Boolean).join(' ') || null,
+    phone: lead.phone_e164,
+  }
+  if (sameApplicant(account, quote)) return { ok: true, phone: lead.phone_e164, fillProfile: true }
+  if (!asAccount) return { ok: false, error: signedInAsMessage(account.fullName) }
+  return { ok: true, phone: account.phone ?? lead.phone_e164, fillProfile: false }
 }
 
 const accountSchema = z.object({
@@ -123,16 +152,22 @@ async function sendCodeTo(phone: string, userId: string | null): Promise<Result>
 
 /** "Send a new code" (also used when a signed-in user arrives at the phone step). */
 export async function sendPhoneCode(input: unknown): Promise<Result> {
-  const parsed = z.object({ quoteId: z.uuid() }).safeParse(input)
+  const parsed = z.object({ quoteId: z.uuid(), asAccount: z.boolean().optional() }).safeParse(input)
   if (!parsed.success) return EXPIRED
   const session = await getSessionInfo()
   if (!session.user) return { ok: false, error: 'Please sign in first.' }
   const ctx = await quoteContext(parsed.data.quoteId)
   if (!ctx) return EXPIRED
-  return sendCodeTo(ctx.lead.phone_e164, session.user.id)
+  const who = await applicantFor(session.user.id, ctx.lead, Boolean(parsed.data.asAccount))
+  if (!who.ok) return who
+  return sendCodeTo(who.phone, session.user.id)
 }
 
-const verifySchema = z.object({ quoteId: z.uuid(), code: z.string().trim().min(6).max(12) })
+const verifySchema = z.object({
+  quoteId: z.uuid(),
+  code: z.string().trim().min(6).max(12),
+  asAccount: z.boolean().optional(),
+})
 
 /** Step 2: the 6-digit code. On success the quote is chosen and attached to the account. */
 export async function verifyPhoneCode(input: unknown): Promise<Result> {
@@ -147,13 +182,15 @@ export async function verifyPhoneCode(input: unknown): Promise<Result> {
   }
   const ctx = await quoteContext(parsed.data.quoteId)
   if (!ctx) return EXPIRED
+  const who = await applicantFor(session.user.id, ctx.lead, Boolean(parsed.data.asAccount))
+  if (!who.ok) return who
 
   const admin = createAdminClient()
   const { data: otp } = await admin
     .from('phone_otps')
     .select('id, code_hash, attempts, expires_at, consumed_at')
     .eq('user_id', session.user.id)
-    .eq('phone_e164', ctx.lead.phone_e164)
+    .eq('phone_e164', who.phone)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -176,11 +213,18 @@ export async function verifyPhoneCode(input: unknown): Promise<Result> {
 
   const now = new Date().toISOString()
   await admin.from('phone_otps').update({ consumed_at: now }).eq('id', otp.id)
-  const fullName = [ctx.lead.first_name, ctx.lead.surname].filter(Boolean).join(' ')
-  await admin
-    .from('profiles')
-    .update({ full_name: fullName || null, phone_e164: ctx.lead.phone_e164, state: ctx.lead.state })
-    .eq('id', session.user.id)
+  // The quote's name and phone fill the profile only when they are this account's own.
+  if (who.fillProfile) {
+    const fullName = [ctx.lead.first_name, ctx.lead.surname].filter(Boolean).join(' ')
+    await admin
+      .from('profiles')
+      .update({
+        full_name: fullName || null,
+        phone_e164: ctx.lead.phone_e164,
+        state: ctx.lead.state,
+      })
+      .eq('id', session.user.id)
+  }
   await admin
     .from('quotes')
     .update({ owner_id: session.user.id, status: 'chosen' })
@@ -194,4 +238,12 @@ export async function verifyPhoneCode(input: unknown): Promise<Result> {
     })
     .eq('id', ctx.lead.id)
   return { ok: true }
+}
+
+/** "Sign out to apply as someone else": ends this session and reopens the same quote. */
+export async function signOutForQuote(input: unknown): Promise<void> {
+  const parsed = z.object({ quoteId: z.uuid() }).safeParse(input)
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+  redirect(parsed.success ? `/account?quote=${parsed.data.quoteId}` : '/get-started')
 }

@@ -18,11 +18,14 @@ export function AccountFlow({
   defaultEmail,
   phoneDisplay,
   signedIn,
+  asAccount = false,
 }: {
   quoteId: string
   defaultEmail: string
   phoneDisplay: string
   signedIn: boolean
+  /** "Continue as <signed-in account>": the code goes to that account's own phone. */
+  asAccount?: boolean
 }) {
   const router = useRouter()
   const [step, setStep] = useState<'account' | 'code'>(signedIn ? 'code' : 'account')
@@ -50,7 +53,7 @@ export function AccountFlow({
     setError(null)
     setInfo(null)
     start(async () => {
-      const r = await sendPhoneCode({ quoteId })
+      const r = await sendPhoneCode({ quoteId, asAccount })
       if (r.ok) {
         setCodeSent(true)
         setInfo('A new code is on its way.')
@@ -62,7 +65,7 @@ export function AccountFlow({
     e.preventDefault()
     setError(null)
     start(async () => {
-      const r = await verifyPhoneCode({ quoteId, code })
+      const r = await verifyPhoneCode({ quoteId, code, asAccount })
       if (r.ok) router.push('/app/apply')
       else setError({ text: r.error })
     })

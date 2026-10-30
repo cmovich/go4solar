@@ -225,6 +225,12 @@ export function AgreementSigner({
             {pending && <Loader2 className="mr-2 size-5 animate-spin" />}
             Sign the agreement
           </Button>
+          {/* A faded button always says why. */}
+          {(missing || code.length !== 6) && (
+            <p className="text-muted-foreground text-center text-sm" aria-live="polite">
+              {missing ?? `Enter the 6-digit code we sent to ${phoneHint} to sign.`}
+            </p>
+          )}
           <Button
             type="button"
             variant="link"

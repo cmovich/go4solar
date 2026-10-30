@@ -9,6 +9,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database } from '@/lib/supabase/database.types'
 import type { BusinessInput, EnergyRecord } from '@/lib/waitlist/schema'
 
+import { applicationForNewQuote, type ApplicationStatus } from './identity'
+
 import {
   latestStatus,
   missingForSubmission,
@@ -50,6 +52,8 @@ export type WizardState = {
   employment: Record<string, unknown> | null
   nextOfKin: Record<string, unknown> | null
   guarantor: Record<string, unknown> | null
+  /** The guarantor of an earlier application (asked "use again?"), when none is chosen yet. */
+  previousGuarantor: { name: string; phone: string; email: string; relationship: string } | null
   installAddress: Record<string, unknown> | null
   incomeRange: string | null
   consentGiven: boolean
@@ -70,7 +74,59 @@ export type WizardState = {
 
 const KINDS: KycKind[] = ['nin', 'bvn', 'cac', 'liveness']
 
-/** The signed-in consumer's application, created from their chosen quote (prefilled) if needed. */
+/** The account's most recently chosen quote (null when none). */
+async function latestChosenQuote(userId: string) {
+  const { data } = await createAdminClient()
+    .from('quotes')
+    .select('id, waitlist_id, applicant_type, state')
+    .eq('owner_id', userId)
+    .eq('status', 'chosen')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return data
+}
+
+/** Has anyone signed for this application yet (the customer, or a guarantor)? */
+async function signatures(applicationId: string) {
+  const admin = createAdminClient()
+  const [consumer, guarantor] = await Promise.all([
+    admin
+      .from('agreements')
+      .select('id', { count: 'exact', head: true })
+      .eq('application_id', applicationId)
+      .eq('type', 'consumer'),
+    admin
+      .from('guarantees')
+      .select('id', { count: 'exact', head: true })
+      .eq('application_id', applicationId)
+      .eq('status', 'signed'),
+  ])
+  return { consumerSigned: (consumer.count ?? 0) > 0, guarantorSigned: (guarantor.count ?? 0) > 0 }
+}
+
+/**
+ * A newer chosen quote that the account's application cannot take yet (it is signed or
+ * submitted): the dashboard and wizard say it is saved and waiting. Null otherwise.
+ */
+export async function waitingQuote(userId: string): Promise<string | null> {
+  const { data: app } = await createAdminClient()
+    .from('applications')
+    .select('quote_id')
+    .eq('consumer_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const quote = await latestChosenQuote(userId)
+  return app && quote && quote.id !== app.quote_id ? quoteReference(quote.id) : null
+}
+
+/**
+ * The signed-in consumer's application for their chosen quote (prefilled from it when new).
+ * A newer chosen quote never borrows an old application (Semako, 30 Oct): an unsigned draft
+ * moves to it (and the guarantor is asked again), a declined application gives way to a new
+ * one, and a signed or submitted application stays as it is (see applicationForNewQuote).
+ */
 export async function ensureApplication(userId: string): Promise<ApplicationRow | null> {
   const admin = createAdminClient()
   const { data: existing } = await admin
@@ -80,16 +136,38 @@ export async function ensureApplication(userId: string): Promise<ApplicationRow 
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
-  if (existing) return existing
-
-  const { data: quote } = await admin
-    .from('quotes')
-    .select('id, waitlist_id, applicant_type, state')
-    .eq('owner_id', userId)
-    .eq('status', 'chosen')
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const quote = await latestChosenQuote(userId)
+  const signed =
+    existing && quote && existing.quote_id !== quote.id
+      ? await signatures(existing.id)
+      : { consumerSigned: false, guarantorSigned: false }
+  const decision = applicationForNewQuote({
+    app: existing
+      ? { status: existing.status as ApplicationStatus, quoteId: existing.quote_id }
+      : null,
+    latestQuoteId: quote?.id ?? null,
+    ...signed,
+  })
+  if (existing && (decision === 'keep' || decision === 'blocked')) return existing
+  if (existing && quote && decision === 'switch') {
+    // Same person, new plan: identity checks stay; the guarantor must be chosen again for the
+    // new amounts, so unsigned invitations stop working.
+    await admin
+      .from('guarantees')
+      .update({ status: 'expired' })
+      .eq('application_id', existing.id)
+      .in('status', ['invited', 'in_progress'])
+    const steps = { ...((existing.steps ?? {}) as Record<string, boolean>), guarantor: false }
+    const { data: switched, error } = await admin
+      .from('applications')
+      .update({ quote_id: quote.id, guarantor: null, steps })
+      .eq('id', existing.id)
+      .eq('status', 'draft')
+      .select('*')
+      .single()
+    if (error) throw new Error(`could not move the application to the new quote: ${error.message}`)
+    return switched
+  }
   if (!quote) return null
 
   const { data: lead } = quote.waitlist_id
@@ -142,6 +220,26 @@ export async function documentKinds(applicationId: string): Promise<string[]> {
   return [...new Set((data ?? []).map((d) => d.kind))]
 }
 
+/** The most recent guarantor this customer invited before (not one who declined). */
+async function previousGuarantor(consumerId: string): Promise<WizardState['previousGuarantor']> {
+  const { data } = await createAdminClient()
+    .from('guarantees')
+    .select('name, phone, email, relationship, applications!inner(consumer_id)')
+    .eq('applications.consumer_id', consumerId)
+    .neq('status', 'declined')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return data
+    ? {
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+        relationship: data.relationship ?? '',
+      }
+    : null
+}
+
 export async function wizardState(app: ApplicationRow): Promise<WizardState> {
   const admin = createAdminClient()
   const [checks, documents, quoteRes] = await Promise.all([
@@ -181,6 +279,7 @@ export async function wizardState(app: ApplicationRow): Promise<WizardState> {
     employment: (app.employment ?? null) as Record<string, unknown> | null,
     nextOfKin: (app.next_of_kin ?? null) as Record<string, unknown> | null,
     guarantor: (app.guarantor ?? null) as Record<string, unknown> | null,
+    previousGuarantor: app.guarantor ? null : await previousGuarantor(app.consumer_id),
     installAddress: (app.install_address ?? null) as Record<string, unknown> | null,
     incomeRange: app.income_range,
     consentGiven: Boolean(app.biometric_consent_at),

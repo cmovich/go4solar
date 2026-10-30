@@ -5,7 +5,14 @@ import { testEmail } from '../helpers/test-identity'
 import { freshNin, freshPhone, hasDb, latestOtpFor, throughDetails as details } from './helpers'
 
 const throughDetails = (page: Parameters<typeof details>[0], phone: string, email: string) =>
-  details(page, { phone, email, nin: freshNin(), type: 'individual' })
+  details(page, {
+    phone,
+    email,
+    nin: freshNin(),
+    type: 'individual',
+    firstName: 'Chidi',
+    surname: 'Eze',
+  })
 
 test.describe('live mode: plans → account → phone code → application', () => {
   test.skip(!hasDb, 'needs Supabase env')

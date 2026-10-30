@@ -20,6 +20,8 @@ const QUOTE_ID = '11111111-1111-4111-8111-111111111111'
 type Call = { table: string; op: string; payload?: unknown }
 const calls: Call[] = []
 let otpRow: Record<string, unknown> | null = null
+/** The signed-in account's profile (a brand-new account has no name or phone yet). */
+let profileRow: Record<string, unknown> = { full_name: null, phone_e164: null }
 
 function fakeAdmin() {
   const rows: Record<string, unknown> = {
@@ -48,7 +50,12 @@ function fakeAdmin() {
       order: () => b,
       limit: () => b,
       maybeSingle: async () => ({
-        data: table === 'phone_otps' ? otpRow : (rows[table] ?? null),
+        data:
+          table === 'phone_otps'
+            ? otpRow
+            : table === 'profiles'
+              ? profileRow
+              : (rows[table] ?? null),
         error: null,
       }),
       insert: (payload: unknown) => {
@@ -81,6 +88,7 @@ const user: SessionInfo = { user: { id: 'u-1', email: 'a@x.test' }, role: 'consu
 beforeEach(() => {
   calls.length = 0
   otpRow = null
+  profileRow = { full_name: null, phone_e164: null }
   hitRateLimit.mockReset()
   sendOtpSms.mockClear()
   getSessionInfo.mockResolvedValue(user)
@@ -159,5 +167,54 @@ describe('verifyPhoneCode', () => {
       op: 'update',
       payload: { full_name: 'Amaka Okoro', phone_e164: '+2348031234567', state: 'Lagos' },
     })
+  })
+})
+
+// Never mix one person's quote with another person's account (Semako, 30 Oct).
+describe('signed in as someone else', () => {
+  const fresh = () => ({
+    id: 'otp-1',
+    code_hash: hashOtp('otp-1', '123456'),
+    attempts: 0,
+    expires_at: new Date(Date.now() + 60_000).toISOString(),
+    consumed_at: null,
+  })
+  beforeEach(() => {
+    hitRateLimit.mockResolvedValue(true)
+    profileRow = { full_name: 'Moses Donatus', phone_e164: '+2348031110000' }
+  })
+
+  it('without "Continue as": no code is sent and nothing is attached', async () => {
+    const r = await sendPhoneCode({ quoteId: QUOTE_ID })
+    expect(r).toMatchObject({ ok: false })
+    if (!r.ok)
+      expect(r.error).toBe(
+        "You're signed in as Moses Donatus. Continue as Moses Donatus, or sign out to apply as someone else.",
+      )
+    expect(sendOtpSms).not.toHaveBeenCalled()
+    otpRow = fresh()
+    const v = await verifyPhoneCode({ quoteId: QUOTE_ID, code: '123456' })
+    expect(v.ok).toBe(false)
+    expect(calls.some((c) => c.table === 'quotes' || c.table === 'profiles')).toBe(false)
+  })
+
+  it('"Continue as Moses": the code goes to Moses’s phone and his name is never overwritten', async () => {
+    const r = await sendPhoneCode({ quoteId: QUOTE_ID, asAccount: true })
+    expect(r.ok).toBe(true)
+    expect(hitRateLimit).toHaveBeenCalledWith('otp-send:+2348031110000', 5, '1 hour')
+    otpRow = fresh()
+    const v = await verifyPhoneCode({ quoteId: QUOTE_ID, code: '123456', asAccount: true })
+    expect(v.ok).toBe(true)
+    expect(calls).toContainEqual({
+      table: 'quotes',
+      op: 'update',
+      payload: { owner_id: 'u-1', status: 'chosen' },
+    })
+    expect(calls.some((c) => c.table === 'profiles')).toBe(false)
+  })
+
+  it('the same person signed in (same name and phone) goes straight on, as before', async () => {
+    profileRow = { full_name: 'Amaka Okoro', phone_e164: '+2348031234567' }
+    expect((await sendPhoneCode({ quoteId: QUOTE_ID })).ok).toBe(true)
   })
 })
