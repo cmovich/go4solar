@@ -140,3 +140,15 @@ test('no saved appliances: the sign-up starts with the calculator', async ({ pag
 test('prelaunch: footer → /partners → Sign up as an installer', async ({ page }) => {
   await checkPartnersPage(page)
 })
+
+test('prelaunch: no "Sign in" or "My account" in the header or footer (waiting list only)', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/')
+  await expect(page.getByTestId(/^account-link/)).toHaveCount(0)
+  // Not even for a browser with a sign-in cookie.
+  await context.addCookies([{ name: 'sb-test-auth-token', value: 'x', url: page.url() }])
+  await page.reload()
+  await expect(page.getByTestId(/^account-link/)).toHaveCount(0)
+})

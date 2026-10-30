@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { AccountLink } from './AccountLink'
+
 import { siteConfig } from '@/config/site'
 import { normalisePhoneNG } from '@/lib/money'
 import { whatsappHref } from '@/lib/whatsapp'
@@ -74,6 +76,7 @@ export function Footer() {
               <Link href="/terms" className="hover:text-brand-gold">
                 Terms
               </Link>
+              <AccountLink place="footer" className="hover:text-brand-gold font-semibold" />
             </nav>
           </div>
         </div>
