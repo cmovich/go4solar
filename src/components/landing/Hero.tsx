@@ -5,6 +5,7 @@ import { siteConfig } from '@/config/site'
 import { formatNaira } from '@/lib/money'
 import { PRICE_LATER_TEXT } from '@/lib/waitlist/schema'
 
+import { AccountLink } from './AccountLink'
 import { Band, Container } from './Band'
 import { HeroBackdrop } from './HeroBackdrop'
 import { BrandLogo } from '@/components/brand/BrandLogo'
@@ -50,7 +51,7 @@ export function Hero({ example }: { example: HeroExample }) {
             {/* The logo is dark-on-transparent; a white plate keeps it legible on green. */}
             <BrandLogo onDark priority className="h-20 w-auto sm:h-24" />
           </Link>
-          <nav className="hidden items-center gap-6 text-sm font-medium text-white/85 sm:flex">
+          <nav className="ml-auto hidden items-center gap-6 text-sm font-medium text-white/85 sm:flex">
             <a href="#how-it-works" className="hover:text-white">
               How it works
             </a>
@@ -61,6 +62,11 @@ export function Hero({ example }: { example: HeroExample }) {
               Partners
             </Link>
           </nav>
+          {/* Visible on phones too (the other links are desktop-only). */}
+          <AccountLink
+            place="header"
+            className="inline-flex min-h-11 items-center rounded-lg border border-white/60 px-4 text-sm font-semibold text-white hover:bg-white/10 sm:ml-6"
+          />
         </header>
 
         <div className="grid gap-12 pt-10 pb-24 sm:pt-16 sm:pb-32 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-center">
