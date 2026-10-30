@@ -27,7 +27,8 @@ function safeNext(next: string | undefined): string | null {
 async function redirectAfterLogin(next: string | undefined): Promise<never> {
   const { role } = await getSessionInfo()
   if (isStaffRole(role)) redirect('/admin')
-  redirect(safeNext(next) ?? '/')
+  // Customers land on "My account" (it sends them on to their application if unfinished).
+  redirect(safeNext(next) ?? '/app')
 }
 
 export async function signIn(input: unknown): Promise<AuthActionResult> {

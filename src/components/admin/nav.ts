@@ -12,6 +12,7 @@ import {
   Quote,
   Tags,
   TrendingUp,
+  UserPen,
   Users,
   Wallet,
   type LucideIcon,
@@ -44,6 +45,12 @@ export const NAV: readonly NavItem[] = [
     label: 'Applications',
     icon: ClipboardList,
     roles: ['super_admin', 'credit_officer'],
+  },
+  {
+    href: '/admin/change-requests',
+    label: 'Change requests',
+    icon: UserPen,
+    roles: ['super_admin', 'operations'],
   },
   {
     href: '/admin/jobs',

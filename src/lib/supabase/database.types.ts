@@ -399,6 +399,51 @@ export type Database = {
         }
         Relationships: []
       }
+      change_requests: {
+        Row: {
+          consumer_id: string
+          created_at: string
+          current_value: string | null
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          field: Database['public']['Enums']['change_field']
+          id: string
+          new_value: string
+          reason: string | null
+          status: Database['public']['Enums']['change_status']
+          updated_at: string
+        }
+        Insert: {
+          consumer_id: string
+          created_at?: string
+          current_value?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          field: Database['public']['Enums']['change_field']
+          id?: string
+          new_value: string
+          reason?: string | null
+          status?: Database['public']['Enums']['change_status']
+          updated_at?: string
+        }
+        Update: {
+          consumer_id?: string
+          created_at?: string
+          current_value?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          field?: Database['public']['Enums']['change_field']
+          id?: string
+          new_value?: string
+          reason?: string | null
+          status?: Database['public']['Enums']['change_status']
+          updated_at?: string
+        }
+        Relationships: []
+      }
       components: {
         Row: {
           active: boolean
@@ -2095,6 +2140,8 @@ export type Database = {
       my_role: { Args: never; Returns: Database['public']['Enums']['app_role'] }
     }
     Enums: {
+      change_field: 'name' | 'phone' | 'email' | 'address'
+      change_status: 'pending' | 'approved' | 'rejected'
       agreement_type: 'consumer' | 'guarantor' | 'installer' | 'vendor'
       app_role:
         | 'consumer'
@@ -2272,6 +2319,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      change_field: ['name', 'phone', 'email', 'address'],
+      change_status: ['pending', 'approved', 'rejected'],
       agreement_type: ['consumer', 'guarantor', 'installer', 'vendor'],
       app_role: [
         'consumer',

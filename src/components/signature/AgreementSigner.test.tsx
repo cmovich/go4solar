@@ -109,7 +109,9 @@ describe('reachedEnd', () => {
     expect(
       screen.getByText('Enter the 6-digit code we sent to +234•••••4567 to sign.'),
     ).toBeTruthy()
-    fireEvent.change(screen.getByLabelText(/Enter the 6-digit code/), { target: { value: '123456' } })
+    fireEvent.change(screen.getByLabelText(/Enter the 6-digit code/), {
+      target: { value: '123456' },
+    })
     expect(disabled(signBtn)).toBe(false)
     expect(screen.queryByText(/to sign\.$/)).toBeNull()
   })

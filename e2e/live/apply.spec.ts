@@ -252,6 +252,37 @@ test.describe('live mode: application wizard with mock KYC', () => {
     await expect(page.getByTestId('schedule').locator('tbody tr')).not.toHaveCount(0)
     await expect(page.getByTestId('documents')).toContainText('signed payment plan agreement')
     await expect(page.getByTestId('still-missing')).toHaveCount(0)
+
+    // ---- "My account" (30 Oct): every section on one page.
+    await expect(page.getByRole('navigation', { name: 'My account' })).toBeVisible()
+    await expect(page.getByTestId('what-next')).toContainText('reviewing your application')
+    await expect(page.getByTestId('next-payment')).toContainText(
+      'start one month after installation',
+    )
+    await expect(page.getByTestId('amount-left')).toContainText('₦')
+    await expect(page.getByTestId('deposit-receipt')).toContainText('Download receipt')
+    const receipt = await page.request.get(
+      (await page.getByTestId('deposit-receipt').getByRole('link').getAttribute('href'))!,
+    )
+    expect(receipt.headers()['content-type']).toBe('application/pdf')
+    await expect(page.getByTestId('my-system')).toContainText('kVA')
+    await expect(page.getByTestId('documents')).toContainText('Signed guarantee')
+    await expect(page.getByTestId('invoice-placeholder')).toBeVisible()
+    await expect(page.getByTestId('my-details')).toContainText(p.email)
+    await expect(page.getByTestId('my-guarantor')).toContainText('signed')
+    await expect(page.getByTestId('help').getByRole('link')).toHaveAttribute('href', /wa\.me/)
+    // A change to a verified detail is a request, never a direct edit (needs migration 0025).
+    if (await changeRequestsMigrated()) {
+      await page.getByRole('button', { name: 'Request a change' }).click()
+      await page.getByLabel('What do you want to change?').selectOption('name')
+      await page.getByLabel('New name').fill('Chidi Emeka Eze')
+      await page.getByRole('button', { name: 'Send request' }).click()
+      await expect(page.getByTestId('request-change')).toContainText('Request sent')
+      await page.reload()
+      await expect(page.getByTestId('change-requests')).toContainText('waiting for our check')
+      await expect(page.getByTestId('my-details')).not.toContainText('Chidi Emeka Eze ·')
+    }
+
     // The wizard now sends the customer to the dashboard.
     await page.goto('/app/apply')
     await page.waitForURL(/\/app$/)
@@ -387,3 +418,14 @@ test.describe('live mode: application wizard with mock KYC', () => {
     await expect(page.getByText(/CAC RC123456/)).toBeVisible()
   })
 })
+
+/** Migration 0025 applied? (change_requests exists) */
+async function changeRequestsMigrated(): Promise<boolean> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return false
+  const res = await fetch(`${url}/rest/v1/change_requests?select=id&limit=1`, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+  })
+  return res.ok
+}
