@@ -3,17 +3,39 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
+import { RequestChange } from '@/components/account/RequestChange'
 import { ActionButton } from '@/components/payments/ActionButton'
+import { siteConfig } from '@/config/site'
+import { CHANGE_FIELD_LABELS, type ChangeField } from '@/lib/account/account'
 import { waitingQuote } from '@/lib/applications/server'
 import { requireUser } from '@/lib/auth/roles'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { loadDashboard } from '@/lib/payments/dashboard'
 import { lagosDate } from '@/lib/payments/lock'
+import { whatsappHref } from '@/lib/whatsapp'
 
 import { confirmInstallation, sendBackForReview } from './actions'
 import { payNextInstalment, setUpAutoPay } from './pay/actions'
 
-export const metadata: Metadata = { title: 'Your solar plan' }
+export const metadata: Metadata = { title: 'My account' }
+
+const MENU = [
+  ['status', 'Status'],
+  ['payments', 'Payments'],
+  ['system', 'My system'],
+  ['documents', 'Documents'],
+  ['details', 'My details'],
+  ['guarantor', 'Guarantor'],
+  ['help', 'Help'],
+] as const
+
+const GUARANTOR_STATUS: Record<string, string> = {
+  invited: 'invited: we sent them a link',
+  in_progress: 'filling in their details',
+  signed: 'signed',
+  declined: 'declined: please choose someone else',
+  expired: 'the link expired',
+}
 export const dynamic = 'force-dynamic'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -34,7 +56,10 @@ const fmtDate = (iso: string) =>
     year: 'numeric',
   })
 
-/** Customer dashboard: where things stand, the plan, the schedule, auto-pay and documents. */
+/**
+ * "My account": the signed-in customer's home. Status, next payment, payments and receipts, the
+ * system, documents, details (changes via a request), guarantor and help, on one page.
+ */
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -47,6 +72,11 @@ export default async function DashboardPage({
   const sp = await searchParams
   const nextDue = d.schedule.find((r) => r.status !== 'paid')
   const paidTotal = d.schedule.reduce((s, r) => s + r.paidAmount, 0)
+
+  const first = d.details.name?.split(' ')[0] ?? null
+  const receiptFor = new Map(d.receipts.filter((r) => r.n !== null).map((r) => [r.n!, r.id]))
+  const depositReceipt = d.receipts.find((r) => r.label === 'Deposit')
+  const card = 'scroll-mt-16 rounded-2xl border p-5'
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
@@ -62,14 +92,32 @@ export default async function DashboardPage({
       )}
       <div>
         <p className="text-brand-green text-sm font-semibold">Reference {d.reference}</p>
-        <h1 className="text-brand-dark text-2xl font-bold">Your solar plan</h1>
+        <h1 className="text-brand-dark text-2xl font-bold">
+          {first ? `Hello ${first}` : 'My account'}
+        </h1>
         <p className="mt-1 text-lg font-semibold" data-testid="application-status">
           {d.loan?.status === 'active' ? STATUS_LABEL.active : (STATUS_LABEL[d.status] ?? d.status)}
         </p>
-        {(d.status === 'submitted' || d.status === 'under_review') && (
-          <p className="text-muted-foreground text-sm">We will reply within 48 hours.</p>
-        )}
       </div>
+
+      {/* Small top menu: jumps to each section (scrolls sideways on phones). */}
+      <nav
+        aria-label="My account"
+        className="bg-background/95 sticky top-0 z-10 -mx-4 overflow-x-auto border-b px-4 py-2 backdrop-blur sm:mx-0 sm:rounded-lg sm:border"
+      >
+        <ul className="flex gap-1 text-sm font-semibold whitespace-nowrap">
+          {MENU.map(([id, label]) => (
+            <li key={id}>
+              <a
+                href={`#${id}`}
+                className="text-brand-dark hover:bg-brand-mist inline-flex min-h-10 items-center rounded-md px-3"
+              >
+                {label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
       {sp.payment === 'received' && (
         <p
@@ -89,6 +137,48 @@ export default async function DashboardPage({
         </p>
       )}
 
+      {/* 1. Status */}
+      <section id="status" className="scroll-mt-16 space-y-4" aria-labelledby="status-h">
+        <h2 id="status-h" className="sr-only">
+          Status
+        </h2>
+        {/* Timeline */}
+        <ol
+          className="grid grid-cols-2 gap-2 sm:grid-cols-6"
+          aria-label="Progress"
+          data-testid="timeline"
+        >
+          {d.timeline.map((s) => (
+            <li
+              key={s.label}
+              aria-current={s.state === 'current' ? 'step' : undefined}
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold sm:flex-col sm:text-center ${
+                s.state === 'done'
+                  ? 'bg-brand-mist text-brand-green'
+                  : s.state === 'current'
+                    ? 'bg-brand-green text-white'
+                    : s.state === 'failed'
+                      ? 'bg-red-50 text-red-700'
+                      : 'bg-slate-50 text-slate-500'
+              }`}
+            >
+              {s.state === 'done' ? (
+                <Check className="size-4 shrink-0" aria-hidden />
+              ) : s.state === 'failed' ? (
+                <X className="size-4 shrink-0" aria-hidden />
+              ) : (
+                <Circle className="size-4 shrink-0" aria-hidden />
+              )}
+              {s.label}
+            </li>
+          ))}
+        </ol>
+
+        <p className="bg-brand-mist rounded-xl px-4 py-3" data-testid="what-next">
+          <strong className="text-brand-dark">What happens next: </strong>
+          {d.whatNext}
+        </p>
+      </section>
       {d.moreInfo && (
         <section
           className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-5"
@@ -139,38 +229,6 @@ export default async function DashboardPage({
         </section>
       )}
 
-      {/* Timeline */}
-      <ol
-        className="grid grid-cols-2 gap-2 sm:grid-cols-6"
-        aria-label="Progress"
-        data-testid="timeline"
-      >
-        {d.timeline.map((s) => (
-          <li
-            key={s.label}
-            aria-current={s.state === 'current' ? 'step' : undefined}
-            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold sm:flex-col sm:text-center ${
-              s.state === 'done'
-                ? 'bg-brand-mist text-brand-green'
-                : s.state === 'current'
-                  ? 'bg-brand-green text-white'
-                  : s.state === 'failed'
-                    ? 'bg-red-50 text-red-700'
-                    : 'bg-slate-50 text-slate-500'
-            }`}
-          >
-            {s.state === 'done' ? (
-              <Check className="size-4 shrink-0" aria-hidden />
-            ) : s.state === 'failed' ? (
-              <X className="size-4 shrink-0" aria-hidden />
-            ) : (
-              <Circle className="size-4 shrink-0" aria-hidden />
-            )}
-            {s.label}
-          </li>
-        ))}
-      </ol>
-
       {/* Still missing */}
       {d.missing.length > 0 && (
         <section
@@ -194,6 +252,41 @@ export default async function DashboardPage({
         </section>
       )}
 
+      {/* 2. Next payment */}
+      <section id="payments" className={card} data-testid="next-payment">
+        <h2 className="text-brand-dark text-lg font-bold">Next payment</h2>
+        {d.loan?.status === 'active' && d.nextPayment ? (
+          <>
+            <p className="mt-1 text-2xl font-bold tabular-nums">
+              {formatNaira(d.nextPayment.amount)}
+            </p>
+            <p className={`text-sm ${d.nextPayment.late ? 'font-semibold text-red-700' : ''}`}>
+              {d.nextPayment.late ? 'Overdue since' : 'Due'} {fmtDate(d.nextPayment.dueDate)}{' '}
+              (payment {d.nextPayment.n})
+            </p>
+            <div className="mt-3">
+              <ActionButton
+                action={payNextInstalment}
+                className="bg-brand-green hover:bg-brand-dark h-12 w-full font-semibold"
+                testId="pay-now"
+              >
+                Pay now: {formatNaira(d.nextPayment.amount)}
+              </ActionButton>
+            </div>
+          </>
+        ) : (
+          <p className="mt-1 text-sm">
+            {d.loan?.status === 'completed'
+              ? 'Nothing more to pay. Thank you!'
+              : 'Monthly payments start one month after installation. Nothing is due before then.'}
+          </p>
+        )}
+        <p className="mt-3 text-sm" data-testid="amount-left">
+          Amount left to pay: <strong>{formatNaira(d.amountLeft)}</strong>
+        </p>
+      </section>
+
+      {/* 3. Payments */}
       {/* Plan summary */}
       <section className="rounded-2xl border p-5" data-testid="plan-summary">
         <h2 className="text-brand-dark text-lg font-bold">Your payment plan</h2>
@@ -261,6 +354,9 @@ export default async function DashboardPage({
                 <th className="px-3 py-2 font-semibold">Due</th>
                 <th className="px-3 py-2 text-right font-semibold">Amount</th>
                 <th className="px-3 py-2 text-right font-semibold">Status</th>
+                <th className="px-3 py-2 text-right font-semibold">
+                  <span className="sr-only">Receipt</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -280,24 +376,34 @@ export default async function DashboardPage({
                   >
                     {r.status === 'paid' ? 'Paid' : r.status === 'late' ? 'Late' : 'Due'}
                   </td>
+                  <td className="px-3 py-2 text-right">
+                    {receiptFor.get(r.n) && (
+                      <a
+                        href={`/api/app/receipts/${receiptFor.get(r.n)}`}
+                        className="text-brand-blue text-xs font-semibold underline"
+                      >
+                        Receipt
+                      </a>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {d.loan?.status === 'active' && nextDue && (
-            <div className="mt-4">
-              <ActionButton
-                action={payNextInstalment}
-                className="bg-brand-green hover:bg-brand-dark h-12 w-full font-semibold"
-                testId="pay-now"
-              >
-                Pay now: {formatNaira(nextDue.amount - nextDue.paidAmount)} (payment {nextDue.n})
-              </ActionButton>
-            </div>
-          )}
         </section>
       )}
 
+      {depositReceipt && (
+        <p className="text-sm" data-testid="deposit-receipt">
+          Deposit of {formatNaira(depositReceipt.amount)} paid.{' '}
+          <a
+            href={`/api/app/receipts/${depositReceipt.id}`}
+            className="text-brand-blue font-semibold underline"
+          >
+            Download receipt
+          </a>
+        </p>
+      )}
       {/* Auto-pay */}
       {d.depositPaid && (
         <section className="rounded-2xl border p-5" data-testid="autopay-status">
@@ -327,21 +433,124 @@ export default async function DashboardPage({
         </section>
       )}
 
-      {/* Documents */}
-      {d.documents.length > 0 && (
-        <section className="rounded-2xl border p-5" data-testid="documents">
-          <h2 className="text-brand-dark text-lg font-bold">Documents</h2>
-          <ul className="mt-2 space-y-1 text-sm">
-            {d.documents.map((doc) => (
-              <li key={doc.url}>
-                <a href={doc.url} className="text-brand-blue font-semibold underline">
-                  {doc.label}
-                </a>
+      {/* 4. My system */}
+      <section id="system" className={card} data-testid="my-system">
+        <h2 className="text-brand-dark text-lg font-bold">My system</h2>
+        {d.system ? (
+          <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            {(
+              [
+                ['Inverter', `${d.system.inverterKva} kVA`],
+                ['Battery', `${d.system.batteryKwh} kWh`],
+                ['Solar panels', `${d.system.panelCount} × ${d.system.panelWatts} W`],
+                ['Installed', d.installedAt ? fmtDate(d.installedAt.slice(0, 10)) : 'Not yet'],
+              ] as const
+            ).map(([k, v]) => (
+              <div key={k} className="bg-brand-mist rounded-lg p-3">
+                <dt className="text-muted-foreground text-xs">{k}</dt>
+                <dd className="text-brand-dark font-bold">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="text-muted-foreground mt-1 text-sm">Your system details appear here.</p>
+        )}
+      </section>
+
+      {/* 5. Documents */}
+      <section id="documents" className={card} data-testid="documents">
+        <h2 className="text-brand-dark text-lg font-bold">Documents</h2>
+        <ul className="mt-2 space-y-2 text-sm">
+          {d.documents.map((doc) => (
+            <li key={doc.url}>
+              <a href={doc.url} className="text-brand-blue font-semibold underline">
+                {doc.label}
+              </a>
+            </li>
+          ))}
+          {d.documents.length === 0 && (
+            <li className="text-muted-foreground">
+              Your signed agreement appears here once you sign.
+            </li>
+          )}
+          <li className="text-muted-foreground" data-testid="invoice-placeholder">
+            Invoice (PDF): coming soon.
+          </li>
+        </ul>
+      </section>
+
+      {/* 6. My details */}
+      <section id="details" className={card} data-testid="my-details">
+        <h2 className="text-brand-dark text-lg font-bold">My details</h2>
+        <dl className="mt-3 grid gap-x-4 gap-y-2 text-sm sm:grid-cols-[10rem_1fr]">
+          {(
+            [
+              ['Name', d.details.name],
+              ['Phone', d.details.phone],
+              ['Email', d.details.email],
+              ['Installation address', d.details.address],
+            ] as const
+          ).map(([k, v]) => (
+            <div key={k} className="contents">
+              <dt className="text-muted-foreground">{k}</dt>
+              <dd className="font-semibold break-words">{v ?? '—'}</dd>
+            </div>
+          ))}
+        </dl>
+        {d.changeRequests.length > 0 && (
+          <ul className="mt-3 space-y-1 text-sm" data-testid="change-requests">
+            {d.changeRequests.map((c) => (
+              <li key={c.createdAt + c.field}>
+                {CHANGE_FIELD_LABELS[c.field as ChangeField] ?? c.field} → {c.newValue}:{' '}
+                <strong>
+                  {c.status === 'pending'
+                    ? 'waiting for our check'
+                    : c.status === 'approved'
+                      ? 'done'
+                      : 'not changed'}
+                </strong>
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        )}
+        <div className="mt-4">
+          <RequestChange />
+        </div>
+      </section>
+
+      {/* 7. My guarantor */}
+      <section id="guarantor" className={card} data-testid="my-guarantor">
+        <h2 className="text-brand-dark text-lg font-bold">My guarantor</h2>
+        {d.guarantor ? (
+          <p className="mt-1 text-sm">
+            <strong>{d.guarantor.name}</strong> ·{' '}
+            {GUARANTOR_STATUS[d.guarantor.status] ?? d.guarantor.status}
+          </p>
+        ) : (
+          <p className="text-muted-foreground mt-1 text-sm">No guarantor yet.</p>
+        )}
+      </section>
+
+      {/* 8. Help */}
+      <section id="help" className={card} data-testid="help">
+        <h2 className="text-brand-dark text-lg font-bold">Help</h2>
+        <p className="mt-1 text-sm">
+          Questions about your plan or your system? Talk to an advisor (quote reference{' '}
+          {d.reference}).
+        </p>
+        <a
+          href={whatsappHref(
+            process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '',
+            `Hello Go4Solar, I need help with my plan ${d.reference}.`,
+            siteConfig.phones[0],
+          )}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex h-12 items-center rounded-lg bg-[#25D366] px-5 font-semibold text-white hover:bg-[#1ebe5b]"
+        >
+          Chat with an advisor on WhatsApp
+        </a>
+      </section>
     </main>
   )
 }

@@ -399,6 +399,66 @@ export type Database = {
         }
         Relationships: []
       }
+      change_requests: {
+        Row: {
+          consumer_id: string
+          created_at: string
+          current_value: string | null
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          field: Database['public']['Enums']['change_field']
+          id: string
+          new_value: string
+          reason: string | null
+          status: Database['public']['Enums']['change_status']
+          updated_at: string
+        }
+        Insert: {
+          consumer_id: string
+          created_at?: string
+          current_value?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          field: Database['public']['Enums']['change_field']
+          id?: string
+          new_value: string
+          reason?: string | null
+          status?: Database['public']['Enums']['change_status']
+          updated_at?: string
+        }
+        Update: {
+          consumer_id?: string
+          created_at?: string
+          current_value?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          field?: Database['public']['Enums']['change_field']
+          id?: string
+          new_value?: string
+          reason?: string | null
+          status?: Database['public']['Enums']['change_status']
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'change_requests_consumer_id_fkey'
+            columns: ['consumer_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'change_requests_decided_by_fkey'
+            columns: ['decided_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       components: {
         Row: {
           active: boolean
@@ -2117,6 +2177,8 @@ export type Database = {
         | 'business'
       application_status:
         'draft' | 'submitted' | 'under_review' | 'approved' | 'declined' | 'more_info'
+      change_field: 'name' | 'phone' | 'email' | 'address'
+      change_status: 'pending' | 'approved' | 'rejected'
       component_category: 'panels' | 'battery' | 'inverter' | 'accessories'
       component_source: 'oem' | 'vendor'
       consent_kind:
@@ -2302,6 +2364,8 @@ export const Constants = {
         'declined',
         'more_info',
       ],
+      change_field: ['name', 'phone', 'email', 'address'],
+      change_status: ['pending', 'approved', 'rejected'],
       component_category: ['panels', 'battery', 'inverter', 'accessories'],
       component_source: ['oem', 'vendor'],
       consent_kind: [
