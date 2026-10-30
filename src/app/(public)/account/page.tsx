@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
 import { AccountFlow } from '@/components/plans/AccountFlow'
+import { IdentityChoice } from '@/components/plans/IdentityChoice'
+import { sameApplicant } from '@/lib/applications/identity'
 import { siteConfig } from '@/config/site'
 import { getSessionInfo } from '@/lib/auth/session'
 import { formatNaira } from '@/lib/money'
@@ -27,9 +29,9 @@ function localPhone(e164: string): string {
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ quote?: string }>
+  searchParams: Promise<{ quote?: string; as?: string }>
 }) {
-  const { quote: quoteId } = await searchParams
+  const { quote: quoteId, as } = await searchParams
   const hash = await currentVisitorHash()
   if (!quoteId || !z.uuid().safeParse(quoteId).success || !hash) redirect('/get-started')
 
@@ -44,13 +46,29 @@ export default async function AccountPage({
   if (quote.status === 'chosen') redirect('/app/apply')
   const { data: lead } = await admin
     .from('waitlist_consumers')
-    .select('first_name, email, phone_e164')
+    .select('first_name, surname, email, phone_e164')
     .eq('id', quote.waitlist_id)
     .maybeSingle()
   if (!lead) redirect('/get-started')
 
   const { user } = await getSessionInfo()
   const result = quote.result as { systemPrice?: number; monthly?: number }
+
+  // Signed in as someone else? Never mix their account with this quote's person.
+  const { data: profile } = user
+    ? await admin.from('profiles').select('full_name, phone_e164').eq('id', user.id).maybeSingle()
+    : { data: null }
+  const same =
+    !user ||
+    sameApplicant(
+      { fullName: profile?.full_name ?? null, phone: profile?.phone_e164 ?? null },
+      {
+        fullName: [lead.first_name, lead.surname].filter(Boolean).join(' ') || null,
+        phone: lead.phone_e164,
+      },
+    )
+  const asAccount = Boolean(user) && !same && as === 'account'
+  const codePhone = asAccount && profile?.phone_e164 ? profile.phone_e164 : lead.phone_e164
 
   return (
     <>
@@ -63,7 +81,11 @@ export default async function AccountPage({
       </header>
       <main className="mx-auto max-w-xl px-4 py-8 sm:px-6">
         <h1 className="text-brand-dark text-2xl font-bold tracking-tight sm:text-3xl">
-          {user ? 'Confirm your phone' : `Create your account, ${lead.first_name}`}
+          {user && !same && !asAccount
+            ? 'Who is applying?'
+            : user
+              ? 'Confirm your phone'
+              : `Create your account, ${lead.first_name}`}
         </h1>
         <p className="bg-brand-mist mt-3 rounded-lg px-4 py-3 text-sm">
           {PLAN_LABELS[quote.plan as Plan]} plan · {quoteReference(quote.id)} ·{' '}
@@ -71,12 +93,21 @@ export default async function AccountPage({
           {formatNaira(result.systemPrice ?? 0)}
         </p>
         <div className="mt-6">
-          <AccountFlow
-            quoteId={quote.id}
-            defaultEmail={user?.email ?? lead.email ?? ''}
-            phoneDisplay={localPhone(lead.phone_e164)}
-            signedIn={Boolean(user)}
-          />
+          {user && !same && !asAccount ? (
+            <IdentityChoice
+              quoteId={quote.id}
+              accountName={profile?.full_name ?? user.email ?? null}
+              quoteFirstName={lead.first_name ?? 'someone else'}
+            />
+          ) : (
+            <AccountFlow
+              quoteId={quote.id}
+              defaultEmail={user?.email ?? lead.email ?? ''}
+              phoneDisplay={localPhone(codePhone)}
+              signedIn={Boolean(user)}
+              asAccount={asAccount}
+            />
+          )}
         </div>
       </main>
     </>

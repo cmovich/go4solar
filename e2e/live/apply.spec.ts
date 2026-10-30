@@ -216,6 +216,8 @@ test.describe('live mode: application wizard with mock KYC', () => {
     })
     await readTickDrawAndSign(gp, g.phone)
     await expect(gp.getByTestId('guarantee-signed')).toBeVisible({ timeout: 60000 })
+    await expect(gp.getByTestId('guarantee-signed')).toContainText('You have signed. Thank you.')
+    await expect(gp.getByTestId('guarantee-signed')).toContainText('has been told')
 
     // The same link cannot be used again.
     await gp.reload()

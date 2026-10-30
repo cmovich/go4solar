@@ -51,11 +51,21 @@ export async function latestOtpFor(e164: string): Promise<string> {
 /** A NIN the mock KYC accepts (11 digits starting with 1), new for every run: one active application per NIN. */
 export const freshNin = testNin
 
-export type Person = { phone: string; email: string; nin: string; type: 'individual' | 'business' }
+export type Person = {
+  phone: string
+  email: string
+  nin: string
+  type: 'individual' | 'business'
+  firstName: string
+  surname: string
+}
 
-export function newPerson(type: Person['type'] = 'individual'): Person {
+export function newPerson(
+  type: Person['type'] = 'individual',
+  name: { firstName: string; surname: string } = { firstName: 'Chidi', surname: 'Eze' },
+): Person {
   const phone = freshPhone()
-  return { phone, email: testEmail(`live-${type}`, phone), nin: freshNin(), type }
+  return { phone, email: testEmail(`live-${type}`, phone), nin: freshNin(), type, ...name }
 }
 
 /** Calculator → details flow → energy → lands on /plans. */
@@ -84,8 +94,8 @@ export async function throughDetails(page: Page, p: Person) {
   await page.getByLabel('Email address').fill(p.email)
   await page.getByRole('button', { name: 'Next' }).click()
   await expect(page.getByLabel('First name')).toBeVisible({ timeout: 5000 })
-  await page.getByLabel('First name').fill('Chidi')
-  await page.getByLabel('Surname').fill('Eze')
+  await page.getByLabel('First name').fill(p.firstName)
+  await page.getByLabel('Surname').fill(p.surname)
   await page.getByLabel('State of installation').selectOption('Lagos')
   await page.getByLabel('Local government area').fill('Ikeja')
   await page.getByRole('checkbox').check()

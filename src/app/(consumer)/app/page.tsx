@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { ActionButton } from '@/components/payments/ActionButton'
+import { waitingQuote } from '@/lib/applications/server'
 import { requireUser } from '@/lib/auth/roles'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { loadDashboard } from '@/lib/payments/dashboard'
@@ -42,12 +43,23 @@ export default async function DashboardPage({
   const { user } = await requireUser('/app')
   const d = await loadDashboard(user!.id)
   if (!d) redirect('/app/apply')
+  const waiting = await waitingQuote(user!.id)
   const sp = await searchParams
   const nextDue = d.schedule.find((r) => r.status !== 'paid')
   const paidTotal = d.schedule.reduce((s, r) => s + r.paidAmount, 0)
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+      {waiting && (
+        <p
+          className="rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          role="status"
+          data-testid="waiting-quote"
+        >
+          Your new quote {waiting} is saved. This application is already signed or submitted, so it
+          stays as it is; you can apply with the new quote once it is finished. Questions? Call us.
+        </p>
+      )}
       <div>
         <p className="text-brand-green text-sm font-semibold">Reference {d.reference}</p>
         <h1 className="text-brand-dark text-2xl font-bold">Your solar plan</h1>
