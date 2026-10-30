@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
 
-import { PlanCard, adviceFor } from '@/components/waitlist/steps'
+import { PlanCard, QuoteNotes, adviceFor } from '@/components/waitlist/steps'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
@@ -14,6 +14,8 @@ import { PLANS, PLAN_LABELS, type Estimate } from '@/lib/quotes/buildEstimate'
 import { priceVariant } from '@/lib/quotes/quote'
 import type { Plan } from '@/lib/sizing/types'
 import { whatsappHref } from '@/lib/whatsapp'
+import type { SiteAnswers } from '@/lib/wizard/questions'
+import type { RoofTypeCard } from '@/lib/wizard/server'
 
 import { chooseQuote, payInFull, saveForLater } from '@/app/(public)/plans/actions'
 
@@ -31,6 +33,8 @@ export function PlansChooser({
   whatsappNumber,
   fallbackNumber,
   tenures,
+  site = {},
+  roofTypes = [],
 }: {
   leadId: string
   firstName: string
@@ -42,6 +46,9 @@ export function PlansChooser({
   fallbackNumber: string
   /** Payment-plan lengths this customer may choose (switched-off ones are never shown). */
   tenures: readonly TenureMonths[]
+  /** The quote answers (Part E): the chosen style is highlighted, the notes listed. */
+  site?: SiteAnswers
+  roofTypes?: RoofTypeCard[]
 }) {
   const router = useRouter()
   const minPct = Math.round(estimate.plans.comfort.quote.snapshot.minDepositShare * 100)
@@ -162,6 +169,7 @@ export function PlansChooser({
               <PlanCard
                 estimate={v}
                 advice={adviceFor(v, current, estimate.pricingRateByTenure, tenures)}
+                highlighted={site.style === p}
               />
               <div className="space-y-1 px-1 text-sm">
                 <p>
@@ -189,6 +197,7 @@ export function PlansChooser({
         })}
       </div>
 
+      <QuoteNotes site={site} roofTypes={roofTypes} />
       <p className="text-muted-foreground text-xs">{BACKUP_NOTICE}</p>
       <p className="text-muted-foreground text-xs">
         0% interest: one fixed price, the total amount payable above. Late payments attract 0.75% of

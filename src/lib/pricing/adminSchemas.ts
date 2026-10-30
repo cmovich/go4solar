@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { CATEGORY_IDS, type CategoryId } from '@/lib/load/types'
 import { NG_STATE_IDS } from '@/lib/nigeria/states'
 import { SIZE_BANDS, energySettingsSchema, sizingSettingsSchema } from '@/lib/settings/schemas'
+import { wiringSchema, type WiringSettings } from '@/lib/wizard/questions'
 
 import { TENURES } from './types'
 
@@ -116,6 +117,8 @@ export const energySizingSchema = z.object({
   sizing: sizingSettingsSchema,
   /** Missing before migration 0024 (nothing to save then). */
   sunHours: z.array(sunHoursRowSchema).max(40).optional(),
+  /** Wire estimate for the quote questions (Part E). */
+  wiring: wiringSchema.optional(),
 })
 export type EnergySizingDraft = z.infer<typeof energySizingSchema>
 
@@ -146,6 +149,7 @@ export type PricingDraft = {
   sizing: EnergySizingDraft['sizing']
   /** Peak sun hours per state (empty before migration 0024). */
   sunHours: SunHoursRow[]
+  wiring: WiringSettings
   minDepositShare: number
   /** Which sections still hold SAMPLE rows. */
   sample: {

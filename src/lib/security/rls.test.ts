@@ -54,6 +54,7 @@ const ACCESS: Record<Table, Access> = {
   outbox: 'staff',
   overheads: 'staff',
   partners: 'public',
+  roof_types: 'public',
   payments: 'own',
   phone_otps: 'server',
   pricing_rates: 'staff',

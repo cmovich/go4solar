@@ -17,6 +17,15 @@ import { recordConsents } from '@/lib/consent/server'
 import { consentRecord } from '@/lib/consent/texts'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 import { gridFrom } from '@/lib/settings/schemas'
+import type { Json } from '@/lib/supabase/database.types'
+import { isNgStateId } from '@/lib/nigeria/states'
+import {
+  gridFromAnswers,
+  gridHoursProblem,
+  gridTimeProblem,
+  siteAnswersSchema,
+} from '@/lib/wizard/questions'
+import { z } from 'zod'
 import type { Plan } from '@/lib/sizing/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendWaitlistConfirmation } from '@/lib/waitlist/messages'
@@ -335,4 +344,68 @@ export async function completeWaitlist(
     samplePrices: estimate.sample,
   })
   return { ok: true, id: row.id, firstName: row.first_name }
+}
+
+const siteStepSchema = z.object({ id: z.uuid(), answers: siteAnswersSchema })
+
+/**
+ * The quote questions (Part E), saved after every screen. When the grid answers change, the three
+ * plans are priced again with that grid supply (the sizing engine uses it).
+ */
+export async function saveSiteAnswers(
+  input: unknown,
+): Promise<ActionResult<{ estimate: Estimate | null }>> {
+  const parsed = siteStepSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
+  const row = await ownRow(parsed.data.id)
+  if (!row) return EXPIRED
+  const a = parsed.data.answers
+  const g = a.grid
+  if (g?.hours !== undefined) {
+    const problem = gridHoursProblem(g.hours)
+    if (problem) return { ok: false, error: problem, field: 'hours' }
+  }
+  if (g?.hours !== undefined && g.dayHours !== undefined && g.nightHours !== undefined) {
+    const problem = gridTimeProblem(g.hours, g.dayHours, g.nightHours)
+    if (problem) return { ok: false, error: problem, field: 'dayHours' }
+  }
+
+  const grid = gridFromAnswers(a)
+  let estimate: Estimate | null = null
+  const gridChanged = JSON.stringify(grid) !== JSON.stringify(gridFrom(row.grid))
+  if (gridChanged && row.estimate && row.state && isNgStateId(row.state)) {
+    const settings = await getQuoteSettings()
+    try {
+      estimate = {
+        ...buildEstimate(
+          computeLoadTotals(row.load_items as LoadItem[], {
+            nightShare: settings.sizing.nightShare,
+          }),
+          row.state,
+          settings.minDepositShare,
+          settings,
+          grid,
+        ),
+        pricedAt: new Date().toISOString(),
+      }
+    } catch {
+      return {
+        ok: false,
+        error: 'We could not size a system for this load. Please check your appliances.',
+      }
+    }
+  }
+  const admin = createAdminClient()
+  const patch = { grid: grid as Json | null, ...(estimate ? { estimate } : {}) }
+  let { error } = await admin
+    .from('waitlist_consumers')
+    .update({ ...patch, site: a as Json })
+    .eq('id', row.id)
+  // Before migration 0026 there is no `site` column: keep the grid answers and the prices.
+  if (error && /site/.test(error.message)) {
+    console.error('[waitlist] answers not stored (migration 0026 not applied yet)')
+    ;({ error } = await admin.from('waitlist_consumers').update(patch).eq('id', row.id))
+  }
+  if (error) return { ok: false, error: 'Could not save your answer. Please try again.' }
+  return { ok: true, estimate }
 }

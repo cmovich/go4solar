@@ -10,7 +10,13 @@ import { MEDIA_KINDS, MAX_UPLOAD_BYTES, uploadProblem, type MediaKind } from '@/
 import { sniffImage } from '@/lib/media/sniff'
 import { createClient } from '@/lib/supabase/server'
 
-import { moveInList, partnerSchema, publishProblem, testimonialSchema } from './schemas'
+import {
+  moveInList,
+  partnerSchema,
+  roofTypeSchema,
+  publishProblem,
+  testimonialSchema,
+} from './schemas'
 
 /**
  * Home-page content (testimonials, partners, their pictures). Writes use the staff member's own
@@ -40,7 +46,7 @@ type Db = Awaited<ReturnType<typeof createClient>>
 async function removeOldMedia(
   supabase: Db,
   actorId: string,
-  entity: 'testimonials' | 'partners',
+  entity: 'testimonials' | 'partners' | 'roof_types',
   id: string,
   paths: (string | null | undefined)[],
 ) {
@@ -199,7 +205,10 @@ export async function setTestimonialPublished(input: unknown): Promise<Result> {
   return { ok: true }
 }
 
-async function move(table: 'testimonials' | 'partners', input: unknown): Promise<Result> {
+async function move(
+  table: 'testimonials' | 'partners' | 'roof_types',
+  input: unknown,
+): Promise<Result> {
   const parsed = moveSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'Check the request' }
   const supabase = await createClient()
@@ -318,5 +327,101 @@ export async function deletePartner(input: unknown): Promise<Result> {
   if (error) return { ok: false, error: 'Could not delete it. Please try again.' }
   await removeOldMedia(supabase, actor, 'partners', parsed.data.id, [current?.logo])
   changed('/admin/partners')
+  return { ok: true }
+}
+
+// ------------------------------------------------------------------ roof types (Part E)
+function roofChanged() {
+  revalidatePath('/admin/roof-types')
+  revalidatePath('/waitlist')
+  revalidatePath('/get-started')
+}
+
+export async function saveRoofType(input: unknown): Promise<Result> {
+  const actor = await contentStaff()
+  if (!actor) return DENIED
+  const parsed = roofTypeSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: firstError(parsed.error) }
+  const d = parsed.data
+  // Editing a seeded row makes it real (no longer SAMPLE).
+  const row = {
+    name: d.name,
+    description: d.description || null,
+    photo: d.photo ?? null,
+    needs_rack: d.needsRack,
+    sample: false,
+  }
+  const supabase = await createClient()
+  if (d.id) {
+    const { data: current } = await supabase
+      .from('roof_types')
+      .select('photo')
+      .eq('id', d.id)
+      .maybeSingle()
+    const { error } = await supabase.from('roof_types').update(row).eq('id', d.id)
+    if (error) return { ok: false, error: 'Could not save the roof type. Please try again.' }
+    await removeOldMedia(
+      supabase,
+      actor,
+      'roof_types',
+      d.id,
+      replaced([current?.photo ?? null], [row.photo]),
+    )
+  } else {
+    const { data: all } = await supabase.from('roof_types').select('sort_order')
+    const next = Math.max(0, ...(all ?? []).map((r) => Number(r.sort_order) || 0)) + 10
+    const { error } = await supabase.from('roof_types').insert({ ...row, sort_order: next })
+    if (error) {
+      return {
+        ok: false,
+        error: /duplicate|unique/i.test(error.message)
+          ? 'A roof type with this name already exists.'
+          : 'Could not save the roof type. Please try again.',
+      }
+    }
+  }
+  roofChanged()
+  return { ok: true }
+}
+
+export async function setRoofTypeActive(input: unknown): Promise<Result> {
+  const actor = await contentStaff()
+  if (!actor) return DENIED
+  const parsed = activeSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: 'Check the request' }
+  const { error } = await (
+    await createClient()
+  )
+    .from('roof_types')
+    .update({ active: parsed.data.active })
+    .eq('id', parsed.data.id)
+  if (error) return { ok: false, error: 'Could not change it. Please try again.' }
+  roofChanged()
+  return { ok: true }
+}
+
+export async function moveRoofType(input: unknown): Promise<Result> {
+  const actor = await contentStaff()
+  if (!actor) return DENIED
+  const r = await move('roof_types', input)
+  if (r.ok) roofChanged()
+  return r
+}
+
+export async function deleteRoofType(input: unknown): Promise<Result> {
+  const actor = await contentStaff()
+  if (!actor) return DENIED
+  const parsed = idSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: 'Check the request' }
+  const supabase = await createClient()
+  const { data: current } = await supabase
+    .from('roof_types')
+    .select('photo')
+    .eq('id', parsed.data.id)
+    .maybeSingle()
+  const { error } = await supabase.from('roof_types').delete().eq('id', parsed.data.id)
+  if (error) return { ok: false, error: 'Could not delete it. Please try again.' }
+  await removeOldMedia(supabase, actor, 'roof_types', parsed.data.id, [current?.photo])
+  roofChanged()
   return { ok: true }
 }

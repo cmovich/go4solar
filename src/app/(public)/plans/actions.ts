@@ -50,6 +50,10 @@ function baseRow(ctx: LeadForPlans, hash: string, plan: Plan) {
     load_items: ctx.lead.load_items,
     load_totals: ctx.lead.load_totals,
     energy: ctx.lead.energy,
+    // The quote questions (Part E) and grid answers travel with the quote (the `site` column
+    // exists from migration 0026; before it the lead has no such field).
+    ...('site' in ctx.lead ? { site: ctx.lead.site } : {}),
+    grid: ctx.lead.grid ?? null,
     plan,
     system_size: est.plans[plan].size as unknown as Json,
     valid_until: validUntil(new Date(), ctx.validityDays).toISOString(),

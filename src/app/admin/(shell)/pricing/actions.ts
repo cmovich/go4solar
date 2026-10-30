@@ -360,6 +360,14 @@ export async function saveEnergySizing(input: unknown): Promise<Result> {
       'pricing.sizing.update',
     )
     if (parsed.data.sunHours?.length) await saveSunHours(session, parsed.data.sunHours)
+    if (parsed.data.wiring) {
+      await saveSetting(
+        session,
+        'wiring',
+        { ...parsed.data.wiring, sample: false } as unknown as Json,
+        'pricing.wiring.update',
+      )
+    }
   } catch (err) {
     return { ok: false, error: (err as Error).message }
   }

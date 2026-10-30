@@ -187,6 +187,23 @@ After "Who is this solar for?" (and the business screen), one screen — the sam
 
 **Admin:** headline cards add "CO₂ avoided per year (tonnes)" and "Average monthly energy spend"; a generator-type filter and column; the funder PDF summary adds total CO₂ avoided by state and by segment (homes / businesses), with a footnote listing the fuel prices, tariff and emission factors used and flagging any that are sample or unverified. Fuel prices, the grid tariff and the emission factors live in settings (`energy`) and are edited in the admin pricing screens.
 
+### Quote questions (Part E, October 2026)
+
+After "who is the solar for" (and the business details), one question per screen with a progress bar and Back; every answer is saved as it is given (both launch modes). Answers are stored on the lead and travel with the quote (`site`; grid answers in `grid`).
+
+1. "Do you want a complete system financed, or just some items?" Some items → "What inverter or battery do you already have?" (brand, kVA, battery voltage); an advisor finishes that quote until the system builder (Part F) exists.
+2. Power management style: 24-hour off-grid / Comfort / Essentials (with the notes). The plans page highlights it ("Your choice").
+3. Grid: A charge + bypass, B charge only, C supply only, D none (with the notes).
+4. (A/B/C) Hours of grid: a number of hours (stepper, 0–24, half hours) / not every day + hours on those days / can't be certain / no grid for a while (= blackout).
+5. (hours > 0) Day and night grid hours; they must add up to the hours (each at most 12).
+6. Mounting: roof / ground / car park / other (text). Not roof → "Customer provides the space and the mounting structure (not charged)".
+7. (roof) Roof type: picture cards from /admin/roof-types (SAMPLE seeded; photos uploaded by staff).
+8. (roof) "Do you want a roofing rack?" Yes → metal or aluminium; No on a roof that needs one → orange alert; the quote notes it.
+9. (roof) Building height (storeys or feet) and the inverter's floor.
+10. Wire: known lengths (DC and AC metres), or estimated from the building with the `wiring` setting, shown as "This is an estimate — you may need extra wire, as we haven't seen your site."
+
+Grid answers price the three plans again (Part B sizing). Every quote lists: the standard accessories pack, "Customer provides ladder/scaffold (not charged)", and the notes above. "Adjust this quote" and the some-items builder come with Part F.
+
 ### Installer waiting-list flow
 
 A separate link asks installers for: name, business name, phone, WhatsApp, email, states and LGAs served, years in business, installations completed, CAC registered (yes/no), and a consent tick. They see: "Thank you. We will contact you within 7 days."

@@ -7,6 +7,8 @@ import { siteConfig } from '@/config/site'
 import { loadLeadForPlans } from '@/lib/quotes/leadForPlans'
 import { quoteReference, validUntil } from '@/lib/quotes/quote'
 import { BrandLogo } from '@/components/brand/BrandLogo'
+import { siteAnswersSchema } from '@/lib/wizard/questions'
+import { fetchRoofTypes } from '@/lib/wizard/server'
 
 export const metadata: Metadata = { title: 'Your solar plans' }
 export const dynamic = 'force-dynamic'
@@ -23,6 +25,7 @@ export default async function PlansPage({
   const { estimate: id } = await searchParams
   const ctx = id ? await loadLeadForPlans(id) : null
   if (!ctx) redirect('/get-started')
+  const roofTypes = await fetchRoofTypes()
 
   const until = validUntil(new Date(), ctx.validityDays).toLocaleDateString('en-GB', {
     timeZone: 'Africa/Lagos',
@@ -63,6 +66,8 @@ export default async function PlansPage({
             whatsappNumber={process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? ''}
             fallbackNumber={siteConfig.phones[0]}
             tenures={ctx.tenures}
+            site={siteAnswersSchema.safeParse(ctx.lead.site ?? {}).data ?? {}}
+            roofTypes={roofTypes}
           />
         </div>
       </main>

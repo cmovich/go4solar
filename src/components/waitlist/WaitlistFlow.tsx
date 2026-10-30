@@ -12,6 +12,10 @@ import type { LoadItem } from '@/lib/load/types'
 import type { Estimate } from '@/lib/quotes/buildEstimate'
 import type { Plan } from '@/lib/sizing/types'
 import { flowStart } from '@/lib/waitlist/entry'
+import type { SiteAnswers, WiringSettings } from '@/lib/wizard/questions'
+import type { RoofTypeCard } from '@/lib/wizard/server'
+
+import { QuoteQuestions } from './QuoteQuestions'
 
 import {
   BusinessStep,
@@ -31,9 +35,14 @@ import {
 
 /**
  * 1 calculator · 2 totals · 3 preparing · 4 phone · 5 email · 6 name/state · 7 who is it for ·
- * 8 business details (business only) · 9 energy spend · 10 plans · 11 contribution · 12 thank you
+ * 8 business details (business only) · 13 quote questions (Part E: one per screen) ·
+ * 9 energy spend · 10 plans · 11 contribution · 12 thank you
  */
-export type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
+export type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13
+
+/** The order the screens come in (step numbers are names, not positions). */
+const ORDER: readonly Step[] = [1, 2, 3, 4, 5, 6, 7, 8, 13, 9, 10, 11, 12]
+const before = (a: Step, b: Step) => ORDER.indexOf(a) < ORDER.indexOf(b)
 
 const slide = {
   enter: (dir: number) => ({ x: dir > 0 ? '60%' : '-60%', opacity: 0 }),
@@ -46,11 +55,15 @@ export function WaitlistFlow({
   messagingLive,
   launchMode,
   photoLookup,
+  roofTypes,
+  wiring,
 }: {
   library: LibraryItem[]
   messagingLive: boolean
   launchMode: LaunchMode
   photoLookup: boolean
+  roofTypes: RoofTypeCard[]
+  wiring: WiringSettings
 }) {
   const [step, setStep] = useState<Step>(1)
   const [dir, setDir] = useState(1)
@@ -64,6 +77,7 @@ export function WaitlistFlow({
   const [phoneValues, setPhoneValues] = useState<PhoneValues | null>(null)
   const [email, setEmail] = useState('')
   const [isBusiness, setIsBusiness] = useState(false)
+  const [site, setSite] = useState<SiteAnswers>({})
   // Visitors with saved appliances start at the totals; "Back to my appliances" returns there.
   const [backToAppliances, setBackToAppliances] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
@@ -85,7 +99,7 @@ export function WaitlistFlow({
 
   const go = useCallback(
     (next: Step) => {
-      setDir(next > step ? 1 : -1)
+      setDir(before(step, next) ? 1 : -1)
       setStep(next)
       window.scrollTo({ top: 0 })
     },
@@ -117,7 +131,8 @@ export function WaitlistFlow({
     6: () => go(5),
     7: () => go(6),
     8: () => go(7),
-    9: () => go(isBusiness ? 8 : 7),
+    13: () => go(isBusiness ? 8 : 7),
+    9: () => go(13),
     10: () => go(9),
     11: () => go(10),
   }
@@ -139,7 +154,7 @@ export function WaitlistFlow({
 
   return (
     <div className="relative overflow-x-hidden">
-      {step >= 4 && step <= 12 && <Progress step={step} />}
+      {!before(step, 4) && step !== 13 && <Progress step={step} />}
       <AnimatePresence mode="wait" custom={dir} initial={false}>
         <motion.div
           key={step}
@@ -212,17 +227,31 @@ export function WaitlistFlow({
               onBack={() => go(6)}
               onSaved={(type) => {
                 setIsBusiness(type === 'business')
-                go(type === 'business' ? 8 : 9)
+                go(type === 'business' ? 8 : 13)
               }}
             />
           )}
           {step === 8 && leadId && (
-            <BusinessStep leadId={leadId} onBack={() => go(7)} onSaved={() => go(9)} />
+            <BusinessStep leadId={leadId} onBack={() => go(7)} onSaved={() => go(13)} />
+          )}
+          {step === 13 && leadId && (
+            <QuoteQuestions
+              leadId={leadId}
+              initial={site}
+              roofTypes={roofTypes}
+              wiring={wiring}
+              onBack={() => go(isBusiness ? 8 : 7)}
+              onDone={(answers, est) => {
+                setSite(answers)
+                if (est) setEstimate(est)
+                go(9)
+              }}
+            />
           )}
           {step === 9 && leadId && (
             <EnergyStep
               leadId={leadId}
-              onBack={() => go(isBusiness ? 8 : 7)}
+              onBack={() => go(13)}
               onSaved={(c) => {
                 setCurrent(c)
                 // Live mode: the priced plans, tenure choice and account step live on /plans.
@@ -237,6 +266,8 @@ export function WaitlistFlow({
               firstName={firstName}
               estimate={estimate}
               current={current}
+              site={site}
+              roofTypes={roofTypes}
               onBack={() => go(9)}
               onChosen={(p) => {
                 setPlan(p)
@@ -268,14 +299,14 @@ export function WaitlistFlow({
 }
 
 function Progress({ step }: { step: Step }) {
-  const screens: Step[] = [4, 5, 6, 7, 9, 10, 11, 12]
+  const screens: Step[] = [4, 5, 6, 7, 13, 9, 10, 11, 12]
   return (
     <ol className="mb-6 flex items-center gap-2" aria-label="Progress">
       {screens.map((s) => (
         <li
           key={s}
           aria-current={s === step ? 'step' : undefined}
-          className={`h-2 flex-1 rounded-full ${s <= step ? 'bg-brand-green' : 'bg-brand-mist'}`}
+          className={`h-2 flex-1 rounded-full ${!before(step, s) ? 'bg-brand-green' : 'bg-brand-mist'}`}
         />
       ))}
     </ol>

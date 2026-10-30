@@ -121,6 +121,7 @@ export function PricingWorkbench({
                         energy: draft.energy,
                         sizing: draft.sizing,
                         sunHours: draft.sunHours,
+                        wiring: draft.wiring,
                       })
       if (r.ok) {
         setSaved(true)
@@ -1214,6 +1215,45 @@ function EnergySizingForm({ draft, onChange }: FormProps) {
 
       <SizingFields s={s} setS={setS} num={num} />
       <SunHoursTable draft={draft} onChange={onChange} num={num} />
+      <WiringFields draft={draft} onChange={onChange} num={num} />
+    </div>
+  )
+}
+
+/** Wire estimate when a customer does not know the lengths (quote questions, Part E). */
+function WiringFields({ draft, onChange, num }: FormProps & { num: (v: string) => number }) {
+  const w = draft.wiring
+  const set = (patch: Partial<typeof w>) => onChange({ ...draft, wiring: { ...w, ...patch } })
+  const fields: [string, number, (v: number) => void][] = [
+    ['Metres per storey', w.metresPerStorey, (v) => set({ metresPerStorey: v })],
+    ['Horizontal allowance (m)', w.horizontalMetres, (v) => set({ horizontalMetres: v })],
+    ['DC multiplier (+ and −)', w.dcMultiplier, (v) => set({ dcMultiplier: v })],
+    ['Slack (0.15 = 15%)', w.slackShare, (v) => set({ slackShare: v })],
+  ]
+  return (
+    <div>
+      <h2 className="text-brand-dark text-xl font-semibold">
+        Wire estimate <SampleBadge show={Boolean(w.sample)} />
+      </h2>
+      <p className="text-muted-foreground text-sm">
+        DC = (storeys above the inverter × metres per storey + horizontal) × DC multiplier × (1 +
+        slack); AC = horizontal × (1 + slack). Customers see &ldquo;This is an estimate&rdquo;.
+      </p>
+      <div className="mt-3 grid max-w-3xl gap-4 sm:grid-cols-4">
+        {fields.map(([label, value, onSet]) => (
+          <div key={label}>
+            <Label htmlFor={`w-${label}`}>{label}</Label>
+            <Input
+              id={`w-${label}`}
+              type="number"
+              step="any"
+              value={value}
+              onChange={(ev) => onSet(num(ev.target.value))}
+              className="h-10"
+            />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

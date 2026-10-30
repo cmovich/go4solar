@@ -5,6 +5,7 @@ import { WaitlistFlow } from '@/components/waitlist/WaitlistFlow'
 import { launchMode, siteConfig } from '@/config/site'
 import { fetchApplianceLibrary } from '@/lib/appliances/library'
 import { photoLookupAvailable } from '@/lib/providers/vision/available'
+import { fetchRoofTypes, fetchWiring } from '@/lib/wizard/server'
 import { BrandLogo } from '@/components/brand/BrandLogo'
 
 export const metadata: Metadata = {
@@ -15,7 +16,11 @@ export const metadata: Metadata = {
 export const revalidate = 3600
 
 export default async function WaitlistPage() {
-  const library = await fetchApplianceLibrary()
+  const [library, roofTypes, wiring] = await Promise.all([
+    fetchApplianceLibrary(),
+    fetchRoofTypes(),
+    fetchWiring(),
+  ])
   return (
     <>
       <header className="bg-brand-dark">
@@ -32,6 +37,8 @@ export default async function WaitlistPage() {
           messagingLive={process.env.MESSAGING_PROVIDER === 'live'}
           launchMode={launchMode()}
           photoLookup={photoLookupAvailable()}
+          roofTypes={roofTypes}
+          wiring={wiring}
         />
       </main>
     </>
