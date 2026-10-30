@@ -442,7 +442,22 @@ export type Database = {
           status?: Database['public']['Enums']['change_status']
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'change_requests_consumer_id_fkey'
+            columns: ['consumer_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'change_requests_decided_by_fkey'
+            columns: ['decided_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
       }
       components: {
         Row: {
@@ -2140,8 +2155,6 @@ export type Database = {
       my_role: { Args: never; Returns: Database['public']['Enums']['app_role'] }
     }
     Enums: {
-      change_field: 'name' | 'phone' | 'email' | 'address'
-      change_status: 'pending' | 'approved' | 'rejected'
       agreement_type: 'consumer' | 'guarantor' | 'installer' | 'vendor'
       app_role:
         | 'consumer'
@@ -2164,6 +2177,8 @@ export type Database = {
         | 'business'
       application_status:
         'draft' | 'submitted' | 'under_review' | 'approved' | 'declined' | 'more_info'
+      change_field: 'name' | 'phone' | 'email' | 'address'
+      change_status: 'pending' | 'approved' | 'rejected'
       component_category: 'panels' | 'battery' | 'inverter' | 'accessories'
       component_source: 'oem' | 'vendor'
       consent_kind:
@@ -2319,8 +2334,6 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      change_field: ['name', 'phone', 'email', 'address'],
-      change_status: ['pending', 'approved', 'rejected'],
       agreement_type: ['consumer', 'guarantor', 'installer', 'vendor'],
       app_role: [
         'consumer',
@@ -2351,6 +2364,8 @@ export const Constants = {
         'declined',
         'more_info',
       ],
+      change_field: ['name', 'phone', 'email', 'address'],
+      change_status: ['pending', 'approved', 'rejected'],
       component_category: ['panels', 'battery', 'inverter', 'accessories'],
       component_source: ['oem', 'vendor'],
       consent_kind: [
