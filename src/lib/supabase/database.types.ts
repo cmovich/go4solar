@@ -8,6 +8,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      accessory_rules: {
+        Row: {
+          ac_breaker_a: number
+          ac_surge_ka: number
+          ac_wire_mm2: number
+          battery_breaker_a: number
+          box_ways: number
+          changeover_a: number
+          dc_breaker_a: number
+          dc_surge_v: number
+          dc_wire_mm2: number
+          flex_pipe_m: number
+          flex_pipe_mm: number
+          id: string
+          max_kva: number
+          regulator_kva: number
+          sample: boolean
+          trunk_pipe_m: number
+          trunk_pipe_mm: number
+          updated_at: string
+        }
+        Insert: {
+          ac_breaker_a: number
+          ac_surge_ka: number
+          ac_wire_mm2: number
+          battery_breaker_a: number
+          box_ways: number
+          changeover_a: number
+          dc_breaker_a: number
+          dc_surge_v: number
+          dc_wire_mm2: number
+          flex_pipe_m?: number
+          flex_pipe_mm: number
+          id?: string
+          max_kva: number
+          regulator_kva: number
+          sample?: boolean
+          trunk_pipe_m?: number
+          trunk_pipe_mm: number
+          updated_at?: string
+        }
+        Update: {
+          ac_breaker_a?: number
+          ac_surge_ka?: number
+          ac_wire_mm2?: number
+          battery_breaker_a?: number
+          box_ways?: number
+          changeover_a?: number
+          dc_breaker_a?: number
+          dc_surge_v?: number
+          dc_wire_mm2?: number
+          flex_pipe_m?: number
+          flex_pipe_mm?: number
+          id?: string
+          max_kva?: number
+          regulator_kva?: number
+          sample?: boolean
+          trunk_pipe_m?: number
+          trunk_pipe_mm?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       agreement_templates: {
         Row: {
           approved_at: string | null
@@ -462,46 +525,64 @@ export type Database = {
       components: {
         Row: {
           active: boolean
+          brand: string | null
           category: Database['public']['Enums']['component_category']
           created_at: string
+          description: string | null
           id: string
+          kind: string | null
           name: string
           nominal_voltage: number | null
+          photo: string | null
+          rating: number | null
           sample: boolean
           sku: string
           source: Database['public']['Enums']['component_source']
           specs: Json
           stock_sizes: Json
+          unit: string
           unit_cost: number
           updated_at: string
         }
         Insert: {
           active?: boolean
+          brand?: string | null
           category: Database['public']['Enums']['component_category']
           created_at?: string
+          description?: string | null
           id?: string
+          kind?: string | null
           name: string
           nominal_voltage?: number | null
+          photo?: string | null
+          rating?: number | null
           sample?: boolean
           sku: string
           source?: Database['public']['Enums']['component_source']
           specs?: Json
           stock_sizes?: Json
+          unit?: string
           unit_cost: number
           updated_at?: string
         }
         Update: {
           active?: boolean
+          brand?: string | null
           category?: Database['public']['Enums']['component_category']
           created_at?: string
+          description?: string | null
           id?: string
+          kind?: string | null
           name?: string
           nominal_voltage?: number | null
+          photo?: string | null
+          rating?: number | null
           sample?: boolean
           sku?: string
           source?: Database['public']['Enums']['component_source']
           specs?: Json
           stock_sizes?: Json
+          unit?: string
           unit_cost?: number
           updated_at?: string
         }
@@ -1221,6 +1302,33 @@ export type Database = {
           },
         ]
       }
+      logistics_costs: {
+        Row: {
+          amount: number
+          extra_per_panel: number
+          local_vendors_available: boolean
+          sample: boolean
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          extra_per_panel?: number
+          local_vendors_available?: boolean
+          sample?: boolean
+          state: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          extra_per_panel?: number
+          local_vendors_available?: boolean
+          sample?: boolean
+          state?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       outbox: {
         Row: {
           channel: Database['public']['Enums']['outbox_channel']
@@ -1519,6 +1627,7 @@ export type Database = {
         Row: {
           anon_token_hash: string
           applicant_type: string | null
+          builder: Json | null
           created_at: string
           deposit_share: number
           energy: Json | null
@@ -1541,6 +1650,7 @@ export type Database = {
         Insert: {
           anon_token_hash: string
           applicant_type?: string | null
+          builder?: Json | null
           created_at?: string
           deposit_share: number
           energy?: Json | null
@@ -1563,6 +1673,7 @@ export type Database = {
         Update: {
           anon_token_hash?: string
           applicant_type?: string | null
+          builder?: Json | null
           created_at?: string
           deposit_share?: number
           energy?: Json | null
@@ -1696,12 +1807,35 @@ export type Database = {
           },
         ]
       }
+      rack_prices: {
+        Row: {
+          material: string
+          price_per_cm: number
+          sample: boolean
+          updated_at: string
+        }
+        Insert: {
+          material: string
+          price_per_cm: number
+          sample?: boolean
+          updated_at?: string
+        }
+        Update: {
+          material?: string
+          price_per_cm?: number
+          sample?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       roof_types: {
         Row: {
           active: boolean
           created_at: string
           description: string | null
           id: string
+          install_price: number
+          install_price_unit: string
           name: string
           needs_rack: boolean
           photo: string | null
@@ -1714,6 +1848,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          install_price?: number
+          install_price_unit?: string
           name: string
           needs_rack?: boolean
           photo?: string | null
@@ -1726,6 +1862,8 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          install_price?: number
+          install_price_unit?: string
           name?: string
           needs_rack?: boolean
           photo?: string | null
@@ -1953,6 +2091,7 @@ export type Database = {
       waitlist_consumers: {
         Row: {
           applicant_type: string | null
+          builder: Json | null
           business: Json | null
           chosen_plan: string | null
           cleared_at: string | null
@@ -1985,6 +2124,7 @@ export type Database = {
         }
         Insert: {
           applicant_type?: string | null
+          builder?: Json | null
           business?: Json | null
           chosen_plan?: string | null
           cleared_at?: string | null
@@ -2017,6 +2157,7 @@ export type Database = {
         }
         Update: {
           applicant_type?: string | null
+          builder?: Json | null
           business?: Json | null
           chosen_plan?: string | null
           cleared_at?: string | null

@@ -7,6 +7,8 @@ export const MEDIA_KINDS = {
   installer: { width: 400, height: 400, fit: 'cover', label: 'installer photo' },
   /** The finished installation: 3:2. */
   job: { width: 1200, height: 800, fit: 'cover', label: 'job photo' },
+  /** Product photo in the builder: square. */
+  product: { width: 600, height: 600, fit: 'cover', label: 'product photo' },
   /** Roof type picture for the quote wizard: 4:3. */
   roof: { width: 800, height: 600, fit: 'cover', label: 'roof photo' },
   /** Partner logo: fitted inside, transparency kept. */

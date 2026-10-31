@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
+import { isOwnSystem, OWN_SYSTEM_LABEL } from '@/lib/build/stored'
+
 import { AccountFlow } from '@/components/plans/AccountFlow'
 import { IdentityChoice } from '@/components/plans/IdentityChoice'
 import { sameApplicant } from '@/lib/applications/identity'
@@ -38,7 +40,7 @@ export default async function AccountPage({
   const admin = createAdminClient()
   const { data: quote } = await admin
     .from('quotes')
-    .select('id, waitlist_id, plan, tenure, result, status')
+    .select('*')
     .eq('id', quoteId)
     .eq('anon_token_hash', hash)
     .maybeSingle()
@@ -88,9 +90,11 @@ export default async function AccountPage({
               : `Create your account, ${lead.first_name}`}
         </h1>
         <p className="bg-brand-mist mt-3 rounded-lg px-4 py-3 text-sm">
-          {PLAN_LABELS[quote.plan as Plan]} plan · {quoteReference(quote.id)} ·{' '}
-          {formatNaira(result.monthly ?? 0)} a month for {quote.tenure} months · total{' '}
-          {formatNaira(result.systemPrice ?? 0)}
+          {'builder' in quote && isOwnSystem(quote.builder)
+            ? OWN_SYSTEM_LABEL
+            : `${PLAN_LABELS[quote.plan as Plan]} plan`}{' '}
+          · {quoteReference(quote.id)} · {formatNaira(result.monthly ?? 0)} a month for{' '}
+          {quote.tenure} months · total {formatNaira(result.systemPrice ?? 0)}
         </p>
         <div className="mt-6">
           {user && !same && !asAccount ? (

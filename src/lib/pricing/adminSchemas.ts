@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { CATEGORY_IDS, type CategoryId } from '@/lib/load/types'
 import { NG_STATE_IDS } from '@/lib/nigeria/states'
+import { ACCESSORY_KINDS } from '@/lib/catalogue/autopick'
 import { SIZE_BANDS, energySettingsSchema, sizingSettingsSchema } from '@/lib/settings/schemas'
 import { wiringSchema, type WiringSettings } from '@/lib/wizard/questions'
 
@@ -39,6 +40,18 @@ export const componentDraftSchema = z.object({
   nominalVoltage: z.number().positive().max(1000).nullable().default(null),
   /** Datasheet values per category (see src/lib/components/specs.ts); missing ones are omitted. */
   specs: z.record(z.string(), z.union([z.number(), z.string()]).nullable()).default({}),
+  // Part F (migration 0027; missing before it, then not saved): builder details.
+  /** Accessory type; null or 'pack' = an accessories size tier. */
+  kind: z
+    .enum(['pack', ...ACCESSORY_KINDS])
+    .nullable()
+    .optional(),
+  /** Amps, volts, kA, kVA, ways, mm or mm² (see RATING_UNITS). */
+  rating: z.number().positive().max(100000).nullable().optional(),
+  unit: z.enum(['each', 'metre']).optional(),
+  brand: z.string().trim().max(80).nullable().optional(),
+  description: z.string().trim().max(300).nullable().optional(),
+  photo: z.string().max(200).nullable().optional(),
 })
 export type ComponentDraft = z.infer<typeof componentDraftSchema>
 export const componentsSchema = z.array(componentDraftSchema).min(1)

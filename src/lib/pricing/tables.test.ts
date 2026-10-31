@@ -335,7 +335,16 @@ describe('website SAMPLE rule (same as the admin banner)', () => {
 })
 
 describe('priceListFromRows: component specs (Part A)', () => {
-  const panelSpecs = { wp: 550, voc: 49.6, vmp: 41.9, isc: 14, imp: 13.1, tempCoeffPmax: -0.35 }
+  const panelSpecs = {
+    wp: 550,
+    voc: 49.6,
+    vmp: 41.9,
+    isc: 14,
+    imp: 13.1,
+    tempCoeffPmax: -0.35,
+    lengthCm: 228,
+    widthCm: 113,
+  }
   it('a panel with missing specs is skipped once another panel has full specs', () => {
     const rows = [
       ...components.filter((c) => c.category !== 'panels'),
@@ -416,5 +425,29 @@ describe('installBandFor', () => {
     expect(installBandFor(5)).toBe('medium')
     expect(installBandFor(7.5)).toBe('medium')
     expect(installBandFor(10)).toBe('large')
+  })
+})
+
+// Part F: itemised accessories (breakers, wires…) are not "pack" tiers.
+describe('priceListFromRows — itemised accessories', () => {
+  it('only pack rows (kind pack or none) become accessories tiers', () => {
+    const list = priceListFromRows({
+      components: [
+        ...components,
+        {
+          sku: 'DCB-63',
+          name: 'DC breaker 63 A',
+          category: 'accessories',
+          unit_cost: 14000,
+          stock_sizes: {},
+          active: true,
+          sample: false,
+          kind: 'dc_breaker',
+        },
+      ],
+      installs,
+      panelWatts: 550,
+    })
+    expect(list.accessoriesByKva).toEqual(SAMPLE_PRICE_LIST.accessoriesByKva)
   })
 })

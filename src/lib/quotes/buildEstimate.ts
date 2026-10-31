@@ -3,7 +3,11 @@ import type { NgStateId } from '@/lib/nigeria/states'
 import { priceQuote } from '@/lib/pricing/price'
 import { installBandFor } from '@/lib/pricing/tables'
 import { offeredTenures } from '@/lib/pricing/tenures'
+import { autoPickAccessories, type CatalogueItem } from '@/lib/catalogue/autopick'
+import { installationCost, logisticsFor, rackLine } from '@/lib/catalogue/extras'
+import { DEFAULT_WIRING, wireEstimate, type SiteAnswers } from '@/lib/wizard/questions'
 import {
+  type NoMarkupLine,
   type QuoteLineInput,
   type QuoteResult,
   type RateByTenure,
@@ -146,16 +150,101 @@ export function linesFor(size: SystemSize, priceList: PriceList): QuoteLineInput
   ]
 }
 
+/**
+ * Part F: what the catalogue adds to an auto quote. Itemised accessories (once any are switched
+ * on) replace the old pack; the rack the customer asked for; installation with the roof and
+ * height extras; delivery. Without the catalogue: nothing (the price list's pack and one
+ * installation amount, as before).
+ */
+export function catalogueExtras(
+  size: SystemSize,
+  state: NgStateId,
+  site: SiteAnswers,
+  s: QuoteSettings,
+  baseLines: QuoteLineInput[],
+): { lines: QuoteLineInput[]; noMarkup?: NoMarkupLine[] } {
+  const cat = s.catalogue
+  if (!cat) return { lines: baseLines }
+  let lines = baseLines
+  const itemised = cat.accessories.filter((a) => a.kind !== 'pack') as CatalogueItem[]
+  if (itemised.length > 0 && (cat.rules?.length ?? 0) > 0) {
+    const wire = site.wire?.known
+      ? { dcMetres: site.wire.dcMetres ?? 0, acMetres: site.wire.acMetres ?? 0 }
+      : wireEstimate({ ...site, wire: undefined }, s.wiring ?? DEFAULT_WIRING)!
+    const panel = equipmentFromPriceList(s.priceList).panel
+    const layout = size.stringLayout ?? { series: 1, strings: 1 }
+    const picks = autoPickAccessories(
+      {
+        inverterKva: size.inverterKva,
+        dcRunM: wire.dcMetres / 2,
+        dcWireM: wire.dcMetres,
+        acRunM: wire.acMetres,
+        stringCurrentA: (panel.watts / panel.vmp) * layout.strings,
+        stringVoltageV: panel.vmp * layout.series,
+        maxDrop: cat.settings.maxDcVoltageDrop,
+      },
+      cat.rules ?? [],
+      itemised,
+    )
+    lines = [
+      ...baseLines.filter((l) => l.category !== 'accessories'),
+      ...picks.map((p) => ({
+        sku: p.sku,
+        name: p.name,
+        category: 'accessories' as const,
+        unitCost: p.unitCost,
+        qty: p.qty,
+      })),
+    ]
+  }
+  const material = site.rack?.wanted ? (site.rack.material ?? null) : null
+  const rack = rackLine({
+    panels: size.panelCount,
+    panelLengthCm: cat.panelLengthCm,
+    material,
+    mounting: site.mounting,
+    pricePerCm: material ? (cat.rackPrices[material] ?? 0) : 0,
+    railsPerPanel: cat.settings.railsPerPanel,
+    clampPricePerPanel: cat.settings.clampPricePerPanel,
+  })
+  if (rack) lines = [...lines, rack]
+
+  const roof = cat.roofTypes.find((r) => r.id === site.roofTypeId) ?? null
+  const b = site.building
+  const install = installationCost({
+    installer: 'go4solar',
+    baseCost: installCostFor(state, size.inverterKva, s.priceList),
+    roof: site.mounting === 'roof' && roof ? { price: roof.price, unit: roof.unit } : null,
+    panels: size.panelCount,
+    panelKw: size.panelKw,
+    storeysAbove:
+      b && (!site.mounting || site.mounting === 'roof')
+        ? b.unit === 'feet'
+          ? Math.round(b.height / 9.84)
+          : b.height
+        : 0,
+    extraPerStorey: cat.settings.extraPerStorey,
+  })
+  const noMarkup: NoMarkupLine[] = [{ label: 'Installation', amount: install }]
+  const delivery = logisticsFor(state, size.panelCount, cat.logistics)
+  if (delivery) noMarkup.push({ label: delivery.label, amount: delivery.amount })
+  return { lines, noMarkup: noMarkup.filter((l) => l.amount > 0) }
+}
+
 function priceLines(
   lines: QuoteLineInput[],
   state: NgStateId,
   inverterKva: number,
   depositShare: number,
   s: QuoteSettings,
+  noMarkup?: NoMarkupLine[],
 ): QuoteResult {
   return priceQuote({
     lines,
-    installCost: installCostFor(state, inverterKva, s.priceList),
+    installCost: noMarkup
+      ? noMarkup.reduce((sum, l) => sum + l.amount, 0)
+      : installCostFor(state, inverterKva, s.priceList),
+    noMarkup,
     marginByCategory: s.pricing.marginByCategory,
     pricingRateAnnual: s.pricing.pricingRateByTenure[ESTIMATE_TENURE],
     tenureMonths: ESTIMATE_TENURE,
@@ -175,18 +264,21 @@ export function buildEstimate(
   depositShare: number,
   s: QuoteSettings,
   grid: GridInput | null = null,
+  site: SiteAnswers = {},
 ): Estimate {
   const sun = s.sunHours?.[state] ?? DEFAULT_SUN_HOURS
   const equipment = equipmentFromPriceList(s.priceList)
   const plans = Object.fromEntries(
     PLANS.map((plan) => {
       const size = sizeSystem(totals, plan, s.sizing, { sun, grid, equipment })
+      const extras = catalogueExtras(size, state, site, s, linesFor(size, s.priceList))
       const quote = priceLines(
-        linesFor(size, s.priceList),
+        extras.lines,
         state,
         size.inverterKva,
         depositShare,
         s,
+        extras.noMarkup,
       )
       return [plan, { plan, size, quote }]
     }),
@@ -221,6 +313,7 @@ export function repriceEstimate(
     priceQuote({
       lines: snap.lines,
       installCost: snap.installCost,
+      noMarkup: snap.noMarkup,
       marginByCategory: snap.marginByCategory,
       pricingRateAnnual: snap.pricingRateAnnual,
       tenureMonths: snap.tenureMonths,
@@ -247,6 +340,7 @@ export function monthlyByTenure(
     monthly: priceQuote({
       lines: snap.lines,
       installCost: snap.installCost,
+      noMarkup: snap.noMarkup,
       marginByCategory: snap.marginByCategory,
       pricingRateAnnual: rates?.[tenureMonths] ?? snap.pricingRateAnnual,
       tenureMonths,

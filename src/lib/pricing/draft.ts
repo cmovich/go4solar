@@ -18,7 +18,7 @@ export function draftToSettings(d: PricingDraft): QuoteSettings {
   const battery = active.find((c) => c.category === 'battery')
   const inverters = active.filter((c) => c.category === 'inverter').sort((a, b) => a.size - b.size)
   const accessories = active
-    .filter((c) => c.category === 'accessories')
+    .filter((c) => c.category === 'accessories' && (c.kind ?? 'pack') === 'pack')
     .sort((a, b) => a.size - b.size)
   if (!panel || !battery || inverters.length === 0 || accessories.length === 0) {
     throw new Error(

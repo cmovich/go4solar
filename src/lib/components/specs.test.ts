@@ -33,7 +33,16 @@ const battery = {
 const panel = {
   category: 'panels' as const,
   nominalVoltage: 24,
-  specs: { wp: 550, voc: 49.6, vmp: 41.9, isc: 14, imp: 13.1, tempCoeffPmax: -0.35 },
+  specs: {
+    wp: 550,
+    voc: 49.6,
+    vmp: 41.9,
+    isc: 14,
+    imp: 13.1,
+    tempCoeffPmax: -0.35,
+    lengthCm: 228,
+    widthCm: 113,
+  },
 }
 const accessory = { category: 'accessories' as const, nominalVoltage: null, specs: { notes: '' } }
 
@@ -67,6 +76,8 @@ describe('SPEC_FIELDS', () => {
       'isc',
       'imp',
       'tempCoeffPmax',
+      'lengthCm',
+      'widthCm',
     ])
     expect(SPEC_FIELDS.accessories.map((f) => f.key)).toEqual(['notes'])
   })
@@ -84,6 +95,8 @@ describe('missingSpecs', () => {
       'Isc',
       'Imp',
       'temperature coefficient of Pmax',
+      'length',
+      'width',
     ])
   })
 })
@@ -187,5 +200,13 @@ describe('inverter specs in Part B', () => {
     ])
     expect(usable.map((u) => u.sku)).toEqual(['INV-3.5', 'INV-5'])
     expect(skipped).toEqual([])
+  })
+})
+
+// Part F: a panel needs its size before it can be quoted (the rack is priced per cm).
+describe('panel length and width', () => {
+  it('are required: missing → "Specs missing"', () => {
+    const specs: Record<string, number | null> = { ...panel.specs, lengthCm: null, widthCm: null }
+    expect(missingSpecs({ ...panel, specs })).toEqual(['length', 'width'])
   })
 })

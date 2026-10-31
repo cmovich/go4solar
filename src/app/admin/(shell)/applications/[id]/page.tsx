@@ -369,6 +369,11 @@ export default async function ApplicationPage({
 
       {tab === 'quote' && d.quote && (
         <div className="space-y-3 text-sm">
+          {d.ownSystem && (
+            <p className="text-brand-dark font-semibold" data-testid="own-system">
+              Their own system (built in the system builder)
+            </p>
+          )}
           {d.size && d.plan && <SizingPanel size={d.size} plan={d.plan} />}
           <table className="w-full">
             <thead>

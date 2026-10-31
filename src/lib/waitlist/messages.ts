@@ -12,6 +12,8 @@ export type WaitlistConfirmation = {
   whatsappE164: string | null
   email: string | null
   plan: Plan
+  /** Overrides the plan name (e.g. "Your own system" from the builder). */
+  planLabel?: string
   depositShare: number
   systemPrice: number
   deposit: number
@@ -25,16 +27,17 @@ export { PRICE_LATER_TEXT, THANK_YOU_TEXT }
 
 /** The copy that goes to the customer's email and WhatsApp (PRD step 9). */
 export function confirmationText(c: WaitlistConfirmation): string {
+  const what = c.planLabel ?? `${PLAN_LABELS[c.plan]} plan`
   if (c.samplePrices) {
     return (
       `Hi ${c.firstName}. ${THANK_YOU_TEXT}\n\n` +
-      `Your choice: ${PLAN_LABELS[c.plan]} plan, ${formatPercent(c.depositShare)} upfront. ` +
+      `Your choice: ${what}, ${formatPercent(c.depositShare)} upfront. ` +
       PRICE_LATER_TEXT
     )
   }
   return (
     `Hi ${c.firstName}. ${THANK_YOU_TEXT}\n\n` +
-    `Your estimate: ${PLAN_LABELS[c.plan]} plan — total ${formatNaira(c.systemPrice)}, ` +
+    `Your estimate: ${what} — total ${formatNaira(c.systemPrice)}, ` +
     `${formatNaira(c.deposit)} upfront (${formatPercent(c.depositShare)}) then ` +
     `${formatNaira(c.monthly)} a month for ${c.tenureMonths} months. 0% interest. ` +
     `This is an estimate; your final quote comes at launch.`

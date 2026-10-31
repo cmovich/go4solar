@@ -5,10 +5,20 @@ import { stateLabel } from '@/lib/nigeria/states'
  * while any row that feeds a customer price is SAMPLE: active components, margins, switched-on
  * tenure rates and installation prices (the same rule as `pricingFromRows`/`priceListFromRows`).
  * Unit costs and energy prices only feed admin figures and advice, so they are listed but do not
- * hide prices. Switched-off tenures and inactive components never count. Pure.
+ * hide prices. Switched-off tenures and inactive components never count. Part F: delivery
+ * (logistics) and rack prices feed customer prices and hide them; the accessory auto-pick rules
+ * and builder settings only choose items or add extras that default to ₦0, so they are listed
+ * without hiding prices. Pure.
  */
 export type SampleSection =
-  'components' | 'margins' | 'rates' | 'installation' | 'unit-costs' | 'energy'
+  | 'components'
+  | 'margins'
+  | 'rates'
+  | 'installation'
+  | 'unit-costs'
+  | 'energy'
+  | 'delivery'
+  | 'builder'
 
 export type SampleItem = {
   section: SampleSection
@@ -24,6 +34,11 @@ export type SampleInput = {
   installation: { state: string; sizeBand: string; sample: boolean }[]
   unitCostsSample: boolean
   energySample: boolean
+  /** Part F (absent before migration 0027). */
+  logistics?: { state: string; sample: boolean }[]
+  rackSample?: boolean
+  rulesSample?: boolean
+  builderSettingsSample?: boolean
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
@@ -82,6 +97,33 @@ export function sampleItems(i: SampleInput): SampleItem[] {
           },
         ]
       : []),
+    ...(i.logistics ?? [])
+      .filter((r) => r.sample)
+      .map((r) => ({
+        section: 'delivery' as const,
+        key: r.state,
+        label: `Delivery · ${r.state === 'Other' ? 'Other (fallback)' : stateLabel(r.state)}`,
+        hidesPrices: true,
+      })),
+    ...(
+      [
+        ['racks', 'Rack prices', i.rackSample, true],
+        ['rules', 'Accessory auto-pick rules', i.rulesSample, false],
+        [
+          'settings',
+          'Builder settings (rails, clamps, storeys, voltage drop)',
+          i.builderSettingsSample,
+          false,
+        ],
+      ] as const
+    )
+      .filter(([, , on]) => on === true)
+      .map(([key, label, , hidesPrices]) => ({
+        section: 'builder' as const,
+        key,
+        label,
+        hidesPrices,
+      })),
   ]
 }
 

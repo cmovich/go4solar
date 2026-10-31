@@ -16,10 +16,15 @@ export type QuoteLineInput = {
   qty: number
 }
 
+/** A cost that is never marked up (installation, delivery), as its own invoice line. */
+export type NoMarkupLine = { label: string; amount: number }
+
 export type QuoteInput = {
   lines: QuoteLineInput[]
   /** Installation and logistics; never marked up. */
   installCost: number
+  /** installCost broken into invoice lines (must add up to it). */
+  noMarkup?: NoMarkupLine[]
   /** Base margin per category as a decimal (0.125 = 12.5%). */
   marginByCategory: Record<ComponentCategory, number>
   /** Pricing rate per year as a decimal (funder cost + spread + buffer, e.g. 0.24). */
@@ -47,6 +52,8 @@ export type QuoteResult = {
   markupShare: number
   lines: QuoteLine[]
   installCost: number
+  /** installCost as invoice lines (installation, delivery…). */
+  noMarkup: NoMarkupLine[]
   deposit: number
   balance: number
   /** One amount per month; the last one absorbs rounding so they sum to the balance. */
@@ -60,6 +67,8 @@ export type QuoteSnapshot = {
   version: 1
   lines: QuoteLineInput[]
   installCost: number
+  /** Missing on quotes priced before Part F. */
+  noMarkup?: NoMarkupLine[]
   marginByCategory: Record<ComponentCategory, number>
   pricingRateAnnual: number
   tenureMonths: TenureMonths

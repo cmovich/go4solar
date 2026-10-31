@@ -41,6 +41,13 @@ export function priceQuote(input: QuoteInput): QuoteResult {
     throw new DepositOutOfRangeError(depositShare, minDepositShare, MAX_DEPOSIT_SHARE)
   }
 
+  const noMarkup =
+    input.noMarkup ??
+    (installCost > 0 ? [{ label: 'Installation and logistics', amount: installCost }] : [])
+  if (Math.abs(noMarkup.reduce((s, l) => s + l.amount, 0) - installCost) > 1) {
+    throw new RangeError('The installation and delivery lines must add up to the installation cost')
+  }
+
   // E: equipment at cost. C: equipment with base margins, plus installation.
   const equipmentCost = input.lines.reduce((sum, l) => sum + l.unitCost * l.qty, 0)
   const costWithMargins = input.lines.reduce(
@@ -93,6 +100,7 @@ export function priceQuote(input: QuoteInput): QuoteResult {
     markupShare,
     lines,
     installCost,
+    noMarkup: noMarkup.map((l) => ({ ...l })),
     deposit,
     balance,
     instalments,
@@ -101,6 +109,7 @@ export function priceQuote(input: QuoteInput): QuoteResult {
       version: 1,
       lines: input.lines.map((l) => ({ ...l })),
       installCost,
+      noMarkup: noMarkup.map((l) => ({ ...l })),
       marginByCategory: { ...input.marginByCategory },
       pricingRateAnnual: input.pricingRateAnnual,
       tenureMonths,

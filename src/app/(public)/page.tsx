@@ -1,5 +1,6 @@
 import { Faq } from '@/components/landing/Faq'
 import { lateFeeSettings } from '@/lib/agreements/server'
+import { CtaBand } from '@/components/landing/CtaPair'
 import { Footer } from '@/components/landing/Footer'
 import { Hero } from '@/components/landing/Hero'
 import { PartnerLogos } from '@/components/landing/PartnerLogos'
@@ -51,6 +52,7 @@ export default async function HomePage() {
       <main>
         <Hero example={example} />
         <HowItWorks />
+        <CtaBand place="middle" title="Ready to see your solar plan?" />
         {/* Illustrative naira figures: hidden while any price is still a SAMPLE price. */}
         {!example.sample && <Savings />}
         <Proof />
@@ -58,6 +60,7 @@ export default async function HomePage() {
         <Partners vendors={launchMode() === 'live'} />
         <PartnerLogos partners={partners} />
         <Faq lockAfterDays={lateFee.lockAfterDays} tenures={tenures} />
+        <CtaBand place="bottom" title="Start your solar plan today" />
       </main>
       <Footer />
     </>

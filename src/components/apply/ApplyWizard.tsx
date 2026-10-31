@@ -19,6 +19,7 @@ import { BIOMETRIC_CONSENT_TEXT } from '@/lib/consent/wording'
 import { formatNaira, formatPercent } from '@/lib/money'
 import type { NgStateId } from '@/lib/nigeria/states'
 import { PLAN_LABELS } from '@/lib/quotes/buildEstimate'
+import { OWN_SYSTEM_LABEL } from '@/lib/build/stored'
 import { BUSINESS_TYPES, BUSINESS_TYPE_LABELS } from '@/lib/waitlist/schema'
 
 import {
@@ -73,7 +74,8 @@ export function ApplyWizard({ state }: { state: WizardState }) {
       <div>
         <p className="text-brand-green text-sm font-semibold tracking-wide uppercase">
           {state.applicantType === 'business' ? 'Business application' : 'Your application'}
-          {state.quote && ` · ${PLAN_LABELS[state.quote.plan]} · ${state.quote.reference}`}
+          {state.quote &&
+            ` · ${state.quote.ownSystem ? OWN_SYSTEM_LABEL : PLAN_LABELS[state.quote.plan]} · ${state.quote.reference}`}
         </p>
         <ol className="mt-3 flex gap-1" aria-label="Progress">
           {steps.map((s) => (
@@ -1049,7 +1051,8 @@ function ReviewStep({ state, act, pending }: StepProps) {
       {state.quote && (
         <div className="bg-brand-mist rounded-2xl p-5 text-sm">
           <p className="text-brand-dark text-base font-semibold">
-            {PLAN_LABELS[state.quote.plan]} plan · {state.quote.reference}
+            {state.quote.ownSystem ? OWN_SYSTEM_LABEL : `${PLAN_LABELS[state.quote.plan]} plan`} ·{' '}
+            {state.quote.reference}
           </p>
           <p className="mt-1">
             {formatNaira(state.quote.deposit)} upfront, then {formatNaira(state.quote.monthly)} a
