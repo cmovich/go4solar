@@ -1242,6 +1242,33 @@ export type Database = {
           },
         ]
       }
+      logistics_costs: {
+        Row: {
+          amount: number
+          extra_per_panel: number
+          local_vendors_available: boolean
+          sample: boolean
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          extra_per_panel?: number
+          local_vendors_available?: boolean
+          sample?: boolean
+          state: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          extra_per_panel?: number
+          local_vendors_available?: boolean
+          sample?: boolean
+          state?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       mandates: {
         Row: {
           account_last4: string | null
@@ -1301,33 +1328,6 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
-      }
-      logistics_costs: {
-        Row: {
-          amount: number
-          extra_per_panel: number
-          local_vendors_available: boolean
-          sample: boolean
-          state: string
-          updated_at: string
-        }
-        Insert: {
-          amount: number
-          extra_per_panel?: number
-          local_vendors_available?: boolean
-          sample?: boolean
-          state: string
-          updated_at?: string
-        }
-        Update: {
-          amount?: number
-          extra_per_panel?: number
-          local_vendors_available?: boolean
-          sample?: boolean
-          state?: string
-          updated_at?: string
-        }
-        Relationships: []
       }
       outbox: {
         Row: {
@@ -1710,6 +1710,27 @@ export type Database = {
           },
         ]
       }
+      rack_prices: {
+        Row: {
+          material: string
+          price_per_cm: number
+          sample: boolean
+          updated_at: string
+        }
+        Insert: {
+          material: string
+          price_per_cm: number
+          sample?: boolean
+          updated_at?: string
+        }
+        Update: {
+          material?: string
+          price_per_cm?: number
+          sample?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       rate_limits: {
         Row: {
           count: number
@@ -1806,27 +1827,6 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
-      }
-      rack_prices: {
-        Row: {
-          material: string
-          price_per_cm: number
-          sample: boolean
-          updated_at: string
-        }
-        Insert: {
-          material: string
-          price_per_cm: number
-          sample?: boolean
-          updated_at?: string
-        }
-        Update: {
-          material?: string
-          price_per_cm?: number
-          sample?: boolean
-          updated_at?: string
-        }
-        Relationships: []
       }
       roof_types: {
         Row: {
