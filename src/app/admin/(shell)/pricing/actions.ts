@@ -149,6 +149,17 @@ export async function saveComponents(input: unknown): Promise<Result> {
     sample: c.sample,
     nominal_voltage: c.nominalVoltage,
     specs: cleaned[i]!,
+    // Builder details exist from migration 0027; before it they are not sent.
+    ...(c.kind !== undefined
+      ? {
+          kind: c.kind,
+          rating: c.rating ?? null,
+          unit: c.unit ?? 'each',
+          brand: c.brand || null,
+          description: c.description || null,
+          photo: c.photo ?? null,
+        }
+      : {}),
   }))
   const { error } = await supabase
     .from('components')
@@ -376,7 +387,16 @@ export async function saveEnergySizing(input: unknown): Promise<Result> {
 }
 
 const confirmSchema = z.object({
-  section: z.enum(['components', 'margins', 'rates', 'installation', 'unit-costs', 'energy']),
+  section: z.enum([
+    'components',
+    'margins',
+    'rates',
+    'installation',
+    'unit-costs',
+    'energy',
+    'delivery',
+    'builder',
+  ]),
   /** Rows to confirm; omitted = every SAMPLE row in the section ("Confirm all in this section"). */
   keys: z.array(z.string().min(1).max(80)).max(200).optional(),
 })
@@ -434,6 +454,40 @@ export async function confirmSamplePrices(input: unknown): Promise<Result> {
         if (r.error) {
           error = r.error
           break
+        }
+      }
+    }
+  } else if (section === 'delivery') {
+    entity = 'logistics_costs'
+    let q = supabase.from('logistics_costs').update(off).eq('sample', true)
+    if (keys) q = q.in('state', keys)
+    ;({ error } = await q)
+  } else if (section === 'builder') {
+    entity = 'builder'
+    const want = (k: string) => !keys || keys.includes(k)
+    if (want('racks')) {
+      ;({ error } = await supabase.from('rack_prices').update(off).eq('sample', true))
+    }
+    if (!error && want('rules')) {
+      ;({ error } = await supabase.from('accessory_rules').update(off).eq('sample', true))
+    }
+    if (!error && want('settings')) {
+      const { data } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'builder')
+        .maybeSingle()
+      const value = data?.value
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        try {
+          await saveSetting(
+            session,
+            'builder',
+            { ...value, sample: false },
+            'pricing.builder.update',
+          )
+        } catch {
+          return { ok: false, error: 'Could not confirm. Please try again.' }
         }
       }
     }

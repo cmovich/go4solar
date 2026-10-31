@@ -16,6 +16,8 @@ export type ComponentRow = {
   /** From migration 0022 (missing before it: treated as "no specs yet"). */
   nominal_voltage?: number | null
   specs?: unknown
+  /** From migration 0027: accessory type; null/'pack' = an accessories size tier. */
+  kind?: string | null
 }
 export type CategoryMarginRow = { category: ComponentCategory; margin: number; sample: boolean }
 export type PricingRateRow = {
@@ -92,7 +94,12 @@ export function priceListFromRows(input: {
     .filter((c) => c.category === 'inverter' && sizeOf(c, 'kva') !== null)
     .sort((a, b) => sizeOf(a, 'kva')! - sizeOf(b, 'kva')!)
   const accessories = active
-    .filter((c) => c.category === 'accessories' && sizeOf(c, 'maxKva') !== null)
+    .filter(
+      (c) =>
+        c.category === 'accessories' &&
+        (c.kind ?? 'pack') === 'pack' &&
+        sizeOf(c, 'maxKva') !== null,
+    )
     .sort((a, b) => sizeOf(a, 'maxKva')! - sizeOf(b, 'maxKva')!)
 
   if (!panel) throw new Error('No active panels component in the price list')

@@ -16,7 +16,10 @@ const SECTION_NAMES: Record<SampleSection, string> = {
   installation: 'Installation',
   'unit-costs': 'Unit costs',
   energy: 'Energy & sizing',
+  delivery: 'Delivery',
+  builder: 'Builder',
 }
+const SECTION_PAGE: Partial<Record<SampleSection, string>> = { delivery: 'builder' }
 
 /**
  * Top of /admin/pricing: how many rows are still SAMPLE (prices hidden on the website until they
@@ -73,7 +76,7 @@ export function SampleBanner({ items }: { items: SampleItem[] }) {
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <Link
-                    href={`/admin/pricing/${section}`}
+                    href={`/admin/pricing/${SECTION_PAGE[section] ?? section}`}
                     className="text-brand-blue font-semibold underline"
                   >
                     {SECTION_NAMES[section]} ({rows.length})

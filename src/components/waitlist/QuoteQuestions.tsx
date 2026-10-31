@@ -25,7 +25,7 @@ import { saveSiteAnswers } from '@/app/(public)/waitlist/actions'
 const primary = 'h-12 w-full text-base font-semibold'
 
 /** A big tappable answer with its plain-English note. */
-function Choice({
+export function Choice({
   selected,
   label,
   note,
@@ -60,7 +60,7 @@ function Choice({
 }
 
 /** − [number] + with 44 px targets; typing works too. */
-function Stepper({
+export function Stepper({
   id,
   label,
   value,
@@ -305,51 +305,12 @@ export function QuoteQuestions({
       )}
 
       {screen === 'roofType' && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {roofTypes.length === 0 && (
-            <p className="text-muted-foreground text-sm">
-              Roof pictures are on their way. Choose &ldquo;Back&rdquo; and pick another mounting,
-              or continue and our installer will check your roof.
-            </p>
-          )}
-          {roofTypes.map((r) => (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => next({ ...a, roofTypeId: r.id, roofTypeName: r.name })}
-              aria-pressed={a.roofTypeId === r.id}
-              data-testid="roof-card"
-              className={`overflow-hidden rounded-xl border-2 text-left ${
-                a.roofTypeId === r.id ? 'border-brand-green' : 'border-slate-200 bg-white'
-              }`}
-            >
-              {r.photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- admin photos, sized by the uploader
-                <img
-                  src={r.photoUrl}
-                  alt=""
-                  className="aspect-[4/3] w-full object-cover"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="bg-brand-mist flex aspect-[4/3] w-full items-center justify-center">
-                  <Home className="text-brand-green size-10" aria-hidden />
-                </div>
-              )}
-              <span className="block p-3">
-                <span className="text-brand-dark block font-semibold">{r.name}</span>
-                {r.description && (
-                  <span className="text-muted-foreground block text-sm">{r.description}</span>
-                )}
-              </span>
-            </button>
-          ))}
-          {roofTypes.length === 0 && (
-            <Button type="button" className={primary} disabled={pending} onClick={() => next(a)}>
-              Continue
-            </Button>
-          )}
-        </div>
+        <RoofTypePicker
+          roofTypes={roofTypes}
+          selected={a.roofTypeId}
+          pending={pending}
+          onPick={(r) => next(r ? { ...a, roofTypeId: r.id, roofTypeName: r.name } : a)}
+        />
       )}
 
       {screen === 'rack' && (
@@ -391,7 +352,7 @@ export function QuoteQuestions({
   )
 }
 
-function ExistingStep({
+export function ExistingStep({
   value,
   pending,
   onSave,
@@ -568,7 +529,7 @@ function GridTimeStep({
   )
 }
 
-function MountingStep({
+export function MountingStep({
   value,
   pending,
   onSave,
@@ -625,7 +586,7 @@ function MountingStep({
   )
 }
 
-function RackStep({
+export function RackStep({
   roof,
   value,
   pending,
@@ -699,7 +660,7 @@ function RackStep({
   )
 }
 
-function HeightStep({
+export function HeightStep({
   value,
   pending,
   onSave,
@@ -755,7 +716,7 @@ function HeightStep({
   )
 }
 
-function WireStep({
+export function WireStep({
   answers,
   wiring,
   pending,
@@ -841,6 +802,67 @@ function WireStep({
             Next
           </Button>
         </div>
+      )}
+    </div>
+  )
+}
+
+/** Roof type picture cards (also used by the builder). */
+export function RoofTypePicker({
+  roofTypes,
+  selected,
+  pending,
+  onPick,
+}: {
+  roofTypes: RoofTypeCard[]
+  selected: string | undefined
+  pending: boolean
+  /** null = no roof types yet ("Continue"). */
+  onPick: (r: RoofTypeCard | null) => void
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {roofTypes.length === 0 && (
+        <p className="text-muted-foreground text-sm">
+          Roof pictures are on their way. Continue and our installer will check your roof.
+        </p>
+      )}
+      {roofTypes.map((r) => (
+        <button
+          key={r.id}
+          type="button"
+          onClick={() => onPick(r)}
+          aria-pressed={selected === r.id}
+          data-testid="roof-card"
+          className={`overflow-hidden rounded-xl border-2 text-left ${
+            selected === r.id ? 'border-brand-green' : 'border-slate-200 bg-white'
+          }`}
+        >
+          {r.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- admin photos, sized by the uploader
+            <img
+              src={r.photoUrl}
+              alt=""
+              className="aspect-[4/3] w-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div className="bg-brand-mist flex aspect-[4/3] w-full items-center justify-center">
+              <Home className="text-brand-green size-10" aria-hidden />
+            </div>
+          )}
+          <span className="block p-3">
+            <span className="text-brand-dark block font-semibold">{r.name}</span>
+            {r.description && (
+              <span className="text-muted-foreground block text-sm">{r.description}</span>
+            )}
+          </span>
+        </button>
+      ))}
+      {roofTypes.length === 0 && (
+        <Button type="button" className={primary} disabled={pending} onClick={() => onPick(null)}>
+          Continue
+        </Button>
       )}
     </div>
   )

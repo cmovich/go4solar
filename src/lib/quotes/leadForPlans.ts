@@ -9,6 +9,7 @@ import { offeredTenures } from '@/lib/pricing/tenures'
 import type { TenureMonths } from '@/lib/pricing/types'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 import { gridFrom } from '@/lib/settings/schemas'
+import { siteAnswersSchema } from '@/lib/wizard/questions'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database } from '@/lib/supabase/database.types'
 import type { EnergyRecord } from '@/lib/waitlist/schema'
@@ -82,6 +83,7 @@ async function loadLead(id: string, visitorHash: string | null): Promise<LeadFor
         settings.minDepositShare,
         settings,
         gridFrom(lead.grid),
+        siteAnswersSchema.safeParse(lead.site ?? {}).data ?? {},
       ),
       pricedAt: new Date().toISOString(),
     }

@@ -60,5 +60,8 @@ export const roofTypeSchema = z.object({
   description: z.string().trim().max(200).optional(),
   photo: z.string().nullable().optional(),
   needsRack: z.boolean(),
+  /** Part F: installation price on this roof (super admin only; absent before migration 0027). */
+  installPrice: z.number().min(0).max(10_000_000).optional(),
+  installPriceUnit: z.enum(['per_panel', 'per_kw']).optional(),
 })
 export type RoofTypeInput = z.infer<typeof roofTypeSchema>

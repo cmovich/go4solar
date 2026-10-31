@@ -28,7 +28,10 @@ type Access = 'own' | 'staff' | 'server' | 'public' | 'profit-staff'
 
 /** Who may read each table. A table missing here fails the coverage test below. */
 const ACCESS: Record<Table, Access> = {
+  accessory_rules: 'staff',
   agreement_templates: 'staff',
+  logistics_costs: 'staff',
+  rack_prices: 'staff',
   agreements: 'own',
   appliance_library: 'public',
   sun_hours: 'staff',

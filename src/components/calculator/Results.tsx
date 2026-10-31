@@ -23,6 +23,7 @@ export function Results({
   onContinue,
   needsEssential = false,
   onSuggestEssential,
+  builderReturn = false,
 }: {
   totals: LoadTotals
   hasItems: boolean
@@ -33,6 +34,8 @@ export function Results({
   needsEssential?: boolean
   /** Tick the suggested items (lights, fans, TVs, phone charging). */
   onSuggestEssential?: () => void
+  /** The visitor came from the builder ("I don't know my load"): offer the way back. */
+  builderReturn?: boolean
 }) {
   const ready = hasItems && !needsEssential
   // Both modes: the details flow reads the saved appliances and skips the calculator.
@@ -121,6 +124,16 @@ export function Results({
           >
             See my solar plans
           </button>
+        )}
+        {builderReturn && hasItems && (
+          <Link
+            href="/build"
+            prefetch={false}
+            className="text-brand-blue mt-4 inline-flex min-h-11 items-center font-semibold underline"
+            data-testid="back-to-builder"
+          >
+            Back to the builder with this load
+          </Link>
         )}
         <p className="text-muted-foreground mt-2 text-xs">
           Your list is saved on this device, so you can come back and continue later.

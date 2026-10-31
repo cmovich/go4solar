@@ -177,3 +177,34 @@ describe('priceQuote safety for long tenures', () => {
     ).toThrow(/too high for 24 months/)
   })
 })
+
+// Part F: installation and delivery are separate invoice lines, both never marked up.
+describe('priceQuote — no-markup lines (installation, delivery)', () => {
+  const lines = [
+    { sku: 'PNL', name: 'Panel', category: 'panels' as const, unitCost: 100000, qty: 4 },
+  ]
+  const base = {
+    lines,
+    marginByCategory: { panels: 0.1, battery: 0.1, inverter: 0.1, accessories: 0.1 },
+    pricingRateAnnual: 0.24,
+    tenureMonths: 12 as const,
+    depositShare: 0.2,
+  }
+  it('the breakdown is kept on the result and the snapshot, and must add up to installCost', () => {
+    const noMarkup = [
+      { label: 'Installation', amount: 150000 },
+      { label: 'Delivery — Go4Solar logistics (Lagos)', amount: 40000 },
+    ]
+    const q = priceQuote({ ...base, installCost: 190000, noMarkup })
+    expect(q.noMarkup).toEqual(noMarkup)
+    expect(q.snapshot.noMarkup).toEqual(noMarkup)
+    // Same price as before: the breakdown changes nothing but the invoice lines.
+    expect(q.systemPrice).toBe(priceQuote({ ...base, installCost: 190000 }).systemPrice)
+    expect(() => priceQuote({ ...base, installCost: 100000, noMarkup })).toThrow(/add up/)
+  })
+  it('without a breakdown: one "Installation" line for the whole amount', () => {
+    expect(priceQuote({ ...base, installCost: 150000 }).noMarkup).toEqual([
+      { label: 'Installation and logistics', amount: 150000 },
+    ])
+  })
+})

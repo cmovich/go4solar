@@ -1,7 +1,9 @@
 import { z } from 'zod'
 
 import { DEFAULT_SIZING_SETTINGS } from '@/lib/sizing/defaults'
+import type { FullCatalogue } from '@/lib/catalogue/build'
 import type { GridInput, SizingSettings } from '@/lib/sizing/types'
+import type { WiringSettings } from '@/lib/wizard/questions'
 
 /** Settings rows are jsonb; these schemas validate them and give safe fallbacks. */
 
@@ -171,8 +173,22 @@ export const SAMPLE_PRICING: PricingSettings = {
   marginByCategory: { panels: 0.125, battery: 0.125, inverter: 0.125, accessories: 0.125 },
 }
 
+/** Part F: what auto quotes take from the builder catalogue (server-side, with costs). */
+export type EstimateCatalogue = Pick<
+  FullCatalogue,
+  'accessories' | 'rules' | 'rackPrices' | 'settings' | 'logistics' | 'roofTypes'
+> & {
+  installByState?: FullCatalogue['installByState']
+  /** Length of the quoted panel (specs), for the rack; null until entered. */
+  panelLengthCm: number | null
+}
+
 export type QuoteSettings = {
   sizing: SizingSettings
+  /** Missing before migration 0027 (or in tests): quotes use the price list's pack. */
+  catalogue?: EstimateCatalogue
+  /** Wire estimate settings (quote questions). */
+  wiring?: WiringSettings
   /** Peak sun hours per state; a state without a row uses DEFAULT_SUN_HOURS. */
   sunHours?: SunHoursByState
   priceList: PriceList

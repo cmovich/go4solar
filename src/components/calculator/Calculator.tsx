@@ -14,6 +14,7 @@ import {
   updateItem,
   type LibraryItem,
 } from '@/lib/calculator/store'
+import { BUILDER_STORAGE_KEY } from '@/lib/build/store'
 import { defaultEssential } from '@/lib/load/essential'
 import { computeLoadTotals } from '@/lib/load/totals'
 import type { CategoryId, LoadItem, LoadTotals } from '@/lib/load/types'
@@ -56,6 +57,15 @@ export function Calculator({
   /** Waiting-list mode: replaces the "See my solar plans" link with a Continue button. */
   onContinue?: (items: LoadItem[]) => void
 }) {
+  // Came from the builder ("I don't know my load")? Offer the way back once there is a load.
+  const [builderReturn, setBuilderReturn] = useState(false)
+  useEffect(() => {
+    try {
+      setBuilderReturn(window.localStorage.getItem(BUILDER_STORAGE_KEY) !== null)
+    } catch {
+      // Storage blocked: no way back to show.
+    }
+  }, [])
   const [items, setItems] = useState<LoadItem[]>([])
   const [hydrated, setHydrated] = useState(false)
   const [pickerCategory, setPickerCategory] = useState<CategoryId | null>(null)
@@ -130,6 +140,7 @@ export function Calculator({
         launchMode={launchMode}
         onContinue={onContinue ? () => onContinue(items) : undefined}
         needsEssential={items.length > 0 && !hasEssential(items)}
+        builderReturn={builderReturn}
         onSuggestEssential={() =>
           setItems((prev) => prev.map((i) => (defaultEssential(i) ? { ...i, essential: true } : i)))
         }

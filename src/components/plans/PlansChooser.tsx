@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
 
-import { PlanCard, QuoteNotes, adviceFor } from '@/components/waitlist/steps'
+import { AdjustLink, PlanCard, QuoteNotes, adviceFor } from '@/components/waitlist/steps'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
@@ -171,6 +171,7 @@ export function PlansChooser({
                 advice={adviceFor(v, current, estimate.pricingRateByTenure, tenures)}
                 highlighted={site.style === p}
               />
+              <AdjustLink leadId={leadId} plan={p} />
               <div className="space-y-1 px-1 text-sm">
                 <p>
                   <span className="text-muted-foreground">Panels:</span> {v.size.panelCount} (

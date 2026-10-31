@@ -818,20 +818,36 @@ export function PlansStep({
       />
       <div className="space-y-5 pt-2">
         {PLANS.map((p) => (
-          <PlanCard
-            key={p}
-            estimate={estimate.plans[p]}
-            onChoose={() => choose(p)}
-            busy={pending}
-            advice={adviceFor(estimate.plans[p], current, estimate.pricingRateByTenure)}
-            showPrices={!estimate.sample}
-            highlighted={site.style === p}
-          />
+          <div key={p} className="space-y-1">
+            <PlanCard
+              estimate={estimate.plans[p]}
+              onChoose={() => choose(p)}
+              busy={pending}
+              advice={adviceFor(estimate.plans[p], current, estimate.pricingRateByTenure)}
+              showPrices={!estimate.sample}
+              highlighted={site.style === p}
+            />
+            <AdjustLink leadId={leadId} plan={p} />
+          </div>
         ))}
       </div>
       <QuoteNotes site={site} roofTypes={roofTypes} />
       <ErrorBox message={error} />
     </div>
+  )
+}
+
+/** "Adjust this quote": the builder, pre-filled with this plan's items and answers. */
+export function AdjustLink({ leadId, plan }: { leadId: string; plan: Plan }) {
+  return (
+    <Link
+      href={`/build?lead=${leadId}&plan=${plan}`}
+      prefetch={false}
+      className="text-brand-blue inline-flex min-h-11 items-center px-1 text-sm font-semibold underline"
+      data-testid={`adjust-${plan}`}
+    >
+      Adjust this quote
+    </Link>
   )
 }
 

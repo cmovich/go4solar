@@ -5,7 +5,12 @@ import { useRouter } from 'next/navigation'
 import { Fragment, useEffect, useMemo, useState, useTransition } from 'react'
 
 import { NairaField, OptionalPercentField, PercentField } from '@/components/admin/NairaField'
-import { SpecsBadge, SpecsEditor, VoltageField } from '@/components/admin/pricing/ComponentSpecs'
+import {
+  BuilderDetails,
+  SpecsBadge,
+  SpecsEditor,
+  VoltageField,
+} from '@/components/admin/pricing/ComponentSpecs'
 import { SizingPanel } from '@/components/admin/SizingPanel'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -782,7 +787,7 @@ function ComponentsForm({ draft, onChange }: FormProps) {
                         aria-expanded={open.has(i)}
                         className="text-brand-blue text-xs font-semibold underline"
                       >
-                        {open.has(i) ? 'Hide specs' : 'Specs'}
+                        {open.has(i) ? 'Hide' : c.kind !== undefined ? 'Specs & details' : 'Specs'}
                       </button>
                     </td>
                     <td className="px-2 py-1">
@@ -800,6 +805,13 @@ function ComponentsForm({ draft, onChange }: FormProps) {
                           skippedReason={skippedBySku.get(c.sku) ?? null}
                           onChange={(specs) => update(i, { specs }, false)}
                         />
+                        {c.kind !== undefined && (
+                          <BuilderDetails
+                            category={c.category}
+                            value={c}
+                            onChange={(patch) => update(i, patch as Partial<ComponentDraft>, false)}
+                          />
+                        )}
                       </td>
                     </tr>
                   )}
