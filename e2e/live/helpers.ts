@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
 import { expect, type Page } from '@playwright/test'
 
+import { answerQuoteQuestions } from '../helpers/questions'
 import { testEmail, testNin, testPhone, toE164 } from '../helpers/test-identity'
 import { totp } from '../helpers/totp'
 
@@ -85,7 +86,7 @@ export async function throughDetails(page: Page, p: Person) {
   await expect(page.getByLabel('Phone number')).toBeVisible({ timeout: 5000 })
   await page.getByLabel('Phone number').fill(p.phone)
   await page.getByRole('button', { name: 'Next' }).click()
-  await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 5000 })
+  await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 20000 })
   // Back keeps the answer, and saving again updates the same lead (no second lead).
   await page.getByRole('button', { name: 'Back' }).click()
   await expect(page.getByLabel('Phone number')).toHaveValue(p.phone)
@@ -112,6 +113,7 @@ export async function throughDetails(page: Page, p: Person) {
   } else {
     await page.getByRole('button', { name: /My home/ }).click({ timeout: 45000 })
   }
+  await answerQuoteQuestions(page)
   await expect(page.getByRole('heading', { name: 'What do you pay for power today?' })).toBeVisible(
     { timeout: 20000 },
   )

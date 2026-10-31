@@ -249,6 +249,17 @@ export function ConsumerTable({
                 </div>
               )}
 
+              {open.answers.length > 0 && (
+                <div className="mt-6 px-4" data-testid="lead-answers">
+                  <p className="text-brand-dark text-sm font-semibold">Quote answers</p>
+                  <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    {open.answers.map(([k, v]) => (
+                      <Row key={k} k={k} v={v} />
+                    ))}
+                  </dl>
+                </div>
+              )}
+
               <div className="mt-6 space-y-2 px-4">
                 {(open.plan ? [open.plan] : PLANS).map((p) => {
                   const size = open.sizes[p]

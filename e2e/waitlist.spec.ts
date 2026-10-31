@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { answerQuoteQuestions } from './helpers/questions'
 import { testEmail, testPhone } from './helpers/test-identity'
 import { loginAsStaff } from './helpers/staff'
 
@@ -46,8 +47,21 @@ async function throughNameStep(page: Page, phone: string, state: string) {
 }
 
 /** Screens 9–11: plans → contribution → thank you (then the prelaunch redirect home). */
+/** Screen 9 on its own (the quote questions already answered): "I don't know" for both. */
+async function fillEnergyOnly(page: Page) {
+  await expect(page.getByRole('heading', { name: 'What do you pay for power today?' })).toBeVisible(
+    {
+      timeout: 20000,
+    },
+  )
+  await page.getByRole('button', { name: 'No generator' }).click()
+  await page.getByRole('checkbox', { name: "I don't know" }).check()
+  await page.getByRole('button', { name: 'Next' }).click()
+}
+
 /** Screen 9: current energy spend. Known answers → advice on the plan cards; unknown → none. */
 async function fillEnergy(page: Page, known: boolean) {
+  await answerQuoteQuestions(page)
   await expect(page.getByRole('heading', { name: 'What do you pay for power today?' })).toBeVisible(
     {
       timeout: 10000,
@@ -173,6 +187,65 @@ test.describe('solar plan sign-up (waiting list)', () => {
     await page.getByRole('button', { name: 'Next' }).click()
     await fillEnergy(page, false)
     await finishFromPlans(page, false)
+  })
+
+  test('quote questions: some items, no grid, ground mounting → the chosen style is highlighted with its notes', async ({
+    page,
+  }) => {
+    await throughNameStep(page, freshPhone(), 'Kano')
+    await page.getByRole('button', { name: /My home/ }).click()
+    await expect(page.getByTestId('q-scope')).toBeVisible({ timeout: 45_000 })
+    await expect(page.getByText('Question 1 of')).toBeVisible()
+    await page.getByRole('button', { name: /^Just some items/ }).click()
+    // "Some items" asks what they already have.
+    await expect(page.getByTestId('q-existing')).toBeVisible({ timeout: 20_000 })
+    await page.getByLabel('Brand').fill('Felicity')
+    await page.getByLabel('Inverter size (kVA)').fill('5')
+    await page.getByLabel('Battery voltage').selectOption('48')
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByRole('button', { name: /^Essentials/ }).click({ timeout: 20_000 })
+    // No grid: straight on to the mounting (no hours, no time of day).
+    await page
+      .getByRole('button', { name: /^I do not want Main\/Grid supply/ })
+      .click({ timeout: 20_000 })
+    await expect(page.getByTestId('q-mounting')).toBeVisible({ timeout: 30_000 })
+    await expect(
+      page.getByText('You provide the space and the mounting structure (not charged).').first(),
+    ).toBeVisible()
+    // Back keeps the answers.
+    await page.getByRole('button', { name: '‹ Back' }).click()
+    await expect(
+      page.getByRole('button', { name: /^I do not want Main\/Grid supply/ }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    await page.getByRole('button', { name: /^I do not want Main\/Grid supply/ }).click()
+    await page.getByRole('button', { name: /^Ground/ }).click({ timeout: 30_000 })
+    // Ground: no roof questions; the wire is estimated.
+    await expect(page.getByTestId('q-wire')).toBeVisible({ timeout: 20_000 })
+    await page.getByRole('button', { name: /^No, estimate it for me/ }).click()
+    await expect(page.getByTestId('wire-estimate')).toContainText('DC wire')
+    await page.getByRole('button', { name: 'Next' }).click()
+    await fillEnergyOnly(page)
+    await expect(page.getByRole('heading', { name: 'Here are your plans, Amaka' })).toBeVisible({
+      timeout: 15000,
+    })
+    await expect(page.getByTestId('plan-card-essential')).toHaveAttribute(
+      'data-highlighted',
+      'true',
+    )
+    await expect(page.getByTestId('plan-card-essential')).toContainText('Your choice')
+    await expect(page.getByTestId('plan-card-comfort')).not.toHaveAttribute(
+      'data-highlighted',
+      'true',
+    )
+    const notes = page.getByTestId('quote-notes')
+    await expect(notes).toContainText('Includes the standard accessories pack.')
+    await expect(notes).toContainText('Customer provides ladder/scaffold (not charged).')
+    await expect(notes).toContainText(
+      'Customer provides the space and the mounting structure (not charged).',
+    )
+    await expect(notes).toContainText(
+      "This is an estimate — you may need extra wire, as we haven't seen your site.",
+    )
   })
 
   test('leaving after the phone number leaves an incomplete lead that admin can see and export', async ({

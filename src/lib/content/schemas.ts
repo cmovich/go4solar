@@ -52,3 +52,13 @@ export function moveInList<T>(ids: readonly T[], id: T, dir: 'up' | 'down'): T[]
   ;[list[i], list[j]] = [list[j]!, list[i]!]
   return list
 }
+
+/** A roof type card in the quote wizard (Part E). */
+export const roofTypeSchema = z.object({
+  id: z.uuid().optional(),
+  name: text(80, 'name'),
+  description: z.string().trim().max(200).optional(),
+  photo: z.string().nullable().optional(),
+  needsRack: z.boolean(),
+})
+export type RoofTypeInput = z.infer<typeof roofTypeSchema>

@@ -8,6 +8,8 @@ import { createClient } from '@/lib/supabase/server'
 
 import { co2Avoided, type GeneratorType } from '@/lib/energy/currentSpend'
 
+import { describeAnswers, siteAnswersSchema } from '@/lib/wizard/questions'
+
 import { possibleDuplicates, type DuplicateMatch } from './duplicates'
 
 import {
@@ -54,6 +56,8 @@ export type ConsumerLead = {
   monthly: number | null
   financing: number | null
   sample: boolean
+  /** The quote questions (Part E), as plain rows. */
+  answers: [string, string][]
   /** Each plan's sizing in the stored estimate ("How this was sized"). */
   sizes: Partial<Record<Plan, SystemSize>>
   duplicateOf: string | null
@@ -120,6 +124,7 @@ function decode(row: ConsumerRow, names: Map<string, string>): ConsumerLead {
     monthly: quote?.monthly ?? null,
     financing: quote ? quote.systemPrice - quote.deposit : null,
     sample: est?.sample ?? false,
+    answers: describeAnswers(siteAnswersSchema.safeParse(row.site ?? {}).data ?? {}),
     sizes: est?.plans
       ? Object.fromEntries(Object.entries(est.plans).map(([p, v]) => [p, v.size]))
       : {},

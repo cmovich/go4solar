@@ -9,6 +9,7 @@ import {
   sizingSettingsSchema,
 } from '@/lib/settings/schemas'
 import { DEFAULT_SIZING_SETTINGS } from '@/lib/sizing/defaults'
+import { DEFAULT_WIRING, wiringSchema } from '@/lib/wizard/questions'
 import { createClient } from '@/lib/supabase/server'
 
 import { INSTALL_STATES, SIZE_KEY, type PricingDraft } from './adminSchemas'
@@ -141,6 +142,7 @@ export async function loadPricingDraft(includeTestFunders = false): Promise<Pric
       source: r.source,
       sample: r.sample,
     })),
+    wiring: wiringSchema.safeParse(byKey.wiring).data ?? DEFAULT_WIRING,
     minDepositShare:
       z.number().safeParse(byKey.min_deposit_share).data ?? DEFAULT_QUOTE_SETTINGS.minDepositShare,
     sample: {

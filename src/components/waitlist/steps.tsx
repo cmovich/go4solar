@@ -35,6 +35,8 @@ import {
 } from '@/lib/quotes/buildEstimate'
 import type { RateByTenure, TenureMonths } from '@/lib/pricing/types'
 import { backupLines, planBlurb } from '@/lib/sizing/describe'
+import { quoteNotes, type SiteAnswers } from '@/lib/wizard/questions'
+import type { RoofTypeCard } from '@/lib/wizard/server'
 import type { Plan } from '@/lib/sizing/types'
 import {
   BUSINESS_TYPES,
@@ -656,6 +658,7 @@ export function PlanCard({
   busy,
   advice,
   showPrices = true,
+  highlighted = false,
 }: {
   estimate: PlanEstimate
   onChoose?: () => void
@@ -663,6 +666,8 @@ export function PlanCard({
   advice?: PlanAdvice | null
   /** False while prices are SAMPLE prices: sizes and backup only, no naira amounts. */
   showPrices?: boolean
+  /** The style the customer asked for in the quote questions. */
+  highlighted?: boolean
 }) {
   const { plan, size, quote } = estimate
   const tonnes = advice ? Math.round(advice.co2AvoidedKgPerYear / 100) / 10 : null
@@ -672,11 +677,18 @@ export function PlanCard({
       type={onChoose ? 'button' : undefined}
       onClick={onChoose}
       disabled={busy}
-      className="hover:border-brand-green focus-visible:ring-brand-green relative w-full rounded-2xl border-2 border-transparent bg-white p-5 text-left shadow-sm transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+      className={`hover:border-brand-green focus-visible:ring-brand-green relative w-full rounded-2xl border-2 bg-white p-5 text-left shadow-sm transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60 ${highlighted ? 'border-brand-green ring-brand-green/30 ring-4' : 'border-transparent'}`}
+      data-testid={`plan-card-${plan}`}
+      data-highlighted={highlighted || undefined}
     >
       <span className="bg-brand-orange text-brand-dark absolute -top-3 right-5 rounded-full px-3 py-1 text-xs font-bold tracking-wide uppercase">
         Estimate
       </span>
+      {highlighted && (
+        <span className="bg-brand-green absolute -top-3 left-5 rounded-full px-3 py-1 text-xs font-bold tracking-wide text-white uppercase">
+          Your choice
+        </span>
+      )}
       <p className="text-brand-green text-sm font-semibold tracking-wide uppercase">
         {PLAN_LABELS[plan]}
       </p>
@@ -766,6 +778,8 @@ export function PlansStep({
   firstName,
   estimate,
   current,
+  site = {},
+  roofTypes = [],
   onBack,
   onChosen,
 }: {
@@ -773,6 +787,9 @@ export function PlansStep({
   firstName: string
   estimate: Estimate
   current: CurrentEnergy | null
+  /** The quote answers (Part E): the chosen style is highlighted, the notes listed. */
+  site?: SiteAnswers
+  roofTypes?: RoofTypeCard[]
   onBack: () => void
   onChosen: (plan: Plan) => void
 }) {
@@ -808,11 +825,29 @@ export function PlansStep({
             busy={pending}
             advice={adviceFor(estimate.plans[p], current, estimate.pricingRateByTenure)}
             showPrices={!estimate.sample}
+            highlighted={site.style === p}
           />
         ))}
       </div>
+      <QuoteNotes site={site} roofTypes={roofTypes} />
       <ErrorBox message={error} />
     </div>
+  )
+}
+
+/** The notes every quote (and invoice) carries for these answers. */
+export function QuoteNotes({ site, roofTypes }: { site: SiteAnswers; roofTypes: RoofTypeCard[] }) {
+  const roof = roofTypes.find((r) => r.id === site.roofTypeId) ?? null
+  const notes = quoteNotes(site, roof ? { needsRack: roof.needsRack } : null)
+  return (
+    <ul
+      className="text-muted-foreground list-disc space-y-1 pl-5 text-sm"
+      data-testid="quote-notes"
+    >
+      {notes.map((n) => (
+        <li key={n}>{n}</li>
+      ))}
+    </ul>
   )
 }
 

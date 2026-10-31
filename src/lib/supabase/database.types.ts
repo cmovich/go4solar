@@ -1529,6 +1529,7 @@ export type Database = {
           owner_id: string | null
           plan: string
           result: Json
+          site: Json | null
           state: string
           status: Database['public']['Enums']['quote_status']
           system_size: Json
@@ -1550,6 +1551,7 @@ export type Database = {
           owner_id?: string | null
           plan: string
           result: Json
+          site?: Json | null
           state: string
           status?: Database['public']['Enums']['quote_status']
           system_size: Json
@@ -1571,6 +1573,7 @@ export type Database = {
           owner_id?: string | null
           plan?: string
           result?: Json
+          site?: Json | null
           state?: string
           status?: Database['public']['Enums']['quote_status']
           system_size?: Json
@@ -1692,6 +1695,45 @@ export type Database = {
             referencedColumns: ['id']
           },
         ]
+      }
+      roof_types: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          needs_rack: boolean
+          photo: string | null
+          sample: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          needs_rack?: boolean
+          photo?: string | null
+          sample?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          needs_rack?: boolean
+          photo?: string | null
+          sample?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       settings: {
         Row: {
@@ -1933,6 +1975,7 @@ export type Database = {
           load_totals: Json
           phone_e164: string
           ready_when: Database['public']['Enums']['ready_when'] | null
+          site: Json | null
           state: string | null
           status: Database['public']['Enums']['waitlist_status']
           surname: string | null
@@ -1964,6 +2007,7 @@ export type Database = {
           load_totals?: Json
           phone_e164: string
           ready_when?: Database['public']['Enums']['ready_when'] | null
+          site?: Json | null
           state?: string | null
           status?: Database['public']['Enums']['waitlist_status']
           surname?: string | null
@@ -1995,6 +2039,7 @@ export type Database = {
           load_totals?: Json
           phone_e164?: string
           ready_when?: Database['public']['Enums']['ready_when'] | null
+          site?: Json | null
           state?: string | null
           status?: Database['public']['Enums']['waitlist_status']
           surname?: string | null
