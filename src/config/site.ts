@@ -5,7 +5,7 @@ export const siteConfig = {
   legalName: 'Go4Solar Energy Limited',
   address: 'Suite 40, Jayjay Shopping Complex',
   email: 'Contact@go4solar.app',
-  phones: ['08182112423', '08037142948', '08083143614'] as const,
+  phones: ['08182112423', '08037142948'] as const,
   url: 'https://www.go4solar.app',
 } as const
 
