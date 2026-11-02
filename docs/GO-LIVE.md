@@ -159,7 +159,7 @@ STILL TO DO before switching Production to live mode:
     (2 Nov 2026), mostly from e2e runs. Steps: database backup first; the exact
     query (test sign-in accounts, profiles, waiting-list leads, quotes,
     applications, loans/payments of test profiles, guarantees) shown to Semako;
-    a count-only run; deletes only after his "yes". Only is_test rows and test
+    a count-only run; deletes only after Semako's "yes". Only is_test rows and test
     sign-in accounts (@go4solar.test, "+g4stest", +234800000); staff accounts and
     real leads untouched. Never include audit_log: it is permanent (the database
     refuses any update or delete on it, even for the service role). Nothing is
