@@ -161,3 +161,47 @@ export async function builderToCalculator(page: Page) {
   // The chart draws a bar per category (it was an empty box with a broken saved item).
   await expect(page.locator('.recharts-bar-rectangle').first()).toBeVisible({ timeout: 30_000 })
 }
+
+/** Back on /build with the calculator's load in the box and a system suggested for it. */
+export async function expectCalculatedLoadApplied(page: Page, kva: string) {
+  await expect(page).toHaveURL(/\/build$/, { timeout: 30_000 })
+  await expect(page.getByLabel('Your load (kVA)')).toHaveValue(kva)
+  await expect(page.getByTestId('load-applied')).toContainText(`${kva} kVA load`, {
+    timeout: 30_000,
+  })
+  await expect(page.getByTestId('bar-inverter')).toContainText('kVA')
+  await expect(page.getByTestId('bar-battery')).not.toContainText('None in stock')
+  await expect(page.getByTestId('bar-panels')).toContainText(/W/)
+}
+
+/**
+ * Semako's steps (2 Nov): a system already suggested, older saved data in the browser, then
+ * calculator → change hours → back → "Use my calculated load".
+ */
+export async function useCalculatedLoadAfterChanges(page: Page) {
+  await page.goto('/privacy')
+  await page.evaluate(
+    (c) => localStorage.setItem('g4s.calculator.v1', c),
+    OLD_SAVES['appliance saved before the day/night split']!.calc,
+  )
+  await startBuilder(page)
+  await skipWithoutCatalogue(page)
+  await page.getByRole('button', { name: 'I know my load (kVA)' }).click()
+  await page.getByLabel('Your load (kVA)').fill('3')
+  await page.getByRole('button', { name: 'Suggest a system' }).click()
+  await expect(page.getByTestId('load-applied')).toContainText('3 kVA load', { timeout: 30_000 })
+  await page.getByRole('button', { name: /I don't know my load/ }).click()
+  await expect(page).toHaveURL(/\/calculate\?from=build/)
+  await page.getByRole('button', { name: 'Lighting' }).click()
+  await page.getByRole('button', { name: /^LED bulb/ }).click()
+  await page.getByLabel('Hours in the day').first().fill('10')
+  await page.getByTestId('back-to-builder').click()
+  // The old fridge (150 W) + LED (10 W) = 160 W → 0.2 kVA, applied on arrival.
+  await expectCalculatedLoadApplied(page, '0.2')
+  // Type another load, then tap "Use my calculated load": it applies again with a message.
+  await page.getByLabel('Your load (kVA)').fill('2')
+  await page.getByRole('button', { name: 'Suggest a system' }).click()
+  await expect(page.getByTestId('load-applied')).toContainText('2 kVA load', { timeout: 30_000 })
+  await page.getByTestId('use-calculated-load').click()
+  await expectCalculatedLoadApplied(page, '0.2')
+}

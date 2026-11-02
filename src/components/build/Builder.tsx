@@ -139,6 +139,7 @@ export function Builder({
   showPrices,
   initial,
   done,
+  applyCalculatedLoad = false,
 }: {
   items: BuilderItem[]
   roofTypes: RoofTypeCard[]
@@ -149,6 +150,8 @@ export function Builder({
   /** "Adjust this quote": the plan's items and answers. */
   initial: Partial<BuilderState> | null
   done: boolean
+  /** Came back from the calculator with "Back to the builder with this load". */
+  applyCalculatedLoad?: boolean
 }) {
   const router = useRouter()
   const [s, setS] = useState<BuilderState>(FRESH)
@@ -157,6 +160,8 @@ export function Builder({
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
   const [calcKva, setCalcKva] = useState<number | null>(null)
+  const [loadNote, setLoadNote] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const touched = useRef(new Set<string>())
 
   const keyOf = useCallback(
@@ -257,16 +262,37 @@ export function Builder({
     }
   }
 
-  function knownLoad(kva: number) {
-    if (!selection) return
-    setError(null)
+  function knownLoad(kva: number, sel = selection) {
+    if (!sel) return
+    setLoadError(null)
+    setLoadNote(null)
+    // Show the load in the box at once; the suggested items follow from the server.
+    setS((cur) => ({ ...cur, loadKva: kva }))
     start(async () => {
-      const r = await suggestFromLoad({ kva, selection })
-      if (!r.ok) return setError(r.error)
+      const r = await suggestFromLoad({ kva, selection: sel })
+      if (!r.ok) return setLoadError(r.error)
+      if (r.items.length === 0) {
+        return setLoadError('We could not suggest a system for this load. Pick your items below.')
+      }
       touched.current.clear()
       setS((cur) => ({ ...cur, loadKva: kva, items: r.items }))
+      setLoadNote(
+        `We suggested a system for your ${kva} kVA load: inverter, batteries, panels and accessories below. Change anything you like.`,
+      )
     })
   }
+
+  // "Back to the builder with this load" (/build?load=calculated): apply the calculator's load
+  // on arrival, then tidy the address so a reload does not apply it again.
+  const autoApplied = useRef(false)
+  useEffect(() => {
+    if (!applyCalculatedLoad || autoApplied.current || !ready) return
+    autoApplied.current = true
+    router.replace('/build', { scroll: false })
+    if (calcKva !== null && selection) knownLoad(calcKva, selection)
+    // Runs once, after the saved progress is loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, applyCalculatedLoad])
 
   if (!ready) return <div className="min-h-[50vh]" aria-busy="true" />
 
@@ -374,6 +400,8 @@ export function Builder({
             loadKva={s.loadKva ?? null}
             calculatedKva={calcKva}
             pending={pending}
+            loadNote={loadNote}
+            loadError={loadError}
             onChoose={choose}
             onKnownLoad={knownLoad}
             onCalculate={() => router.push('/calculate?from=build')}

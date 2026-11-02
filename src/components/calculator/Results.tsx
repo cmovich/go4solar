@@ -127,7 +127,7 @@ export function Results({
         )}
         {builderReturn && hasItems && (
           <Link
-            href="/build"
+            href="/build?load=calculated"
             prefetch={false}
             className="text-brand-blue mt-4 inline-flex min-h-11 items-center font-semibold underline"
             data-testid="back-to-builder"

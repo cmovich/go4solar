@@ -3,11 +3,13 @@ import { expect, test } from '@playwright/test'
 import {
   buildFromLoad,
   builderToCalculator,
+  expectCalculatedLoadApplied,
   fillBuildContact,
   OLD_SAVES,
   pagesSurviveOldSaves,
   skipWithoutCatalogue,
   startBuilder,
+  useCalculatedLoadAfterChanges,
 } from './helpers/builder'
 
 /** Part F (prelaunch): the system builder from "Get started". */
@@ -53,10 +55,11 @@ test.describe('system builder', () => {
   test('builder → calculator → back to the builder with the load', async ({ page }) => {
     await builderToCalculator(page)
     await page.getByTestId('back-to-builder').click()
-    await expect(page).toHaveURL(/\/build$/)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Choose your items')
-    await page.getByRole('button', { name: /Use my calculated load: 0\.2 kVA/ }).click()
-    await expect(page.getByTestId('bar-inverter')).toContainText('kVA', { timeout: 30_000 })
+    await expectCalculatedLoadApplied(page, '0.2')
+  })
+
+  test('"Use my calculated load" after changing hours, with old saved data', async ({ page }) => {
+    await useCalculatedLoadAfterChanges(page)
   })
 
   test('builder → calculator → See my solar plans', async ({ page }) => {

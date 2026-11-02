@@ -52,7 +52,7 @@ async function adjustFrom(leadId: string, plan: string): Promise<Partial<Builder
 export default async function BuildPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lead?: string; plan?: string; done?: string }>
+  searchParams: Promise<{ lead?: string; plan?: string; done?: string; load?: string }>
 }) {
   const sp = await searchParams
   const [ctx, roofTypes, wiring] = await Promise.all([
@@ -81,6 +81,7 @@ export default async function BuildPage({
           showPrices={!sample}
           initial={initial}
           done={sp.done === '1'}
+          applyCalculatedLoad={sp.load === 'calculated'}
         />
       </main>
     </>

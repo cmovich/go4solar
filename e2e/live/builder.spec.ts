@@ -3,10 +3,12 @@ import { expect, test } from '@playwright/test'
 import {
   buildFromLoad,
   builderToCalculator,
+  expectCalculatedLoadApplied,
   fillBuildContact,
   OLD_SAVES,
   pagesSurviveOldSaves,
   startBuilder,
+  useCalculatedLoadAfterChanges,
 } from '../helpers/builder'
 
 /** Part F (live): a built system goes on to the account step like any plan. */
@@ -30,7 +32,14 @@ test('live: builder → calculator → See my solar plans', async ({ page }) => 
   })
   await page.goBack()
   await page.getByTestId('back-to-builder').click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Choose your items')
+  await expectCalculatedLoadApplied(page, '0.2')
+})
+
+test('live: "Use my calculated load" after changing hours, with old saved data', async ({
+  page,
+}) => {
+  test.setTimeout(180_000)
+  await useCalculatedLoadAfterChanges(page)
 })
 
 for (const [name, save] of Object.entries(OLD_SAVES)) {

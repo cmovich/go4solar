@@ -1,7 +1,7 @@
 'use client'
 
 import { ChevronDown, HelpCircle, Minus, Plus, Search, Sun, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -183,6 +183,8 @@ export function ItemsStep({
   loadKva,
   calculatedKva,
   pending,
+  loadNote,
+  loadError,
   onChoose,
   onKnownLoad,
   onCalculate,
@@ -194,6 +196,10 @@ export function ItemsStep({
   /** The calculator's load on this device, if any. */
   calculatedKva: number | null
   pending: boolean
+  /** Shown in the load panel once a system has been suggested for the load. */
+  loadNote: string | null
+  /** A load that could not be used, shown in the load panel (not at the bottom of the page). */
+  loadError: string | null
   onChoose: (sku: string, qty: number) => void
   onKnownLoad: (kva: number) => void
   onCalculate: () => void
@@ -201,8 +207,14 @@ export function ItemsStep({
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState<Bar | null>('inverter')
   const [filters, setFilters] = useState<Partial<Record<Bar, string>>>({})
-  const [kvaOpen, setKvaOpen] = useState(false)
+  const [kvaOpen, setKvaOpen] = useState(loadKva != null)
   const [kva, setKva] = useState(loadKva?.toString() ?? '')
+  // A load applied from outside the box (the calculator's) shows in the box.
+  useEffect(() => {
+    if (loadKva == null) return
+    setKva(loadKva.toString())
+    setKvaOpen(true)
+  }, [loadKva])
   const qtyOf = (sku: string) => chosen.find((c) => c.sku === sku)?.qty ?? null
   const inBar = (bar: Bar) => items.filter((i) => i.group === bar)
   const summary = (bar: Bar) => {
@@ -249,13 +261,14 @@ export function ItemsStep({
             <span className="text-muted-foreground text-xs font-normal">Calculate it first</span>
           </Button>
         </div>
-        {calculatedKva && !kvaOpen && (
+        {calculatedKva !== null && calculatedKva !== loadKva && (
           <Button
             type="button"
             variant="link"
-            className="mt-2 px-0"
+            className="mt-2 h-auto min-h-11 px-0 whitespace-normal"
             onClick={() => onKnownLoad(calculatedKva)}
             disabled={pending}
+            data-testid="use-calculated-load"
           >
             Use my calculated load: {calculatedKva} kVA
           </Button>
@@ -278,9 +291,23 @@ export function ItemsStep({
               disabled={pending || !(Number(kva) > 0)}
               onClick={() => onKnownLoad(Number(kva))}
             >
-              Suggest a system
+              {pending ? 'Suggesting a system…' : 'Suggest a system'}
             </Button>
           </div>
+        )}
+        {loadNote && (
+          <p
+            className="border-brand-green text-brand-dark mt-3 rounded-lg border-l-4 bg-white p-3 text-sm font-semibold"
+            role="status"
+            data-testid="load-applied"
+          >
+            {loadNote}
+          </p>
+        )}
+        {loadError && (
+          <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">
+            {loadError}
+          </p>
         )}
         <p className="text-muted-foreground mt-3 text-sm">Or pick your items yourself below.</p>
       </section>
