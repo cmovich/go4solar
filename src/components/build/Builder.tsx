@@ -26,6 +26,7 @@ import {
   choiceKey,
   kvaFromItems,
   parseBuilderState,
+  sanitiseBuilderState,
   serialiseBuilderState,
   setChoice,
   type BuilderState,
@@ -177,9 +178,13 @@ export function Builder({
       // Storage blocked: start fresh.
     }
     setCalcKva(calc)
-    if (initial) setS({ ...FRESH, ...initial, step: 'items' })
-    else if (saved) setS(saved)
+    // Saved progress is checked against today's catalogue (old or broken saves never break the page).
+    const known = new Set(items.map((i) => i.sku))
+    if (initial) setS(sanitiseBuilderState({ ...FRESH, ...initial, step: 'items' }, known))
+    else if (saved) setS(sanitiseBuilderState(saved, known))
     setReady(true)
+    // Once, on arrival: the catalogue is fixed for this page view.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initial])
 
   // Keep progress on this device.

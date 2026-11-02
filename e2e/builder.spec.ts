@@ -2,7 +2,10 @@ import { expect, test } from '@playwright/test'
 
 import {
   buildFromLoad,
+  builderToCalculator,
   fillBuildContact,
+  OLD_SAVES,
+  pagesSurviveOldSaves,
   skipWithoutCatalogue,
   startBuilder,
 } from './helpers/builder'
@@ -46,4 +49,28 @@ test.describe('system builder', () => {
     const saved = await page.evaluate(() => window.localStorage.getItem('g4s.builder.v1'))
     expect(saved).toContain('"state":"Lagos"')
   })
+
+  test('builder → calculator → back to the builder with the load', async ({ page }) => {
+    await builderToCalculator(page)
+    await page.getByTestId('back-to-builder').click()
+    await expect(page).toHaveURL(/\/build$/)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Choose your items')
+    await page.getByRole('button', { name: /Use my calculated load: 0\.2 kVA/ }).click()
+    await expect(page.getByTestId('bar-inverter')).toContainText('kVA', { timeout: 30_000 })
+  })
+
+  test('builder → calculator → See my solar plans', async ({ page }) => {
+    await builderToCalculator(page)
+    await page.getByRole('link', { name: 'See my solar plans' }).click()
+    await expect(page.getByRole('heading', { name: 'Your total load' })).toBeVisible({
+      timeout: 30_000,
+    })
+    await expect(page.getByText(/Something went wrong/)).toHaveCount(0)
+  })
+
+  for (const [name, save] of Object.entries(OLD_SAVES)) {
+    test(`old or broken saved data never breaks a page: ${name}`, async ({ page }) => {
+      await pagesSurviveOldSaves(page, save, '/waitlist?from=calculate')
+    })
+  }
 })

@@ -46,8 +46,8 @@ const stateSchema = z.object({
       .object({ brand: z.string(), kva: z.number().nullable(), batteryV: z.number().nullable() })
       .optional(),
     state: z.enum(NG_STATE_IDS as [NgStateId, ...NgStateId[]]).optional(),
-    loadKva: z.number().nullable().optional(),
-    items: z.array(z.object({ sku: z.string(), qty: z.number().min(0) })),
+    loadKva: z.number().min(0).max(100).nullable().optional(),
+    items: z.array(z.object({ sku: z.string().max(40), qty: z.number().min(0).max(10_000) })),
     site: siteAnswersSchema,
     installer: z.enum(['go4solar', 'own']).nullable(),
     ownDelivery: z.boolean().optional(),
@@ -68,6 +68,30 @@ export function parseBuilderState(raw: string | null): BuilderState | null {
   } catch {
     return null
   }
+}
+
+const LATER_STEPS: BuilderStep[] = [
+  'mounting',
+  'roofType',
+  'rack',
+  'height',
+  'wire',
+  'installer',
+  'summary',
+]
+
+/**
+ * Saved progress checked against today's catalogue: items no longer sold are dropped; without
+ * a state or a scope the builder starts at the first screen; later screens with nothing chosen
+ * go back to the items. Pure.
+ */
+export function sanitiseBuilderState(s: BuilderState, knownSkus: Set<string>): BuilderState {
+  const items = s.items.filter((i) => knownSkus.has(i.sku) && i.qty > 0)
+  const changed = items.length !== s.items.length
+  let step = s.step
+  if (!s.state || !s.scope) step = 'start'
+  else if (LATER_STEPS.includes(step) && items.length === 0) step = 'items'
+  return changed || step !== s.step ? { ...s, items, step } : s
 }
 
 /** The calculator's list as a kVA load (running watts ÷ 0.8, up to the next 0.1). */

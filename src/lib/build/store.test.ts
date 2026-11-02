@@ -5,6 +5,7 @@ import { makeItem } from '@/lib/load/load.fixture'
 import {
   kvaFromItems,
   parseBuilderState,
+  sanitiseBuilderState,
   serialiseBuilderState,
   setChoice,
   choiceKey,
@@ -56,5 +57,59 @@ describe('setChoice (one item per bar; accessories one per kind)', () => {
     expect(choiceKey({ group: 'dc_wire', kind: 'dc_wire' })).toBe('dc_wire')
     expect(choiceKey({ group: 'accessories', kind: 'dc_breaker' })).toBe('acc:dc_breaker')
     expect(choiceKey({ group: 'inverter', kind: null })).toBe('inverter')
+  })
+})
+
+describe('sanitiseBuilderState (saved progress checked against today\u2019s catalogue)', () => {
+  const base = {
+    step: 'items' as const,
+    scope: 'complete' as const,
+    state: 'Lagos' as const,
+    items: [{ sku: 'INV-5', qty: 1 }],
+    site: {},
+    installer: null,
+    depositPct: 20,
+    tenure: 12 as const,
+  }
+  const known = new Set(['INV-5', 'PNL-550'])
+
+  it('drops items no longer in the catalogue', () => {
+    const s = sanitiseBuilderState(
+      {
+        ...base,
+        items: [
+          { sku: 'GONE', qty: 2 },
+          { sku: 'INV-5', qty: 1 },
+        ],
+      },
+      known,
+    )
+    expect(s.items).toEqual([{ sku: 'INV-5', qty: 1 }])
+  })
+
+  it('without a state or a choice of scope, starts at the first screen', () => {
+    expect(sanitiseBuilderState({ ...base, state: undefined }, known).step).toBe('start')
+    expect(sanitiseBuilderState({ ...base, scope: undefined, step: 'summary' }, known).step).toBe(
+      'start',
+    )
+  })
+
+  it('later screens with nothing chosen go back to the items', () => {
+    const s = sanitiseBuilderState(
+      { ...base, step: 'summary', items: [{ sku: 'GONE', qty: 1 }] },
+      known,
+    )
+    expect(s.step).toBe('items')
+  })
+
+  it('a valid save is kept as it is', () => {
+    expect(sanitiseBuilderState(base, known)).toEqual(base)
+  })
+
+  it('parseBuilderState drops impossible numbers', () => {
+    const raw = (o: object) => JSON.stringify({ version: 1, state: { ...base, ...o } })
+    expect(parseBuilderState(raw({ items: [{ sku: 'INV-5', qty: Number.NaN }] }))).toBeNull()
+    expect(parseBuilderState(raw({ loadKva: 5000 }))).toBeNull()
+    expect(parseBuilderState(raw({ items: [{ sku: 'INV-5', qty: 1e9 }] }))).toBeNull()
   })
 })

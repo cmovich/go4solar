@@ -50,7 +50,7 @@ export async function suggestFromLoad(
   input: unknown,
 ): Promise<Result<{ items: { sku: string; qty: number }[] }>> {
   const p = z
-    .object({ kva: z.number().min(0.3).max(100), selection: buildSelectionSchema })
+    .object({ kva: z.number().min(0.1).max(100), selection: buildSelectionSchema })
     .safeParse(input)
   if (!p.success)
     return { ok: false, error: 'Enter your load in kVA (for example 3.5).', field: 'kva' }

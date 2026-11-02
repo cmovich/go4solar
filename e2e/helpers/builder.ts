@@ -70,3 +70,94 @@ export async function fillBuildContact(page: Page) {
   await page.getByLabel('Local government area', { exact: true }).fill('Ikeja')
   await page.getByRole('checkbox', { name: /may contact me about this system/ }).check()
 }
+
+/** Saved data from older visits and broken saves (PR #24 review, 2 Nov). */
+const oldFridge = {
+  id: 'old-fridge',
+  category: 'kitchen',
+  name: 'Fridge',
+  watts: 150,
+  qty: 1,
+  surgeFactor: 3,
+  dutyCycle: 0.4,
+  custom: false,
+}
+export const OLD_SAVES: Record<string, { calc: string; build: string }> = {
+  'appliance saved before the day/night split': {
+    calc: JSON.stringify({ version: 1, items: [{ ...oldFridge, hoursPerDay: 24 }] }),
+    build: JSON.stringify({
+      version: 1,
+      state: {
+        step: 'items',
+        items: [],
+        site: {},
+        installer: null,
+        depositPct: 20,
+        tenure: 12,
+        state: 'Lagos',
+        scope: 'complete',
+      },
+    }),
+  },
+  'day + night over 24 and items no longer sold': {
+    calc: JSON.stringify({
+      version: 1,
+      items: [{ ...oldFridge, hoursPerDay: 24, dayHours: 13, nightHours: 12 }],
+    }),
+    build: JSON.stringify({
+      version: 1,
+      state: {
+        step: 'summary',
+        items: [{ sku: 'GONE-1', qty: 2 }],
+        site: {},
+        installer: 'go4solar',
+        depositPct: 20,
+        tenure: 12,
+        state: 'Lagos',
+        scope: 'complete',
+      },
+    }),
+  },
+  'broken saves': { calc: '{{not json', build: '{"version":1,"state":{"step":"rack"}}' },
+}
+
+/** Seeds the saved data, then checks /build, the home page, the calculator and the plans flow. */
+export async function pagesSurviveOldSaves(
+  page: Page,
+  save: { calc: string; build: string },
+  plansPath: string,
+) {
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(`${page.url()}: ${e.message}`))
+  await page.goto('/privacy')
+  await page.evaluate(
+    ([c, b]) => {
+      localStorage.setItem('g4s.calculator.v1', c)
+      localStorage.setItem('g4s.builder.v1', b)
+    },
+    [save.calc, save.build] as const,
+  )
+  for (const path of ['/build', '/', '/calculate?from=build', plansPath]) {
+    await page.goto(path)
+    await expect(page.locator('h1').first()).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByText(/Something went wrong|Application error/)).toHaveCount(0)
+  }
+  await page.goto('/build')
+  await expect(page.getByRole('heading', { level: 1 })).not.toHaveText(/went wrong/)
+  expect(errors).toEqual([])
+}
+
+/** Builder → "I don't know my load" → calculator → appliances → back to the builder / plans. */
+export async function builderToCalculator(page: Page) {
+  await startBuilder(page)
+  await skipWithoutCatalogue(page)
+  await page.getByRole('button', { name: /I don't know my load/ }).click()
+  await expect(page).toHaveURL(/\/calculate\?from=build/)
+  await page.getByRole('button', { name: 'Lighting' }).click()
+  await page.getByRole('button', { name: /^LED bulb/ }).click()
+  await page.getByRole('button', { name: 'Kitchen Appliances' }).click()
+  await page.getByRole('button', { name: /^Fridge/ }).click()
+  await expect(page.getByTestId('total-running')).toHaveText('160 W')
+  // The chart draws a bar per category (it was an empty box with a broken saved item).
+  await expect(page.locator('.recharts-bar-rectangle').first()).toBeVisible({ timeout: 30_000 })
+}

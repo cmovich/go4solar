@@ -8,6 +8,7 @@ import {
   addCustomItem,
   addLibraryItem,
   parseStoredItems,
+  safeTotals,
   removeItem,
   serialiseItems,
   hasEssential,
@@ -16,8 +17,7 @@ import {
 } from '@/lib/calculator/store'
 import { BUILDER_STORAGE_KEY } from '@/lib/build/store'
 import { defaultEssential } from '@/lib/load/essential'
-import { computeLoadTotals } from '@/lib/load/totals'
-import type { CategoryId, LoadItem, LoadTotals } from '@/lib/load/types'
+import type { CategoryId, LoadItem } from '@/lib/load/types'
 
 import { AddCustomDialog } from './AddCustomDialog'
 import { CategoryTiles } from './CategoryTiles'
@@ -31,17 +31,6 @@ function newId(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`
-}
-
-const EMPTY_TOTALS = computeLoadTotals([])
-
-/** Totals never throw at the user: a half-typed value just falls back to the last good totals. */
-function safeTotals(items: LoadItem[]): LoadTotals {
-  try {
-    return computeLoadTotals(items)
-  } catch {
-    return EMPTY_TOTALS
-  }
 }
 
 export function Calculator({

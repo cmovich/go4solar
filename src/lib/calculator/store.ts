@@ -1,8 +1,9 @@
 import { z } from 'zod'
 
-import { CATEGORY_IDS, type CategoryId, type LoadItem } from '@/lib/load/types'
+import { CATEGORY_IDS, type CategoryId, type LoadItem, type LoadTotals } from '@/lib/load/types'
 import { defaultEssential } from '@/lib/load/essential'
-import { LIMITS } from '@/lib/load/totals'
+import { computeLoadTotals, DEFAULT_NIGHT_SHARE, LIMITS } from '@/lib/load/totals'
+import { DEFAULT_SIZING_SETTINGS } from '@/lib/sizing/defaults'
 
 /** One row of appliance_library, in camelCase. */
 export type LibraryItem = {
@@ -82,6 +83,27 @@ export function addCustomItem(
   ]
 }
 
+/** Most hours an item can run at night and in the day (the night lasts 12 h, so 12 + 12 = 24). */
+export const HOURS_MAX = {
+  night: DEFAULT_SIZING_SETTINGS.nightHours,
+  day: 24 - DEFAULT_SIZING_SETTINGS.nightHours,
+} as const
+
+const tidy = (n: number) => Math.round(n * 10) / 10
+const capped = (n: number, max: number) => tidy(Math.min(max, Math.max(0, n)))
+
+/**
+ * The day and night hours shown on an item's card. Older items (one "hours a day" figure) are
+ * split with the usual night share, each part capped, so editing either never goes over 24.
+ */
+export function editableHours(item: LoadItem): { day: number; night: number } {
+  if (item.dayHours !== undefined || item.nightHours !== undefined) {
+    return { day: item.dayHours ?? 0, night: item.nightHours ?? 0 }
+  }
+  const night = capped(item.hoursPerDay * DEFAULT_NIGHT_SHARE, HOURS_MAX.night)
+  return { day: capped(item.hoursPerDay - night, HOURS_MAX.day), night }
+}
+
 export function updateItem(
   items: LoadItem[],
   id: string,
@@ -92,9 +114,11 @@ export function updateItem(
   return items.map((i) => {
     if (i.id !== id) return i
     const next = { ...i, ...patch }
-    // Hours per day stays the sum of the day and night hours.
+    // Hours per day stays the sum of the day and night hours (each capped, so at most 24).
     if (patch.dayHours !== undefined || patch.nightHours !== undefined) {
-      next.hoursPerDay = (next.dayHours ?? 0) + (next.nightHours ?? 0)
+      next.dayHours = capped(next.dayHours ?? 0, HOURS_MAX.day)
+      next.nightHours = capped(next.nightHours ?? 0, HOURS_MAX.night)
+      next.hoursPerDay = tidy(next.dayHours + next.nightHours)
     }
     return next
   })
@@ -111,9 +135,10 @@ const storedItemSchema = z.object({
   name: z.string().min(1).max(80),
   watts: z.number().min(LIMITS.watts.min).max(LIMITS.watts.max),
   qty: z.number().int().min(LIMITS.qty.min).max(LIMITS.qty.max),
-  hoursPerDay: z.number().min(LIMITS.hoursPerDay.min).max(LIMITS.hoursPerDay.max),
-  dayHours: z.number().min(0).max(24).optional(),
-  nightHours: z.number().min(0).max(24).optional(),
+  // Up to 48: a list saved with day + night over 24 is repaired below, not dropped.
+  hoursPerDay: z.number().min(LIMITS.hoursPerDay.min).max(48),
+  dayHours: z.number().min(0).max(48).optional(),
+  nightHours: z.number().min(0).max(48).optional(),
   essential: z.boolean().optional(),
   surgeFactor: z.number().min(1).max(10),
   dutyCycle: z.number().gt(0).max(1),
@@ -139,14 +164,51 @@ export function parseStoredItems(raw: string | null): LoadItem[] {
     return parsed.data.items.flatMap((i) => {
       const r = storedItemSchema.safeParse(i)
       if (!r.success) return []
+      const item = repairHours(r.data)
+      if (!item) return []
       // Saved before the Essential tick: start with the default pre-ticks.
-      return [{ ...r.data, essential: r.data.essential ?? defaultEssential(r.data) }]
+      return [{ ...item, essential: item.essential ?? defaultEssential(item) }]
     })
   } catch {
     return []
   }
 }
 
+/**
+ * Saved hours that would not add up (day + night over 24, or a stale total) are put right:
+ * day and night capped like the card, hours a day = their sum. An older single figure over 24
+ * cannot be split sensibly, so that item is dropped. Pure.
+ */
+function repairHours<T extends LoadItem>(item: T): T | null {
+  if (item.dayHours === undefined && item.nightHours === undefined) {
+    return item.hoursPerDay <= LIMITS.hoursPerDay.max ? item : null
+  }
+  const dayHours = capped(item.dayHours ?? 0, HOURS_MAX.day)
+  const nightHours = capped(item.nightHours ?? 0, HOURS_MAX.night)
+  return { ...item, dayHours, nightHours, hoursPerDay: tidy(dayHours + nightHours) }
+}
+
 export function serialiseItems(items: LoadItem[]): string {
   return JSON.stringify({ version: STORAGE_VERSION, items })
+}
+
+/**
+ * Totals for a screen: an item that fails the load checks is left out instead of breaking the
+ * page (the list is repaired when it is saved and read again). Pure.
+ */
+export function safeTotals(items: LoadItem[]): LoadTotals {
+  try {
+    return computeLoadTotals(items)
+  } catch {
+    return computeLoadTotals(
+      items.filter((i) => {
+        try {
+          computeLoadTotals([i])
+          return true
+        } catch {
+          return false
+        }
+      }),
+    )
+  }
 }

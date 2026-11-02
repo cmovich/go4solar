@@ -21,7 +21,7 @@ import {
   type CurrentEnergy,
   type GeneratorType,
 } from '@/lib/energy/currentSpend'
-import { computeLoadTotals } from '@/lib/load/totals'
+import { safeTotals } from '@/lib/calculator/store'
 import type { LoadItem } from '@/lib/load/types'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { NG_STATE_IDS, stateLabel, type NgStateId } from '@/lib/nigeria/states'
@@ -121,7 +121,8 @@ export function TotalsStep({
   onBack: () => void
   onNext: () => void
 }) {
-  const t = useMemo(() => computeLoadTotals(items), [items])
+  // A broken saved item is left out rather than breaking the screen.
+  const t = useMemo(() => safeTotals(items), [items])
   return (
     <div className="space-y-6">
       <Heading
