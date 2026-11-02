@@ -80,8 +80,14 @@ async function prepareStaff(
 ) {
   // 1. user
   let userId: string | undefined
-  const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 })
-  const existing = list?.users.find((u) => u.email === email)
+  // Look through every page: the shared project has more than one page of accounts.
+  let existing: { id: string } | undefined
+  for (let page = 1; !existing; page++) {
+    const { data: list } = await admin.auth.admin.listUsers({ page, perPage: 1000 })
+    const users = list?.users ?? []
+    existing = users.find((u) => u.email === email)
+    if (users.length < 1000) break
+  }
   if (existing) {
     userId = existing.id
     await admin.auth.admin.updateUserById(userId, { password, email_confirm: true })
