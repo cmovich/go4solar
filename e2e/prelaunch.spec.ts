@@ -58,6 +58,8 @@ test.describe('prelaunch: live-only routes are closed', () => {
       await expect(page.getByText(/^Prelaunch:/)).toHaveCount(0)
       await expect(page.locator('body')).not.toContainText(/within (the next )?7 days/i)
       await expect(page.locator('body')).not.toContainText(/waiting list/i)
+      // 08083143614 is no longer a Go4Solar contact number (removed 2026-11-02).
+      await expect(page.locator('body')).not.toContainText(/0808\s?314\s?3614|8083143614/)
       const description = await page.locator('meta[name="description"]').getAttribute('content')
       expect(description ?? '').not.toMatch(/7 days/i)
     })
