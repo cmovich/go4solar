@@ -154,10 +154,16 @@ STILL TO DO before switching Production to live mode:
 15. Lawyer approval of /terms and the customer agreement templates (remove the
     DRAFT bars only after approval). /privacy already approved 2026-10-15.
 16. Real overheads entered for the forecasts; verify the grid CO2 factor.
-17. Test-data clean-up: reviewed query, database backup first, count-only run
-    first, deletes only is_test rows; staff accounts and real leads untouched.
-    Never include audit_log: it is permanent (the database refuses any update or
-    delete on it, even for the service role).
+17. Clean up test accounts and test data before launch (is_test only), with the
+    query shown to Semako first. The shared database has 1,000+ user accounts
+    (2 Nov 2026), mostly from e2e runs. Steps: database backup first; the exact
+    query (test sign-in accounts, profiles, waiting-list leads, quotes,
+    applications, loans/payments of test profiles, guarantees) shown to Semako;
+    a count-only run; deletes only after his "yes". Only is_test rows and test
+    sign-in accounts (@go4solar.test, "+g4stest", +234800000); staff accounts and
+    real leads untouched. Never include audit_log: it is permanent (the database
+    refuses any update or delete on it, even for the service role). Nothing is
+    deleted before then.
 18. Decide on RETENTION_ENABLED (weekly clean-up job is count-only until then).
 19. Rotate the Supabase database password after launch.
 20. Switch Production NEXT_PUBLIC_LAUNCH_MODE from prelaunch to live, redeploy,
