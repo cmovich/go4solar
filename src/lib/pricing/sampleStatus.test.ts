@@ -79,4 +79,29 @@ describe('sampleItems (what still needs confirming)', () => {
       '1 item still marked SAMPLE — prices are hidden on the website until it is confirmed or changed',
     )
   })
+
+  it('Part F: SAMPLE delivery and rack prices hide prices; rules and builder settings do not', () => {
+    const items = sampleItems({
+      ...clean,
+      logistics: [
+        { state: 'Other', sample: true },
+        { state: 'lagos', sample: false },
+      ],
+      rackSample: true,
+      rulesSample: true,
+      builderSettingsSample: true,
+    })
+    expect(items.map((i) => [i.section, i.key, i.hidesPrices])).toEqual([
+      ['delivery', 'Other', true],
+      ['builder', 'racks', true],
+      ['builder', 'rules', false],
+      ['builder', 'settings', false],
+    ])
+    expect(items[0]!.label).toBe('Delivery · Other (fallback)')
+    expect(sampleSummary(items).hiding).toBe(2)
+  })
+
+  it('Part F rows are optional (before migration 0027)', () => {
+    expect(sampleItems(clean)).toEqual([])
+  })
 })

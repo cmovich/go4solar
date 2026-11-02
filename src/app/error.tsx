@@ -1,14 +1,22 @@
 'use client'
 
-import { ErrorScreen } from '@/components/brand/ErrorScreen'
+import { useEffect } from 'react'
 
-/** Any page that fails: a friendly message, never a stack trace. */
+import { ErrorScreen } from '@/components/brand/ErrorScreen'
+import { clearSavedProgress, reportClientError } from '@/components/monitoring/report'
+
+/**
+ * Any page that fails: a friendly message, never a stack trace. The cause goes to the server log;
+ * "Start again" clears progress saved in this browser in case that is what broke the page.
+ */
 export default function Error({
+  error,
   reset,
 }: {
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  useEffect(() => reportClientError('boundary', error), [error])
   return (
     <ErrorScreen
       code="500"
@@ -21,6 +29,16 @@ export default function Error({
           className="rounded-lg border border-white px-6 py-3 font-semibold focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
         >
           Try again
+        </button>
+      }
+      secondary={
+        <button
+          type="button"
+          onClick={clearSavedProgress}
+          className="text-white/80 underline"
+          data-testid="start-again"
+        >
+          Start again (clears the system and appliance list saved on this device)
         </button>
       }
     />

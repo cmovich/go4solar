@@ -43,3 +43,25 @@ describe('confirmationText', () => {
     }
   })
 })
+
+describe('confirmation for a builder system (Part F)', () => {
+  it('names it "your own system" instead of a plan', async () => {
+    const { confirmationText } = await import('./messages')
+    const text = confirmationText({
+      firstName: 'Love',
+      phoneE164: '+2348031234567',
+      whatsappE164: null,
+      email: null,
+      plan: 'comfort',
+      planLabel: 'Your own system',
+      depositShare: 0.2,
+      systemPrice: 3000000,
+      deposit: 600000,
+      monthly: 200000,
+      tenureMonths: 12,
+      samplePrices: false,
+    })
+    expect(text).toContain('Your estimate: Your own system — total ₦3,000,000')
+    expect(text).not.toContain('Comfort')
+  })
+})

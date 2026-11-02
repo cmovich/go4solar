@@ -350,7 +350,7 @@ export function WaitlistReport({
               name: [l.firstName, l.surname].filter(Boolean).join(' ') || '—',
               phone: l.phone,
               state: l.state ? (STATE_LABELS[l.state] ?? l.state) : '—',
-              plan: l.plan ? PLAN_LABELS[l.plan] : '—',
+              plan: l.build ? 'Own system' : l.plan ? PLAN_LABELS[l.plan] : '—',
               deposit:
                 l.depositShare !== null
                   ? `${formatPercent(l.depositShare)} · ${formatNaira(l.deposit ?? 0)}`

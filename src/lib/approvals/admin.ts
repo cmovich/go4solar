@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { isOwnSystem } from '@/lib/build/stored'
+
 import { staffSignedUrl } from '@/lib/applications/server'
 import { lateFeeSettings } from '@/lib/agreements/server'
 import { co2Avoided } from '@/lib/energy/currentSpend'
@@ -141,6 +143,8 @@ export type ApplicationDetail = {
   reference: string | null
   quote: QuoteResult | null
   plan: Plan | null
+  /** Built by the customer in /build (Part F): no plan sizing, "Their own system". */
+  ownSystem: boolean
   /** The sizing stored with the quote ("How this was sized"). */
   size: SystemSize | null
   checks: {
@@ -179,11 +183,7 @@ export async function applicationDetail(id: string): Promise<ApplicationDetail |
   const app = ctx.app
   const [quoteRes, checks, docs, agreements, guaranteeRes, payments] = await Promise.all([
     app.quote_id
-      ? admin
-          .from('quotes')
-          .select('id, result, plan, energy, system_size')
-          .eq('id', app.quote_id)
-          .maybeSingle()
+      ? admin.from('quotes').select('*').eq('id', app.quote_id).maybeSingle()
       : { data: null },
     admin.from('kyc_checks').select('*').eq('subject_id', app.id).order('created_at'),
     admin
@@ -254,7 +254,11 @@ export async function applicationDetail(id: string): Promise<ApplicationDetail |
   const who = new Map((actors ?? []).map((a) => [a.id, a.full_name ?? a.email ?? 'Staff']))
 
   const quote = quoteRes.data ? (quoteRes.data.result as unknown as QuoteResult) : null
-  const plan = (quoteRes.data?.plan as Plan | undefined) ?? null
+  const ownSystem = Boolean(
+    quoteRes.data && 'builder' in quoteRes.data && isOwnSystem(quoteRes.data.builder),
+  )
+  // A built system's `plan` is only a placeholder for the column: no plan sizing or CO₂ by plan.
+  const plan = ownSystem ? null : ((quoteRes.data?.plan as Plan | undefined) ?? null)
   const current = ((quoteRes.data?.energy ?? null) as EnergyRecord | null)?.current ?? null
   const energyRecord = (quoteRes.data?.energy ?? null) as EnergyRecord | null
 
@@ -263,7 +267,8 @@ export async function applicationDetail(id: string): Promise<ApplicationDetail |
     reference: app.quote_id ? quoteReference(app.quote_id) : null,
     quote,
     plan,
-    size: (quoteRes.data?.system_size ?? null) as SystemSize | null,
+    ownSystem,
+    size: ownSystem ? null : ((quoteRes.data?.system_size ?? null) as SystemSize | null),
     checks: (checks.data ?? []).map((c) => ({
       id: c.id,
       kind: c.kind,

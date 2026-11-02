@@ -75,6 +75,8 @@ export const SPEC_FIELDS: Record<SpecCategory, SpecField[]> = {
     n('isc', 'Isc', 'A', 0.5, 30),
     n('imp', 'Imp', 'A', 0.5, 30),
     n('tempCoeffPmax', 'temperature coefficient of Pmax', '%/°C', -1, 0),
+    n('lengthCm', 'length', 'cm', 50, 300),
+    n('widthCm', 'width', 'cm', 30, 200),
   ],
   accessories: [{ key: 'notes', label: 'specs', unit: '', kind: 'text', max: 500 }],
 }

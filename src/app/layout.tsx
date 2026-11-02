@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 
 import { CookieNotice } from '@/components/legal/CookieNotice'
+import { ClientErrorReporter } from '@/components/monitoring/ClientErrorReporter'
 import { siteConfig } from '@/config/site'
 
 import './globals.css'
@@ -47,6 +48,7 @@ export default function RootLayout({
       <body className="bg-background text-foreground min-h-screen antialiased">
         {children}
         <CookieNotice />
+        <ClientErrorReporter />
       </body>
     </html>
   )

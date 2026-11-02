@@ -1,12 +1,18 @@
 'use client'
 
+import { useEffect } from 'react'
+
+import { clearSavedProgress, reportClientError } from '@/components/monitoring/report'
+
 /** Last resort when the root layout itself fails: plain HTML, brand colours, no details. */
 export default function GlobalError({
+  error,
   reset,
 }: {
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  useEffect(() => reportClientError('boundary', error), [error])
   return (
     <html lang="en">
       <body
@@ -45,6 +51,21 @@ export default function GlobalError({
             >
               Try again
             </button>
+            <p>
+              <button
+                type="button"
+                onClick={clearSavedProgress}
+                style={{
+                  marginTop: 16,
+                  background: 'none',
+                  border: 0,
+                  color: '#fff',
+                  textDecoration: 'underline',
+                }}
+              >
+                Start again (clears the system and appliance list saved on this device)
+              </button>
+            </p>
           </div>
         </main>
       </body>

@@ -9,6 +9,7 @@ import {
   sizingSettingsSchema,
 } from '@/lib/settings/schemas'
 import { DEFAULT_SIZING_SETTINGS } from '@/lib/sizing/defaults'
+import type { ComponentDraft } from './adminSchemas'
 import { DEFAULT_WIRING, wiringSchema } from '@/lib/wizard/questions'
 import { createClient } from '@/lib/supabase/server'
 
@@ -89,6 +90,18 @@ export async function loadPricingDraft(includeTestFunders = false): Promise<Pric
           ? null
           : num((c as { nominal_voltage: number }).nominal_voltage),
       specs: specsOf((c as { specs?: unknown }).specs),
+      // From migration 0027 (undefined before it, so the save leaves these columns alone).
+      ...('kind' in c
+        ? {
+            kind: (c.kind ??
+              (c.category === 'accessories' ? 'pack' : null)) as ComponentDraft['kind'],
+            rating: c.rating === null || c.rating === undefined ? null : num(c.rating),
+            unit: c.unit === 'metre' ? ('metre' as const) : ('each' as const),
+            brand: c.brand ?? null,
+            description: c.description ?? null,
+            photo: c.photo ?? null,
+          }
+        : {}),
     })),
     margins: {
       panels: num(marginOf('panels')?.margin ?? 0),

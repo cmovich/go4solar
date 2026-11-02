@@ -2,7 +2,9 @@ import 'server-only'
 
 import { z } from 'zod'
 
+import { loadCatalogue } from '@/lib/catalogue/server'
 import { priceListFromRows, pricingFromRows } from '@/lib/pricing/tables'
+import { DEFAULT_WIRING, wiringSchema } from '@/lib/wizard/questions'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { hasSupabaseEnv } from '@/lib/supabase/env'
 
@@ -90,10 +92,33 @@ export async function getQuoteSettings(): Promise<QuoteSettings> {
     ]),
   )
 
+  // Part F: the builder catalogue (null before migration 0027: quotes keep the pack).
+  const full = await loadCatalogue(admin, priceList.installByState)
+  const panelLength = priceList.panel.specs?.lengthCm
+  const catalogue = full
+    ? {
+        accessories: full.accessories,
+        rules: full.rules,
+        rackPrices: full.rackPrices,
+        settings: full.settings,
+        logistics: full.logistics,
+        roofTypes: full.roofTypes,
+        panelLengthCm: typeof panelLength === 'number' ? panelLength : null,
+      }
+    : undefined
+  const { data: wiringRow } = await admin
+    .from('settings')
+    .select('value')
+    .eq('key', 'wiring')
+    .maybeSingle()
+
   return {
     sizing,
+    catalogue,
+    wiring: wiringSchema.safeParse(wiringRow?.value).data ?? DEFAULT_WIRING,
     sunHours,
-    priceList,
+    // SAMPLE delivery or rack prices feed customer prices, so they hide them too (sampleStatus.ts).
+    priceList: full?.sample ? { ...priceList, sample: true } : priceList,
     pricing,
     minDepositShare: pick(
       'min_deposit_share',

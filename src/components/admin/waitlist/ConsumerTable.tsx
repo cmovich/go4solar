@@ -115,7 +115,7 @@ export function ConsumerTable({
                 <td className="px-3 py-2 whitespace-nowrap tabular-nums">{r.phone}</td>
                 <td className="px-3 py-2 whitespace-nowrap">{stateLabelOf(r.state)}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
-                  {r.plan ? PLAN_LABELS[r.plan] : '—'}
+                  {r.build ? 'Own system' : r.plan ? PLAN_LABELS[r.plan] : '—'}
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.generator ? GENERATOR_LABELS[r.generator] : '—'}
@@ -184,7 +184,16 @@ export function ConsumerTable({
                   k="Solar for"
                   v={open.applicantType ? APPLICANT_TYPE_LABELS[open.applicantType] : '—'}
                 />
-                <Row k="Plan" v={open.plan ? PLAN_LABELS[open.plan] : '—'} />
+                <Row
+                  k="Plan"
+                  v={
+                    open.build
+                      ? 'Their own system (builder)'
+                      : open.plan
+                        ? PLAN_LABELS[open.plan]
+                        : '—'
+                  }
+                />
                 <Row
                   k="Deposit"
                   v={
@@ -246,6 +255,29 @@ export function ConsumerTable({
                       v={`${open.business.hoursPerDay} h/day · ${open.business.daysPerWeek} days/week`}
                     />
                   </dl>
+                </div>
+              )}
+
+              {open.build && (
+                <div className="mt-6 px-4" data-testid="lead-build">
+                  <p className="text-brand-dark text-sm font-semibold">
+                    System they built ({open.build.months} months)
+                  </p>
+                  <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    {open.build.lines.map((l, i) => (
+                      <Row key={`l${i}`} k={`${l.name} × ${l.qty}`} v={formatNaira(l.lineTotal)} />
+                    ))}
+                    {open.build.extras.map((x, i) => (
+                      <Row key={`x${i}`} k={x.label} v={formatNaira(x.amount)} />
+                    ))}
+                  </dl>
+                  {open.build.notes.length > 0 && (
+                    <ul className="text-muted-foreground mt-2 list-disc pl-5 text-xs">
+                      {open.build.notes.map((n) => (
+                        <li key={n}>{n}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
 

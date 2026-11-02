@@ -275,8 +275,12 @@ test.describe('solar plan sign-up (waiting list)', () => {
     await expect(staff.getByRole('heading', { name: 'Waiting list' })).toBeVisible()
     const row = staff.getByTestId('consumer-row').filter({ hasText: e164 })
     await expect(row).toHaveCount(0)
-    await staff.getByTestId('test-data-toggle').click()
-    await staff.waitForURL(/test=1/)
+    // The click can be cancelled while the admin menu is still preloading its links (on main
+    // too), so click again until the address changes.
+    await expect(async () => {
+      await staff.getByTestId('test-data-toggle').click()
+      await staff.waitForURL(/test=1/, { timeout: 10_000 })
+    }).toPass({ timeout: 60_000 })
     await expect(row).toBeVisible()
     await row.click()
     await expect(staff.getByRole('dialog').getByText(/Incomplete lead/)).toBeVisible()

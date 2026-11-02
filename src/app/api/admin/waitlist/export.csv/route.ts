@@ -102,7 +102,7 @@ export async function GET(req: Request) {
         l.energyWeeklyGrid,
         l.monthlySpend,
         l.co2AvoidedKg === null ? '' : Math.round(l.co2AvoidedKg),
-        l.plan ? PLAN_LABELS[l.plan] : '',
+        l.build ? 'Own system' : l.plan ? PLAN_LABELS[l.plan] : '',
         l.depositShare,
         l.deposit,
         l.monthly,

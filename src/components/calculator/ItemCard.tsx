@@ -7,9 +7,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CATEGORY_LABELS } from '@/lib/load/categories'
-import { LIMITS, dayNightHours } from '@/lib/load/totals'
+import { editableHours, HOURS_MAX } from '@/lib/calculator/store'
+import { LIMITS } from '@/lib/load/totals'
 import type { LoadItem } from '@/lib/load/types'
-import { DEFAULT_SIZING_SETTINGS } from '@/lib/sizing/defaults'
 
 import { WattsLookupDialog } from './WattsLookupDialog'
 
@@ -18,8 +18,8 @@ type Patch = Partial<
 >
 
 /** Night = no sun (the sizing setting); the day is the rest. */
-const NIGHT_MAX = DEFAULT_SIZING_SETTINGS.nightHours
-const DAY_MAX = 24 - NIGHT_MAX
+const NIGHT_MAX = HOURS_MAX.night
+const DAY_MAX = HOURS_MAX.day
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
 
@@ -45,7 +45,8 @@ export function ItemCard({
       onChange({ [field]: clamp(raw, min, max) })
     }
   }
-  const hours = dayNightHours(item)
+  // Older items (one "hours a day") show a clean split, each part within its maximum.
+  const hours = editableHours(item)
   function hoursField(field: 'dayHours' | 'nightHours', max: number) {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = parseFloat(e.target.value)

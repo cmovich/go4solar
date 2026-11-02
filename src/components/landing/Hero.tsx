@@ -6,6 +6,7 @@ import { formatNaira } from '@/lib/money'
 import { PRICE_LATER_TEXT } from '@/lib/waitlist/schema'
 
 import { AccountLink } from './AccountLink'
+import { CtaPair } from './CtaPair'
 import { Band, Container } from './Band'
 import { HeroBackdrop } from './HeroBackdrop'
 import { BrandLogo } from '@/components/brand/BrandLogo'
@@ -90,12 +91,7 @@ export function Hero({ example }: { example: HeroExample }) {
             </p>
 
             <div className="mt-8">
-              <Link
-                href="/calculate"
-                className="bg-brand-orange hover:bg-brand-orange/90 focus-visible:ring-brand-gold focus-visible:ring-offset-brand-dark text-brand-dark inline-flex h-14 w-full items-center justify-center rounded-lg px-8 text-lg font-semibold shadow-lg shadow-black/20 transition-colors [text-shadow:none] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto"
-              >
-                Calculate my load
-              </Link>
+              <CtaPair onDark place="hero" />
             </div>
 
             <ul className="mt-10 grid gap-4 sm:grid-cols-3">

@@ -343,6 +343,10 @@ export async function saveRoofType(input: unknown): Promise<Result> {
   const parsed = roofTypeSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: firstError(parsed.error) }
   const d = parsed.data
+  const pricing = d.installPrice !== undefined || d.installPriceUnit !== undefined
+  if (pricing && (await getSessionInfo()).role !== 'super_admin') {
+    return { ok: false, error: 'Only a super admin can change installation prices.' }
+  }
   // Editing a seeded row makes it real (no longer SAMPLE).
   const row = {
     name: d.name,
@@ -350,6 +354,8 @@ export async function saveRoofType(input: unknown): Promise<Result> {
     photo: d.photo ?? null,
     needs_rack: d.needsRack,
     sample: false,
+    ...(d.installPrice !== undefined ? { install_price: d.installPrice } : {}),
+    ...(d.installPriceUnit !== undefined ? { install_price_unit: d.installPriceUnit } : {}),
   }
   const supabase = await createClient()
   if (d.id) {

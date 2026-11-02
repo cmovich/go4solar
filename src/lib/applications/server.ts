@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { isOwnSystem } from '@/lib/build/stored'
+
 import { isStaffRole } from '@/lib/auth/staffRoles'
 import { getSessionInfo } from '@/lib/auth/session'
 import type { QuoteResult } from '@/lib/pricing/types'
@@ -63,6 +65,8 @@ export type WizardState = {
   quote: {
     reference: string
     plan: Plan
+    /** Built by the customer in /build (Part F): shown as "Your own system". */
+    ownSystem: boolean
     tenure: number | null
     monthly: number
     deposit: number
@@ -246,11 +250,7 @@ export async function wizardState(app: ApplicationRow): Promise<WizardState> {
     checkSummaries(app.id),
     documentKinds(app.id),
     app.quote_id
-      ? admin
-          .from('quotes')
-          .select('id, plan, tenure, result, energy')
-          .eq('id', app.quote_id)
-          .maybeSingle()
+      ? admin.from('quotes').select('*').eq('id', app.quote_id).maybeSingle()
       : Promise.resolve({ data: null }),
   ])
   const quote = quoteRes.data
@@ -293,6 +293,7 @@ export async function wizardState(app: ApplicationRow): Promise<WizardState> {
         ? {
             reference: quoteReference(quote.id),
             plan: quote.plan as Plan,
+            ownSystem: 'builder' in quote && isOwnSystem(quote.builder),
             tenure: quote.tenure,
             monthly: result.monthly,
             deposit: result.deposit,

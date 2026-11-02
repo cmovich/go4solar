@@ -71,3 +71,10 @@ describe('prelaunch redirect keeps the query', () => {
     expect(redirectTarget('/', '?x=1')).toBe('/')
   })
 })
+
+describe('the builder (Part F)', () => {
+  it('/build is open in both modes', () => {
+    expect(prelaunchBlock('/build', 'prelaunch')).toBeNull()
+    expect(prelaunchBlock('/build', 'live')).toBeNull()
+  })
+})

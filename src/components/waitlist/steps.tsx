@@ -21,7 +21,7 @@ import {
   type CurrentEnergy,
   type GeneratorType,
 } from '@/lib/energy/currentSpend'
-import { computeLoadTotals } from '@/lib/load/totals'
+import { safeTotals } from '@/lib/calculator/store'
 import type { LoadItem } from '@/lib/load/types'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { NG_STATE_IDS, stateLabel, type NgStateId } from '@/lib/nigeria/states'
@@ -121,7 +121,8 @@ export function TotalsStep({
   onBack: () => void
   onNext: () => void
 }) {
-  const t = useMemo(() => computeLoadTotals(items), [items])
+  // A broken saved item is left out rather than breaking the screen.
+  const t = useMemo(() => safeTotals(items), [items])
   return (
     <div className="space-y-6">
       <Heading
@@ -818,20 +819,36 @@ export function PlansStep({
       />
       <div className="space-y-5 pt-2">
         {PLANS.map((p) => (
-          <PlanCard
-            key={p}
-            estimate={estimate.plans[p]}
-            onChoose={() => choose(p)}
-            busy={pending}
-            advice={adviceFor(estimate.plans[p], current, estimate.pricingRateByTenure)}
-            showPrices={!estimate.sample}
-            highlighted={site.style === p}
-          />
+          <div key={p} className="space-y-1">
+            <PlanCard
+              estimate={estimate.plans[p]}
+              onChoose={() => choose(p)}
+              busy={pending}
+              advice={adviceFor(estimate.plans[p], current, estimate.pricingRateByTenure)}
+              showPrices={!estimate.sample}
+              highlighted={site.style === p}
+            />
+            <AdjustLink leadId={leadId} plan={p} />
+          </div>
         ))}
       </div>
       <QuoteNotes site={site} roofTypes={roofTypes} />
       <ErrorBox message={error} />
     </div>
+  )
+}
+
+/** "Adjust this quote": the builder, pre-filled with this plan's items and answers. */
+export function AdjustLink({ leadId, plan }: { leadId: string; plan: Plan }) {
+  return (
+    <Link
+      href={`/build?lead=${leadId}&plan=${plan}`}
+      prefetch={false}
+      className="text-brand-blue inline-flex min-h-11 items-center px-1 text-sm font-semibold underline"
+      data-testid={`adjust-${plan}`}
+    >
+      Adjust this quote
+    </Link>
   )
 }
 

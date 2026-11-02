@@ -15,6 +15,8 @@ import {
   setRoofTypeActive,
 } from '@/lib/content/actions'
 import { Checkbox } from '@/components/ui/checkbox'
+import { NairaField } from '@/components/admin/NairaField'
+import { formatNaira } from '@/lib/money'
 
 import { ImageUpload } from './ImageUpload'
 
@@ -27,6 +29,9 @@ export type RoofTypeRow = {
   needsRack: boolean
   active: boolean
   sample: boolean
+  /** Undefined before migration 0027. */
+  installPrice?: number
+  installPriceUnit?: 'per_panel' | 'per_kw'
 }
 
 type Draft = {
@@ -36,10 +41,20 @@ type Draft = {
   photo: string | null
   photoUrl: string | null
   needsRack: boolean
+  installPrice?: number
+  installPriceUnit?: 'per_panel' | 'per_kw'
 }
 const EMPTY: Draft = { name: '', description: '', photo: null, photoUrl: null, needsRack: true }
 
-function Editor({ initial, onDone }: { initial: Draft; onDone: () => void }) {
+function Editor({
+  initial,
+  onDone,
+  canPrice,
+}: {
+  initial: Draft
+  onDone: () => void
+  canPrice: boolean
+}) {
   const router = useRouter()
   const [d, setD] = useState<Draft>(initial)
   const [error, setError] = useState<string | null>(null)
@@ -54,6 +69,12 @@ function Editor({ initial, onDone }: { initial: Draft; onDone: () => void }) {
         description: d.description,
         photo: d.photo,
         needsRack: d.needsRack,
+        ...(canPrice
+          ? {
+              installPrice: d.installPrice ?? 0,
+              installPriceUnit: d.installPriceUnit ?? 'per_panel',
+            }
+          : {}),
       })
       if (r.ok) {
         onDone()
@@ -93,6 +114,35 @@ function Editor({ initial, onDone }: { initial: Draft; onDone: () => void }) {
         />
         Needs a rack to mount panels safely
       </label>
+      {canPrice && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1">
+            <Label htmlFor="p-price">Installation extra on this roof (no markup)</Label>
+            <NairaField
+              id="p-price"
+              value={d.installPrice ?? 0}
+              onChange={(v) => setD({ ...d, installPrice: v })}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="p-unit">Charged</Label>
+            <select
+              id="p-unit"
+              className="border-input h-10 w-full rounded-md border bg-white px-2 text-sm"
+              value={d.installPriceUnit ?? 'per_panel'}
+              onChange={(e) =>
+                setD({
+                  ...d,
+                  installPriceUnit: e.target.value === 'per_kw' ? 'per_kw' : 'per_panel',
+                })
+              }
+            >
+              <option value="per_panel">per panel</option>
+              <option value="per_kw">per kW of panels</option>
+            </select>
+          </div>
+        </div>
+      )}
       <ImageUpload
         kind="roof"
         label="Photo (JPG, PNG or WebP; cropped to 4:3)"
@@ -116,7 +166,14 @@ function Editor({ initial, onDone }: { initial: Draft; onDone: () => void }) {
   )
 }
 
-export function RoofTypesAdmin({ rows }: { rows: RoofTypeRow[] }) {
+export function RoofTypesAdmin({
+  rows,
+  canPrice = false,
+}: {
+  rows: RoofTypeRow[]
+  /** Super admin, after migration 0027: show the installation price fields. */
+  canPrice?: boolean
+}) {
   const router = useRouter()
   const [editing, setEditing] = useState<Draft | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -134,7 +191,7 @@ export function RoofTypesAdmin({ rows }: { rows: RoofTypeRow[] }) {
   return (
     <div className="space-y-6">
       {editing ? (
-        <Editor initial={editing} onDone={() => setEditing(null)} />
+        <Editor initial={editing} onDone={() => setEditing(null)} canPrice={canPrice} />
       ) : (
         <Button type="button" onClick={() => setEditing(EMPTY)}>
           Add a roof type
@@ -181,6 +238,8 @@ export function RoofTypesAdmin({ rows }: { rows: RoofTypeRow[] }) {
               </p>
               <p className="text-muted-foreground text-xs">
                 {p.description || '—'} · {p.needsRack ? 'needs a rack' : 'no rack needed'}
+                {p.installPrice !== undefined &&
+                  ` · installation +${formatNaira(p.installPrice)} ${p.installPriceUnit === 'per_kw' ? 'per kW' : 'per panel'}`}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

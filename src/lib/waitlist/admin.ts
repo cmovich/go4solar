@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 
 import { co2Avoided, type GeneratorType } from '@/lib/energy/currentSpend'
 
+import { storedBuild, type StoredBuild } from '@/lib/build/stored'
 import { describeAnswers, siteAnswersSchema } from '@/lib/wizard/questions'
 
 import { possibleDuplicates, type DuplicateMatch } from './duplicates'
@@ -56,6 +57,8 @@ export type ConsumerLead = {
   monthly: number | null
   financing: number | null
   sample: boolean
+  /** A system the customer built in /build (Part F), else null. */
+  build: StoredBuild | null
   /** The quote questions (Part E), as plain rows. */
   answers: [string, string][]
   /** Each plan's sizing in the stored estimate ("How this was sized"). */
@@ -87,7 +90,8 @@ type EstimateWithChosen = Estimate & {
 function decode(row: ConsumerRow, names: Map<string, string>): ConsumerLead {
   const est = (row.estimate as EstimateWithChosen | null) ?? null
   const chosen = est?.chosen ?? (row.chosen_plan && est ? est.plans[row.chosen_plan as Plan] : null)
-  const quote = chosen?.quote ?? null
+  const build = 'builder' in row ? storedBuild(row.builder) : null
+  const quote = build ?? chosen?.quote ?? null
   const type =
     row.applicant_type === 'individual' || row.applicant_type === 'business'
       ? row.applicant_type
@@ -123,7 +127,8 @@ function decode(row: ConsumerRow, names: Map<string, string>): ConsumerLead {
     deposit: quote?.deposit ?? null,
     monthly: quote?.monthly ?? null,
     financing: quote ? quote.systemPrice - quote.deposit : null,
-    sample: est?.sample ?? false,
+    sample: build ? build.sample : (est?.sample ?? false),
+    build,
     answers: describeAnswers(siteAnswersSchema.safeParse(row.site ?? {}).data ?? {}),
     sizes: est?.plans
       ? Object.fromEntries(Object.entries(est.plans).map(([p, v]) => [p, v.size]))

@@ -6,9 +6,12 @@ import { computeLoadTotals } from '@/lib/load/totals'
 import {
   addCustomItem,
   addLibraryItem,
+  editableHours,
+  HOURS_MAX,
   hasEssential,
   parseStoredItems,
   removeItem,
+  safeTotals,
   updateItem,
   type LibraryItem,
 } from './store'
@@ -217,5 +220,81 @@ describe('day and night hours, essential', () => {
     expect(b).not.toHaveProperty('dayHours')
     // An older save gets the default pre-tick (lights are essential).
     expect(b!.essential).toBe(true)
+  })
+})
+
+// Saved lists from older visits must never break a page (PR #24 review, 2 Nov).
+describe('saved lists from older visits', () => {
+  const fridge = {
+    id: 'f',
+    category: 'kitchen',
+    name: 'Fridge',
+    watts: 150,
+    qty: 1,
+    surgeFactor: 3,
+    dutyCycle: 0.4,
+    custom: false,
+  }
+  const save = (items: object[]) => JSON.stringify({ version: 1, items })
+
+  it('day + night over 24 is repaired (each capped at 12 h), never kept as is', () => {
+    const [a] = parseStoredItems(
+      save([{ ...fridge, hoursPerDay: 24, dayHours: 13, nightHours: 12 }]),
+    )
+    expect(a).toMatchObject({ dayHours: 12, nightHours: 12, hoursPerDay: 24 })
+    expect(() => computeLoadTotals([a!])).not.toThrow()
+  })
+
+  it('a list saved after the hours bug (26.4 h) is repaired, not dropped', () => {
+    const [a] = parseStoredItems(
+      save([{ ...fridge, hoursPerDay: 26.4, dayHours: 12, nightHours: 14.399999999999999 }]),
+    )
+    expect(a).toMatchObject({ dayHours: 12, nightHours: 12, hoursPerDay: 24 })
+  })
+
+  it('hours per day always equals day + night when both are saved', () => {
+    const [a] = parseStoredItems(save([{ ...fridge, hoursPerDay: 3, dayHours: 4, nightHours: 5 }]))
+    expect(a).toMatchObject({ dayHours: 4, nightHours: 5, hoursPerDay: 9 })
+  })
+
+  it('every repaired list adds up without an error', () => {
+    for (const day of [0, 6, 12, 13, 24]) {
+      for (const night of [0, 6, 12, 14.4, 24]) {
+        const items = parseStoredItems(
+          save([
+            { ...fridge, hoursPerDay: Math.min(24, day + night), dayHours: day, nightHours: night },
+          ]),
+        )
+        expect(() => computeLoadTotals(items)).not.toThrow()
+      }
+    }
+  })
+
+  it('editableHours: an older single figure splits into clean, capped day and night hours', () => {
+    const old = { ...fridge, category: 'kitchen' as const, hoursPerDay: 24, essential: false }
+    expect(editableHours(old)).toEqual({ day: 12, night: 12 })
+    expect(editableHours({ ...old, hoursPerDay: 6 })).toEqual({ day: 2.4, night: 3.6 })
+    expect(editableHours({ ...old, dayHours: 3, nightHours: 5 })).toEqual({ day: 3, night: 5 })
+    expect(HOURS_MAX).toEqual({ day: 12, night: 12 })
+  })
+
+  it('editing an older item can never push day + night over 24', () => {
+    const old = { ...fridge, category: 'kitchen' as const, hoursPerDay: 24, essential: false }
+    const h = editableHours(old)
+    const [after] = updateItem([old], 'f', { dayHours: HOURS_MAX.day, nightHours: h.night })
+    expect(after!.hoursPerDay).toBeLessThanOrEqual(24)
+    expect(() => computeLoadTotals([after!])).not.toThrow()
+    const [over] = updateItem([old], 'f', { dayHours: 20, nightHours: 20 })
+    expect(over).toMatchObject({ dayHours: 12, nightHours: 12, hoursPerDay: 24 })
+  })
+})
+
+describe('safeTotals (screens never crash on one bad item)', () => {
+  it('adds up the good items and leaves out a broken one', () => {
+    const good = addLibraryItem([], led, 'a')
+    const bad = { ...good[0]!, id: 'b', dayHours: 13, nightHours: 12, hoursPerDay: 25 }
+    const t = safeTotals([...good, bad])
+    expect(t.runningW).toBe(computeLoadTotals(good).runningW)
+    expect(safeTotals([]).runningW).toBe(0)
   })
 })

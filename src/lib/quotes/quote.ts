@@ -58,6 +58,7 @@ export function priceVariant(
     priceQuote({
       lines: snap.lines,
       installCost: snap.installCost,
+      noMarkup: snap.noMarkup,
       marginByCategory: snap.marginByCategory,
       pricingRateAnnual: rate,
       tenureMonths,

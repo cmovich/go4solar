@@ -9,11 +9,14 @@ export function ErrorScreen({
   title,
   body,
   action,
+  secondary,
 }: {
   code: string
   title: string
   body: string
   action?: React.ReactNode
+  /** A smaller extra action under the buttons. */
+  secondary?: React.ReactNode
 }) {
   return (
     <main className="bg-brand-dark flex min-h-screen flex-col items-center justify-center px-4 py-16 text-center text-white">
@@ -30,6 +33,7 @@ export function ErrorScreen({
           Go to the home page
         </Link>
       </div>
+      {secondary && <div className="mt-6 text-sm">{secondary}</div>}
       <p className="mt-10 text-sm text-white/70">
         Need help? {siteConfig.email} · {siteConfig.phones[0]}
       </p>

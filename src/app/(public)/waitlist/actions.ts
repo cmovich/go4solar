@@ -24,6 +24,7 @@ import {
   gridHoursProblem,
   gridTimeProblem,
   siteAnswersSchema,
+  type SiteAnswers,
 } from '@/lib/wizard/questions'
 import { z } from 'zod'
 import type { Plan } from '@/lib/sizing/types'
@@ -372,8 +373,12 @@ export async function saveSiteAnswers(
 
   const grid = gridFromAnswers(a)
   let estimate: Estimate | null = null
-  const gridChanged = JSON.stringify(grid) !== JSON.stringify(gridFrom(row.grid))
-  if (gridChanged && row.estimate && row.state && isNgStateId(row.state)) {
+  // Answers that change the price: grid (sizing), mounting, roof, rack, height and wire (Part F).
+  const priced = (x: SiteAnswers, g: unknown) =>
+    JSON.stringify([g, x.mounting, x.roofTypeId, x.rack, x.building, x.wire])
+  const before = siteAnswersSchema.safeParse(row.site ?? {}).data ?? {}
+  const pricingChanged = priced(a, grid) !== priced(before, gridFrom(row.grid))
+  if (pricingChanged && row.estimate && row.state && isNgStateId(row.state)) {
     const settings = await getQuoteSettings()
     try {
       estimate = {
@@ -385,6 +390,7 @@ export async function saveSiteAnswers(
           settings.minDepositShare,
           settings,
           grid,
+          a,
         ),
         pricedAt: new Date().toISOString(),
       }

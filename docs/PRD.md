@@ -202,7 +202,31 @@ After "who is the solar for" (and the business details), one question per screen
 9. (roof) Building height (storeys or feet) and the inverter's floor.
 10. Wire: known lengths (DC and AC metres), or estimated from the building with the `wiring` setting, shown as "This is an estimate — you may need extra wire, as we haven't seen your site."
 
-Grid answers price the three plans again (Part B sizing). Every quote lists: the standard accessories pack, "Customer provides ladder/scaffold (not charged)", and the notes above. "Adjust this quote" and the some-items builder come with Part F.
+Grid answers price the three plans again (Part B sizing). Every quote lists: the standard accessories pack, "Customer provides ladder/scaffold (not charged)", and the notes above. "Adjust this quote" and the some-items builder: see the system builder below.
+
+### System builder and home-page buttons (Parts F and G, October 2026)
+
+**Home page (Part G):** three button pairs (hero, middle, bottom): "Calculate my load" / "Start from here" (orange) → `/calculate`, and "Get started" / "Click here if you know your load already" → `/build`.
+
+**Builder (`/build`, both launch modes):**
+
+1. "Do you want a complete system financed, or just some items?" with the state. Some items → what they already have (brand, kVA, battery voltage) for the compatibility checks.
+2. Items: a "Do you know your load?" panel ("I know my load (kVA)" → a matching inverter, battery and panels are suggested; "I don't know my load — Calculate it first" → `/calculate`, the builder progress is kept on the device and the calculator offers "Back to the builder with this load"). One search box across every item. Accordion bars: Inverter, Batteries, Panels, DC wire, AC wire, Accessories. Each bar lists item cards (photo, name, size, short description, price, "?" help) with a filter; a quantity stepper (metres for wires and pipes); Done closes the bar and opens the next; any bar can be reopened; "Leave out" removes an item. The running total, deposit and monthly payment stay visible (sticky bar on phones). Impossible combinations are blocked with a plain reason (battery voltage ≠ inverter, too much solar for the inverter, inverter smaller than the load); risky ones are warned.
+3. The quote questions (mounting, roof type, rack, height, wire), then the installer: Go4Solar installer (installation priced live) or their own ("Go4Solar is not liable for any installation errors brought to us.").
+4. Summary: every line, installation and delivery, deposit slider, months, total amount payable, notes and the advisor; then their details. Prelaunch → submitted with the waiting-list thank-you; live → a quote and the account step ("Your own system" everywhere a plan name shows). Staff see the system in /admin/waitlist and on the application.
+5. "Adjust this quote" under every plan opens the builder filled with that plan's items and answers.
+
+**Pricing:** the builder is priced on the server with the same engine as every quote; cost prices never reach the browser. Markup on equipment only (racks count as equipment); installation and delivery are never marked up (`noMarkup` lines in the quote snapshot).
+
+**Catalogue and admin (`/admin/pricing/builder`, `/admin/pricing/components`, `/admin/roof-types`), all SAMPLE until confirmed, audited:**
+
+- Itemised accessories with type, rating, unit (each / per metre), brand, description and photo: DC/AC breakers, DC/AC surge protectors, battery breaker, changeover, voltage regulator, breaker box (2–12 ways), trunk and flex pipe and AC/DC wire per metre. Seeded switched off; while none is on, quotes keep the accessories pack.
+- Auto-pick rules per system size (rating of each accessory, pipe lengths); every automatic quote gets one of each plus pipes and wires; DC wire grows to keep the voltage drop at or below the setting (3%).
+- Racks: panel length and width required; rack = panels × length (cm) × price per cm (metal / aluminium) × rails per panel + clamps per panel.
+- Installation: base per state and size, plus each roof type's price (per panel or per kW) and an extra per storey above ground.
+- Delivery per state ("Other" for the rest) plus an extra per panel; "Delivery — Go4Solar logistics (State)" is on every quote and can only be removed where local vendors are switched on. While a delivery or rack price is SAMPLE, website prices stay hidden.
+
+**Advisor:** the facts come from our engine; the AI (when switched on with a key) only explains them; without it a rule-based text is shown.
 
 ### Installer waiting-list flow
 

@@ -39,9 +39,19 @@ test.describe('landing page', () => {
       page.getByText('20+ homes and businesses financed · ~1 MW installed'),
     ).toBeVisible()
 
-    const cta = page.getByRole('link', { name: 'Calculate my load' })
-    await expect(cta).toBeVisible()
-    await expect(cta).toHaveAttribute('href', '/calculate')
+    // Part G: two buttons in the hero, mid-page and at the bottom.
+    for (const place of ['hero', 'middle', 'bottom']) {
+      const pair = page.getByTestId(`cta-${place}`)
+      const calc = pair.getByRole('link', { name: /Calculate my load/ })
+      await expect(calc).toHaveAttribute('href', '/calculate')
+      await expect(calc).toContainText('Start from here')
+      const build = pair.getByRole('link', { name: /Get started/ })
+      await expect(build).toHaveAttribute('href', '/build')
+      await expect(build).toContainText('Click here if you know your load already')
+    }
+    await expect(
+      page.getByTestId('cta-hero').getByRole('link', { name: /Calculate my load/ }),
+    ).toBeVisible()
 
     // The example-plan card is desktop only; phones rely on the badges.
     const card = page.getByText('Comfort plan')
@@ -57,11 +67,14 @@ test.describe('landing page', () => {
     const dataDriven = ['What our customers say', 'Our partners']
     expect(all.filter((h) => !dataDriven.includes(h))).toEqual([
       'From appliances to installed solar in four steps',
+      // Part G: the middle and bottom button pairs.
+      'Ready to see your solar plan?',
       // The Savings comparison (naira amounts) is hidden while prices are SAMPLE prices.
       ...(sample ? [] : ['A generator costs you every month, forever']),
       '20+ homes and businesses already financed',
       'Grow with Go4Solar',
       'Questions people ask before they start',
+      'Start your solar plan today',
     ])
     // When shown: stories after the track record, partner logos after "Grow with Go4Solar".
     const at = (h: string) => all.indexOf(h)

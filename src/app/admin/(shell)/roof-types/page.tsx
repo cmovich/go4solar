@@ -28,22 +28,33 @@ export default async function RoofTypesAdminPage() {
     needsRack: r.needs_rack,
     active: r.active,
     sample: r.sample,
+    ...('install_price' in r
+      ? {
+          installPrice: Number(r.install_price ?? 0),
+          installPriceUnit:
+            r.install_price_unit === 'per_kw' ? ('per_kw' as const) : ('per_panel' as const),
+        }
+      : {}),
   }))
+  const canPrice =
+    session.role === 'super_admin' &&
+    rows.every((r) => r.installPrice !== undefined) &&
+    rows.length > 0
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
       <h1 className="text-brand-dark text-3xl font-bold">Roof types</h1>
       <p className="text-muted-foreground mt-1 mb-6 text-sm">
         The picture cards customers choose from in the quote questions (&ldquo;What type of roof do
         you have?&rdquo;), in this order. &ldquo;Needs a rack&rdquo; shows an alert when the
-        customer does not want one. Installation prices per roof type arrive with the system
-        builder.
+        customer does not want one. A super admin sets the installation extra for each roof (per
+        panel or per kW, never marked up).
       </p>
       {error ? (
         <p className="text-destructive text-sm" role="alert">
           Roof types are not set up yet (migration 0026 has not been applied).
         </p>
       ) : (
-        <RoofTypesAdmin rows={rows} />
+        <RoofTypesAdmin rows={rows} canPrice={canPrice} />
       )}
     </main>
   )

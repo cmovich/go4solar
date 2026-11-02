@@ -316,3 +316,102 @@ describe('settings changes and stored estimates', () => {
     )
   })
 })
+
+// Part F: auto quotes use the catalogue (itemised accessories once switched on), the rack, delivery
+// and installation extras. Without the catalogue nothing changes (tests above).
+describe('buildEstimate with the builder catalogue', () => {
+  const catalogue = {
+    inverters: [],
+    batteries: [],
+    panels: [],
+    accessories: [
+      {
+        sku: 'DCB-63',
+        name: 'DC breaker 63 A',
+        kind: 'dc_breaker' as const,
+        rating: 63,
+        unitCost: 14000,
+        unit: 'each' as const,
+      },
+      {
+        sku: 'DCW-6',
+        name: 'DC solar cable 6 mm²',
+        kind: 'dc_wire' as const,
+        rating: 6,
+        unitCost: 1200,
+        unit: 'metre' as const,
+      },
+    ],
+    rules: [
+      {
+        maxKva: 20,
+        dcBreakerA: 63,
+        acBreakerA: 63,
+        dcSurgeV: 1000,
+        acSurgeKa: 40,
+        batteryBreakerA: 250,
+        changeoverA: 63,
+        regulatorKva: 5,
+        boxWays: 8,
+        trunkPipeMm: 25,
+        flexPipeMm: 25,
+        acWireMm2: 10,
+        dcWireMm2: 6,
+        trunkPipeM: 12,
+        flexPipeM: 6,
+      },
+    ],
+    rackPrices: { metal: 25, aluminium: 40 },
+    settings: {
+      railsPerPanel: 1,
+      clampPricePerPanel: 0,
+      extraPerStorey: 10000,
+      maxDcVoltageDrop: 0.03,
+    },
+    logistics: [{ state: 'Other', amount: 50000, extraPerPanel: 0, localVendorsAvailable: false }],
+    installByState: {},
+    roofTypes: [
+      { id: 'roof-1', name: 'Tiles', needsRack: true, price: 5000, unit: 'per_panel' as const },
+    ],
+    panelLengthCm: 228,
+  }
+  const withCat = { ...s, catalogue }
+  const site = {
+    mounting: 'roof' as const,
+    roofTypeId: 'roof-1',
+    rack: { wanted: true, material: 'metal' as const },
+    building: { unit: 'storeys' as const, height: 1, floor: 0 },
+    wire: { known: true, dcMetres: 30, acMetres: 10 },
+  }
+
+  it('itemised accessories replace the pack; rack, installation extras and delivery are added', () => {
+    const e = buildEstimate(totals, 'Lagos', 0.2, withCat, null, site)
+    const c = e.plans.comfort
+    const skus = c.quote.lines.map((l) => l.sku)
+    expect(skus).toContain('DCB-63')
+    expect(skus).toContain('DCW-6')
+    expect(skus.some((k) => k.startsWith('ACC-'))).toBe(false)
+    expect(skus).toContain('RACK-METAL')
+    const panels = c.size.panelCount
+    expect(c.quote.noMarkup).toEqual([
+      { label: 'Installation', amount: 200000 + panels * 5000 + 10000 },
+      { label: 'Delivery — Go4Solar logistics (Lagos)', amount: 50000 },
+    ])
+    expect(c.quote.lines.find((l) => l.sku === 'DCW-6')!.qty).toBe(30)
+  })
+
+  it('no itemised accessories switched on yet → the pack, but delivery still applies', () => {
+    const e = buildEstimate(
+      totals,
+      'Lagos',
+      0.2,
+      { ...withCat, catalogue: { ...catalogue, accessories: [] } },
+      null,
+      {},
+    )
+    expect(e.plans.comfort.quote.lines.some((l) => l.sku.startsWith('ACC-'))).toBe(true)
+    expect(e.plans.comfort.quote.noMarkup.map((l) => l.label)).toContain(
+      'Delivery — Go4Solar logistics (Lagos)',
+    )
+  })
+})
