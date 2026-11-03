@@ -1291,7 +1291,29 @@ export type Database = {
           valid_until?: string
           waitlist_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'invoices_consumer_id_fkey'
+            columns: ['consumer_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'invoices_quote_id_fkey'
+            columns: ['quote_id']
+            isOneToOne: false
+            referencedRelation: 'quotes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'invoices_waitlist_id_fkey'
+            columns: ['waitlist_id']
+            isOneToOne: false
+            referencedRelation: 'waitlist_consumers'
+            referencedColumns: ['id']
+          },
+        ]
       }
       logistics_costs: {
         Row: {
