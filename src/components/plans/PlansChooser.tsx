@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
 
+import { InvoiceLink, planInvoiceHref } from '@/components/invoices/InvoiceLink'
 import { AdjustLink, PlanCard, QuoteNotes, adviceFor } from '@/components/waitlist/steps'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -171,7 +172,15 @@ export function PlansChooser({
                 advice={adviceFor(v, current, estimate.pricingRateByTenure, tenures)}
                 highlighted={site.style === p}
               />
-              <AdjustLink leadId={leadId} plan={p} />
+              <div className="flex flex-wrap items-center gap-x-4">
+                <AdjustLink leadId={leadId} plan={p} />
+                {!estimate.sample && (
+                  <InvoiceLink
+                    href={planInvoiceHref(leadId, p, pct / 100, tenure)}
+                    testId={`invoice-${p}`}
+                  />
+                )}
+              </div>
               <div className="space-y-1 px-1 text-sm">
                 <p>
                   <span className="text-muted-foreground">Panels:</span> {v.size.panelCount} (

@@ -337,6 +337,14 @@ Part B (October 2026). Admin can change every number in /admin/pricing → Energ
 
 Worked example (Semako's test home: 2,000 W, 1,000 W essential, 6 h by day): Lagos with no grid gives Essentials 10 kWh · 7 panels · 3.5 kVA, Comfort 20 kWh · 14 panels · 7.5 kVA, 24-hour 30 kWh · 20 panels · 15 kVA; with 4 h of night grid (mode A): 5 kWh, 10 kWh and 17.5 kWh.
 
+### Invoice PDF (Part I, November 2026)
+
+- **Company details** (admin, super admin, audited): company name, address, phone, email, website, RC number (optional) and how long quotes and invoices are valid (default 7 days). Nothing on the invoice is hard-coded; invoices already issued keep the details they were issued with.
+- **The invoice:** Go4Solar logo and company details at the top; invoice number **G4S-INV-YYYY-NNNN** from a database sequence (test data uses its own G4S-TEST-INV numbers, so the real numbers have no gaps); date and valid-until date; the customer's details; a table of items (item, size/spec, quantity or length, price) with the roof rack, installation and delivery as separate lines; the total amount payable, deposit, monthly payment × months, 0% interest beside the total, the late fee; notes (ladder/scaffold, customer-provided mounting for ground/car park, own-installer liability, wire estimate, rack declined, prices valid until the date); a QR code and short link to **/verify/<code>**.
+- **/verify/<code>** (public, both launch modes): says whether the invoice is genuine, with its number, date, total and the customer's first name only.
+- **Where:** "Download PDF" under each plan on the plans page (at the deposit and length chosen; hidden while prices are SAMPLE), "Invoice (PDF)" on My account, and "Download invoice (PDF)" on the admin application page.
+- **Snapshot:** each invoice stores everything it prints. The same plan at the same deposit, length and price returns the same invoice while it is valid; after that a new one is issued. Later price changes never alter an issued invoice.
+
 ### Route B — Upload an installer's quote
 
 1. User uploads a PDF or photo of the quote and enters the installer's name, phone and email.

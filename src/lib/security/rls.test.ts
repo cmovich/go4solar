@@ -36,6 +36,7 @@ const ACCESS: Record<Table, Access> = {
   appliance_library: 'public',
   sun_hours: 'staff',
   applications: 'own',
+  invoices: 'own',
   change_requests: 'own',
   audit_log: 'staff',
   cash_referrals: 'staff',
@@ -339,6 +340,23 @@ describe.skipIf(!hasDb)('RLS against the real database', () => {
       .single()
     if (change.data) owned.change_requests = change.data.id
     else notYetMigrated.add('change_requests')
+    // From migration 0028 (Part I).
+    const invoice = await admin
+      .from('invoices')
+      .insert({
+        number: `RLS-TEST-${Date.now()}`,
+        public_code: `rls${Date.now().toString(36)}`.slice(0, 16).toLowerCase(),
+        consumer_id: ids.a,
+        source_key: `rls:${Date.now()}`,
+        data: {},
+        total: 1,
+        valid_until: new Date().toISOString(),
+        is_test: true,
+      })
+      .select('id')
+      .single()
+    if (invoice.data) owned.invoices = invoice.data.id
+    else notYetMigrated.add('invoices')
     owned.profiles = ids.a
   }, 120_000)
 

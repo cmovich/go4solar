@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import {
+  checkVerifyPage,
+  downloadInvoice,
+  invoicesMigrated,
+  verifyCodeFor,
+} from './helpers/invoices'
 import { answerQuoteQuestions } from './helpers/questions'
 import { testEmail, testPhone } from './helpers/test-identity'
 import { loginAsStaff } from './helpers/staff'
@@ -112,6 +118,19 @@ async function finishFromPlans(page: Page, expectAdvice: boolean) {
     await expect(page.getByTestId('plan-advice').first()).toContainText('Avoids about')
   } else {
     await expect(page.getByTestId('plan-advice')).toHaveCount(0)
+  }
+  if (sample) {
+    // No invoice while prices are SAMPLE prices.
+    await expect(page.getByTestId('invoice-comfort')).toHaveCount(0)
+  } else if (await invoicesMigrated()) {
+    // Part I: "Download PDF" under a plan → a numbered invoice; its verify page is genuine.
+    const href = await page.getByTestId('invoice-comfort').getAttribute('href')
+    const { number } = await downloadInvoice(page.request, href!)
+    const again = await downloadInvoice(page.request, href!)
+    expect(again.number).toBe(number) // same plan and price → the same invoice, no new number
+    const tab = await page.context().newPage()
+    await checkVerifyPage(tab, await verifyCodeFor(number), 'Amaka')
+    await tab.close()
   }
   if (!sample) {
     await page.getByRole('button', { name: /Comfort/ }).click()

@@ -1242,6 +1242,57 @@ export type Database = {
           },
         ]
       }
+      invoices: {
+        Row: {
+          consumer_id: string | null
+          created_at: string
+          data: Json
+          first_name: string | null
+          id: string
+          is_test: boolean
+          issued_at: string
+          number: string
+          public_code: string
+          quote_id: string | null
+          source_key: string
+          total: number
+          valid_until: string
+          waitlist_id: string | null
+        }
+        Insert: {
+          consumer_id?: string | null
+          created_at?: string
+          data: Json
+          first_name?: string | null
+          id?: string
+          is_test?: boolean
+          issued_at?: string
+          number: string
+          public_code: string
+          quote_id?: string | null
+          source_key: string
+          total: number
+          valid_until: string
+          waitlist_id?: string | null
+        }
+        Update: {
+          consumer_id?: string | null
+          created_at?: string
+          data?: Json
+          first_name?: string | null
+          id?: string
+          is_test?: boolean
+          issued_at?: string
+          number?: string
+          public_code?: string
+          quote_id?: string | null
+          source_key?: string
+          total?: number
+          valid_until?: string
+          waitlist_id?: string | null
+        }
+        Relationships: []
+      }
       logistics_costs: {
         Row: {
           amount: number
@@ -2339,6 +2390,7 @@ export type Database = {
         Returns: boolean
       }
       my_role: { Args: never; Returns: Database['public']['Enums']['app_role'] }
+      next_invoice_number: { Args: { p_test?: boolean }; Returns: string }
     }
     Enums: {
       agreement_type: 'consumer' | 'guarantor' | 'installer' | 'vendor'

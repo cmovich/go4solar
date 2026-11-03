@@ -1,9 +1,11 @@
 import { Check, Circle, X } from 'lucide-react'
 import type { Metadata } from 'next'
+
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { RequestChange } from '@/components/account/RequestChange'
+import { InvoiceLink } from '@/components/invoices/InvoiceLink'
 import { ActionButton } from '@/components/payments/ActionButton'
 import { siteConfig } from '@/config/site'
 import { CHANGE_FIELD_LABELS, type ChangeField } from '@/lib/account/account'
@@ -473,8 +475,12 @@ export default async function DashboardPage({
               Your signed agreement appears here once you sign.
             </li>
           )}
-          <li className="text-muted-foreground" data-testid="invoice-placeholder">
-            Invoice (PDF): coming soon.
+          <li>
+            <InvoiceLink
+              href={`/api/app/invoices/${d.quoteId}`}
+              testId="invoice-download"
+              label="Invoice (PDF)"
+            />
           </li>
         </ul>
       </section>

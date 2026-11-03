@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { downloadInvoice, invoicesMigrated } from '../helpers/invoices'
 import { TEST_FUNDER_NAME, testEmail } from '../helpers/test-identity'
 
 import {
@@ -267,7 +268,11 @@ test.describe('live mode: application wizard with mock KYC', () => {
     expect(receipt.headers()['content-type']).toBe('application/pdf')
     await expect(page.getByTestId('my-system')).toContainText('kVA')
     await expect(page.getByTestId('documents')).toContainText('Signed guarantee')
-    await expect(page.getByTestId('invoice-placeholder')).toBeVisible()
+    // Part I: the invoice for this plan (needs migration 0028).
+    if (await invoicesMigrated()) {
+      const href = await page.getByTestId('invoice-download').getAttribute('href')
+      await downloadInvoice(page.request, href!)
+    }
     await expect(page.getByTestId('my-details')).toContainText(p.email)
     await expect(page.getByTestId('my-guarantor')).toContainText('signed')
     await expect(page.getByTestId('help').getByRole('link')).toHaveAttribute('href', /wa\.me/)

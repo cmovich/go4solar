@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test'
 
+import {
+  checkVerifyPage,
+  downloadInvoice,
+  invoicesMigrated,
+  verifyCodeFor,
+} from '../helpers/invoices'
 import { testEmail } from '../helpers/test-identity'
 
 import { freshNin, freshPhone, hasDb, latestOtpFor, throughDetails as details } from './helpers'
@@ -40,6 +46,16 @@ test.describe('live mode: plans → account → phone code → application', () 
     )
     await expect(page.getByTestId('plan-advice')).toHaveCount(3)
     await expect(page.getByTestId('plan-advice').first()).toContainText('₦70,200')
+
+    // Part I: "Download PDF" → the invoice at this deposit and length; verify page genuine.
+    if (await invoicesMigrated()) {
+      const href = await page.getByTestId('invoice-comfort').getAttribute('href')
+      expect(href).toContain('tenure=12')
+      const { number } = await downloadInvoice(page.request, href!)
+      const tab = await page.context().newPage()
+      await checkVerifyPage(tab, await verifyCodeFor(number), 'Chidi')
+      await tab.close()
+    }
 
     // Tenure chips and deposit change the price.
     const total12 = await page.getByTestId('total-comfort').textContent()
