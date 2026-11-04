@@ -13,6 +13,8 @@ import {
 } from '@react-pdf/renderer'
 import { createElement, type ReactElement } from 'react'
 
+import { DEFAULT_COMPANY } from '@/lib/company/schema'
+
 import { pdfAssets } from './assets'
 
 // Go4Solar document style (same as the agreement and waiting-list report).
@@ -93,6 +95,8 @@ const s = StyleSheet.create({
 })
 
 export type ForecastPdfData = {
+  /** From the admin "Company details" setting. */
+  companyName?: string
   name: string
   generatedAt: string
   variants: {
@@ -204,9 +208,10 @@ function YearTable({ v }: { v: ForecastPdfData['variants'][number] }) {
 }
 
 export function ForecastDocument(d: ForecastPdfData) {
-  const note = `Forecast · ${d.name} · ${d.generatedAt} · Go4Solar Energy Limited`
+  const company = d.companyName ?? DEFAULT_COMPANY.name
+  const note = `Forecast · ${d.name} · ${d.generatedAt} · ${company}`
   return (
-    <Document title={`Forecast: ${d.name}`} author="Go4Solar Energy Limited" creator="Go4Solar app">
+    <Document title={`Forecast: ${d.name}`} author={company} creator="Go4Solar app">
       <Page size="A4" orientation="landscape" style={s.page}>
         <Chrome title={`Forecast: ${d.name}`} sub="Low · Base · High" note={note} />
         <View style={s.cards}>

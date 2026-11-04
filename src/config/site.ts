@@ -1,11 +1,12 @@
 export type LaunchMode = 'prelaunch' | 'live'
 
+/**
+ * The brand name and site address. The company's name, address, phone numbers, email and RC
+ * number live in one place: the admin "Company details" setting (`loadCompany()`, with the
+ * defaults in src/lib/company/schema.ts).
+ */
 export const siteConfig = {
   name: 'Go4Solar',
-  legalName: 'Go4Solar Energy Limited',
-  address: 'Suite 40, Jayjay Shopping Complex',
-  email: 'Contact@go4solar.app',
-  phones: ['08182112423', '08037142948'] as const,
   url: 'https://www.go4solar.app',
 } as const
 

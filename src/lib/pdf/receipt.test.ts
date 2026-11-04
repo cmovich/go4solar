@@ -32,4 +32,38 @@ describe('payment receipt PDF', () => {
       expect(text).toContain(part)
     }
   }, 30000)
+
+  it('prints the company details it is given (the admin "Company details" setting)', async () => {
+    const pdf = await renderReceiptPdf(
+      {
+        receiptNo: 'G4S-PAY-XYZ',
+        customerName: 'Love Lounge',
+        planReference: 'G4S-1A2B3C4D',
+        label: 'Deposit',
+        amount: 500000,
+        paidAt: '2026-12-04T09:30:00Z',
+        channel: 'card',
+        amountLeft: 1000000,
+      },
+      {
+        name: 'Test Solar Co Ltd',
+        address: '1 Test Road, Kaduna',
+        phone: '08000000001, 08000000002',
+        email: 'hello@test-solar.example',
+        website: 'www.test-solar.example',
+        rcNumber: null,
+      },
+    )
+    const text = pdfPageTexts(pdf).join(' ')
+    for (const part of [
+      'Test Solar Co Ltd',
+      '1 Test Road, Kaduna',
+      'hello@test-solar.example',
+      '08000000001 · 08000000002',
+      'www.test-solar.example',
+    ]) {
+      expect(text, part).toContain(part)
+    }
+    expect(text).not.toContain('Go4Solar Energy Limited')
+  }, 30000)
 })

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 
+import { CompanyContact } from '@/components/company/CompanyContact'
 import { clearSavedProgress, reportClientError } from '@/components/monitoring/report'
 
 /** Last resort when the root layout itself fails: plain HTML, brand colours, no details. */
@@ -35,7 +36,9 @@ export default function GlobalError({
           <div>
             <p style={{ color: '#FFC94D', fontWeight: 700, letterSpacing: 3 }}>500</p>
             <h1>Something went wrong on our side</h1>
-            <p>Please try again in a moment. Contact@go4solar.app · 08182112423</p>
+            <p>
+              Please try again in a moment. <CompanyContact />
+            </p>
             <button
               type="button"
               onClick={reset}

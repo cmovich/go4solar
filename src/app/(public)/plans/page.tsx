@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 
 import { PlansChooser } from '@/components/plans/PlansChooser'
 import { siteConfig } from '@/config/site'
+import { companyPhones } from '@/lib/company/schema'
+import { loadCompany } from '@/lib/company/server'
 import { loadLeadForPlans } from '@/lib/quotes/leadForPlans'
 import { quoteReference, validUntil } from '@/lib/quotes/quote'
 import { BrandLogo } from '@/components/brand/BrandLogo'
@@ -23,7 +25,10 @@ export default async function PlansPage({
   searchParams: Promise<{ estimate?: string }>
 }) {
   const { estimate: id } = await searchParams
-  const ctx = id ? await loadLeadForPlans(id) : null
+  const [ctx, company] = await Promise.all([
+    id ? loadLeadForPlans(id) : Promise.resolve(null),
+    loadCompany(),
+  ])
   if (!ctx) redirect('/get-started')
   const roofTypes = await fetchRoofTypes()
 
@@ -64,7 +69,7 @@ export default async function PlansPage({
             validUntilLabel={until}
             reference={quoteReference(ctx.lead.id)}
             whatsappNumber={process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? ''}
-            fallbackNumber={siteConfig.phones[0]}
+            fallbackNumber={companyPhones(company.phone)[0] ?? ''}
             tenures={ctx.tenures}
             site={siteAnswersSchema.safeParse(ctx.lead.site ?? {}).data ?? {}}
             roofTypes={roofTypes}

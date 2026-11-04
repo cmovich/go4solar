@@ -13,6 +13,8 @@ import {
 } from '@react-pdf/renderer'
 import { createElement, type ReactElement } from 'react'
 
+import { DEFAULT_COMPANY } from '@/lib/company/schema'
+
 import { pdfAssets } from './assets'
 
 // Go4Solar document style: dark-green header band with an angled edge and orange tab, outlined
@@ -209,7 +211,10 @@ export function AgreementDocument({
   signerTitle,
   audit,
   fingerprint,
+  companyName = DEFAULT_COMPANY.name,
 }: {
+  /** From the admin "Company details" setting. */
+  companyName?: string
   title: string
   reference: string
   text: string
@@ -219,9 +224,9 @@ export function AgreementDocument({
   audit: AuditRow[]
   fingerprint: string
 }) {
-  const note = `${reference} · Go4Solar Energy Limited`
+  const note = `${reference} · ${companyName}`
   return (
-    <Document title={title} author="Go4Solar Energy Limited" creator="Go4Solar app">
+    <Document title={title} author={companyName} creator="Go4Solar app">
       <Page size="A4" style={s.page}>
         <Band title={title} sub={`Reference ${reference}`} />
         <Footer note={note} />
