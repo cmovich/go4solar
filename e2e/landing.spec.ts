@@ -93,7 +93,14 @@ test.describe('landing page', () => {
     await expect(page.getByText('₦300M+')).toBeVisible()
     await expect(page.getByText('worth of installations')).toBeVisible()
     // Nationwide: no three-state wording anywhere on the page.
-    await expect(page.getByText(/Abuja|Kaduna|3 states/)).toHaveCount(0)
+    await expect(page.getByText(/Abuja|3 states/)).toHaveCount(0)
+    // Kaduna appears only in the company address (footer), never as a coverage limit.
+    await expect(page.getByText(/Kaduna/)).toHaveCount(
+      await page
+        .locator('address')
+        .getByText(/Kaduna/)
+        .count(),
+    )
     await expect(page.getByText('Serving homes and businesses across Nigeria.')).toBeVisible()
   })
 

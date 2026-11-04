@@ -57,8 +57,33 @@ test.describe('admin two-factor', () => {
     await expect(notice).toHaveCount(0)
     await fresh.reload()
     await expect(fresh.getByTestId('cookie-notice')).toHaveCount(0)
+    // /terms approved by Go4Solar's legal team (4 November 2026): no DRAFT bar either.
     await fresh.goto('/terms')
-    await expect(fresh.getByTestId('legal-draft')).toHaveText('DRAFT – pending legal review')
+    await expect(fresh.getByRole('heading', { name: 'Terms of use' })).toBeVisible()
+    await expect(fresh.getByTestId('legal-draft')).toHaveCount(0)
     await fresh.close()
+  })
+
+  test('footer, privacy and terms show the admin "Company details"', async ({ page }) => {
+    // The details live in one place (settings.company): whatever is saved there shows here.
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    test.skip(!url || !key, 'needs the database')
+    const res = await fetch(`${url}/rest/v1/settings?select=value&key=eq.company`, {
+      headers: { apikey: key!, Authorization: `Bearer ${key}` },
+    })
+    const rows = (await res.json()) as {
+      value: { name: string; address: string; phone: string; email: string }
+    }[]
+    const company = rows[0]!.value
+    const firstPhone = company.phone.split(/[,·/;]/)[0]!.trim()
+    for (const path of ['/', '/privacy', '/terms']) {
+      await page.goto(path)
+      const body = page.locator('body')
+      await expect(body).toContainText(company.name)
+      await expect(body).toContainText(company.address)
+      await expect(body).toContainText(firstPhone)
+      await expect(body).toContainText(company.email)
+    }
   })
 })

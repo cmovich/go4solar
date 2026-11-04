@@ -58,5 +58,9 @@ export async function saveCompany(input: unknown): Promise<Result> {
     })
   if (auditError) console.error('[audit] insert failed:', auditError.message)
   revalidatePath('/admin/company')
+  // The footer and legal pages show these details too.
+  revalidatePath('/')
+  revalidatePath('/privacy')
+  revalidatePath('/terms')
   return { ok: true }
 }

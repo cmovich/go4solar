@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { companyFormSchema, companyFrom, DEFAULT_COMPANY, rcLabel } from './schema'
+import { companyFormSchema, companyFrom, companyPhones, DEFAULT_COMPANY, rcLabel } from './schema'
 
 describe('company details (settings.company)', () => {
   it('defaults: the details agreed for Part I', () => {
@@ -39,5 +39,18 @@ describe('rcLabel (how the RC number is printed)', () => {
     expect(rcLabel(' RC: 9560733 ')).toBe('RC 9560733')
     expect(rcLabel(null)).toBeNull()
     expect(rcLabel('')).toBeNull()
+  })
+})
+
+describe('companyPhones (one or more numbers in the Phone field)', () => {
+  it('splits on commas, "·", "/" or ";" and drops blanks', () => {
+    expect(companyPhones('08182112423')).toEqual(['08182112423'])
+    expect(companyPhones('08182112423, 08037142948')).toEqual(['08182112423', '08037142948'])
+    expect(companyPhones('08182112423 · 08037142948 / 0809; ')).toEqual([
+      '08182112423',
+      '08037142948',
+      '0809',
+    ])
+    expect(companyPhones('  ')).toEqual([])
   })
 })

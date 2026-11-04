@@ -1,21 +1,28 @@
 import type { Metadata } from 'next'
 
 import { H2, LegalPage } from '@/components/legal/LegalPage'
-import { siteConfig } from '@/config/site'
+import { companyPhones } from '@/lib/company/schema'
+import { loadCompany } from '@/lib/company/server'
 
 export const metadata: Metadata = { title: 'Privacy policy' }
 
-/** NDPA 2023 / GAID 2025 aligned privacy policy. DRAFT until the lawyer's review. */
-export default function PrivacyPage() {
-  const email = siteConfig.email
+export const revalidate = 3600
+
+/**
+ * NDPA 2023 / GAID 2025 aligned privacy policy (lawyer-approved 2026-10-15). Company details come
+ * from the admin "Company details" setting.
+ */
+export default async function PrivacyPage() {
+  const company = await loadCompany()
+  const email = company.email
   return (
     <LegalPage title="Privacy policy" updated="12 October 2026" draft={false}>
       <p>
-        {siteConfig.legalName} (&quot;Go4Solar&quot;, &quot;we&quot;), {siteConfig.address}, helps
-        homes and small businesses in Nigeria buy solar systems on a payment plan. This policy
-        explains what personal data we collect, why, how long we keep it and your rights under the
-        Nigeria Data Protection Act 2023 (NDPA) and the General Application and Implementation
-        Directive 2025 (GAID). We are the data controller.
+        {company.name} (&quot;Go4Solar&quot;, &quot;we&quot;), {company.address}, helps homes and
+        small businesses in Nigeria buy solar systems on a payment plan. This policy explains what
+        personal data we collect, why, how long we keep it and your rights under the Nigeria Data
+        Protection Act 2023 (NDPA) and the General Application and Implementation Directive 2025
+        (GAID). We are the data controller.
       </p>
 
       <H2>What we collect</H2>
@@ -142,11 +149,11 @@ export default function PrivacyPage() {
 
       <H2>Contact</H2>
       <p>
-        {siteConfig.legalName}, {siteConfig.address}. Email{' '}
+        {company.name}, {company.address}. Email{' '}
         <a className="text-brand-blue underline" href={`mailto:${email}`}>
           {email}
         </a>
-        , phone {siteConfig.phones.join(', ')}.
+        , phone {companyPhones(company.phone).join(', ')}.
       </p>
     </LegalPage>
   )
