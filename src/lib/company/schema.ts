@@ -63,3 +63,11 @@ export function rcLabel(rc: string | null | undefined): string | null {
     .trim()
   return digits ? `RC ${digits}` : null
 }
+
+/** The Phone field may hold several numbers ("08182112423, 08037142948"): each one. Pure. */
+export function companyPhones(phone: string): string[] {
+  return phone
+    .split(/[,·/;]/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+}

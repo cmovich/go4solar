@@ -2,22 +2,26 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { H2, LegalPage } from '@/components/legal/LegalPage'
-import { siteConfig } from '@/config/site'
 import { lateFeeSettings } from '@/lib/agreements/server'
+import { companyPhones } from '@/lib/company/schema'
+import { loadCompany } from '@/lib/company/server'
 
 export const metadata: Metadata = { title: 'Terms of use' }
 
-/** Website and app terms. The payment plan itself is governed by the signed agreement. DRAFT. */
+/**
+ * Website and app terms (approved by Go4Solar's legal team 2026-11-04). The payment plan itself is
+ * governed by the signed agreement. Company details from the "Company details" setting.
+ */
 export const revalidate = 3600
 
 export default async function TermsPage() {
-  const { lockAfterDays } = await lateFeeSettings()
+  const [{ lockAfterDays }, company] = await Promise.all([lateFeeSettings(), loadCompany()])
   return (
-    <LegalPage title="Terms of use" updated="12 October 2026" draft>
+    <LegalPage title="Terms of use" updated="12 October 2026" draft={false}>
       <p>
-        These terms cover your use of the Go4Solar website and app run by {siteConfig.legalName},{' '}
-        {siteConfig.address}. If you take a payment plan, the payment plan agreement you sign is
-        what governs it; where the two differ, the signed agreement wins.
+        These terms cover your use of the Go4Solar website and app run by {company.name},{' '}
+        {company.address}. If you take a payment plan, the payment plan agreement you sign is what
+        governs it; where the two differ, the signed agreement wins.
       </p>
 
       <H2>Quotes and estimates</H2>
@@ -68,10 +72,10 @@ export default async function TermsPage() {
       <H2>Law and contact</H2>
       <p>
         These terms are governed by the laws of the Federal Republic of Nigeria. Questions:{' '}
-        <a className="text-brand-blue underline" href={`mailto:${siteConfig.email}`}>
-          {siteConfig.email}
+        <a className="text-brand-blue underline" href={`mailto:${company.email}`}>
+          {company.email}
         </a>
-        , {siteConfig.phones.join(', ')}.
+        , {companyPhones(company.phone).join(', ')}.
       </p>
     </LegalPage>
   )

@@ -2,7 +2,8 @@ import Link from 'next/link'
 
 import { AccountLink } from './AccountLink'
 
-import { siteConfig } from '@/config/site'
+import { companyPhones } from '@/lib/company/schema'
+import { loadCompany } from '@/lib/company/server'
 import { normalisePhoneNG } from '@/lib/money'
 import { whatsappHref } from '@/lib/whatsapp'
 
@@ -17,8 +18,11 @@ function telHref(phone: string): string {
   }
 }
 
-export function Footer() {
+/** Company details from the admin "Company details" setting (one place for every page). */
+export async function Footer() {
   const year = new Date().getFullYear()
+  const company = await loadCompany()
+  const phones = companyPhones(company.phone)
   return (
     <Band className="pt-16 pb-10">
       <Container>
@@ -32,15 +36,15 @@ export function Footer() {
           </div>
 
           <address className="text-sm text-white/85 not-italic">
-            <p className="font-semibold text-white">{siteConfig.legalName}</p>
-            <p className="mt-2">{siteConfig.address}</p>
+            <p className="font-semibold text-white">{company.name}</p>
+            <p className="mt-2">{company.address}</p>
             <p className="mt-2">
-              <a href={`mailto:${siteConfig.email}`} className="hover:text-brand-gold">
-                {siteConfig.email}
+              <a href={`mailto:${company.email}`} className="hover:text-brand-gold">
+                {company.email}
               </a>
             </p>
             <ul className="mt-2 space-y-1">
-              {siteConfig.phones.map((p) => (
+              {phones.map((p) => (
                 <li key={p}>
                   <a href={telHref(p)} className="hover:text-brand-gold">
                     {p}
@@ -55,7 +59,7 @@ export function Footer() {
               href={whatsappHref(
                 process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '',
                 undefined,
-                siteConfig.phones[0],
+                phones[0],
               )}
               target="_blank"
               rel="noopener noreferrer"
@@ -82,7 +86,7 @@ export function Footer() {
         </div>
 
         <p className="mt-12 border-t border-white/10 pt-6 text-xs text-white/60">
-          © {year} {siteConfig.legalName}. Serving homes and businesses across Nigeria.
+          © {year} {company.name}. Serving homes and businesses across Nigeria.
         </p>
       </Container>
     </Band>

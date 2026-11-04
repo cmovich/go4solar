@@ -1,15 +1,26 @@
 import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { hasSupabaseEnv } from '@/lib/supabase/env'
 
-import { companyFrom, type Company } from './schema'
+import { companyFrom, DEFAULT_COMPANY, type Company } from './schema'
 
-/** The company details for invoices and the verify page (settings.company; defaults if missing). */
+/**
+ * The company details (settings.company, admin "Company details"): invoices, the verify page, the
+ * footer and the legal pages. Defaults when the setting cannot be read, so no page breaks.
+ */
 export async function loadCompany(): Promise<Company> {
-  const { data } = await createAdminClient()
-    .from('settings')
-    .select('value')
-    .eq('key', 'company')
-    .maybeSingle()
-  return companyFrom(data?.value)
+  if (!hasSupabaseEnv()) return DEFAULT_COMPANY
+  try {
+    const { data, error } = await createAdminClient()
+      .from('settings')
+      .select('value')
+      .eq('key', 'company')
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    return companyFrom(data?.value)
+  } catch (err) {
+    console.error('[company] using the default details:', (err as Error).message)
+    return DEFAULT_COMPANY
+  }
 }
