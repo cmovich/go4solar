@@ -44,7 +44,7 @@ function show(tenures: (3 | 6 | 9 | 12 | 18 | 24)[]) {
       validUntilLabel="1 November 2026"
       reference="G4S-TEST"
       whatsappNumber=""
-      fallbackNumber="08182112423"
+      fallbackNumber="09018617165"
       tenures={tenures}
     />,
   )

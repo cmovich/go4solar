@@ -13,7 +13,7 @@ export type Company = {
 export const DEFAULT_COMPANY: Company = {
   name: 'Go4Solar Energy Limited',
   address: 'Suite 40, Jayjay Shopping Complex, Kaduna',
-  phone: '08182112423',
+  phone: '09018617165',
   email: 'contact@go4solar.app',
   website: 'www.go4solar.app',
   rcNumber: null,
@@ -64,7 +64,7 @@ export function rcLabel(rc: string | null | undefined): string | null {
   return digits ? `RC ${digits}` : null
 }
 
-/** The Phone field may hold several numbers ("08182112423, 08037142948"): each one. Pure. */
+/** The Phone field may hold several numbers ("09018617165, 08031234567"): each one. Pure. */
 export function companyPhones(phone: string): string[] {
   return phone
     .split(/[,·/;]/)

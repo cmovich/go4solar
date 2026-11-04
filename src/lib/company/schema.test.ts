@@ -7,7 +7,7 @@ describe('company details (settings.company)', () => {
     expect(DEFAULT_COMPANY).toEqual({
       name: 'Go4Solar Energy Limited',
       address: 'Suite 40, Jayjay Shopping Complex, Kaduna',
-      phone: '08182112423',
+      phone: '09018617165',
       email: 'contact@go4solar.app',
       website: 'www.go4solar.app',
       rcNumber: null,
@@ -44,11 +44,11 @@ describe('rcLabel (how the RC number is printed)', () => {
 
 describe('companyPhones (one or more numbers in the Phone field)', () => {
   it('splits on commas, "·", "/" or ";" and drops blanks', () => {
-    expect(companyPhones('08182112423')).toEqual(['08182112423'])
-    expect(companyPhones('08182112423, 08037142948')).toEqual(['08182112423', '08037142948'])
-    expect(companyPhones('08182112423 · 08037142948 / 0809; ')).toEqual([
-      '08182112423',
-      '08037142948',
+    expect(companyPhones('09018617165')).toEqual(['09018617165'])
+    expect(companyPhones('09018617165, 08031234567')).toEqual(['09018617165', '08031234567'])
+    expect(companyPhones('09018617165 · 08031234567 / 0809; ')).toEqual([
+      '09018617165',
+      '08031234567',
       '0809',
     ])
     expect(companyPhones('  ')).toEqual([])
