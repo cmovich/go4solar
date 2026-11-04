@@ -1,4 +1,5 @@
 import {
+  Zap,
   Building2,
   BookOpenText,
   ChartLine,
@@ -40,6 +41,12 @@ export const NAV: readonly NavItem[] = [
     href: '/admin/waitlist',
     label: 'Waiting list',
     icon: ListChecks,
+    roles: ['super_admin', 'credit_officer', 'operations', 'content'],
+  },
+  {
+    href: '/admin/grid-insights',
+    label: 'Grid insights',
+    icon: Zap,
     roles: ['super_admin', 'credit_officer', 'operations', 'content'],
   },
   {

@@ -228,6 +228,10 @@ Grid answers price the three plans again (Part B sizing). Every quote lists: the
 
 **Advisor:** the facts come from our engine; the AI (when switched on with a key) only explains them; without it a rule-based text is shown.
 
+### Grid insights (Part H, November 2026)
+
+Admin "Grid insights" (`/admin/grid-insights`; the same staff who see the waiting list): the grid answers from the quote questions, by state and in total — leads that answered (and how many gave hours), average daytime and night-time grid hours (over the customers who gave hours: grid every day or on some days), % total blackout (incl. "D · no grid"), % "can't be certain", and the grid mode choices A · charge + bypass / B · charge only / C · supply only / D · no grid (count and %). Date filter in whole Lagos days; test data left out (staff test switch on previews only); cleared entries left out. "Download CSV" with the same filters; each download is in the audit log.
+
 ### Installer waiting-list flow
 
 A separate link asks installers for: name, business name, phone, WhatsApp, email, states and LGAs served, years in business, installations completed, CAC registered (yes/no), and a consent tick. They see: "Thank you. We will contact you within 7 days."
