@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 
 import { z } from 'zod'
 
+import { loadCompany } from '@/lib/company/server'
 import { OTP_TTL_MS, checkOtp, generateOtpCode, hashOtp, type OtpCheck } from '@/lib/otp/otp'
 import { getMessagingProvider } from '@/lib/providers/messaging'
 import { hitRateLimit } from '@/lib/ratelimit/hitRateLimit'
@@ -210,6 +211,7 @@ export async function finaliseAgreement(input: {
     { label: 'Reference', value: input.reference },
   ]
   const pdf = await renderAgreementPdf({
+    companyName: (await loadCompany()).name,
     title: input.title,
     reference: input.reference,
     text: input.text,

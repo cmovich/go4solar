@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { getSessionInfo } from '@/lib/auth/session'
+import { loadCompany } from '@/lib/company/server'
 import { renderReceiptPdf } from '@/lib/pdf/ReceiptPdf'
 import { quoteReference } from '@/lib/quotes/quote'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -62,16 +63,20 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     amountLeft = Math.max(0, financed - upToThis)
   }
 
-  const pdf = await renderReceiptPdf({
-    receiptNo: pay.reference,
-    customerName: profile?.full_name ?? 'Customer',
-    planReference: quote ? quoteReference(quote.id) : '—',
-    label,
-    amount: Number(pay.amount),
-    paidAt: pay.paid_at,
-    channel: pay.channel,
-    amountLeft,
-  })
+  const company = await loadCompany()
+  const pdf = await renderReceiptPdf(
+    {
+      receiptNo: pay.reference,
+      customerName: profile?.full_name ?? 'Customer',
+      planReference: quote ? quoteReference(quote.id) : '—',
+      label,
+      amount: Number(pay.amount),
+      paidAt: pay.paid_at,
+      channel: pay.channel,
+      amountLeft,
+    },
+    company,
+  )
   return new Response(new Uint8Array(pdf), {
     headers: {
       'content-type': 'application/pdf',

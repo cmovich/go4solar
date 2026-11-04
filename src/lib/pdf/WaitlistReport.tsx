@@ -10,6 +10,7 @@ import {
   Polygon,
 } from '@react-pdf/renderer'
 
+import { DEFAULT_COMPANY } from '@/lib/company/schema'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import type { EnergySettings } from '@/lib/settings/schemas'
@@ -152,7 +153,7 @@ function Band({ title, sub, right }: { title: string; sub: string; right: string
   )
 }
 
-function Footer() {
+function Footer({ companyName }: { companyName: string }) {
   return (
     <View style={s.footer} fixed>
       <View style={s.pageNo}>
@@ -162,7 +163,7 @@ function Footer() {
           render={({ pageNumber }) => String(pageNumber).padStart(2, '0')}
         />
       </View>
-      <Text style={s.confidential}>CONFIDENTIAL · Go4Solar Energy Limited</Text>
+      <Text style={s.confidential}>CONFIDENTIAL · {companyName}</Text>
       {/* react-pdf Image, not an HTML img: no alt attribute exists */}
       {/* eslint-disable-next-line jsx-a11y/alt-text */}
       <Image style={s.logo} src={pdfAssets.logo} />
@@ -185,11 +186,14 @@ export function WaitlistReport({
   leads,
   generatedAt,
   energy,
+  companyName = DEFAULT_COMPANY.name,
 }: {
   stats: Headline
   leads: ConsumerLead[]
   generatedAt: Date
   energy: EnergySettings
+  /** From the admin "Company details" setting. */
+  companyName?: string
 }) {
   const when = generatedAt.toLocaleString('en-GB', {
     timeZone: 'Africa/Lagos',
@@ -239,18 +243,14 @@ export function WaitlistReport({
   ]
 
   return (
-    <Document
-      title="Go4Solar waiting list report"
-      author="Go4Solar Energy Limited"
-      creator="Go4Solar app"
-    >
+    <Document title="Go4Solar waiting list report" author={companyName} creator="Go4Solar app">
       <Page size="A4" style={s.page}>
         <Band
           title="Waiting list report"
           sub="Prelaunch demand · across Nigeria"
           right={`Generated ${when}`}
         />
-        <Footer />
+        <Footer companyName={companyName} />
 
         <Text style={s.h2}>Summary</Text>
         <View style={s.cards}>
@@ -329,7 +329,7 @@ export function WaitlistReport({
           sub={`${leads.length} customers`}
           right={`Generated ${when}`}
         />
-        <Footer />
+        <Footer companyName={companyName} />
         <View style={s.table}>
           <View style={[s.tr, s.th]} fixed>
             {COLS.map((c) => (

@@ -87,3 +87,20 @@ test.describe('admin two-factor', () => {
     }
   })
 })
+
+test('error screens and /api/company show the "Company details" contact', async ({ page }) => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  test.skip(!url || !key, 'needs the database')
+  const res = await fetch(`${url}/rest/v1/settings?select=value&key=eq.company`, {
+    headers: { apikey: key!, Authorization: `Bearer ${key}` },
+  })
+  const rows = (await res.json()) as { value: { email: string; phone: string } }[]
+  const company = rows[0]!.value
+  const firstPhone = company.phone.split(/[,·/;]/)[0]!.trim()
+  const api = await page.request.get('/api/company')
+  expect(await api.json()).toMatchObject({ email: company.email })
+  await page.goto('/this-page-does-not-exist')
+  await expect(page.getByTestId('company-contact')).toContainText(company.email)
+  await expect(page.getByTestId('company-contact')).toContainText(firstPhone)
+})

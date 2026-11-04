@@ -5,6 +5,7 @@ import { createElement, type ReactElement } from 'react'
 import { requireStaffWithMfa } from '@/lib/auth/roles'
 import { includeTestData } from '@/lib/testmode/server'
 import { exportLimit } from '@/lib/ratelimit/staffExport'
+import { loadCompany } from '@/lib/company/server'
 import { WaitlistReport } from '@/lib/pdf/WaitlistReport'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -19,10 +20,11 @@ export async function GET(req: Request) {
   const session = await requireStaffWithMfa()
   const limited = await exportLimit(session.user!.id)
   if (limited) return limited
-  const [stats, leads, settings] = await Promise.all([
+  const [stats, leads, settings, company] = await Promise.all([
     headline(includeTest),
     listConsumers({ tab: 'complete', includeTest }),
     getQuoteSettings(),
+    loadCompany(),
   ])
   const generatedAt = new Date()
 
@@ -32,6 +34,7 @@ export async function GET(req: Request) {
       leads,
       generatedAt,
       energy: settings.energy,
+      companyName: company.name,
     }) as unknown as ReactElement<DocumentProps>,
   )
 

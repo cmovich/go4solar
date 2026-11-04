@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
-import { siteConfig } from '@/config/site'
 import { BrandLogo } from '@/components/brand/BrandLogo'
+import { CompanyContact } from '@/components/company/CompanyContact'
 
 /** Brand-style full page for 404 / errors. Never shows technical details. */
 export function ErrorScreen({
@@ -35,7 +35,7 @@ export function ErrorScreen({
       </div>
       {secondary && <div className="mt-6 text-sm">{secondary}</div>}
       <p className="mt-10 text-sm text-white/70">
-        Need help? {siteConfig.email} · {siteConfig.phones[0]}
+        Need help? <CompanyContact />
       </p>
     </main>
   )

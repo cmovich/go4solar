@@ -8,12 +8,13 @@ import { redirect } from 'next/navigation'
 import { RequestChange } from '@/components/account/RequestChange'
 import { InvoiceLink } from '@/components/invoices/InvoiceLink'
 import { ActionButton } from '@/components/payments/ActionButton'
-import { siteConfig } from '@/config/site'
 import { CHANGE_FIELD_LABELS, type ChangeField } from '@/lib/account/account'
 import { waitingQuote } from '@/lib/applications/server'
 import { requireUser } from '@/lib/auth/roles'
 import { signedInvoiceUrl } from '@/lib/invoices/response'
 import { ensureInvoiceForQuote } from '@/lib/invoices/server'
+import { companyPhones } from '@/lib/company/schema'
+import { loadCompany } from '@/lib/company/server'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { loadDashboard } from '@/lib/payments/dashboard'
 import { lagosDate } from '@/lib/payments/lock'
@@ -77,7 +78,10 @@ export default async function DashboardPage({
   const waiting = await waitingQuote(user!.id)
   // The invoice is issued once (the first time it is needed) and linked with a 30-minute signed
   // link, so it opens in the browser or a download manager without the sign-in cookie.
-  const issued = await ensureInvoiceForQuote(d.quoteId, originFor(await headers()))
+  const [issued, company] = await Promise.all([
+    ensureInvoiceForQuote(d.quoteId, originFor(await headers())),
+    loadCompany(),
+  ])
   const invoiceHref =
     issued.ok && issued.id ? signedInvoiceUrl(issued.id) : `/api/app/invoices/${d.quoteId}`
   const sp = await searchParams
@@ -553,7 +557,7 @@ export default async function DashboardPage({
           href={whatsappHref(
             process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '',
             `Hello Go4Solar, I need help with my plan ${d.reference}.`,
-            siteConfig.phones[0],
+            companyPhones(company.phone)[0],
           )}
           target="_blank"
           rel="noopener noreferrer"

@@ -12,6 +12,7 @@ import {
 import type { ForecastResult } from '@/lib/forecast/types'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { renderForecastPdf } from '@/lib/pdf/ForecastPdf'
+import { loadCompany } from '@/lib/company/server'
 
 const VARIANTS: [ScenarioVariant, string][] = [
   ['low', 'Low'],
@@ -49,7 +50,7 @@ export function formatInput(kind: InputKind, value: number): string {
 /** Excel: one sheet of inputs (sample / unverified ones labelled) and one of results. */
 export async function forecastExcel(name: string, inputs: ScenarioInputs): Promise<Buffer> {
   const book = new ExcelJS.Workbook()
-  book.creator = 'Go4Solar Energy Limited'
+  book.creator = (await loadCompany()).name
   book.title = `Forecast: ${name}`
 
   const sheet = book.addWorksheet('Inputs')
@@ -113,6 +114,7 @@ export async function forecastExcel(name: string, inputs: ScenarioInputs): Promi
 export async function forecastPdf(name: string, inputs: ScenarioInputs): Promise<Buffer> {
   const tonnes = (n: number) => (Math.round(n * 10) / 10).toLocaleString('en-US')
   return renderForecastPdf({
+    companyName: (await loadCompany()).name,
     name,
     generatedAt: new Date().toLocaleDateString('en-GB', {
       timeZone: 'Africa/Lagos',

@@ -11,7 +11,7 @@ import {
 } from '@react-pdf/renderer'
 import { createElement, type ReactElement } from 'react'
 
-import { siteConfig } from '@/config/site'
+import { companyPhones, DEFAULT_COMPANY, type Company } from '@/lib/company/schema'
 import { formatNaira } from '@/lib/money'
 
 import { pdfAssets } from './assets'
@@ -88,7 +88,7 @@ const day = (iso: string) =>
     timeZone: 'Africa/Lagos',
   })
 
-function ReceiptDoc(r: ReceiptInput) {
+function ReceiptDoc({ r, c }: { r: ReceiptInput; c: Company }) {
   const rows: [string, string][] = [
     ['Receipt number', r.receiptNo],
     ['Customer', r.customerName],
@@ -99,11 +99,11 @@ function ReceiptDoc(r: ReceiptInput) {
     ['Still to pay after this payment', formatNaira(r.amountLeft)],
   ]
   return (
-    <Document title={`Receipt ${r.receiptNo}`} author={siteConfig.legalName}>
+    <Document title={`Receipt ${r.receiptNo}`} author={c.name}>
       <Page size="A4" style={s.page}>
         <View style={s.band}>
           <Text style={s.title}>Payment receipt</Text>
-          <Text style={s.sub}>{siteConfig.legalName}</Text>
+          <Text style={s.sub}>{c.name}</Text>
         </View>
         <View style={s.body}>
           {rows.map(([k, v]) => (
@@ -117,12 +117,12 @@ function ReceiptDoc(r: ReceiptInput) {
             <Text style={s.totalValue}>{formatNaira(r.amount)}</Text>
           </View>
           <Text style={s.note}>
-            This receipt confirms a payment to {siteConfig.legalName}, {siteConfig.address} ·{' '}
-            {siteConfig.email} · {siteConfig.phones.join(' · ')}.
+            This receipt confirms a payment to {c.name}, {c.address} · {c.email} ·{' '}
+            {companyPhones(c.phone).join(' · ')}.
           </Text>
         </View>
         <View style={s.footer} fixed>
-          <Text style={{ color: MUTED, fontSize: 8 }}>{siteConfig.url}</Text>
+          <Text style={{ color: MUTED, fontSize: 8 }}>{c.website}</Text>
           {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}
           <Image src={pdfAssets.logo} style={s.logo} />
         </View>
@@ -131,6 +131,10 @@ function ReceiptDoc(r: ReceiptInput) {
   )
 }
 
-export async function renderReceiptPdf(r: ReceiptInput): Promise<Buffer> {
-  return renderToBuffer(createElement(ReceiptDoc, r) as ReactElement<DocumentProps>)
+/** The company details come from the admin "Company details" setting (callers pass them). */
+export async function renderReceiptPdf(
+  r: ReceiptInput,
+  company: Company = DEFAULT_COMPANY,
+): Promise<Buffer> {
+  return renderToBuffer(createElement(ReceiptDoc, { r, c: company }) as ReactElement<DocumentProps>)
 }
