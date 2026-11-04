@@ -1,4 +1,5 @@
 import {
+  Building2,
   BookOpenText,
   ChartLine,
   ClipboardList,
@@ -75,6 +76,7 @@ export const NAV: readonly NavItem[] = [
     roles: ['super_admin', 'operations', 'content'],
   },
   { href: '/admin/agreements', label: 'Agreements', icon: FileSignature, roles: ['super_admin'] },
+  { href: '/admin/company', label: 'Company details', icon: Building2, roles: ['super_admin'] },
   { href: '/admin/staff', label: 'Staff', icon: Users, roles: ['super_admin'] },
   {
     href: '/admin/outbox',

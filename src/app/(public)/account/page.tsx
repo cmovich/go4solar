@@ -46,6 +46,8 @@ export default async function AccountPage({
     .maybeSingle()
   if (!quote?.waitlist_id) redirect('/get-started')
   if (quote.status === 'chosen') redirect('/app/apply')
+  // Part I: the quotation comes first; Accept turns it into the invoice (column from 0029).
+  if ('accepted_at' in quote && !quote.accepted_at) redirect(`/quotation/${quote.id}`)
   const { data: lead } = await admin
     .from('waitlist_consumers')
     .select('first_name, surname, email, phone_e164')

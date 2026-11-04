@@ -1242,6 +1242,79 @@ export type Database = {
           },
         ]
       }
+      invoices: {
+        Row: {
+          consumer_id: string | null
+          created_at: string
+          data: Json
+          first_name: string | null
+          id: string
+          is_test: boolean
+          issued_at: string
+          number: string
+          public_code: string
+          quote_id: string | null
+          source_key: string
+          total: number
+          valid_until: string
+          waitlist_id: string | null
+        }
+        Insert: {
+          consumer_id?: string | null
+          created_at?: string
+          data: Json
+          first_name?: string | null
+          id?: string
+          is_test?: boolean
+          issued_at?: string
+          number: string
+          public_code: string
+          quote_id?: string | null
+          source_key: string
+          total: number
+          valid_until: string
+          waitlist_id?: string | null
+        }
+        Update: {
+          consumer_id?: string | null
+          created_at?: string
+          data?: Json
+          first_name?: string | null
+          id?: string
+          is_test?: boolean
+          issued_at?: string
+          number?: string
+          public_code?: string
+          quote_id?: string | null
+          source_key?: string
+          total?: number
+          valid_until?: string
+          waitlist_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'invoices_consumer_id_fkey'
+            columns: ['consumer_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'invoices_quote_id_fkey'
+            columns: ['quote_id']
+            isOneToOne: false
+            referencedRelation: 'quotes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'invoices_waitlist_id_fkey'
+            columns: ['waitlist_id']
+            isOneToOne: false
+            referencedRelation: 'waitlist_consumers'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       logistics_costs: {
         Row: {
           amount: number
@@ -1625,6 +1698,7 @@ export type Database = {
       }
       quotes: {
         Row: {
+          accepted_at: string | null
           anon_token_hash: string
           applicant_type: string | null
           builder: Json | null
@@ -1648,6 +1722,7 @@ export type Database = {
           waitlist_id: string | null
         }
         Insert: {
+          accepted_at?: string | null
           anon_token_hash: string
           applicant_type?: string | null
           builder?: Json | null
@@ -1671,6 +1746,7 @@ export type Database = {
           waitlist_id?: string | null
         }
         Update: {
+          accepted_at?: string | null
           anon_token_hash?: string
           applicant_type?: string | null
           builder?: Json | null
@@ -2090,6 +2166,7 @@ export type Database = {
       }
       waitlist_consumers: {
         Row: {
+          quotation_accepted_at: string | null
           applicant_type: string | null
           builder: Json | null
           business: Json | null
@@ -2123,6 +2200,7 @@ export type Database = {
           whatsapp_e164: string | null
         }
         Insert: {
+          quotation_accepted_at?: string | null
           applicant_type?: string | null
           builder?: Json | null
           business?: Json | null
@@ -2156,6 +2234,7 @@ export type Database = {
           whatsapp_e164?: string | null
         }
         Update: {
+          quotation_accepted_at?: string | null
           applicant_type?: string | null
           builder?: Json | null
           business?: Json | null
@@ -2339,6 +2418,7 @@ export type Database = {
         Returns: boolean
       }
       my_role: { Args: never; Returns: Database['public']['Enums']['app_role'] }
+      next_invoice_number: { Args: { p_test?: boolean }; Returns: string }
     }
     Enums: {
       agreement_type: 'consumer' | 'guarantor' | 'installer' | 'vendor'

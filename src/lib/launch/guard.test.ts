@@ -73,6 +73,18 @@ describe('prelaunch redirect keeps the query', () => {
 })
 
 describe('the builder (Part F)', () => {
+  it('Part I: the invoice check page and the plans-page invoice are open in both modes', () => {
+    for (const mode of ['prelaunch', 'live'] as const) {
+      expect(prelaunchBlock('/verify/abc123def456', mode)).toBeNull()
+      expect(prelaunchBlock('/api/invoices/plan', mode)).toBeNull()
+    }
+    // The live quotation page is closed in prelaunch (the quotation is shown inside the flow).
+    expect(prelaunchBlock('/quotation/abc', 'prelaunch')).toEqual({ redirect: '/' })
+    expect(prelaunchBlock('/quotation/abc', 'live')).toBeNull()
+    // /verify-email stays closed in prelaunch (a different page).
+    expect(prelaunchBlock('/verify-email', 'prelaunch')).toEqual({ redirect: '/' })
+  })
+
   it('/build is open in both modes', () => {
     expect(prelaunchBlock('/build', 'prelaunch')).toBeNull()
     expect(prelaunchBlock('/build', 'live')).toBeNull()

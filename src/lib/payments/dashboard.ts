@@ -23,6 +23,8 @@ type ApplicationStatus = Database['public']['Enums']['application_status']
 
 export type DashboardData = {
   applicationId: string
+  /** The application's quote (its invoice: /api/app/invoices/<quoteId>). */
+  quoteId: string
   status: ApplicationStatus
   reviewed: boolean
   reference: string
@@ -281,6 +283,7 @@ export async function loadDashboard(userId: string): Promise<DashboardData | nul
       createdAt: c.created_at,
     })),
     applicationId: app.id,
+    quoteId: quote.id,
     status: app.status,
     reviewed: Boolean(steps.review),
     reference: quoteReference(quote.id),

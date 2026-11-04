@@ -5,6 +5,7 @@ export type Block = { redirect: string } | { notFound: true }
 /** Live-only pages: closed in prelaunch (the visitor is sent home). */
 const LIVE_ONLY_PAGES = [
   '/plans',
+  '/quotation',
   '/account',
   '/app',
   '/guarantee',

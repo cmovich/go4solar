@@ -9,6 +9,7 @@ import {
   ResendLinkButton,
   type FunderChoice,
 } from '@/components/admin/applications/DecisionPanel'
+import { InvoiceLink } from '@/components/invoices/InvoiceLink'
 import { SizingPanel } from '@/components/admin/SizingPanel'
 import { LockBadge } from '@/components/admin/LockBadge'
 import { applicationDetail } from '@/lib/approvals/admin'
@@ -369,6 +370,13 @@ export default async function ApplicationPage({
 
       {tab === 'quote' && d.quote && (
         <div className="space-y-3 text-sm">
+          {d.ctx.app.quote_id && (
+            <InvoiceLink
+              href={`/api/admin/invoices/${d.ctx.app.quote_id}`}
+              testId="admin-invoice"
+              label="Download invoice (PDF)"
+            />
+          )}
           {d.ownSystem && (
             <p className="text-brand-dark font-semibold" data-testid="own-system">
               Their own system (built in the system builder)

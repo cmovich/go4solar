@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { openPdf } from './helpers/invoices'
 import { answerQuoteQuestions } from './helpers/questions'
 import { testEmail, testPhone } from './helpers/test-identity'
 import { loginAsStaff } from './helpers/staff'
@@ -113,6 +114,15 @@ async function finishFromPlans(page: Page, expectAdvice: boolean) {
   } else {
     await expect(page.getByTestId('plan-advice')).toHaveCount(0)
   }
+  if (sample) {
+    // No invoice while prices are SAMPLE prices.
+    await expect(page.getByTestId('invoice-comfort')).toHaveCount(0)
+  } else {
+    // Part I: "Download PDF" under a plan is a QUOTATION (the quote reference, no invoice number).
+    const href = await page.getByTestId('invoice-comfort').getAttribute('href')
+    const { number } = await openPdf(page.request, href!, 'quotation')
+    expect(number).toMatch(/^G4S-[0-9A-F]{8}$/)
+  }
   if (!sample) {
     await page.getByRole('button', { name: /Comfort/ }).click()
     await expect(page.getByRole('heading', { name: 'How much can you pay upfront?' })).toBeVisible()
@@ -126,6 +136,20 @@ async function finishFromPlans(page: Page, expectAdvice: boolean) {
   }
   await page.getByRole('button', { name: 'Now', exact: true }).click()
   await page.getByRole('button', { name: 'Next' }).click()
+
+  // Part I: "Your quotation" (skipped while prices are SAMPLE), then Accept → thank you.
+  if (!sample) {
+    await expect(page.getByTestId('quotation-step')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('quotation')).toContainText('Total amount payable', {
+      timeout: 30000,
+    })
+    await expect(page.getByTestId('quotation-ref')).toHaveText(/^G4S-[0-9A-F]{8}$/)
+    await expect(page.getByTestId('quotation-lines')).toContainText('Installation')
+    await expect(page.getByTestId('quotation-notes')).toContainText('Prices valid until')
+    const pdf = await page.getByTestId('quotation-pdf').getAttribute('href')
+    await openPdf(page.request, pdf!, 'quotation')
+    await page.getByTestId('accept-quotation').click()
+  }
 
   // The 7-day promise appears only here, after the plans (exact wording).
   await expect(page.getByTestId('thank-you')).toHaveText(

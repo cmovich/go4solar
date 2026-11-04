@@ -22,6 +22,7 @@ import {
   type GeneratorType,
 } from '@/lib/energy/currentSpend'
 import { safeTotals } from '@/lib/calculator/store'
+import { InvoiceLink, planInvoiceHref } from '@/components/invoices/InvoiceLink'
 import type { LoadItem } from '@/lib/load/types'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { NG_STATE_IDS, stateLabel, type NgStateId } from '@/lib/nigeria/states'
@@ -828,7 +829,20 @@ export function PlansStep({
               showPrices={!estimate.sample}
               highlighted={site.style === p}
             />
-            <AdjustLink leadId={leadId} plan={p} />
+            <div className="flex flex-wrap items-center gap-x-4">
+              <AdjustLink leadId={leadId} plan={p} />
+              {!estimate.sample && (
+                <InvoiceLink
+                  href={planInvoiceHref(
+                    leadId,
+                    p,
+                    estimate.plans[p].quote.snapshot.depositShare,
+                    estimate.plans[p].quote.snapshot.tenureMonths,
+                  )}
+                  testId={`invoice-${p}`}
+                />
+              )}
+            </div>
           </div>
         ))}
       </div>

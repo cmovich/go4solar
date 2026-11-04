@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { z } from 'zod'
 
 import { BrandLogo } from '@/components/brand/BrandLogo'
+import { BuildQuotation } from '@/components/build/BuildQuotation'
 import { Builder } from '@/components/build/Builder'
 import { launchMode, siteConfig } from '@/config/site'
 import { builderContext, builderItems } from '@/lib/build/server'
@@ -52,7 +53,13 @@ async function adjustFrom(leadId: string, plan: string): Promise<Partial<Builder
 export default async function BuildPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lead?: string; plan?: string; done?: string; load?: string }>
+  searchParams: Promise<{
+    lead?: string
+    plan?: string
+    done?: string
+    load?: string
+    quotation?: string
+  }>
 }) {
   const sp = await searchParams
   const [ctx, roofTypes, wiring] = await Promise.all([
@@ -73,16 +80,20 @@ export default async function BuildPage({
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-        <Builder
-          items={builderItems(ctx)}
-          roofTypes={roofTypes}
-          wiring={wiring}
-          launchMode={launchMode()}
-          showPrices={!sample}
-          initial={initial}
-          done={sp.done === '1'}
-          applyCalculatedLoad={sp.load === 'calculated'}
-        />
+        {sp.quotation && z.uuid().safeParse(sp.quotation).success ? (
+          <BuildQuotation leadId={sp.quotation} />
+        ) : (
+          <Builder
+            items={builderItems(ctx)}
+            roofTypes={roofTypes}
+            wiring={wiring}
+            launchMode={launchMode()}
+            showPrices={!sample}
+            initial={initial}
+            done={sp.done === '1'}
+            applyCalculatedLoad={sp.load === 'calculated'}
+          />
+        )}
       </main>
     </>
   )

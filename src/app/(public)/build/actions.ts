@@ -72,7 +72,7 @@ const submitSchema = priceSchema.extend({ contact: buildContactSchema })
 
 /**
  * Prelaunch: "Submit" signs the customer up with their system. Live: "Apply" saves the quote and
- * goes on to the account step (/account?quote=…).
+ * goes on to "Your quotation" (/quotation/…), then the account step.
  */
 export async function submitBuild(input: unknown): Promise<Result<{ next: string }>> {
   const p = submitSchema.safeParse(input)
@@ -103,7 +103,11 @@ export async function submitBuild(input: unknown): Promise<Result<{ next: string
     validityDays: await quoteValidityDays(),
   })
   if (!r.ok) return r
-  return { ok: true, next: live && r.quoteId ? `/account?quote=${r.quoteId}` : '/build?done=1' }
+  // Both modes show "Your quotation" next (live: /quotation; prelaunch: on /build).
+  return {
+    ok: true,
+    next: live && r.quoteId ? `/quotation/${r.quoteId}` : `/build?quotation=${r.leadId}`,
+  }
 }
 
 /** The advisor under the builder: facts from the engine, worded by AI when connected. */

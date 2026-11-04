@@ -32,16 +32,18 @@ import {
   type NameValues,
   type PhoneValues,
 } from './steps'
+import { planInvoiceHref } from '@/components/invoices/InvoiceLink'
+import { QuotationStep } from '@/components/invoices/QuotationStep'
 
 /**
  * 1 calculator · 2 totals · 3 preparing · 4 phone · 5 email · 6 name/state · 7 who is it for ·
  * 8 business details (business only) · 13 quote questions (Part E: one per screen) ·
- * 9 energy spend · 10 plans · 11 contribution · 12 thank you
+ * 9 energy spend · 10 plans · 11 contribution · 14 your quotation (Part I) · 12 thank you
  */
-export type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13
+export type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14
 
 /** The order the screens come in (step numbers are names, not positions). */
-const ORDER: readonly Step[] = [1, 2, 3, 4, 5, 6, 7, 8, 13, 9, 10, 11, 12]
+const ORDER: readonly Step[] = [1, 2, 3, 4, 5, 6, 7, 8, 13, 9, 10, 11, 14, 12]
 const before = (a: Step, b: Step) => ORDER.indexOf(a) < ORDER.indexOf(b)
 
 const slide = {
@@ -135,6 +137,7 @@ export function WaitlistFlow({
     9: () => go(13),
     10: () => go(9),
     11: () => go(10),
+    14: () => go(11),
   }
 
   // Step 3 is a timed loading screen.
@@ -281,7 +284,16 @@ export function WaitlistFlow({
               estimate={estimate}
               plan={plan}
               onBack={() => go(10)}
-              onDone={() => go(12)}
+              onDone={() => go(14)}
+            />
+          )}
+          {step === 14 && leadId && (
+            <QuotationStep
+              leadId={leadId}
+              pdfHref={(q) =>
+                planInvoiceHref(leadId, plan ?? 'comfort', q.totals.depositShare, q.totals.months)
+              }
+              onAccepted={() => go(12)}
             />
           )}
           {step === 12 && leadId && (
@@ -299,7 +311,7 @@ export function WaitlistFlow({
 }
 
 function Progress({ step }: { step: Step }) {
-  const screens: Step[] = [4, 5, 6, 7, 13, 9, 10, 11, 12]
+  const screens: Step[] = [4, 5, 6, 7, 13, 9, 10, 11, 14, 12]
   return (
     <ol className="mb-6 flex items-center gap-2" aria-label="Progress">
       {screens.map((s) => (
