@@ -219,12 +219,43 @@ export type BuilderItem = {
   price: number
 }
 
+type Cat = FullCatalogue & { details: Map<string, ItemDetails> }
+
+/** Each item's size label ("5 kVA · 48 V", "550 W", "6 mm² · per metre") and unit. Pure. */
+export function itemSizes(
+  cat: FullCatalogue,
+): Record<string, { spec: string; unit: 'each' | 'metre'; pack: boolean }> {
+  const out: Record<string, { spec: string; unit: 'each' | 'metre'; pack: boolean }> = {}
+  for (const i of cat.inverters) {
+    out[i.sku] = { spec: `${i.kva} kVA · ${i.option.batteryV} V`, unit: 'each', pack: false }
+  }
+  for (const b of cat.batteries) {
+    out[b.sku] = {
+      spec: `${b.kwh} kWh${b.voltage ? ` · ${b.voltage} V` : ''}`,
+      unit: 'each',
+      pack: false,
+    }
+  }
+  for (const p of cat.panels) out[p.sku] = { spec: `${p.watts} W`, unit: 'each', pack: false }
+  for (const a of cat.accessories) {
+    out[a.sku] = {
+      spec:
+        a.kind === 'pack'
+          ? `up to ${a.rating} kVA`
+          : `${a.rating} ${RATING_UNITS[a.kind]}${a.unit === 'metre' ? ' · per metre' : ''}`,
+      unit: a.unit,
+      pack: a.kind === 'pack',
+    }
+  }
+  return out
+}
+
 /**
  * The browser-safe catalogue: each item's customer price (cost with its category margin, priced
  * like a quote at the lowest deposit over 12 months), and no cost prices.
  */
 export function toBuilderItems(
-  cat: FullCatalogue & { details: Map<string, ItemDetails> },
+  cat: Cat,
   pricing: PricingSettings,
   minDepositShare: number,
 ): BuilderItem[] {
@@ -235,6 +266,7 @@ export function toBuilderItems(
   const d = (sku: string) =>
     cat.details.get(sku) ?? { brand: null, description: null, photoUrl: null }
   const blank = { kva: null, kwh: null, watts: null, voltage: null, rating: null }
+  const sizes = itemSizes(cat)
   return [
     ...cat.inverters.map((i) => ({
       ...blank,
@@ -243,7 +275,7 @@ export function toBuilderItems(
       group: 'inverter' as const,
       kind: null,
       unit: 'each' as const,
-      size: `${i.kva} kVA · ${i.option.batteryV} V`,
+      size: sizes[i.sku]!.spec,
       kva: i.kva,
       voltage: i.option.batteryV,
       ...d(i.sku),
@@ -256,7 +288,7 @@ export function toBuilderItems(
       group: 'battery' as const,
       kind: null,
       unit: 'each' as const,
-      size: `${b.kwh} kWh${b.voltage ? ` · ${b.voltage} V` : ''}`,
+      size: sizes[b.sku]!.spec,
       kwh: b.kwh,
       voltage: b.voltage,
       ...d(b.sku),
@@ -269,7 +301,7 @@ export function toBuilderItems(
       group: 'panels' as const,
       kind: null,
       unit: 'each' as const,
-      size: `${p.watts} W`,
+      size: sizes[p.sku]!.spec,
       watts: p.watts,
       ...d(p.sku),
       price: price(p.unitCost, 'panels'),
@@ -286,10 +318,7 @@ export function toBuilderItems(
             : ('accessories' as const),
       kind: a.kind,
       unit: a.unit,
-      size:
-        a.kind === 'pack'
-          ? `up to ${a.rating} kVA`
-          : `${a.rating} ${RATING_UNITS[a.kind]}${a.unit === 'metre' ? ' · per metre' : ''}`,
+      size: sizes[a.sku]!.spec,
       rating: a.rating,
       ...d(a.sku),
       price: price(a.unitCost, 'accessories'),

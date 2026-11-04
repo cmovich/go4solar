@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+import { acceptQuotation } from '../helpers/invoices'
+
 import { newPerson, throughAccount, throughDetails } from './helpers'
 
 // Bug (a), 30 Oct: a browser still signed in as an earlier applicant must never carry a new
@@ -13,7 +15,7 @@ test('a new quote while signed in as someone else asks who is applying', async (
   const second = newPerson('individual', { firstName: 'Love', surname: 'Lounge' })
   await throughDetails(page, second)
   await page.getByRole('button', { name: 'Choose Comfort' }).click()
-  await page.waitForURL(/\/account\?quote=/)
+  await acceptQuotation(page)
   const quoteUrl = page.url()
 
   // The question, not the phone code.

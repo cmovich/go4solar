@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+import { acceptQuotation } from '../helpers/invoices'
+
 import {
   buildFromLoad,
   builderToCalculator,
@@ -19,7 +21,7 @@ test('builder → Apply → account step', async ({ page }) => {
   await expect(page.getByTestId('build-submit')).toHaveText('Apply')
   await fillBuildContact(page)
   await page.getByTestId('build-submit').click()
-  await expect(page).toHaveURL(/\/account\?quote=/, { timeout: 45_000 })
+  await acceptQuotation(page)
   await expect(page.getByText('Your own system')).toBeVisible()
 })
 

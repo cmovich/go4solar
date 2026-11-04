@@ -73,7 +73,7 @@ export function PlansChooser({
     setNotice(null)
     start(async () => {
       const r = await chooseQuote({ leadId, plan, tenure, depositShare: pct / 100 })
-      if (r.ok) router.push(`/account?quote=${r.quoteId}`)
+      if (r.ok) router.push(`/quotation/${r.quoteId}`)
       else setNotice({ ok: false, text: r.error })
     })
   }

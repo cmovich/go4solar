@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { companyFormSchema, companyFrom, DEFAULT_COMPANY } from './schema'
+import { companyFormSchema, companyFrom, DEFAULT_COMPANY, rcLabel } from './schema'
 
 describe('company details (settings.company)', () => {
   it('defaults: the details agreed for Part I', () => {
@@ -28,5 +28,16 @@ describe('company details (settings.company)', () => {
     expect(companyFormSchema.safeParse({ ...ok, email: 'nope' }).success).toBe(false)
     expect(companyFormSchema.safeParse({ ...ok, quoteValidityDays: 0 }).success).toBe(false)
     expect(companyFormSchema.safeParse({ ...ok, quoteValidityDays: 91 }).success).toBe(false)
+  })
+})
+
+describe('rcLabel (how the RC number is printed)', () => {
+  it('a bare number gets "RC "; an existing RC prefix is tidied, not doubled', () => {
+    expect(rcLabel('9560733')).toBe('RC 9560733')
+    expect(rcLabel('RC 9560733')).toBe('RC 9560733')
+    expect(rcLabel('rc9560733')).toBe('RC 9560733')
+    expect(rcLabel(' RC: 9560733 ')).toBe('RC 9560733')
+    expect(rcLabel(null)).toBeNull()
+    expect(rcLabel('')).toBeNull()
   })
 })

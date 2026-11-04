@@ -1698,6 +1698,7 @@ export type Database = {
       }
       quotes: {
         Row: {
+          accepted_at: string | null
           anon_token_hash: string
           applicant_type: string | null
           builder: Json | null
@@ -1721,6 +1722,7 @@ export type Database = {
           waitlist_id: string | null
         }
         Insert: {
+          accepted_at?: string | null
           anon_token_hash: string
           applicant_type?: string | null
           builder?: Json | null
@@ -1744,6 +1746,7 @@ export type Database = {
           waitlist_id?: string | null
         }
         Update: {
+          accepted_at?: string | null
           anon_token_hash?: string
           applicant_type?: string | null
           builder?: Json | null
@@ -2163,6 +2166,7 @@ export type Database = {
       }
       waitlist_consumers: {
         Row: {
+          quotation_accepted_at: string | null
           applicant_type: string | null
           builder: Json | null
           business: Json | null
@@ -2196,6 +2200,7 @@ export type Database = {
           whatsapp_e164: string | null
         }
         Insert: {
+          quotation_accepted_at?: string | null
           applicant_type?: string | null
           builder?: Json | null
           business?: Json | null
@@ -2229,6 +2234,7 @@ export type Database = {
           whatsapp_e164?: string | null
         }
         Update: {
+          quotation_accepted_at?: string | null
           applicant_type?: string | null
           builder?: Json | null
           business?: Json | null

@@ -54,3 +54,12 @@ export const companyFormSchema = z.object({
   quoteValidityDays: z.number().int().min(1).max(90),
 })
 export type CompanyForm = z.input<typeof companyFormSchema>
+
+/** The RC number as printed: "RC 9560733" (a bare number gets the prefix; never doubled). Pure. */
+export function rcLabel(rc: string | null | undefined): string | null {
+  const digits = (rc ?? '')
+    .trim()
+    .replace(/^rc[\s:.-]*/i, '')
+    .trim()
+  return digits ? `RC ${digits}` : null
+}

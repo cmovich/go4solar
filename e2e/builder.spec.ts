@@ -11,6 +11,7 @@ import {
   startBuilder,
   useCalculatedLoadAfterChanges,
 } from './helpers/builder'
+import { openPdf } from './helpers/invoices'
 
 /** Part F (prelaunch): the system builder from "Get started". */
 test.describe('system builder', () => {
@@ -30,6 +31,22 @@ test.describe('system builder', () => {
     await buildFromLoad(page)
     await fillBuildContact(page)
     await page.getByTestId('build-submit').click()
+    // Part I: "Your quotation" for the system they built (skipped while prices are SAMPLE).
+    await expect(page.getByTestId('quotation-step').or(page.getByTestId('build-done'))).toBeVisible(
+      {
+        timeout: 45_000,
+      },
+    )
+    if (await page.getByTestId('quotation-step').isVisible()) {
+      await expect(page.getByTestId('quotation')).toContainText('Your own system')
+      await expect(page.getByTestId('quotation-lines')).toContainText('Delivery')
+      await openPdf(
+        page.request,
+        (await page.getByTestId('quotation-pdf').getAttribute('href'))!,
+        'quotation',
+      )
+      await page.getByTestId('accept-quotation').click()
+    }
     await expect(page.getByTestId('build-done')).toBeVisible({ timeout: 45_000 })
     await expect(page.getByTestId('build-done')).toContainText('Thank you!')
   })

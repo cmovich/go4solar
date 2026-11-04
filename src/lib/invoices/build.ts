@@ -31,9 +31,11 @@ export type InvoiceLine = {
 /** Everything the invoice prints; stored with the invoice so it never changes afterwards. */
 export type InvoiceData = {
   version: 1
+  /** A quotation (before Accept: the quote reference, no verify link) or the numbered invoice. */
+  kind: 'quotation' | 'invoice'
   number: string
   publicCode: string
-  verifyUrl: string
+  verifyUrl: string | null
   issuedAt: string
   validUntil: string
   company: Company
@@ -67,9 +69,11 @@ type PricedQuote = {
 }
 
 export type InvoiceInput = {
+  /** Default 'invoice'. */
+  kind?: 'quotation' | 'invoice'
   number: string
   publicCode: string
-  verifyUrl: string
+  verifyUrl: string | null
   issuedAt: Date
   validityDays: number
   company: Company
@@ -122,6 +126,7 @@ export function buildInvoice(i: InvoiceInput): InvoiceData {
   notes.push(`Prices valid until ${invoiceDay(until)}.`)
   return {
     version: 1,
+    kind: i.kind ?? 'invoice',
     number: i.number,
     publicCode: i.publicCode,
     verifyUrl: i.verifyUrl,

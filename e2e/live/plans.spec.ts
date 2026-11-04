@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test'
 
 import {
+  acceptQuotation,
   checkVerifyPage,
-  downloadInvoice,
-  invoicesMigrated,
-  verifyCodeFor,
+  invoiceForQuote,
+  openPdf,
+  quotationAcceptMigrated,
 } from '../helpers/invoices'
 import { testEmail } from '../helpers/test-identity'
 
@@ -47,15 +48,10 @@ test.describe('live mode: plans → account → phone code → application', () 
     await expect(page.getByTestId('plan-advice')).toHaveCount(3)
     await expect(page.getByTestId('plan-advice').first()).toContainText('₦70,200')
 
-    // Part I: "Download PDF" → the invoice at this deposit and length; verify page genuine.
-    if (await invoicesMigrated()) {
-      const href = await page.getByTestId('invoice-comfort').getAttribute('href')
-      expect(href).toContain('tenure=12')
-      const { number } = await downloadInvoice(page.request, href!)
-      const tab = await page.context().newPage()
-      await checkVerifyPage(tab, await verifyCodeFor(number), 'Chidi')
-      await tab.close()
-    }
+    // Part I: "Download PDF" under a plan → the QUOTATION (quote reference, no invoice number).
+    const planPdf = await page.getByTestId('invoice-comfort').getAttribute('href')
+    expect(planPdf).toContain('tenure=12')
+    await openPdf(page.request, planPdf!, 'quotation')
 
     // Tenure chips and deposit change the price.
     const total12 = await page.getByTestId('total-comfort').textContent()
@@ -64,6 +60,27 @@ test.describe('live mode: plans → account → phone code → application', () 
     await page.getByRole('button', { name: '12 months' }).click()
 
     await page.getByRole('button', { name: 'Choose Comfort' }).click()
+
+    // Part I: "Your quotation" before any identity step: the full quotation, its PDF, Accept.
+    await page.waitForURL(/\/quotation\/[0-9a-f-]{36}$/, { timeout: 45_000 })
+    const quoteId = new URL(page.url()).pathname.split('/').pop()!
+    await expect(page.getByTestId('quotation')).toContainText('Comfort plan')
+    await expect(page.getByTestId('quotation-lines')).toContainText('Installation')
+    await expect(page.getByTestId('quotation-total')).toContainText('₦')
+    await expect(page.getByTestId('quotation-notes')).toContainText('Prices valid until')
+    const quotationPdf = await openPdf(
+      page.request,
+      (await page.getByTestId('quotation-pdf').getAttribute('href'))!,
+      'quotation',
+    )
+    expect(quotationPdf.number).toMatch(/^G4S-[0-9A-F]{8}$/)
+    if (await quotationAcceptMigrated()) {
+      // The account step is closed until the quotation is accepted; no invoice number yet.
+      await page.goto(`/account?quote=${quoteId}`)
+      await page.waitForURL(/\/quotation\//)
+      expect(await invoiceForQuote(quoteId)).toBeNull()
+    }
+    await page.getByTestId('accept-quotation').click()
 
     // Account step: email prefilled, phone shown (not asked).
     await page.waitForURL(/\/account\?quote=/)
@@ -82,6 +99,21 @@ test.describe('live mode: plans → account → phone code → application', () 
     // The application wizard opens at "Confirm your details" for the chosen Comfort quote.
     await expect(page.getByRole('heading', { name: 'Confirm your details' })).toBeVisible()
     await expect(page.getByText(/Comfort · G4S-/)).toBeVisible()
+
+    // Accept made the numbered invoice: its verify page says genuine (first name only).
+    const invoice = await invoiceForQuote(quoteId)
+    expect(invoice?.number).toMatch(/^G4S-TEST-INV-\d{4}-\d{4,}$/)
+    const tab = await page.context().newPage()
+    await checkVerifyPage(tab, invoice!.code, 'Chidi')
+    await tab.close()
+    // My account "Invoice (PDF)": the same invoice, opened in the browser (signed link)…
+    const first = await page.request.get(`/api/app/invoices/${quoteId}`, { maxRedirects: 0 })
+    expect(first.status()).toBe(303)
+    const signed = first.headers()['location']!
+    expect((await openPdf(page.request, signed, 'invoice')).number).toBe(invoice!.number)
+    // …which also opens with no sign-in cookie at all (download managers).
+    const bare = await fetch(signed)
+    expect(bare.headers.get('content-type')).toBe('application/pdf')
   })
 
   test('a wrong code is rejected', async ({ page }) => {
@@ -89,7 +121,7 @@ test.describe('live mode: plans → account → phone code → application', () 
     await throughDetails(page, phone, testEmail('live-wrong', phone))
     await page.waitForURL(/\/plans\?estimate=/, { timeout: 20000 })
     await page.getByRole('button', { name: 'Choose Essential' }).click()
-    await page.waitForURL(/\/account\?quote=/)
+    await acceptQuotation(page)
     await page.getByLabel('Create a password').fill('Solar-Plan-2026!')
     await page.getByRole('button', { name: 'Create account and send code' }).click()
     await expect(page.getByLabel('6-digit code')).toBeVisible({ timeout: 45000 })

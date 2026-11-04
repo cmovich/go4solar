@@ -12,6 +12,7 @@ import {
 import QRCode from 'qrcode'
 import { createElement, type ReactElement } from 'react'
 
+import { rcLabel } from '@/lib/company/schema'
 import type { InvoiceData } from '@/lib/invoices/build'
 import { invoiceDay } from '@/lib/invoices/dates'
 import { formatNaira, formatPercent } from '@/lib/money'
@@ -106,8 +107,11 @@ const s = StyleSheet.create({
 /** The printed short link (no "https://"). */
 const shortLink = (url: string) => url.replace(/^https?:\/\//, '')
 
-function InvoiceDoc({ d, qr }: { d: InvoiceData; qr: string }) {
+function InvoiceDoc({ d, qr }: { d: InvoiceData; qr: string | null }) {
   const c = d.company
+  const quotation = d.kind === 'quotation'
+  const title = quotation ? 'Quotation' : 'Invoice'
+  const rc = rcLabel(c.rcNumber)
   const customer: [string, string | null][] = [
     ['Name', d.customer.name],
     ['Business', d.customer.businessName],
@@ -116,14 +120,14 @@ function InvoiceDoc({ d, qr }: { d: InvoiceData; qr: string }) {
     ['Location', d.customer.place],
   ]
   const details: [string, string][] = [
-    ['Invoice no.', d.number],
+    [quotation ? 'Quotation ref.' : 'Invoice no.', d.number],
     ['Date', invoiceDay(d.issuedAt)],
     ['Valid until', invoiceDay(d.validUntil)],
     ['For', d.title],
-    ['Quote ref.', d.reference],
+    ...(quotation ? [] : ([['Quote ref.', d.reference]] as [string, string][])),
   ]
   return (
-    <Document title={`Invoice ${d.number}`} author={c.name}>
+    <Document title={`${title} ${d.number}`} author={c.name}>
       <Page size="A4" style={s.page}>
         <View style={s.header}>
           {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}
@@ -135,11 +139,11 @@ function InvoiceDoc({ d, qr }: { d: InvoiceData; qr: string }) {
               {c.phone} · {c.email}
             </Text>
             <Text style={s.companyLine}>{c.website}</Text>
-            {c.rcNumber && <Text style={s.companyLine}>{c.rcNumber}</Text>}
+            {rc && <Text style={s.companyLine}>{rc}</Text>}
           </View>
         </View>
         <View style={s.band}>
-          <Text style={s.bandTitle}>Invoice</Text>
+          <Text style={s.bandTitle}>{title}</Text>
           <Text style={s.bandNumber}>{d.number}</Text>
         </View>
         <View style={s.body}>
@@ -211,20 +215,26 @@ function InvoiceDoc({ d, qr }: { d: InvoiceData; qr: string }) {
             ))}
           </View>
 
-          <View style={s.verify} wrap={false}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}
-            <Image src={qr} style={s.qr} />
-            <View>
-              <Text style={{ fontWeight: 700 }}>Check this invoice is genuine</Text>
-              <Text style={{ color: MUTED, marginTop: 2 }}>
-                Scan the code or open {shortLink(d.verifyUrl)}
-              </Text>
+          {qr && d.verifyUrl ? (
+            <View style={s.verify} wrap={false}>
+              {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt */}
+              <Image src={qr} style={s.qr} />
+              <View>
+                <Text style={{ fontWeight: 700 }}>Check this invoice is genuine</Text>
+                <Text style={{ color: MUTED, marginTop: 2 }}>
+                  Scan the code or open {shortLink(d.verifyUrl)}
+                </Text>
+              </View>
             </View>
-          </View>
+          ) : (
+            <Text style={[s.note, { marginTop: 14 }]}>
+              This is a quotation. Accept it to receive your numbered invoice.
+            </Text>
+          )}
         </View>
         <View style={s.footer} fixed>
           <Text>
-            {c.name} · {d.number}
+            {c.name} · {title} {d.number}
           </Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
@@ -235,10 +245,12 @@ function InvoiceDoc({ d, qr }: { d: InvoiceData; qr: string }) {
 
 /** The invoice as a PDF (server side), with a QR code for the verify link. */
 export async function renderInvoicePdf(d: InvoiceData): Promise<Buffer> {
-  const qr = await QRCode.toDataURL(d.verifyUrl, {
-    margin: 1,
-    width: 240,
-    errorCorrectionLevel: 'M',
-  })
+  const qr = d.verifyUrl
+    ? await QRCode.toDataURL(d.verifyUrl, {
+        margin: 1,
+        width: 240,
+        errorCorrectionLevel: 'M',
+      })
+    : null
   return renderToBuffer(createElement(InvoiceDoc, { d, qr }) as ReactElement<DocumentProps>)
 }

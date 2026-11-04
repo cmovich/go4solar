@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { SessionInfo } from '@/lib/auth/session'
+import { verifyInvoiceLink } from '@/lib/invoices/link'
 import { fakeSupabase } from '@/test/fakeSupabase'
 
 let db = fakeSupabase()
@@ -8,17 +9,17 @@ let session: SessionInfo = { user: null, role: null, aal: null }
 vi.mock('next/headers', () => ({ headers: async () => new Headers({ host: 'localhost:3200' }) }))
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => db.client }))
 vi.mock('@/lib/auth/session', () => ({ getSessionInfo: async () => session }))
-const invoiceForQuote = vi.fn(async (quoteId: string) => ({
+const INVOICE = '55555555-5555-4555-8555-555555555555'
+const ensureInvoiceForQuote = vi.fn(async (quoteId: string) => ({
+  quoteId,
   ok: true as const,
-  id: 'inv-1',
-  invoice: { number: 'G4S-INV-2026-0001', quoteId },
+  id: INVOICE,
+  invoice: { number: 'G4S-INV-2026-0001' },
 }))
 vi.mock('@/lib/invoices/server', () => ({
-  invoiceForQuote: (id: string) => invoiceForQuote(id),
+  ensureInvoiceForQuote: (id: string) => ensureInvoiceForQuote(id),
 }))
-vi.mock('@/lib/pdf/InvoicePdf', () => ({
-  renderInvoicePdf: async () => Buffer.from('%PDF-fake'),
-}))
+vi.mock('@/lib/pdf/InvoicePdf', () => ({ renderInvoicePdf: async () => Buffer.from('%PDF') }))
 
 const { GET } = await import('./route')
 
@@ -30,33 +31,46 @@ const call = (quoteId = QUOTE) =>
 
 beforeEach(() => {
   db = fakeSupabase()
-  invoiceForQuote.mockClear()
-  db.seed('quotes', { id: QUOTE, owner_id: 'u-amina' })
+  ensureInvoiceForQuote.mockClear()
+  process.env.ID_HASH_SECRET = 'local-test-only-id-hash-secret-0123456789'
+  db.seed('quotes', { id: QUOTE, owner_id: 'u-love' })
 })
 
-describe('GET /api/app/invoices/[quoteId]', () => {
-  it('not signed in → 401', async () => {
+describe('GET /api/app/invoices/[quoteId] (My account "Invoice (PDF)")', () => {
+  it('not signed in → 401 page (not a file), nothing issued', async () => {
     session = { user: null, role: null, aal: null }
-    expect((await call()).status).toBe(401)
+    const res = await call()
+    expect(res.status).toBe(401)
+    expect(res.headers.get('content-type')).toContain('text/html')
+    expect(ensureInvoiceForQuote).not.toHaveBeenCalled()
   })
 
   it("another customer's quote → 404, no invoice issued", async () => {
     session = { user: { id: 'u-moses', email: 'm@x.test' }, role: 'consumer', aal: 'aal1' }
     expect((await call()).status).toBe(404)
-    expect(invoiceForQuote).not.toHaveBeenCalled()
+    expect(ensureInvoiceForQuote).not.toHaveBeenCalled()
   })
 
-  it('the owner gets the PDF', async () => {
-    session = { user: { id: 'u-amina', email: 'a@x.test' }, role: 'consumer', aal: 'aal1' }
+  it('the owner is sent to a signed link to the PDF (opens without the cookie)', async () => {
+    session = { user: { id: 'u-love', email: 'l@x.test' }, role: 'consumer', aal: 'aal1' }
     const res = await call()
-    expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toBe('application/pdf')
-    expect(res.headers.get('content-disposition')).toContain('G4S-INV-2026-0001')
-    expect(invoiceForQuote).toHaveBeenCalledWith(QUOTE)
+    expect(res.status).toBe(303)
+    const to = new URL(res.headers.get('location')!)
+    expect(to.pathname).toBe(`/api/invoices/${INVOICE}/pdf`)
+    expect(
+      verifyInvoiceLink(
+        INVOICE,
+        to.searchParams.get('exp')!,
+        to.searchParams.get('sig')!,
+        new Date(),
+        process.env.ID_HASH_SECRET!,
+      ),
+    ).toBe(true)
+    expect(ensureInvoiceForQuote).toHaveBeenCalledWith(QUOTE)
   })
 
   it('a malformed id → 404', async () => {
-    session = { user: { id: 'u-amina', email: 'a@x.test' }, role: 'consumer', aal: 'aal1' }
+    session = { user: { id: 'u-love', email: 'l@x.test' }, role: 'consumer', aal: 'aal1' }
     expect((await call('nope')).status).toBe(404)
   })
 })

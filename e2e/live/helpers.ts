@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { config } from 'dotenv'
 import { expect, type Page } from '@playwright/test'
 
+import { acceptQuotation } from '../helpers/invoices'
 import { answerQuoteQuestions } from '../helpers/questions'
 import { testEmail, testNin, testPhone, toE164 } from '../helpers/test-identity'
 import { totp } from '../helpers/totp'
@@ -129,7 +130,7 @@ export async function throughDetails(page: Page, p: Person) {
 /** /plans → choose Comfort → account → phone code → /app/apply. */
 export async function throughAccount(page: Page, p: Person) {
   await page.getByRole('button', { name: 'Choose Comfort' }).click()
-  await page.waitForURL(/\/account\?quote=/)
+  await acceptQuotation(page)
   await page.getByLabel('Create a password').fill('Solar-Plan-2026!')
   await page.getByRole('button', { name: 'Create account and send code' }).click()
   await expect(page.getByLabel('6-digit code')).toBeVisible({ timeout: 45000 })

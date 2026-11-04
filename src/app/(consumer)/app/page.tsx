@@ -1,6 +1,7 @@
 import { Check, Circle, X } from 'lucide-react'
 import type { Metadata } from 'next'
 
+import { headers } from 'next/headers'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
@@ -11,9 +12,12 @@ import { siteConfig } from '@/config/site'
 import { CHANGE_FIELD_LABELS, type ChangeField } from '@/lib/account/account'
 import { waitingQuote } from '@/lib/applications/server'
 import { requireUser } from '@/lib/auth/roles'
+import { signedInvoiceUrl } from '@/lib/invoices/response'
+import { ensureInvoiceForQuote } from '@/lib/invoices/server'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { loadDashboard } from '@/lib/payments/dashboard'
 import { lagosDate } from '@/lib/payments/lock'
+import { originFor } from '@/lib/site/origin'
 import { whatsappHref } from '@/lib/whatsapp'
 
 import { confirmInstallation, sendBackForReview } from './actions'
@@ -71,6 +75,11 @@ export default async function DashboardPage({
   const d = await loadDashboard(user!.id)
   if (!d) redirect('/app/apply')
   const waiting = await waitingQuote(user!.id)
+  // The invoice is issued once (the first time it is needed) and linked with a 30-minute signed
+  // link, so it opens in the browser or a download manager without the sign-in cookie.
+  const issued = await ensureInvoiceForQuote(d.quoteId, originFor(await headers()))
+  const invoiceHref =
+    issued.ok && issued.id ? signedInvoiceUrl(issued.id) : `/api/app/invoices/${d.quoteId}`
   const sp = await searchParams
   const nextDue = d.schedule.find((r) => r.status !== 'paid')
   const paidTotal = d.schedule.reduce((s, r) => s + r.paidAmount, 0)
@@ -476,11 +485,7 @@ export default async function DashboardPage({
             </li>
           )}
           <li>
-            <InvoiceLink
-              href={`/api/app/invoices/${d.quoteId}`}
-              testId="invoice-download"
-              label="Invoice (PDF)"
-            />
+            <InvoiceLink href={invoiceHref} testId="invoice-download" label="Invoice (PDF)" />
           </li>
         </ul>
       </section>

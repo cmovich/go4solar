@@ -1,6 +1,6 @@
 import { FileDown } from 'lucide-react'
 
-/** "Download PDF" for an invoice (a plain link: the PDF downloads, the page stays). */
+/** "Download PDF": opens the PDF in a new tab (the browser shows it; save from there). */
 export function InvoiceLink({
   href,
   testId,
@@ -15,7 +15,8 @@ export function InvoiceLink({
       href={href}
       className="text-brand-blue inline-flex min-h-11 items-center gap-1 px-1 text-sm font-semibold underline"
       data-testid={testId}
-      download
+      target="_blank"
+      rel="noopener"
     >
       <FileDown className="size-4" aria-hidden />
       {label}

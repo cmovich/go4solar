@@ -166,3 +166,18 @@ describe('verifyView (/verify/<code>: genuine or not, first name only)', () => {
     expect(verifyView(null)).toEqual({ status: 'not_found' })
   })
 })
+
+describe('quotation (before Accept: no invoice number, no verify link)', () => {
+  it('kind quotation keeps every line and total; the number is the quote reference', () => {
+    const q = buildInvoice({ ...base, kind: 'quotation', number: 'G4S-1A2B3C4D', verifyUrl: null })
+    expect(q.kind).toBe('quotation')
+    expect(q.number).toBe('G4S-1A2B3C4D')
+    expect(q.verifyUrl).toBeNull()
+    expect(q.lines).toEqual(buildInvoice(base).lines)
+    expect(q.totals).toEqual(buildInvoice(base).totals)
+  })
+
+  it('an invoice is kind invoice by default', () => {
+    expect(buildInvoice(base).kind).toBe('invoice')
+  })
+})
