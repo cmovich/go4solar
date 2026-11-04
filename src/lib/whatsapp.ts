@@ -1,5 +1,5 @@
 /**
- * wa.me needs international digits with no "+" (e.g. 2348182112423). Admin may type the number
+ * wa.me needs international digits with no "+" (e.g. 2349018617165). Admin may type the number
  * in any common Nigerian format; this makes the link work whatever they entered.
  */
 export function whatsappDigits(raw: string): string | null {

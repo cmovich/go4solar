@@ -4,13 +4,13 @@ import { whatsappDigits, whatsappHref } from './whatsapp'
 
 describe('whatsappDigits', () => {
   it.each([
-    ['08182112423', '2348182112423'],
-    ['0818 211 2423', '2348182112423'],
-    ['+234 818 211 2423', '2348182112423'],
-    ['2348182112423', '2348182112423'],
-    ['+2348182112423', '2348182112423'],
-    ['234-818-211-2423', '2348182112423'],
-    ['8182112423', '2348182112423'],
+    ['09018617165', '2349018617165'],
+    ['0901 861 7165', '2349018617165'],
+    ['+234 901 861 7165', '2349018617165'],
+    ['2349018617165', '2349018617165'],
+    ['+2349018617165', '2349018617165'],
+    ['234-901-861-7165', '2349018617165'],
+    ['9018617165', '2349018617165'],
   ])('normalises %s to %s', (input, expected) => {
     expect(whatsappDigits(input)).toBe(expected)
   })
@@ -28,12 +28,12 @@ describe('whatsappDigits', () => {
 
 describe('whatsappHref', () => {
   it('builds a wa.me link', () => {
-    expect(whatsappHref('0818 211 2423')).toBe('https://wa.me/2348182112423')
+    expect(whatsappHref('0901 861 7165')).toBe('https://wa.me/2349018617165')
   })
 
   it('adds a pre-filled message when given', () => {
-    expect(whatsappHref('08182112423', 'Hello Go4Solar')).toBe(
-      'https://wa.me/2348182112423?text=Hello%20Go4Solar',
+    expect(whatsappHref('09018617165', 'Hello Go4Solar')).toBe(
+      'https://wa.me/2349018617165?text=Hello%20Go4Solar',
     )
   })
 

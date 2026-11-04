@@ -67,7 +67,7 @@ describe('invoice PDF', () => {
     for (const part of [
       'Go4Solar Energy Limited',
       'Suite 40, Jayjay Shopping Complex, Kaduna',
-      '08182112423',
+      '09018617165',
       'contact@go4solar.app',
       'RC 9560733',
       'Invoice',
