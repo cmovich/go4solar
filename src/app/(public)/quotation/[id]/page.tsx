@@ -25,11 +25,12 @@ export default async function QuotationPage({ params }: { params: Promise<{ id: 
   if (!z.uuid().safeParse(id).success || !hash) redirect('/get-started')
   const { data: quote } = await createAdminClient()
     .from('quotes')
-    .select('id, anon_token_hash, accepted_at')
+    // Every column: accepted_at exists from migration 0029 (before it, never accepted yet).
+    .select('*')
     .eq('id', id)
     .maybeSingle()
   if (!quote || quote.anon_token_hash !== hash) redirect('/get-started')
-  if (quote.accepted_at) redirect(`/account?quote=${quote.id}`)
+  if ('accepted_at' in quote && quote.accepted_at) redirect(`/account?quote=${quote.id}`)
   const q = await quotationForQuote(quote.id)
 
   return (

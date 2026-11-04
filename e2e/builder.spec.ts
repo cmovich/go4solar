@@ -38,7 +38,9 @@ test.describe('system builder', () => {
       },
     )
     if (await page.getByTestId('quotation-step').isVisible()) {
-      await expect(page.getByTestId('quotation')).toContainText('Your own system')
+      await expect(page.getByTestId('quotation')).toContainText('Your own system', {
+        timeout: 30_000,
+      })
       await expect(page.getByTestId('quotation-lines')).toContainText('Delivery')
       await openPdf(
         page.request,

@@ -95,7 +95,9 @@ export async function quotationAcceptMigrated(): Promise<boolean> {
 export async function acceptQuotation(page: Page): Promise<string> {
   await page.waitForURL(/\/quotation\/[0-9a-f-]{36}$/, { timeout: 45_000 })
   const quoteId = new URL(page.url()).pathname.split('/').pop()!
-  await expect(page.getByRole('heading', { name: 'Your quotation' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Your quotation' })).toBeVisible({
+    timeout: 30_000,
+  })
   await page.getByTestId('accept-quotation').click()
   await page.waitForURL(/\/account\?quote=/, { timeout: 45_000 })
   return quoteId

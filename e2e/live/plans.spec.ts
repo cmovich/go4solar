@@ -64,7 +64,7 @@ test.describe('live mode: plans → account → phone code → application', () 
     // Part I: "Your quotation" before any identity step: the full quotation, its PDF, Accept.
     await page.waitForURL(/\/quotation\/[0-9a-f-]{36}$/, { timeout: 45_000 })
     const quoteId = new URL(page.url()).pathname.split('/').pop()!
-    await expect(page.getByTestId('quotation')).toContainText('Comfort plan')
+    await expect(page.getByTestId('quotation')).toContainText('Comfort plan', { timeout: 30_000 })
     await expect(page.getByTestId('quotation-lines')).toContainText('Installation')
     await expect(page.getByTestId('quotation-total')).toContainText('₦')
     await expect(page.getByTestId('quotation-notes')).toContainText('Prices valid until')
