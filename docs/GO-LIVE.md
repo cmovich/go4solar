@@ -25,7 +25,7 @@ Vercel → Project **go4solar** → Settings → Environment Variables. For each
 | `ID_HASH_SECRET` | **same value** as Preview | Edit the existing Preview variable and also tick Production. Never a new value, or existing hashes stop matching. |
 | `GUARANTOR_TOKEN_SECRET` | **same value** as Preview | Edit the existing Preview variable and also tick Production. |
 | `CRON_SECRET` | a long random string | Make a new one (for example from a password manager, 40+ characters). The daily and weekly jobs need it. |
-| `NEXT_PUBLIC_WHATSAPP_NUMBER` | the company WhatsApp number, e.g. `08182112423` | Optional. Without it, the footer uses the first office line. |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER` | the company WhatsApp number, e.g. `09018617165` | Optional. Without it, the footer uses the first office line. |
 
 **Leave these out of Production for now:**
 
