@@ -35,6 +35,13 @@ export type LoadItem = {
   dutyCycle: number
   /** True when the user typed the item in rather than picking it from the library. */
   custom: boolean
+  /**
+   * Part C: where the watts came from when a photo was used — the rating label, the maker's
+   * specs found on the web, or an estimate from a photo of the appliance (sized at the 70th
+   * percentile of `wattsRange`). Cleared when the watts are typed in.
+   */
+  wattsSource?: 'label' | 'web' | 'estimate'
+  wattsRange?: { low: number; high: number }
 }
 
 /** Running load and energy of a set of items (the whole list, or the essential items). */

@@ -108,7 +108,17 @@ export function updateItem(
   items: LoadItem[],
   id: string,
   patch: Partial<
-    Pick<LoadItem, 'watts' | 'qty' | 'hoursPerDay' | 'dayHours' | 'nightHours' | 'essential'>
+    Pick<
+      LoadItem,
+      | 'watts'
+      | 'qty'
+      | 'hoursPerDay'
+      | 'dayHours'
+      | 'nightHours'
+      | 'essential'
+      | 'wattsSource'
+      | 'wattsRange'
+    >
   >,
 ): LoadItem[] {
   return items.map((i) => {
@@ -143,6 +153,10 @@ const storedItemSchema = z.object({
   surgeFactor: z.number().min(1).max(10),
   dutyCycle: z.number().gt(0).max(1),
   custom: z.boolean(),
+  wattsSource: z.enum(['label', 'web', 'estimate']).optional(),
+  wattsRange: z
+    .object({ low: z.number().min(1).max(10000), high: z.number().min(1).max(10000) })
+    .optional(),
 })
 
 const storedSchema = z.object({

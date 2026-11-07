@@ -11,12 +11,18 @@ const wattsSchema = z
 /** What every vision adapter must return, and what the API route sends to the browser. */
 export const visionResultSchema = z
   .object({
-    /** Rated watts read from the label, or the midpoint of an estimate; null if unreadable. */
+    /**
+     * Watts to use: read from the label ("label"), the maker's rating found on the web for a
+     * clearly visible brand and model ("web"), or the 70th percentile of an estimated range
+     * ("estimate"); null if unreadable.
+     */
     watts: wattsSchema.nullable(),
-    method: z.enum(['label', 'estimate', 'unreadable']),
+    method: z.enum(['label', 'web', 'estimate', 'unreadable']),
     low: wattsSchema.optional(),
     high: wattsSchema.optional(),
     appliance: z.string().trim().max(80).optional(),
+    brand: z.string().trim().max(60).optional(),
+    model: z.string().trim().max(60).optional(),
   })
   .refine((r) => r.low === undefined || r.high === undefined || r.low <= r.high, {
     message: 'low must not exceed high',

@@ -2164,6 +2164,27 @@ export type Database = {
         }
         Relationships: []
       }
+      vision_usage: {
+        Row: {
+          cost_naira: number
+          day: string
+          lookups: number
+          updated_at: string
+        }
+        Insert: {
+          cost_naira?: number
+          day: string
+          lookups?: number
+          updated_at?: string
+        }
+        Update: {
+          cost_naira?: number
+          day?: string
+          lookups?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       waitlist_consumers: {
         Row: {
           quotation_accepted_at: string | null
@@ -2389,6 +2410,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_vision_usage: { Args: { p_cost: number; p_day: string }; Returns: number }
       audit_actor: {
         Args: never
         Returns: {

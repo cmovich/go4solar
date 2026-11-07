@@ -57,6 +57,21 @@ export function Calculator({
   }, [])
   const [items, setItems] = useState<LoadItem[]>([])
   const [hydrated, setHydrated] = useState(false)
+  // Part C: the photo button shows only while the lookup is open today (key set, cap not reached).
+  const [photoOpen, setPhotoOpen] = useState(false)
+  useEffect(() => {
+    if (!photoLookup) return
+    let live = true
+    fetch('/api/vision/status')
+      .then((r) => (r.ok ? (r.json() as Promise<{ open?: boolean }>) : null))
+      .then((d) => {
+        if (live) setPhotoOpen(d?.open === true)
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [photoLookup])
   const [pickerCategory, setPickerCategory] = useState<CategoryId | null>(null)
   const [customCategory, setCustomCategory] = useState<CategoryId | null>(null)
 
@@ -113,7 +128,7 @@ export function Calculator({
               <ItemCard
                 key={item.id}
                 item={item}
-                photoLookup={photoLookup}
+                photoLookup={photoLookup && photoOpen}
                 onChange={(patch) => setItems((prev) => updateItem(prev, item.id, patch))}
                 onRemove={() => setItems((prev) => removeItem(prev, item.id))}
               />

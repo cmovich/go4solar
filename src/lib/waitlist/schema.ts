@@ -104,6 +104,11 @@ export const loadItemSchema = z.object({
   surgeFactor: z.number().min(1).max(10),
   dutyCycle: z.number().gt(0).max(1),
   custom: z.boolean(),
+  // Part C: watts from a photo (label / maker's specs / estimate).
+  wattsSource: z.enum(['label', 'web', 'estimate']).optional(),
+  wattsRange: z
+    .object({ low: z.number().min(1).max(10000), high: z.number().min(1).max(10000) })
+    .optional(),
 })
 
 export const loadItemsSchema = z.array(loadItemSchema).min(1, 'Add at least one appliance').max(200)

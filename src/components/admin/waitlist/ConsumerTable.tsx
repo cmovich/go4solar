@@ -323,7 +323,18 @@ export function ConsumerTable({
                             {CATEGORY_LABELS[i.category]}
                           </span>
                         </td>
-                        <td className="py-1 text-right tabular-nums">{i.watts}</td>
+                        <td className="py-1 text-right tabular-nums">
+                          {i.watts}
+                          {i.wattsSource === 'estimate' && (
+                            <span className="text-muted-foreground block text-xs">
+                              estimated
+                              {i.wattsRange ? ` (${i.wattsRange.low}–${i.wattsRange.high})` : ''}
+                            </span>
+                          )}
+                          {i.wattsSource === 'web' && (
+                            <span className="text-muted-foreground block text-xs">maker specs</span>
+                          )}
+                        </td>
                         <td className="py-1 text-right tabular-nums">{i.qty}</td>
                         <td className="py-1 text-right tabular-nums">{i.dayHours ?? '—'}</td>
                         <td className="py-1 text-right tabular-nums">

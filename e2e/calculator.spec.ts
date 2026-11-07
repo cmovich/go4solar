@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+import { appliancePhoto, labelPhoto, photoClosed } from './helpers/photo'
+
 test.describe('load calculator', () => {
   test('add LED bulb ×10 and a fridge, totals update', async ({ page }) => {
     await page.goto('/calculate')
@@ -86,29 +88,19 @@ test.describe('load calculator', () => {
     await expect(page.getByTestId('total-running')).toHaveText('1,320 W')
   })
 
-  test('photo lookup (mock) offers a value and never fills it in by itself', async ({ page }) => {
-    await page.goto('/calculate')
-    await page.getByRole('button', { name: 'Kitchen Appliances' }).click()
-    await page.getByRole('button', { name: /^Blender/ }).click()
-    const card = page.getByTestId('item-card').filter({ hasText: 'Blender' })
-    await card.getByRole('button', { name: /Find the watts/ }).click()
+  test('photo of the label (mock): exact watts, only after "Use this value"', async ({ page }) => {
+    await labelPhoto(page)
+  })
 
-    // A tiny valid PNG.
-    const png = Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-      'base64',
-    )
-    const [chooser] = await Promise.all([
-      page.waitForEvent('filechooser'),
-      page.getByRole('button', { name: 'Upload a photo' }).click(),
-    ])
-    await chooser.setFiles({ name: 'label.png', mimeType: 'image/png', buffer: png })
+  test('photo of the appliance (mock): estimated range, sized at the 70th percentile', async ({
+    page,
+  }) => {
+    await appliancePhoto(page)
+  })
 
-    await expect(page.getByText('150 W', { exact: true })).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByText('Read from the label · Refrigerator')).toBeVisible()
-    // Still the default until the user taps "Use this value".
-    await expect(card.getByLabel('Watts', { exact: true })).toHaveValue('400')
-    await page.getByRole('button', { name: 'Use this value' }).click()
-    await expect(card.getByLabel('Watts', { exact: true })).toHaveValue('150')
+  test('photo lookup closed (cap reached or no key): button hidden, typing works', async ({
+    page,
+  }) => {
+    await photoClosed(page)
   })
 })

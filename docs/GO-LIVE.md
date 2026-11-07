@@ -31,7 +31,7 @@ Vercel → Project **go4solar** → Settings → Environment Variables. For each
 
 - `MESSAGING_PROVIDER`: without it, messages are kept in `/admin/outbox` as `not_sent` and nothing
   breaks.
-- `VISION_PROVIDER` and `ANTHROPIC_API_KEY`: without them, the photo lookup button is hidden.
+- `VISION_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`: without them, the photo lookup button is hidden (typing the watts always works). `ANTHROPIC_VISION_MODEL` is optional (default `claude-haiku-4-5-20251001`). The daily spend cap and per-visitor limit are set in Admin → Photo lookup (SAMPLE until saved); the button also hides once the day's spend reaches the cap.
   Add both later to switch it on.
 - `KYC_PROVIDER`, `PAYMENTS_PROVIDER` and their keys: these features are closed in prelaunch.
 - `TEST_MODE_SECRET`: never on Production.

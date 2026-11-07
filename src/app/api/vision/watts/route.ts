@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 
-import { getVisionProvider } from '@/lib/providers/vision'
-import { photoLookupAvailable } from '@/lib/providers/vision/available'
+import { getVisionProvider, type PhotoKind } from '@/lib/providers/vision'
 import { clientIp } from '@/lib/ratelimit/clientIp'
 import { hitRateLimit } from '@/lib/ratelimit/hitRateLimit'
+import { lookupCostNaira } from '@/lib/vision/spend'
+import { photoLookupOpen, recordLookup } from '@/lib/vision/server'
 
 export const runtime = 'nodejs'
 
@@ -12,13 +13,22 @@ const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const LOOKUPS_PER_HOUR = 10
 
 /**
- * POST multipart/form-data with field `image` (jpeg/png/webp, ≤ 5 MB).
- * Returns the vision provider's reading. The image is processed in memory and never stored.
+ * POST multipart/form-data: `image` (jpeg/png/webp, ≤ 5 MB) and `kind` ("label" for a photo of
+ * the rating label, "item" for a photo of the appliance). The photo is processed in memory and
+ * never stored. Checks the per-visitor daily limit and the daily spend cap first; records the
+ * lookup's cost after.
  */
 export async function POST(req: Request) {
-  if (!photoLookupAvailable()) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  const { open, settings } = await photoLookupOpen()
+  if (!open) {
+    return NextResponse.json(
+      { error: 'The photo lookup is resting for today. Please type the watts instead.' },
+      { status: 404 },
+    )
+  }
   const form = await req.formData().catch(() => null)
   const file = form?.get('image')
+  const kind: PhotoKind = form?.get('kind') === 'item' ? 'item' : 'label'
   if (!(file instanceof Blob)) {
     return NextResponse.json({ error: 'Send the photo as the "image" field.' }, { status: 400 })
   }
@@ -32,17 +42,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'The photo must be under 5 MB.' }, { status: 413 })
   }
 
-  const allowed = await hitRateLimit(`vision:${clientIp(req.headers)}`, LOOKUPS_PER_HOUR, '1 hour')
-  if (!allowed) {
+  const ip = clientIp(req.headers)
+  const [hour, day] = await Promise.all([
+    hitRateLimit(`vision:${ip}`, LOOKUPS_PER_HOUR, '1 hour'),
+    hitRateLimit(`vision-day:${ip}`, settings.perVisitorPerDay, '1 day'),
+  ])
+  if (!hour || !day) {
     return NextResponse.json(
-      { error: 'Too many lookups from your connection. Try again in an hour.' },
-      { status: 429, headers: { 'retry-after': '3600' } },
+      { error: 'You have used the photo lookup a lot today. Please type the watts instead.' },
+      { status: 429, headers: { 'retry-after': hour ? '86400' : '3600' } },
     )
   }
 
   try {
     const provider = await getVisionProvider()
-    const result = await provider.estimateWatts(file)
+    const { result, usage } = await provider.lookup(file, kind)
+    await recordLookup(lookupCostNaira(usage, settings))
     return NextResponse.json(result)
   } catch (err) {
     console.error('[vision]', err instanceof Error ? err.message : err)
