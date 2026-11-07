@@ -298,3 +298,37 @@ describe('safeTotals (screens never crash on one bad item)', () => {
     expect(safeTotals([]).runningW).toBe(0)
   })
 })
+
+describe('Part C: watts from a photo', () => {
+  it('the source and estimated range are saved and read back', () => {
+    const [item] = addLibraryItem([], led, 'p1')
+    const est = updateItem([item!], 'p1', {
+      watts: 170,
+      wattsSource: 'estimate',
+      wattsRange: { low: 100, high: 200 },
+    })
+    const back = parseStoredItems(JSON.stringify({ version: 1, items: est }))
+    expect(back[0]).toMatchObject({
+      watts: 170,
+      wattsSource: 'estimate',
+      wattsRange: { low: 100, high: 200 },
+    })
+  })
+
+  it('typing the watts clears the photo source', () => {
+    const [item] = addLibraryItem([], led, 'p2')
+    const est = updateItem([item!], 'p2', {
+      watts: 170,
+      wattsSource: 'estimate',
+      wattsRange: { low: 100, high: 200 },
+    })
+    const typed = updateItem(est, 'p2', {
+      watts: 60,
+      wattsSource: undefined,
+      wattsRange: undefined,
+    })
+    const back = parseStoredItems(JSON.stringify({ version: 1, items: typed }))
+    expect(back[0]!.wattsSource).toBeUndefined()
+    expect(back[0]!.wattsRange).toBeUndefined()
+  })
+})

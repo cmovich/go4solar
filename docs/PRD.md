@@ -296,6 +296,12 @@ A small **?** icon sits beside every watts box. Tapping it opens the camera or p
 - A heavy-load warning on items over 1,000 W used together (cooker, oven, kettle, water heater, pressing iron), with advice: run them in daytime on solar, or keep them on gas or grid. This one tip can cut a quote by half.
 - A **See my solar plans** button that leads to Feature 4. In live mode the chosen appliances carry over: the visitor continues at **Your total load** (the calculator is never shown twice), then the details screens (phone, email, name and state, who it is for, energy) and the three plans. Every screen has a clear **‹ Back** link; going back keeps earlier answers and never creates a second lead.
 
+### Photo watts lookup (Part C, November 2026)
+
+On each appliance card in the calculator, a camera button opens "Find the watts": **Photo of the label** (the rated watts read from the sticker; volts × amps if only those are printed) or **Photo of the appliance** (no label: the AI names the appliance and gives a typical running-watts range; the calculator uses the **70th percentile** of that range and marks it **Estimated** with the range). A web lookup runs only when a brand and model are clearly visible on an appliance photo; the maker's rated watts are then used ("From the maker's specs"). Nothing is filled in until the customer taps "Use this value"; typing the watts replaces any photo reading. Photos are processed once and **never stored**.
+
+Limits: a per-visitor daily limit and a **daily spend cap in naira** (admin "Photo lookup": cap, lookups per visitor per day, naira per US dollar and the API prices; SAMPLE until saved; audited). Each lookup's cost (tokens × price + web searches) is added to the day's total; when the cap is reached, or no API key is set (`VISION_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`), the photo button is hidden and manual entry works as before. Staff see estimated watts marked in the waiting-list drawer.
+
 ## Feature 4: Quotes (generate or upload)
 
 After the calculator, the user either generates three Go4Solar quotes or uploads a quote an installer already gave them. Both routes end at the same place: one chosen quote, ready for KYC.

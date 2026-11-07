@@ -1,12 +1,18 @@
 import type { VisionResult } from './schema'
+import type { LookupUsage } from '@/lib/vision/spend'
 import { MockInProductionError, deployEnv, mockProvidersAllowed } from '@/lib/testmode/policy'
 
 export type { VisionResult } from './schema'
 
-/** Reads an appliance's rating label (or estimates from its appearance). */
+/** "label": a photo of the rating label. "item": a photo of the appliance itself. */
+export type PhotoKind = 'label' | 'item'
+
+export type LookupOutcome = { result: VisionResult; usage: LookupUsage }
+
+/** Reads an appliance's rating label, or estimates its watts from a photo of the appliance. */
 export type VisionProvider = {
   name: 'mock' | 'anthropic'
-  estimateWatts(image: Blob): Promise<VisionResult>
+  lookup(image: Blob, kind: PhotoKind): Promise<LookupOutcome>
 }
 
 /** Picks the adapter from VISION_PROVIDER (mock by default, so the site runs without a key). */

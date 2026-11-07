@@ -1,4 +1,5 @@
 import {
+  Camera,
   Zap,
   Building2,
   BookOpenText,
@@ -84,6 +85,7 @@ export const NAV: readonly NavItem[] = [
   },
   { href: '/admin/agreements', label: 'Agreements', icon: FileSignature, roles: ['super_admin'] },
   { href: '/admin/company', label: 'Company details', icon: Building2, roles: ['super_admin'] },
+  { href: '/admin/photo-lookup', label: 'Photo lookup', icon: Camera, roles: ['super_admin'] },
   { href: '/admin/staff', label: 'Staff', icon: Users, roles: ['super_admin'] },
   {
     href: '/admin/outbox',

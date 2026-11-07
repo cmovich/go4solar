@@ -1,6 +1,6 @@
 'use client'
 
-import { HelpCircle, X } from 'lucide-react'
+import { Camera, X } from 'lucide-react'
 import { useState } from 'react'
 
 import { Checkbox } from '@/components/ui/checkbox'
@@ -14,7 +14,17 @@ import type { LoadItem } from '@/lib/load/types'
 import { WattsLookupDialog } from './WattsLookupDialog'
 
 type Patch = Partial<
-  Pick<LoadItem, 'watts' | 'qty' | 'hoursPerDay' | 'dayHours' | 'nightHours' | 'essential'>
+  Pick<
+    LoadItem,
+    | 'watts'
+    | 'qty'
+    | 'hoursPerDay'
+    | 'dayHours'
+    | 'nightHours'
+    | 'essential'
+    | 'wattsSource'
+    | 'wattsRange'
+  >
 >
 
 /** Night = no sun (the sizing setting); the day is the rest. */
@@ -42,7 +52,12 @@ export function ItemCard({
       const raw = integer ? parseInt(e.target.value, 10) : parseFloat(e.target.value)
       if (Number.isNaN(raw)) return // mid-edit (empty box): keep the last good value
       const { min, max } = LIMITS[field]
-      onChange({ [field]: clamp(raw, min, max) })
+      // Typed watts replace any photo reading.
+      onChange(
+        field === 'watts'
+          ? { watts: clamp(raw, min, max), wattsSource: undefined, wattsRange: undefined }
+          : { [field]: clamp(raw, min, max) },
+      )
     }
   }
   // Older items (one "hours a day") show a clean split, each part within its maximum.
@@ -103,13 +118,32 @@ export function ItemCard({
                 type="button"
                 onClick={() => setLookupOpen(true)}
                 aria-label={`Find the watts of ${item.name} from a photo`}
-                title="Don't know the watts? Snap the label"
+                title="Don't know the watts? Use a photo"
                 className="text-brand-blue hover:bg-brand-mist inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md"
+                data-testid="photo-watts"
               >
-                <HelpCircle className="h-5 w-5" aria-hidden />
+                <Camera className="h-5 w-5" aria-hidden />
               </button>
             )}
           </div>
+          {item.wattsSource && (
+            <p className="text-muted-foreground mt-1 text-xs" data-testid="watts-source">
+              {item.wattsSource === 'estimate' ? (
+                <>
+                  <span className="bg-brand-orange text-brand-dark rounded-full px-1.5 py-0.5 font-bold">
+                    Estimated
+                  </span>
+                  {item.wattsRange
+                    ? ` usually ${item.wattsRange.low}–${item.wattsRange.high} W`
+                    : ''}
+                </>
+              ) : item.wattsSource === 'web' ? (
+                "From the maker's specs"
+              ) : (
+                'From the label'
+              )}
+            </p>
+          )}
         </div>
         <div>
           <Label htmlFor={`${item.id}-qty`} className="text-xs">
@@ -187,8 +221,8 @@ export function ItemCard({
           open={lookupOpen}
           itemName={item.name}
           onClose={() => setLookupOpen(false)}
-          onUse={(watts) => {
-            onChange({ watts })
+          onUse={({ watts, source, range }) => {
+            onChange({ watts, wattsSource: source, wattsRange: range })
             setLookupOpen(false)
           }}
         />
