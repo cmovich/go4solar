@@ -23,6 +23,7 @@ import {
 } from '@/lib/energy/currentSpend'
 import { safeTotals } from '@/lib/calculator/store'
 import { InvoiceLink, planInvoiceHref } from '@/components/invoices/InvoiceLink'
+import { StartAgain } from '@/components/waitlist/StartAgain'
 import type { LoadItem } from '@/lib/load/types'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { NG_STATE_IDS, stateLabel, type NgStateId } from '@/lib/nigeria/states'
@@ -673,13 +674,9 @@ export function PlanCard({
 }) {
   const { plan, size, quote } = estimate
   const tonnes = advice ? Math.round(advice.co2AvoidedKgPerYear / 100) / 10 : null
-  const Tag = onChoose ? 'button' : 'div'
   return (
-    <Tag
-      type={onChoose ? 'button' : undefined}
-      onClick={onChoose}
-      disabled={busy}
-      className={`hover:border-brand-green focus-visible:ring-brand-green relative w-full rounded-2xl border-2 bg-white p-5 text-left shadow-sm transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60 ${highlighted ? 'border-brand-green ring-brand-green/30 ring-4' : 'border-transparent'}`}
+    <div
+      className={`relative w-full rounded-2xl border-2 bg-white p-5 text-left shadow-sm ${highlighted ? 'border-brand-green ring-brand-green/30 ring-4' : 'border-transparent'}`}
       data-testid={`plan-card-${plan}`}
       data-highlighted={highlighted || undefined}
     >
@@ -770,8 +767,19 @@ export function PlanCard({
           )}
         </div>
       )}
-      {onChoose && <p className="text-brand-blue mt-3 text-sm font-semibold">Choose this plan →</p>}
-    </Tag>
+      {onChoose && (
+        <Button
+          type="button"
+          className="mt-4 h-12 w-full text-base"
+          onClick={onChoose}
+          disabled={busy}
+          data-testid={`choose-${plan}`}
+        >
+          {busy ? 'One moment…' : 'Choose this plan'}
+          <span className="sr-only">: {PLAN_LABELS[plan]}</span>
+        </Button>
+      )}
+    </div>
   )
 }
 
@@ -1020,43 +1028,81 @@ export function ContributionStep({
 // ------------------------------------------------------------ 11. Thank you
 const REDIRECT_AFTER_MS = 5000
 
+const NEXT_STEPS = [
+  'We check your details and the plan you chose.',
+  'Within 7 days we call or WhatsApp you with your confirmed price.',
+  'When we launch, you get a link to apply: confirm your ID, add a guarantor, pay your deposit, and we install.',
+]
+
 export function ThankYouStep({
   firstName,
   leadId,
   messagingLive,
   launchMode,
+  quotationHref,
 }: {
   firstName: string
   leadId: string
   /** True only when MESSAGING_PROVIDER is live: then a copy really was sent. */
   messagingLive: boolean
   launchMode: LaunchMode
+  /** The quotation PDF for the chosen plan, if prices are not SAMPLE. */
+  quotationHref?: string | null
 }) {
   const router = useRouter()
-  // Prelaunch: home after a few seconds. (Live mode leaves the flow for /plans after the energy screen.)
-  const next = launchMode === 'live' ? `/plans?estimate=${leadId}` : '/'
+  const live = launchMode === 'live'
+  const next = live ? `/plans?estimate=${leadId}` : '/'
 
+  // Live only: on to the plans (prelaunch stays here so the next steps can be read).
   useEffect(() => {
+    if (!live) return
     const t = window.setTimeout(() => router.push(next), REDIRECT_AFTER_MS)
     return () => window.clearTimeout(t)
-  }, [router, next])
+  }, [router, next, live])
 
   return (
-    <div className="bg-brand-mist rounded-2xl p-8 text-center" role="status">
-      {firstName && <p className="text-muted-foreground text-base">{firstName},</p>}
-      <p className="text-brand-dark mt-1 text-2xl font-bold sm:text-3xl" data-testid="thank-you">
+    <div className="bg-brand-mist rounded-2xl p-6 sm:p-8" role="status">
+      <h1 className="text-brand-dark text-center text-2xl font-bold" data-testid="all-set">
+        You&apos;re all set{firstName ? `, ${firstName}` : ''}
+      </h1>
+      <p
+        className="text-brand-dark mt-2 text-center text-lg font-semibold sm:text-xl"
+        data-testid="thank-you"
+      >
         {THANK_YOU_TEXT}
       </p>
       {messagingLive && (
-        <p className="text-muted-foreground mt-4 text-sm">
+        <p className="text-muted-foreground mt-3 text-center text-sm">
           We&apos;ve sent a copy of your estimate to your email and WhatsApp.
         </p>
       )}
-      <Button asChild className="mt-6 h-12 text-base">
-        <Link href={next}>
-          {launchMode === 'live' ? 'Continue to my application' : 'Back to home'}
-        </Link>
-      </Button>
+      {!live && (
+        <section className="mt-6 rounded-xl bg-white p-4" data-testid="what-next">
+          <h2 className="text-brand-dark font-bold">What happens next</h2>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">
+            {NEXT_STEPS.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+          {quotationHref && (
+            <a
+              href={quotationHref}
+              target="_blank"
+              rel="noopener"
+              className="text-brand-blue mt-3 inline-flex min-h-11 items-center text-sm font-semibold underline"
+              data-testid="thank-you-quotation"
+            >
+              Download your quotation (PDF)
+            </a>
+          )}
+        </section>
+      )}
+      <div className="mt-6 flex flex-col items-center gap-2">
+        <Button asChild className="h-12 w-full text-base sm:w-auto sm:px-10">
+          <Link href={next}>{live ? 'Continue to my application' : 'Back to home'}</Link>
+        </Button>
+        {!live && <StartAgain />}
+      </div>
     </div>
   )
 }

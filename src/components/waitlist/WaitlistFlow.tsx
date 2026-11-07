@@ -34,6 +34,7 @@ import {
 } from './steps'
 import { planInvoiceHref } from '@/components/invoices/InvoiceLink'
 import { QuotationStep } from '@/components/invoices/QuotationStep'
+import { StartAgain } from '@/components/waitlist/StartAgain'
 
 /**
  * 1 calculator · 2 totals · 3 preparing · 4 phone · 5 email · 6 name/state · 7 who is it for ·
@@ -83,6 +84,7 @@ export function WaitlistFlow({
   // Visitors with saved appliances start at the totals; "Back to my appliances" returns there.
   const [backToAppliances, setBackToAppliances] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
+  const [quotationHref, setQuotationHref] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -158,6 +160,11 @@ export function WaitlistFlow({
   return (
     <div className="relative overflow-x-hidden">
       {!before(step, 4) && step !== 13 && <Progress step={step} />}
+      {step !== 1 && step !== 12 && (
+        <div className="-mt-4 mb-2 flex justify-end">
+          <StartAgain />
+        </div>
+      )}
       <AnimatePresence mode="wait" custom={dir} initial={false}>
         <motion.div
           key={step}
@@ -294,6 +301,16 @@ export function WaitlistFlow({
                 planInvoiceHref(leadId, plan ?? 'comfort', q.totals.depositShare, q.totals.months)
               }
               onAccepted={() => go(12)}
+              onLoaded={(q) =>
+                setQuotationHref(
+                  planInvoiceHref(
+                    leadId,
+                    plan ?? 'comfort',
+                    q.totals.depositShare,
+                    q.totals.months,
+                  ),
+                )
+              }
             />
           )}
           {step === 12 && leadId && (
@@ -302,6 +319,7 @@ export function WaitlistFlow({
               leadId={leadId}
               messagingLive={messagingLive}
               launchMode={launchMode}
+              quotationHref={quotationHref}
             />
           )}
         </motion.div>
