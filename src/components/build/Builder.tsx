@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 
@@ -43,6 +44,7 @@ import type { WiringSettings } from '@/lib/wizard/questions'
 import type { RoofTypeCard } from '@/lib/wizard/server'
 
 import {
+  adjustPlanFromBuilder,
   adviseBuild,
   priceBuild,
   submitBuild,
@@ -140,6 +142,7 @@ export function Builder({
   initial,
   done,
   applyCalculatedLoad = false,
+  adjust = null,
 }: {
   items: BuilderItem[]
   roofTypes: RoofTypeCard[]
@@ -152,6 +155,15 @@ export function Builder({
   done: boolean
   /** Came back from the calculator with "Back to the builder with this load". */
   applyCalculatedLoad?: boolean
+  /**
+   * "Adjust this quote" from the plans: change this plan's items only, then "Update my plans"
+   * (no questions or details asked again; nothing saved over the visitor's own build).
+   */
+  adjust?: {
+    leadId: string
+    plan: 'essential' | 'comfort' | 'independence'
+    planLabel: string
+  } | null
 }) {
   const router = useRouter()
   const [s, setS] = useState<BuilderState>(FRESH)
@@ -160,6 +172,8 @@ export function Builder({
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
   const [calcKva, setCalcKva] = useState<number | null>(null)
+  // The details typed on the summary are kept while moving back and forth (memory only).
+  const [contact, setContact] = useState<ContactDraft>(EMPTY_CONTACT)
   const [loadNote, setLoadNote] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const touched = useRef(new Set<string>())
@@ -194,13 +208,13 @@ export function Builder({
 
   // Keep progress on this device.
   useEffect(() => {
-    if (!ready) return
+    if (!ready || adjust) return
     try {
       window.localStorage.setItem(BUILDER_STORAGE_KEY, serialiseBuilderState(s))
     } catch {
       // Storage blocked: progress is not kept.
     }
-  }, [s, ready])
+  }, [s, ready, adjust])
 
   const selection = useMemo(
     () =>
@@ -237,7 +251,8 @@ export function Builder({
   const advance = (patch: Partial<BuilderState> = {}) =>
     setS((cur) => {
       const merged = { ...cur, ...patch }
-      return { ...merged, step: nextStep(merged) }
+      // Adjusting a plan: the questions were answered already, so items → summary.
+      return { ...merged, step: adjust && merged.step === 'items' ? 'summary' : nextStep(merged) }
     })
 
   /** Choosing an inverter or panels refreshes the accessories the customer has not changed. */
@@ -308,7 +323,12 @@ export function Builder({
     )
   }
 
-  const back = prevStep(s)
+  const back = adjust ? (s.step === 'summary' ? 'items' : null) : prevStep(s)
+  const plansHref = adjust
+    ? launchMode === 'live'
+      ? `/plans?estimate=${adjust.leadId}`
+      : `/waitlist?resume=${adjust.leadId}&at=plans`
+    : null
   const priceBar = priced && s.step !== 'start' && s.step !== 'existing' && (
     <div
       className="bg-brand-dark fixed inset-x-0 bottom-0 z-20 px-4 py-3 text-white shadow-lg sm:sticky sm:rounded-xl"
@@ -521,6 +541,26 @@ export function Builder({
           items={items}
           showPrices={showPrices}
           launchMode={launchMode}
+          contact={contact}
+          onContact={setContact}
+          adjustLabel={adjust?.planLabel ?? null}
+          onAdjust={
+            adjust
+              ? () =>
+                  new Promise<string | null>((resolve) =>
+                    start(async () => {
+                      const r = await adjustPlanFromBuilder({
+                        leadId: adjust.leadId,
+                        plan: adjust.plan,
+                        selection,
+                      })
+                      if (!r.ok) return resolve(r.error)
+                      router.push(r.next)
+                      resolve(null)
+                    }),
+                  )
+              : null
+          }
           onDeposit={(pct) => setS({ ...s, depositPct: pct })}
           onTenure={(t) => setS({ ...s, tenure: t })}
           onSubmit={(contact) =>
@@ -551,6 +591,13 @@ export function Builder({
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+      {plansHref && s.step === 'items' && (
+        <Button asChild variant="ghost">
+          <Link href={plansHref} data-testid="back-to-plans">
+            ‹ Back to my plans
+          </Link>
+        </Button>
+      )}
       {back && (
         <Button type="button" variant="ghost" onClick={() => go(back)}>
           ‹ Back
@@ -561,12 +608,33 @@ export function Builder({
   )
 }
 
+type ContactDraft = {
+  firstName: string
+  surname: string
+  phone: string
+  email: string
+  lga: string
+  consent: boolean
+}
+const EMPTY_CONTACT: ContactDraft = {
+  firstName: '',
+  surname: '',
+  phone: '',
+  email: '',
+  lga: '',
+  consent: false,
+}
+
 function Summary({
   priced,
   state,
   items,
   showPrices,
   launchMode,
+  contact,
+  onContact,
+  adjustLabel,
+  onAdjust,
   onDeposit,
   onTenure,
   onSubmit,
@@ -576,6 +644,11 @@ function Summary({
   items: BuilderItem[]
   showPrices: boolean
   launchMode: LaunchMode
+  contact: ContactDraft
+  onContact: (c: ContactDraft) => void
+  /** "Adjust this quote": the plan being changed (no details, no deposit choice here). */
+  adjustLabel: string | null
+  onAdjust: (() => Promise<string | null>) | null
   onDeposit: (pct: number) => void
   onTenure: (t: TenureMonths) => void
   onSubmit: (contact: {
@@ -589,8 +662,11 @@ function Summary({
 }) {
   const prices = showPrices && !priced.sample
   const [advice, setAdvice] = useState<string | null>(null)
-  const [c, setC] = useState({ firstName: '', surname: '', phone: '', email: '', lga: '' })
-  const [consent, setConsent] = useState(false)
+  const c = contact
+  const setC = (next: Omit<ContactDraft, 'consent'>) =>
+    onContact({ ...next, consent: contact.consent })
+  const consent = contact.consent
+  const setConsent = (v: boolean) => onContact({ ...contact, consent: v })
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
 
@@ -620,6 +696,70 @@ function Summary({
       live = false
     }
   }, [factsKey])
+
+  const lineTable = (
+    <table className="w-full text-sm">
+      <tbody>
+        {priced.lines.map((l) => (
+          <tr key={l.sku} className="border-b">
+            <td className="py-2">
+              {l.name}
+              <span className="text-muted-foreground block text-xs">
+                {l.qty}
+                {items.find((i) => i.sku === l.sku)?.unit === 'metre' ? ' m' : ' ×'}
+              </span>
+            </td>
+            {prices && <td className="py-2 text-right tabular-nums">{formatNaira(l.lineTotal)}</td>}
+          </tr>
+        ))}
+        {priced.noMarkup.map((l) => (
+          <tr key={l.label} className="border-b">
+            <td className="py-2">{l.label}</td>
+            {prices && <td className="py-2 text-right tabular-nums">{formatNaira(l.amount)}</td>}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+
+  // "Adjust this quote": no details and no deposit here — the plans page shows the new price.
+  if (onAdjust) {
+    return (
+      <div className="space-y-5" data-testid="build-summary">
+        <p className="bg-brand-mist rounded-xl p-3 text-sm" data-testid="adjust-note">
+          Your changed {adjustLabel} plan. Your details and answers are kept; the plans page shows
+          the new price at each deposit.
+        </p>
+        {lineTable}
+        {prices && (
+          <p className="text-sm" data-testid="build-total">
+            Total amount payable at a {state.depositPct}% deposit:{' '}
+            <strong>{formatNaira(priced.systemPrice)}</strong> · 0% interest
+          </p>
+        )}
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <Button
+          type="button"
+          className="h-12 w-full text-base sm:w-auto sm:px-10"
+          disabled={sending || priced.blocking.length > 0}
+          data-testid="update-plans"
+          onClick={async () => {
+            setError(null)
+            setSending(true)
+            const e = await onAdjust()
+            setSending(false)
+            if (e) setError(e)
+          }}
+        >
+          {sending ? 'Updating…' : 'Update my plans'}
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5" data-testid="build-summary">

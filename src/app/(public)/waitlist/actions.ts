@@ -79,20 +79,24 @@ export async function savePhoneStep(input: unknown): Promise<ActionResult<{ id: 
   if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
   const { id, phone, whatsapp, sameAsPhone, items } = parsed.data
 
-  const ip = clientIp(await headers())
-  if (!(await hitRateLimit(`waitlist:${ip}`, SUBMITS_PER_HOUR, '1 hour'))) {
-    return {
-      ok: false,
-      error: 'Too many sign-ups from your connection. Please try again in an hour.',
+  // The limits count NEW sign-ups only: going back and pressing Next on your own sign-up
+  // (checked by the visitor cookie below) never uses them up.
+  if (!id) {
+    const ip = clientIp(await headers())
+    if (!(await hitRateLimit(`waitlist:${ip}`, SUBMITS_PER_HOUR, '1 hour'))) {
+      return {
+        ok: false,
+        error: 'Too many sign-ups from your connection. Please try again in an hour.',
+      }
     }
-  }
 
-  // Per phone too: the same number cannot be signed up over and over.
-  if (!(await hitRateLimit(`waitlist-phone:${phone}`, SUBMITS_PER_PHONE_PER_HOUR, '1 hour'))) {
-    return {
-      ok: false,
-      error: 'This number has been used for several sign-ups already. Please try again later.',
-      field: 'phone',
+    // Per phone too: the same number cannot be signed up over and over.
+    if (!(await hitRateLimit(`waitlist-phone:${phone}`, SUBMITS_PER_PHONE_PER_HOUR, '1 hour'))) {
+      return {
+        ok: false,
+        error: 'This number has been used for several sign-ups already. Please try again later.',
+        field: 'phone',
+      }
     }
   }
 
@@ -173,17 +177,25 @@ export async function saveNameStep(input: unknown): Promise<ActionResult<{ estim
   const row = await ownRow(parsed.data.id)
   if (!row) return EXPIRED
 
-  const settings = await getQuoteSettings()
+  // "Edit my details" in the same state keeps the plans as they are (incl. any adjusted plan);
+  // a new state is priced again with every answer (grid and the quote questions).
+  const kept = row.estimate && row.state === parsed.data.state ? (row.estimate as Estimate) : null
+  const settings = kept ? null : await getQuoteSettings()
   let estimate: Estimate
   try {
-    estimate = buildEstimate(
-      computeLoadTotals(row.load_items as LoadItem[], { nightShare: settings.sizing.nightShare }),
-      parsed.data.state,
-      settings.minDepositShare,
-      settings,
-      gridFrom((row as { grid?: unknown }).grid),
-    )
-    estimate = { ...estimate, pricedAt: new Date().toISOString() }
+    estimate =
+      kept ??
+      buildEstimate(
+        computeLoadTotals(row.load_items as LoadItem[], {
+          nightShare: settings!.sizing.nightShare,
+        }),
+        parsed.data.state,
+        settings!.minDepositShare,
+        settings!,
+        gridFrom((row as { grid?: unknown }).grid),
+        siteAnswersSchema.safeParse((row as { site?: unknown }).site ?? {}).data ?? {},
+      )
+    if (!kept) estimate = { ...estimate, pricedAt: new Date().toISOString() }
   } catch (err) {
     const message =
       err instanceof Error && err.name === 'LoadTooLargeError'

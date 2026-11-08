@@ -2,6 +2,11 @@
 
 import { headers } from 'next/headers'
 import { z } from 'zod'
+import { currentVisitorHash } from '@/lib/waitlist/token'
+import type { Json } from '@/lib/supabase/database.types'
+import { createAdminClient } from '@/lib/supabase/admin'
+import type { Estimate } from '@/lib/quotes/buildEstimate'
+import { adjustPlan } from '@/lib/quotes/adjust'
 
 import { launchMode } from '@/config/site'
 import { adviseFromFacts } from '@/lib/build/advisor'
@@ -10,6 +15,7 @@ import { saveBuild } from '@/lib/build/save'
 import {
   builderContext,
   priceSelection,
+  selectionSummary,
   suggestAccessories,
   suggestForLoad,
   type PricedBuild,
@@ -119,4 +125,49 @@ export async function adviseBuild(input: unknown): Promise<Result<{ text: string
     return { ok: true, text: p.data.facts.join(' '), ai: false }
   }
   return { ok: true, ...(await adviseFromFacts(p.data.facts)) }
+}
+
+/**
+ * "Adjust this quote" → "Update my plans": the builder selection replaces that plan in the
+ * visitor's own estimate (priced like every plan: lowest deposit, 12 months). No details are
+ * asked; the customer goes straight back to the plans.
+ */
+export async function adjustPlanFromBuilder(input: unknown): Promise<Result<{ next: string }>> {
+  const p = z
+    .object({
+      leadId: z.uuid(),
+      plan: z.enum(['essential', 'comfort', 'independence']),
+      selection: buildSelectionSchema,
+    })
+    .safeParse(input)
+  if (!p.success) return { ok: false, error: 'Check your choices.' }
+  const hash = await currentVisitorHash()
+  if (!hash) return { ok: false, error: 'Your session expired. Please start again.' }
+  const admin = createAdminClient()
+  const { data: lead } = await admin
+    .from('waitlist_consumers')
+    .select('id, estimate')
+    .eq('id', p.data.leadId)
+    .eq('visitor_token_hash', hash)
+    .maybeSingle()
+  const estimate = lead?.estimate as Estimate | null
+  if (!lead || !estimate) return { ok: false, error: 'Your session expired. Please start again.' }
+  const ctx = await builderContext()
+  const { priced, quote } = priceSelection(ctx, p.data.selection, ctx.settings.minDepositShare, 12)
+  if (!priced || !quote) return { ok: false, error: 'Choose at least one item first.' }
+  if (priced.blocking.length > 0) return { ok: false, error: priced.blocking[0]! }
+  const { size, panelWatts } = selectionSummary(ctx, p.data.selection)
+  const next = adjustPlan(estimate, p.data.plan, quote, size, panelWatts)
+  const { error } = await admin
+    .from('waitlist_consumers')
+    .update({ estimate: next as unknown as Json })
+    .eq('id', lead.id)
+  if (error) return { ok: false, error: 'Could not update your plans. Please try again.' }
+  return {
+    ok: true,
+    next:
+      launchMode() === 'live'
+        ? `/plans?estimate=${lead.id}`
+        : `/waitlist?resume=${lead.id}&at=plans`,
+  }
 }

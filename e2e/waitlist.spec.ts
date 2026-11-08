@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { ownConnection } from './helpers/connection'
+
 import { openPdf } from './helpers/invoices'
 import { answerQuoteQuestions } from './helpers/questions'
 import { testEmail, testPhone } from './helpers/test-identity'
@@ -174,6 +176,8 @@ async function finishFromPlans(page: Page, expectAdvice: boolean) {
     'Fridge',
   )
 }
+
+test.beforeEach(async ({ context }) => ownConnection(context))
 
 test.describe('solar plan sign-up (waiting list)', () => {
   // Eleven screens plus a staff login: give each test more than the default 30 s.

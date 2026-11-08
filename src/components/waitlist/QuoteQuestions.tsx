@@ -141,6 +141,7 @@ export function QuoteQuestions({
   wiring,
   onBack,
   onDone,
+  startAtEnd = false,
 }: {
   leadId: string
   initial: SiteAnswers
@@ -148,9 +149,13 @@ export function QuoteQuestions({
   wiring: WiringSettings
   onBack: () => void
   onDone: (answers: SiteAnswers, estimate: Estimate | null) => void
+  /** Coming back from the next screen: open at the last question, every answer kept. */
+  startAtEnd?: boolean
 }) {
   const [a, setA] = useState<SiteAnswers>(initial)
-  const [index, setIndex] = useState(0)
+  const [index, setIndex] = useState(() =>
+    startAtEnd ? Math.max(0, screensFor(initial).length - 1) : 0,
+  )
   const [error, setError] = useState<string | null>(null)
   const [estimate, setEstimate] = useState<Estimate | null>(null)
   const [pending, start] = useTransition()

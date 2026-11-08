@@ -6,11 +6,17 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { Calculator } from '@/components/calculator/Calculator'
 import type { LaunchMode } from '@/config/site'
-import { STORAGE_KEY, parseStoredItems, type LibraryItem } from '@/lib/calculator/store'
+import {
+  STORAGE_KEY,
+  parseStoredItems,
+  serialiseItems,
+  type LibraryItem,
+} from '@/lib/calculator/store'
 import type { CurrentEnergy } from '@/lib/energy/currentSpend'
 import type { LoadItem } from '@/lib/load/types'
 import type { Estimate } from '@/lib/quotes/buildEstimate'
 import type { Plan } from '@/lib/sizing/types'
+import type { ApplicantType, BusinessInput } from '@/lib/waitlist/schema'
 import { flowStart } from '@/lib/waitlist/entry'
 import type { SiteAnswers, WiringSettings } from '@/lib/wizard/questions'
 import type { RoofTypeCard } from '@/lib/wizard/server'
@@ -29,9 +35,11 @@ import {
   ThankYouStep,
   TotalsStep,
   WhoForStep,
+  type EnergyAnswers,
   type NameValues,
   type PhoneValues,
 } from './steps'
+import { resumeLead, updateLeadItems } from '@/app/(public)/waitlist/resume-actions'
 import { planInvoiceHref } from '@/components/invoices/InvoiceLink'
 import { QuotationStep } from '@/components/invoices/QuotationStep'
 import { StartAgain } from '@/components/waitlist/StartAgain'
@@ -85,6 +93,19 @@ export function WaitlistFlow({
   const [backToAppliances, setBackToAppliances] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
   const [quotationHref, setQuotationHref] = useState<string | null>(null)
+  // Every answer is kept, so Back (and "change one part") shows it filled in.
+  const [applicantType, setApplicantType] = useState<ApplicantType | null>(null)
+  const [business, setBusiness] = useState<BusinessInput | null>(null)
+  const [energyAnswers, setEnergyAnswers] = useState<EnergyAnswers | null>(null)
+  const [contribution, setContribution] = useState<{
+    pct: number
+    ready: 'now' | '30_days' | 'later' | null
+  } | null>(null)
+  /** Changing one part from the plans ("Change my appliances"…): return straight to them. */
+  const [returnTo, setReturnTo] = useState<'plans' | null>(null)
+  /** Back from the energy screen opens the quote questions at their last screen. */
+  const [questionsAtEnd, setQuestionsAtEnd] = useState(false)
+  const [flowError, setFlowError] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -93,6 +114,59 @@ export function WaitlistFlow({
       stored = window.localStorage.getItem(STORAGE_KEY)
     } catch {
       // Storage blocked: start with the calculator.
+    }
+    const params = new URLSearchParams(window.location.search)
+    const resume = params.get('resume')
+    const at = params.get('at')
+    if (resume) {
+      // Back from "Adjust this quote" or a change link on the plans: the same sign-up, every
+      // answer kept, never asked again.
+      void resumeLead({ id: resume }).then((r) => {
+        if (r) {
+          setLeadId(r.leadId)
+          setItems(r.items)
+          setPhoneValues(r.phone)
+          setEmail(r.email)
+          if (r.name) setName(r.name)
+          setApplicantType(r.applicantType)
+          setIsBusiness(r.applicantType === 'business')
+          setBusiness(r.business)
+          setSite(r.site)
+          if (r.energy) {
+            setEnergyAnswers({
+              generator: r.energy.generator,
+              weeklyFuelNaira: r.energy.weeklyFuelNaira,
+              weeklyGridNaira: r.energy.weeklyGridNaira,
+              petrolShare: r.energy.petrolShare,
+            })
+            setCurrent(r.energy.current)
+          }
+          setEstimate(r.estimate)
+          setPlan(r.plan)
+          if (r.depositShare !== null) {
+            setContribution({ pct: Math.round(r.depositShare * 100), ready: r.readyWhen })
+          }
+          const target: Step =
+            at === 'details' ? 4 : at === 'appliances' ? 1 : at === 'questions' ? 13 : 10
+          if (target !== 10) setReturnTo('plans')
+          if (target === 1) {
+            try {
+              window.localStorage.setItem(STORAGE_KEY, serialiseItems(r.items))
+            } catch {
+              // Storage blocked: the calculator starts from the list it has.
+            }
+          }
+          setStep(r.estimate || target !== 10 ? target : 1)
+        } else {
+          const start = flowStart({ storedItems: parseStoredItems(stored) })
+          setItems(start.items)
+          setStep(start.step)
+          setBackToAppliances(start.backToAppliances)
+        }
+        window.history.replaceState(null, '', window.location.pathname)
+        setReady(true)
+      })
+      return
     }
     const start = flowStart({ storedItems: parseStoredItems(stored) })
     setItems(start.items)
@@ -122,6 +196,26 @@ export function WaitlistFlow({
     [go],
   )
 
+  /** The plans: in the flow (prelaunch) or the plans page (live). */
+  const toPlans = useCallback(() => {
+    setReturnTo(null)
+    if (launchMode === 'live' && leadId) router.push(`/plans?estimate=${leadId}`)
+    else go(10)
+  }, [launchMode, leadId, router, go])
+
+  /** Totals → (back from "Change my appliances") the new list priced, straight to the plans. */
+  const afterTotals = useCallback(() => {
+    if (returnTo !== 'plans' || !leadId) return go(3)
+    setFlowError(null)
+    setPausing(true)
+    void updateLeadItems({ id: leadId, items }).then((r) => {
+      setPausing(false)
+      if (!r.ok) return setFlowError(r.error)
+      setEstimate(r.estimate)
+      toPlans()
+    })
+  }, [returnTo, leadId, items, go, toPlans])
+
   const toAppliances = useCallback(() => {
     if (backToAppliances) router.push(backToAppliances)
     else go(1)
@@ -136,7 +230,10 @@ export function WaitlistFlow({
     7: () => go(6),
     8: () => go(7),
     13: () => go(isBusiness ? 8 : 7),
-    9: () => go(13),
+    9: () => {
+      setQuestionsAtEnd(true)
+      go(13)
+    },
     10: () => go(9),
     11: () => go(10),
     14: () => go(11),
@@ -174,7 +271,9 @@ export function WaitlistFlow({
           animate="center"
           exit="exit"
           transition={{ type: 'tween', duration: 0.28, ease: 'easeOut' }}
-          drag={back[step] ? 'x' : false}
+          // Swipe right = Back, except on the long screens where a sideways drift while
+          // scrolling must not leave the page.
+          drag={back[step] && ![10, 11, 14].includes(step) ? 'x' : false}
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.2}
           onDragEnd={onDragEnd}
@@ -191,7 +290,16 @@ export function WaitlistFlow({
               }}
             />
           )}
-          {step === 2 && <TotalsStep items={items} onBack={toAppliances} onNext={() => go(3)} />}
+          {step === 2 && (
+            <>
+              <TotalsStep items={items} onBack={toAppliances} onNext={afterTotals} />
+              {flowError && (
+                <p className="mt-3 text-sm text-red-700" role="alert">
+                  {flowError}
+                </p>
+              )}
+            </>
+          )}
           {step === 3 && <PreparingStep />}
           {step === 4 && (
             <PhoneStep
@@ -227,43 +335,64 @@ export function WaitlistFlow({
               onSaved={(values, est) => {
                 setName(values)
                 setEstimate(est)
-                go(7)
+                // "Edit my details" from the plans: straight back to them.
+                if (returnTo === 'plans') toPlans()
+                else go(7)
               }}
             />
           )}
           {step === 7 && leadId && (
             <WhoForStep
               leadId={leadId}
+              initial={applicantType}
               onBack={() => go(6)}
               onSaved={(type) => {
+                setApplicantType(type)
+                setQuestionsAtEnd(false)
                 setIsBusiness(type === 'business')
                 go(type === 'business' ? 8 : 13)
               }}
             />
           )}
           {step === 8 && leadId && (
-            <BusinessStep leadId={leadId} onBack={() => go(7)} onSaved={() => go(13)} />
+            <BusinessStep
+              leadId={leadId}
+              initial={business}
+              onBack={() => go(7)}
+              onSaved={(b) => {
+                setBusiness(b)
+                go(13)
+              }}
+            />
           )}
           {step === 13 && leadId && (
             <QuoteQuestions
               leadId={leadId}
               initial={site}
+              startAtEnd={questionsAtEnd}
               roofTypes={roofTypes}
               wiring={wiring}
               onBack={() => go(isBusiness ? 8 : 7)}
               onDone={(answers, est) => {
                 setSite(answers)
                 if (est) setEstimate(est)
-                go(9)
+                // "Change my answers" from the plans: straight back to them.
+                if (returnTo === 'plans') toPlans()
+                else go(9)
               }}
             />
           )}
           {step === 9 && leadId && (
             <EnergyStep
               leadId={leadId}
-              onBack={() => go(13)}
-              onSaved={(c) => {
+              initial={energyAnswers}
+              onBack={() => {
+                setQuestionsAtEnd(true)
+                go(13)
+              }}
+              onSaved={(c, answers) => {
                 setCurrent(c)
+                setEnergyAnswers(answers)
                 // Live mode: the priced plans, tenure choice and account step live on /plans.
                 if (launchMode === 'live') router.push(`/plans?estimate=${leadId}`)
                 else go(10)
@@ -283,6 +412,19 @@ export function WaitlistFlow({
                 setPlan(p)
                 go(11)
               }}
+              onChangeAppliances={() => {
+                setReturnTo('plans')
+                go(1)
+              }}
+              onChangeAnswers={() => {
+                setReturnTo('plans')
+                setQuestionsAtEnd(false)
+                go(13)
+              }}
+              onEditDetails={() => {
+                setReturnTo('plans')
+                go(4)
+              }}
             />
           )}
           {step === 11 && leadId && estimate && plan && (
@@ -290,8 +432,12 @@ export function WaitlistFlow({
               leadId={leadId}
               estimate={estimate}
               plan={plan}
+              initial={contribution}
               onBack={() => go(10)}
-              onDone={() => go(14)}
+              onDone={(v) => {
+                setContribution(v)
+                go(14)
+              }}
             />
           )}
           {step === 14 && leadId && (
