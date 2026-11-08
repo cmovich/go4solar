@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 
+import { ownConnection } from './helpers/connection'
+
 import {
   buildFromLoad,
   builderToCalculator,
@@ -14,6 +16,8 @@ import {
 import { openPdf } from './helpers/invoices'
 
 /** Part F (prelaunch): the system builder from "Get started". */
+test.beforeEach(async ({ context }) => ownConnection(context))
+
 test.describe('system builder', () => {
   test.setTimeout(180_000)
 

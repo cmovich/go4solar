@@ -11,9 +11,8 @@ import { getOrCreateVisitorToken } from '@/lib/waitlist/token'
 import { gridFromAnswers } from '@/lib/wizard/questions'
 
 import type { BuildSelectionInput } from './schema'
-import { systemSummary } from './schema'
 import { OWN_SYSTEM_LABEL } from './stored'
-import { priceSelection, type BuilderContext } from './server'
+import { priceSelection, selectionSummary, type BuilderContext } from './server'
 
 export { OWN_SYSTEM_LABEL as BUILDER_PLAN_LABEL } from './stored'
 
@@ -48,22 +47,7 @@ export async function saveBuild(input: {
 
   const admin = createAdminClient()
   const { hash } = await getOrCreateVisitorToken()
-  const cat = ctx.catalogue!
-  const inverter = cat.inverters.find((i) => sel.items.some((s) => s.sku === i.sku))
-  const panels = sel.items
-    .map((s) => ({ s, p: cat.panels.find((p) => p.sku === s.sku) }))
-    .find((x) => x.p)
-  const size = systemSummary(
-    {
-      inverterKva: inverter?.kva ?? null,
-      batteries: sel.items.flatMap((s) => {
-        const b = cat.batteries.find((x) => x.sku === s.sku)
-        return b ? [{ kwh: b.kwh, qty: s.qty }] : []
-      }),
-      panels: panels ? { watts: panels.p!.watts, count: panels.s.qty } : null,
-    },
-    ctx.settings.sizing.dod * ctx.settings.sizing.inverterEfficiency,
-  )
+  const { size } = selectionSummary(ctx, sel)
   const builder = {
     kind: 'builder',
     selection: sel,

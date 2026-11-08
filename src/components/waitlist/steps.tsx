@@ -23,6 +23,7 @@ import {
 } from '@/lib/energy/currentSpend'
 import { safeTotals } from '@/lib/calculator/store'
 import { InvoiceLink, planInvoiceHref } from '@/components/invoices/InvoiceLink'
+import { StartAgain } from '@/components/waitlist/StartAgain'
 import type { LoadItem } from '@/lib/load/types'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { NG_STATE_IDS, stateLabel, type NgStateId } from '@/lib/nigeria/states'
@@ -51,6 +52,7 @@ import {
   nameStepSchema,
   phoneStepSchema,
   type ApplicantType,
+  type BusinessInput,
   PRICE_LATER_TEXT,
   THANK_YOU_TEXT,
 } from '@/lib/waitlist/schema'
@@ -362,7 +364,8 @@ export function NameStep({
   const [values, setValues] = useState<NameValues>(
     initial ?? { firstName: '', surname: '', state: 'FCT', lga: '' },
   )
-  const [consent, setConsent] = useState(false)
+  // Coming back with the details already saved: the consent given then still stands.
+  const [consent, setConsent] = useState(initial !== null)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -445,10 +448,13 @@ export function NameStep({
 // ------------------------------------------------------- 7. Who is it for?
 export function WhoForStep({
   leadId,
+  initial = null,
   onBack,
   onSaved,
 }: {
   leadId: string
+  /** The earlier answer, shown selected when coming back. */
+  initial?: ApplicantType | null
   onBack: () => void
   onSaved: (type: ApplicantType) => void
 }) {
@@ -476,7 +482,8 @@ export function WhoForStep({
           type="button"
           onClick={() => choose('individual')}
           disabled={pending}
-          className={card}
+          aria-pressed={initial === 'individual'}
+          className={`${card} ${initial === 'individual' ? 'border-brand-green' : ''}`}
         >
           <span className="text-brand-dark text-xl font-bold">My home</span>
           <span className="text-muted-foreground mt-1 text-sm">
@@ -487,7 +494,8 @@ export function WhoForStep({
           type="button"
           onClick={() => choose('business')}
           disabled={pending}
-          className={card}
+          aria-pressed={initial === 'business'}
+          className={`${card} ${initial === 'business' ? 'border-brand-green' : ''}`}
         >
           <span className="text-brand-dark text-xl font-bold">My business</span>
           <span className="text-muted-foreground mt-1 text-sm">
@@ -503,12 +511,15 @@ export function WhoForStep({
 // ----------------------------------------------------- 8. Business details
 export function BusinessStep({
   leadId,
+  initial = null,
   onBack,
   onSaved,
 }: {
   leadId: string
+  /** The earlier answers, filled in when coming back. */
+  initial?: BusinessInput | null
   onBack: () => void
-  onSaved: () => void
+  onSaved: (business: BusinessInput) => void
 }) {
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
@@ -536,7 +547,7 @@ export function BusinessStep({
         applicantType: 'business',
         business: check.data,
       })
-      if (r.ok) onSaved()
+      if (r.ok) onSaved(check.data)
       else setError(r.error)
     })
   }
@@ -556,12 +567,18 @@ export function BusinessStep({
             name="businessName"
             autoComplete="organization"
             className={field}
+            defaultValue={initial?.businessName ?? ''}
             autoFocus
           />
         </div>
         <div>
           <Label htmlFor="businessType">Type of business</Label>
-          <select id="businessType" name="businessType" className={select} defaultValue="shop">
+          <select
+            id="businessType"
+            name="businessType"
+            className={select}
+            defaultValue={initial?.businessType ?? 'shop'}
+          >
             {BUSINESS_TYPES.map((t) => (
               <option key={t} value={t}>
                 {BUSINESS_TYPE_LABELS[t]}
@@ -571,7 +588,13 @@ export function BusinessStep({
         </div>
         <div>
           <Label htmlFor="cacNumber">CAC number (optional)</Label>
-          <Input id="cacNumber" name="cacNumber" placeholder="e.g. RC 1234567" className={field} />
+          <Input
+            id="cacNumber"
+            name="cacNumber"
+            placeholder="e.g. RC 1234567"
+            className={field}
+            defaultValue={initial?.cacNumber ?? ''}
+          />
         </div>
         <div>
           <Label htmlFor="contactRole">Your role</Label>
@@ -580,6 +603,7 @@ export function BusinessStep({
             name="contactRole"
             placeholder="e.g. owner, manager"
             className={field}
+            defaultValue={initial?.contactRole ?? ''}
           />
         </div>
         <div>
@@ -591,6 +615,7 @@ export function BusinessStep({
             inputMode="numeric"
             min={0}
             className={field}
+            defaultValue={initial?.staffCount ?? ''}
           />
         </div>
         <div>
@@ -604,6 +629,7 @@ export function BusinessStep({
             max={24}
             step={0.5}
             className={field}
+            defaultValue={initial?.hoursPerDay ?? ''}
           />
         </div>
         <div>
@@ -616,6 +642,7 @@ export function BusinessStep({
             min={1}
             max={7}
             className={field}
+            defaultValue={initial?.daysPerWeek ?? ''}
           />
         </div>
       </div>
@@ -673,22 +700,21 @@ export function PlanCard({
 }) {
   const { plan, size, quote } = estimate
   const tonnes = advice ? Math.round(advice.co2AvoidedKgPerYear / 100) / 10 : null
-  const Tag = onChoose ? 'button' : 'div'
   return (
-    <Tag
-      type={onChoose ? 'button' : undefined}
-      onClick={onChoose}
-      disabled={busy}
-      className={`hover:border-brand-green focus-visible:ring-brand-green relative w-full rounded-2xl border-2 bg-white p-5 text-left shadow-sm transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60 ${highlighted ? 'border-brand-green ring-brand-green/30 ring-4' : 'border-transparent'}`}
+    <div
+      className={`relative w-full rounded-2xl border-2 bg-white p-5 text-left shadow-sm ${highlighted ? 'border-brand-green ring-brand-green/30 ring-4' : 'border-transparent'}`}
       data-testid={`plan-card-${plan}`}
       data-highlighted={highlighted || undefined}
     >
       <span className="bg-brand-orange text-brand-dark absolute -top-3 right-5 rounded-full px-3 py-1 text-xs font-bold tracking-wide uppercase">
         Estimate
       </span>
-      {highlighted && (
-        <span className="bg-brand-green absolute -top-3 left-5 rounded-full px-3 py-1 text-xs font-bold tracking-wide text-white uppercase">
-          Your choice
+      {(highlighted || estimate.adjusted) && (
+        <span
+          className="bg-brand-green absolute -top-3 left-5 rounded-full px-3 py-1 text-xs font-bold tracking-wide text-white uppercase"
+          data-testid={estimate.adjusted ? `adjusted-${plan}` : undefined}
+        >
+          {estimate.adjusted ? 'Adjusted by you' : 'Your choice'}
         </span>
       )}
       <p className="text-brand-green text-sm font-semibold tracking-wide uppercase">
@@ -713,9 +739,11 @@ export function PlanCard({
         </div>
       </dl>
       <ul className="text-brand-dark mt-3 space-y-0.5 text-sm" data-testid={`backup-${plan}`}>
-        {backupLines(size, plan).map((line) => (
-          <li key={line}>{line}</li>
-        ))}
+        {estimate.adjusted ? (
+          <li>Backup depends on the items you chose; we confirm it with you.</li>
+        ) : (
+          backupLines(size, plan).map((line) => <li key={line}>{line}</li>)
+        )}
       </ul>
       {showPrices ? (
         <>
@@ -770,8 +798,19 @@ export function PlanCard({
           )}
         </div>
       )}
-      {onChoose && <p className="text-brand-blue mt-3 text-sm font-semibold">Choose this plan →</p>}
-    </Tag>
+      {onChoose && (
+        <Button
+          type="button"
+          className="mt-4 h-12 w-full text-base"
+          onClick={onChoose}
+          disabled={busy}
+          data-testid={`choose-${plan}`}
+        >
+          {busy ? 'One moment…' : 'Choose this plan'}
+          <span className="sr-only">: {PLAN_LABELS[plan]}</span>
+        </Button>
+      )}
+    </div>
   )
 }
 
@@ -784,6 +823,9 @@ export function PlansStep({
   roofTypes = [],
   onBack,
   onChosen,
+  onChangeAppliances,
+  onChangeAnswers,
+  onEditDetails,
 }: {
   leadId: string
   firstName: string
@@ -794,6 +836,10 @@ export function PlansStep({
   roofTypes?: RoofTypeCard[]
   onBack: () => void
   onChosen: (plan: Plan) => void
+  /** Open one part to change it, then straight back to the plans (nothing asked again). */
+  onChangeAppliances?: () => void
+  onChangeAnswers?: () => void
+  onEditDetails?: () => void
 }) {
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
@@ -847,8 +893,61 @@ export function PlansStep({
         ))}
       </div>
       <QuoteNotes site={site} roofTypes={roofTypes} />
+      {onChangeAppliances && onChangeAnswers && onEditDetails && (
+        <ChangeLinks
+          items={[
+            {
+              label: 'Change my appliances',
+              testId: 'change-appliances',
+              onClick: onChangeAppliances,
+            },
+            { label: 'Change my answers', testId: 'change-answers', onClick: onChangeAnswers },
+            { label: 'Edit my details', testId: 'edit-details', onClick: onEditDetails },
+          ]}
+        />
+      )}
       <ErrorBox message={error} />
     </div>
+  )
+}
+
+/** Small links under the plans: change one part, keep everything else, come straight back. */
+export function ChangeLinks({
+  items,
+}: {
+  items: { label: string; testId: string; onClick?: () => void; href?: string }[]
+}) {
+  const cls = 'text-brand-blue inline-flex min-h-11 items-center text-sm font-semibold underline'
+  return (
+    <nav
+      aria-label="Change your answers"
+      className="flex flex-wrap gap-x-5"
+      data-testid="change-links"
+    >
+      {items.map((i) =>
+        i.href ? (
+          <Link
+            key={i.testId}
+            href={i.href}
+            prefetch={false}
+            className={cls}
+            data-testid={i.testId}
+          >
+            {i.label}
+          </Link>
+        ) : (
+          <button
+            key={i.testId}
+            type="button"
+            onClick={i.onClick}
+            className={cls}
+            data-testid={i.testId}
+          >
+            {i.label}
+          </button>
+        ),
+      )}
+    </nav>
   )
 }
 
@@ -887,18 +986,21 @@ export function ContributionStep({
   leadId,
   estimate,
   plan,
+  initial = null,
   onBack,
   onDone,
 }: {
   leadId: string
   estimate: Estimate
   plan: Plan
+  /** The earlier answers, shown when coming back. */
+  initial?: { pct: number; ready: (typeof READY_WHEN)[number] | null } | null
   onBack: () => void
-  onDone: () => void
+  onDone: (values: { pct: number; ready: (typeof READY_WHEN)[number] }) => void
 }) {
   const minPct = Math.round(estimate.plans[plan].quote.snapshot.minDepositShare * 100)
-  const [pct, setPct] = useState(minPct)
-  const [ready, setReady] = useState<(typeof READY_WHEN)[number] | null>(null)
+  const [pct, setPct] = useState(Math.max(minPct, initial?.pct ?? minPct))
+  const [ready, setReady] = useState<(typeof READY_WHEN)[number] | null>(initial?.ready ?? null)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -909,7 +1011,7 @@ export function ContributionStep({
     if (!ready) return setError('Tell us when you can pay the upfront amount')
     start(async () => {
       const r = await completeWaitlist({ id: leadId, depositShare: pct / 100, readyWhen: ready })
-      if (r.ok) onDone()
+      if (r.ok) onDone({ pct, ready })
       else setError(r.error)
     })
   }
@@ -1020,61 +1122,111 @@ export function ContributionStep({
 // ------------------------------------------------------------ 11. Thank you
 const REDIRECT_AFTER_MS = 5000
 
+const NEXT_STEPS = [
+  'We check your details and the plan you chose.',
+  'Within 7 days we call or WhatsApp you with your confirmed price.',
+  'When we launch, you get a link to apply: confirm your ID, add a guarantor, pay your deposit, and we install.',
+]
+
 export function ThankYouStep({
   firstName,
   leadId,
   messagingLive,
   launchMode,
+  quotationHref,
 }: {
   firstName: string
   leadId: string
   /** True only when MESSAGING_PROVIDER is live: then a copy really was sent. */
   messagingLive: boolean
   launchMode: LaunchMode
+  /** The quotation PDF for the chosen plan, if prices are not SAMPLE. */
+  quotationHref?: string | null
 }) {
   const router = useRouter()
-  // Prelaunch: home after a few seconds. (Live mode leaves the flow for /plans after the energy screen.)
-  const next = launchMode === 'live' ? `/plans?estimate=${leadId}` : '/'
+  const live = launchMode === 'live'
+  const next = live ? `/plans?estimate=${leadId}` : '/'
 
+  // Live only: on to the plans (prelaunch stays here so the next steps can be read).
   useEffect(() => {
+    if (!live) return
     const t = window.setTimeout(() => router.push(next), REDIRECT_AFTER_MS)
     return () => window.clearTimeout(t)
-  }, [router, next])
+  }, [router, next, live])
 
   return (
-    <div className="bg-brand-mist rounded-2xl p-8 text-center" role="status">
-      {firstName && <p className="text-muted-foreground text-base">{firstName},</p>}
-      <p className="text-brand-dark mt-1 text-2xl font-bold sm:text-3xl" data-testid="thank-you">
+    <div className="bg-brand-mist rounded-2xl p-6 sm:p-8" role="status">
+      <h1 className="text-brand-dark text-center text-2xl font-bold" data-testid="all-set">
+        You&apos;re all set{firstName ? `, ${firstName}` : ''}
+      </h1>
+      <p
+        className="text-brand-dark mt-2 text-center text-lg font-semibold sm:text-xl"
+        data-testid="thank-you"
+      >
         {THANK_YOU_TEXT}
       </p>
       {messagingLive && (
-        <p className="text-muted-foreground mt-4 text-sm">
+        <p className="text-muted-foreground mt-3 text-center text-sm">
           We&apos;ve sent a copy of your estimate to your email and WhatsApp.
         </p>
       )}
-      <Button asChild className="mt-6 h-12 text-base">
-        <Link href={next}>
-          {launchMode === 'live' ? 'Continue to my application' : 'Back to home'}
-        </Link>
-      </Button>
+      {!live && (
+        <section className="mt-6 rounded-xl bg-white p-4" data-testid="what-next">
+          <h2 className="text-brand-dark font-bold">What happens next</h2>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">
+            {NEXT_STEPS.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+          {quotationHref && (
+            <a
+              href={quotationHref}
+              target="_blank"
+              rel="noopener"
+              className="text-brand-blue mt-3 inline-flex min-h-11 items-center text-sm font-semibold underline"
+              data-testid="thank-you-quotation"
+            >
+              Download your quotation (PDF)
+            </a>
+          )}
+        </section>
+      )}
+      <div className="mt-6 flex flex-col items-center gap-2">
+        <Button asChild className="h-12 w-full text-base sm:w-auto sm:px-10">
+          <Link href={next}>{live ? 'Continue to my application' : 'Back to home'}</Link>
+        </Button>
+        {!live && <StartAgain />}
+      </div>
     </div>
   )
 }
 
 // -------------------------------------------------------- 9. Energy spend
+export type EnergyAnswers = {
+  generator: GeneratorType | null
+  weeklyFuelNaira: number | null
+  weeklyGridNaira: number | null
+  petrolShare: number | null
+}
+
 export function EnergyStep({
   leadId,
+  initial = null,
   onBack,
   onSaved,
 }: {
   leadId: string
+  /** The earlier answers, filled in when coming back. */
+  initial?: EnergyAnswers | null
   onBack: () => void
-  onSaved: (current: CurrentEnergy | null) => void
+  onSaved: (current: CurrentEnergy | null, answers: EnergyAnswers) => void
 }) {
-  const [generator, setGenerator] = useState<GeneratorType | null>(null)
-  const [fuel, setFuel] = useState<number | null>(null)
-  const [grid, setGrid] = useState<number | null>(null)
-  const [petrolPct, setPetrolPct] = useState(50)
+  const [generator, setGenerator] = useState<GeneratorType | null>(initial?.generator ?? null)
+  const [fuel, setFuel] = useState<number | null>(initial?.weeklyFuelNaira ?? null)
+  const [grid, setGrid] = useState<number | null>(initial?.weeklyGridNaira ?? null)
+  const [petrolPct, setPetrolPct] = useState(
+    initial?.petrolShare != null ? Math.round(initial.petrolShare * 100) : 50,
+  )
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -1092,7 +1244,13 @@ export function EnergyStep({
     if (!check.success) return setError(check.error.issues[0]?.message ?? 'Check your answers')
     start(async () => {
       const r = await saveEnergyStep(check.data)
-      if (r.ok) onSaved(r.current)
+      if (r.ok)
+        onSaved(r.current, {
+          generator,
+          weeklyFuelNaira: generator === 'none' ? 0 : fuel,
+          weeklyGridNaira: grid,
+          petrolShare: generator === 'both' ? petrolPct / 100 : null,
+        })
       else setError(r.error)
     })
   }

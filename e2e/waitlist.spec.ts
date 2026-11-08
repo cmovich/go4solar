@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
+import { ownConnection } from './helpers/connection'
+
 import { openPdf } from './helpers/invoices'
 import { answerQuoteQuestions } from './helpers/questions'
 import { testEmail, testPhone } from './helpers/test-identity'
@@ -99,7 +101,7 @@ async function finishFromPlans(page: Page, expectAdvice: boolean) {
       'Your exact price will be confirmed when we contact you.',
     )
     await expect(page.locator('main')).not.toContainText('₦')
-    await page.getByRole('button', { name: /Comfort/ }).click()
+    await page.getByTestId('choose-comfort').click()
     await expect(page.getByRole('heading', { name: 'How much can you pay upfront?' })).toBeVisible()
     await expect(page.getByTestId('total-price')).toHaveCount(0)
     await page.getByRole('slider').focus()
@@ -124,7 +126,7 @@ async function finishFromPlans(page: Page, expectAdvice: boolean) {
     expect(number).toMatch(/^G4S-[0-9A-F]{8}$/)
   }
   if (!sample) {
-    await page.getByRole('button', { name: /Comfort/ }).click()
+    await page.getByTestId('choose-comfort').click()
     await expect(page.getByRole('heading', { name: 'How much can you pay upfront?' })).toBeVisible()
     const totalAt20 = await page.getByTestId('total-price').textContent()
     await page.getByRole('slider').focus()
@@ -157,10 +159,25 @@ async function finishFromPlans(page: Page, expectAdvice: boolean) {
     { timeout: 10000 },
   )
   await expect(page.getByText(/waiting list/i)).toHaveCount(0)
+  // The final screen says what happens next and stays (no jump home); two ways on.
+  await expect(page.getByTestId('all-set')).toHaveText("You're all set, Amaka")
+  await expect(page.getByTestId('what-next')).toContainText('What happens next')
+  await expect(page.getByTestId('what-next')).toContainText('Within 7 days')
+  if (!sample) await expect(page.getByTestId('thank-you-quotation')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Back to home' })).toBeVisible()
-  // Prelaunch: back to the landing page after ~5 s.
-  await page.waitForURL((u) => u.pathname === '/', { timeout: 10000 })
+  await page.waitForTimeout(6000)
+  await expect(page.getByTestId('all-set')).toBeVisible()
+  // "Start again": confirms, clears the appliance list on this device, back to the calculator.
+  page.once('dialog', (d) => void d.accept())
+  await page.getByTestId('start-again').click()
+  await page.waitForURL(/\/waitlist$/)
+  await expect(page.getByRole('heading', { name: 'Calculate your load' })).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('g4s.calculator.v1'))).not.toContain(
+    'Fridge',
+  )
 }
+
+test.beforeEach(async ({ context }) => ownConnection(context))
 
 test.describe('solar plan sign-up (waiting list)', () => {
   // Eleven screens plus a staff login: give each test more than the default 30 s.
@@ -360,5 +377,27 @@ test.describe('solar plan sign-up (waiting list)', () => {
     await page.getByRole('button', { name: 'Join as a partner installer' }).click()
     await expect(page.getByText('Thank you, Tunde Installs.')).toBeVisible({ timeout: 10000 })
     await expect(page.getByText('We will contact you within 7 days.')).toBeVisible()
+  })
+})
+
+test.describe('a first-time visitor (cookie notice still showing)', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+
+  test('the notice never covers the buttons; "Start again" is there on every screen', async ({
+    page,
+  }) => {
+    await page.goto('/waitlist')
+    await expect(page.getByTestId('cookie-notice')).toBeVisible()
+    await addLedAndFridge(page)
+    // Without dismissing the notice: Playwright refuses to click anything it covers.
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await expect(page.getByRole('heading', { name: 'Your total load' })).toBeVisible()
+    await expect(page.getByTestId('start-again')).toBeVisible()
+    await page.getByRole('button', { name: 'Get quotes' }).click()
+    await expect(page.getByLabel('Phone number')).toBeVisible({ timeout: 10000 })
+    await page.getByLabel('Phone number').fill(freshPhone())
+    await page.getByRole('button', { name: 'Next' }).click()
+    await expect(page.getByLabel('Email address')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByTestId('cookie-notice')).toBeVisible()
   })
 })

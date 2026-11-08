@@ -4,7 +4,13 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
 
 import { InvoiceLink, planInvoiceHref } from '@/components/invoices/InvoiceLink'
-import { AdjustLink, PlanCard, QuoteNotes, adviceFor } from '@/components/waitlist/steps'
+import {
+  AdjustLink,
+  ChangeLinks,
+  PlanCard,
+  QuoteNotes,
+  adviceFor,
+} from '@/components/waitlist/steps'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
@@ -208,6 +214,25 @@ export function PlansChooser({
       </div>
 
       <QuoteNotes site={site} roofTypes={roofTypes} />
+      <ChangeLinks
+        items={[
+          {
+            label: 'Change my appliances',
+            testId: 'change-appliances',
+            href: `/get-started?resume=${leadId}&at=appliances`,
+          },
+          {
+            label: 'Change my answers',
+            testId: 'change-answers',
+            href: `/get-started?resume=${leadId}&at=questions`,
+          },
+          {
+            label: 'Edit my details',
+            testId: 'edit-details',
+            href: `/get-started?resume=${leadId}&at=details`,
+          },
+        ]}
+      />
       <p className="text-muted-foreground text-xs">{BACKUP_NOTICE}</p>
       <p className="text-muted-foreground text-xs">
         0% interest: one fixed price, the total amount payable above. Late payments attract 0.75% of

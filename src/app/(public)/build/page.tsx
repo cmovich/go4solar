@@ -9,7 +9,7 @@ import { launchMode, siteConfig } from '@/config/site'
 import { builderContext, builderItems } from '@/lib/build/server'
 import type { BuilderState } from '@/lib/build/store'
 import { isNgStateId } from '@/lib/nigeria/states'
-import type { Estimate } from '@/lib/quotes/buildEstimate'
+import { PLAN_LABELS, type Estimate } from '@/lib/quotes/buildEstimate'
 import type { Plan } from '@/lib/sizing/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { currentVisitorHash } from '@/lib/waitlist/token'
@@ -90,6 +90,13 @@ export default async function BuildPage({
             launchMode={launchMode()}
             showPrices={!sample}
             initial={initial}
+            adjust={
+              initial &&
+              sp.lead &&
+              (sp.plan === 'essential' || sp.plan === 'comfort' || sp.plan === 'independence')
+                ? { leadId: sp.lead, plan: sp.plan, planLabel: PLAN_LABELS[sp.plan] }
+                : null
+            }
             done={sp.done === '1'}
             applyCalculatedLoad={sp.load === 'calculated'}
           />

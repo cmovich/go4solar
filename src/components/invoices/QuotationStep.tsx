@@ -18,11 +18,14 @@ export function QuotationStep({
   leadId,
   pdfHref,
   onAccepted,
+  onLoaded,
 }: {
   leadId: string
   /** The quotation PDF for this choice. */
   pdfHref: (q: InvoiceData) => string
   onAccepted: () => void
+  /** The quotation loaded (e.g. to offer its PDF again on the thank-you screen). */
+  onLoaded?: (q: InvoiceData) => void
 }) {
   const [q, setQ] = useState<InvoiceData | null>(null)
   const [failed, setFailed] = useState(false)
@@ -32,8 +35,10 @@ export function QuotationStep({
     let live = true
     quotationForLead({ leadId }).then((r) => {
       if (!live) return
-      if (r.ok) setQ(r.quotation)
-      else if (r.reason === 'sample') onAccepted()
+      if (r.ok) {
+        setQ(r.quotation)
+        onLoaded?.(r.quotation)
+      } else if (r.reason === 'sample') onAccepted()
       else setFailed(true)
     })
     return () => {

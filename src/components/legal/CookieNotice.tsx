@@ -20,35 +20,39 @@ export function CookieNotice() {
   // Staff in the back office are not visitors.
   if (!show || path?.startsWith('/admin')) return null
   return (
-    <div
-      role="region"
-      aria-label="Cookie notice"
-      data-testid="cookie-notice"
-      className="bg-brand-dark fixed inset-x-0 bottom-0 z-50 px-4 py-3 text-sm text-white shadow-lg"
-    >
-      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
-        <p>
-          We use essential cookies only, to keep you signed in and remember your progress. No
-          advertising or tracking.{' '}
-          <Link href="/privacy" className="text-brand-gold underline">
-            Privacy policy
-          </Link>
-        </p>
-        <button
-          type="button"
-          className="bg-brand-gold text-brand-dark rounded-md px-4 py-2 font-semibold focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
-          onClick={() => {
-            try {
-              window.localStorage.setItem(KEY, 'seen')
-            } catch {
-              /* private mode: just hide it for now */
-            }
-            setShow(false)
-          }}
-        >
-          OK
-        </button>
+    <>
+      {/* Room at the end of the page so the notice never covers a page's last buttons. */}
+      <div aria-hidden className="h-36 sm:h-20" data-testid="cookie-notice-spacer" />
+      <div
+        role="region"
+        aria-label="Cookie notice"
+        data-testid="cookie-notice"
+        className="bg-brand-dark fixed inset-x-0 bottom-0 z-50 px-4 py-3 text-sm text-white shadow-lg"
+      >
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
+          <p>
+            We use essential cookies only, to keep you signed in and remember your progress. No
+            advertising or tracking.{' '}
+            <Link href="/privacy" className="text-brand-gold underline">
+              Privacy policy
+            </Link>
+          </p>
+          <button
+            type="button"
+            className="bg-brand-gold text-brand-dark rounded-md px-4 py-2 font-semibold focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+            onClick={() => {
+              try {
+                window.localStorage.setItem(KEY, 'seen')
+              } catch {
+                /* private mode: just hide it for now */
+              }
+              setShow(false)
+            }}
+          >
+            OK
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   )
 }

@@ -32,6 +32,8 @@ export type PlanEstimate = {
   plan: Plan
   size: SystemSize
   quote: QuoteResult
+  /** The customer changed this plan's items in the builder ("Adjust this quote"). */
+  adjusted?: boolean
 }
 
 export type Estimate = {
