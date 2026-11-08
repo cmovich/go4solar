@@ -148,7 +148,7 @@ STILL TO DO before switching Production to live mode:
 12. Speed: run independent database queries in parallel on the guarantor and
     signing pages.
 13. Flaky e2e test: admin "Show test data" toggle — find the cause.
-14. Real provider accounts and keys: QoreID (KYC), Paystack live + Direct Debit,
+14. Real provider accounts and keys: KYC provider (see item 23), Paystack live + Direct Debit,
     Termii (SMS), Resend (email — its DNS records must not touch the existing
     mail settings), Anthropic vision (optional).
 15. Lawyer approval of /terms and the customer agreement templates (remove the
@@ -175,6 +175,24 @@ STILL TO DO before switching Production to live mode:
 22. Long live-mode e2e journey is flaky (slow screen updates over the remote
     database; data saves correctly). Split it into shorter tests and re-check
     after item 12 (parallel queries).
+23. Real ID verification (KYC) before the live launch. Semako is comparing quotes
+    from QoreID, Smile ID and Dojah (Nov 2026); no code until a provider is chosen.
+    Then: (a) write or finish that provider's adapter behind the existing KYC
+    interface (`src/lib/providers/kyc`: NIN, BVN, CAC, face check session and result)
+    and run the same contract tests the test provider passes — the QoreID adapter
+    exists but has never run against their sandbox (endpoints marked VERIFY), Dojah
+    is a stub; (b) allow the provider's face-check hosts in the security headers
+    (`src/lib/security/headers.ts`: frames, scripts, camera — only QoreID today);
+    (c) add a signed, idempotent webhook route if the provider sends face-check
+    results later; (d) set `KYC_PROVIDER=<name>` and its keys on Vercel Preview
+    first, test the whole application and guarantor journey with sandbox identities,
+    then Production; (e) sign a data-processing agreement with the provider, name
+    it in /privacy (back to the lawyer: the page is lawyer-approved), and confirm the
+    price per NIN / BVN / CAC / face check; (f) check whether the provider needs a
+    virtual NIN (vNIN) instead of the NIN. We never store full NIN/BVN numbers or
+    selfies (only the last 4 digits, keyed fingerprints, match flags and provider
+    references) — keep it that way. Optional: a backup provider behind the same
+    interface.
 
 ## 8. Home page hero photos (add or swap)
 
