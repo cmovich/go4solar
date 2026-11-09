@@ -6,10 +6,12 @@ import { ImageUpload } from '@/components/admin/content/ImageUpload'
 import { Input } from '@/components/ui/input'
 import { ACCESSORY_KINDS, KIND_LABELS, RATING_UNITS } from '@/lib/catalogue/autopick'
 import {
+  MISSING_EFFECT,
   NOMINAL_VOLTAGES,
   SPEC_FIELDS,
   missingSpecs,
   specProblems,
+  specWarnings,
   type SpecCategory,
 } from '@/lib/components/specs'
 
@@ -67,7 +69,7 @@ export function VoltageField({
   )
 }
 
-/** Badge: are this row's specs complete? */
+/** Badge: are this row's specs complete? Incomplete rows are still quoted. */
 export function SpecsBadge({
   category,
   nominalVoltage,
@@ -84,10 +86,10 @@ export function SpecsBadge({
   return (
     <span
       className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold whitespace-nowrap text-amber-900"
-      title={`Missing: ${missing.join(', ')}`}
-      data-testid="specs-missing"
+      title={`Still quoted. Missing: ${missing.join(', ')}`}
+      data-testid="specs-incomplete"
     >
-      Specs missing
+      Incomplete
     </span>
   )
 }
@@ -98,17 +100,18 @@ export function SpecsEditor({
   category,
   nominalVoltage,
   specs,
-  skippedReason,
   onChange,
 }: {
   sku: string
   category: SpecCategory
   nominalVoltage: number | null
   specs: Specs
-  skippedReason: string | null
   onChange: (specs: Specs) => void
 }) {
-  const problems = specProblems({ category, nominalVoltage, specs })
+  const item = { category, nominalVoltage, specs }
+  const problems = specProblems(item)
+  const warnings = specWarnings(item)
+  const missing = missingSpecs(item)
   const set = (key: string, v: Value) => onChange({ ...specs, [key]: v })
   return (
     <div className="space-y-3 rounded-lg border bg-white p-3" data-testid={`specs-${sku || 'new'}`}>
@@ -169,12 +172,17 @@ export function SpecsEditor({
           ))}
         </ul>
       )}
-      {skippedReason && (
-        <p className="text-xs text-amber-900">
-          Not used by quotes or the system builder until its specs are complete (
-          {skippedReason.replace(/^Specs missing: /, 'missing: ')}).
-        </p>
+      {warnings.length > 0 && (
+        <ul className="list-disc pl-5 text-xs text-amber-900" data-testid="specs-warnings">
+          {warnings.map((w) => (
+            <li key={w}>{w}. Check the datasheet (this does not stop saving).</li>
+          ))}
+        </ul>
       )}
+      <p className="text-muted-foreground text-xs">
+        Fill in what you have; empty fields are fine and the item is still quoted.
+        {missing.length > 0 && MISSING_EFFECT[category] ? ` ${MISSING_EFFECT[category]}` : ''}
+      </p>
     </div>
   )
 }

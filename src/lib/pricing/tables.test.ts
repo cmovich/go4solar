@@ -345,7 +345,7 @@ describe('priceListFromRows: component specs (Part A)', () => {
     lengthCm: 228,
     widthCm: 113,
   }
-  it('a panel with missing specs is skipped once another panel has full specs', () => {
+  it('a panel with missing specs is still used (sizing fills the gaps with assumed values)', () => {
     const rows = [
       ...components.filter((c) => c.category !== 'panels'),
       {
@@ -361,12 +361,10 @@ describe('priceListFromRows: component specs (Part A)', () => {
         specs: {},
       },
     ]
-    const p = priceListFromRows({ components: rows, installs, panelWatts: 550 })
-    expect(p.panel.sku).toBe('PNL-OK')
-    expect(p.skipped).toContainEqual({
-      sku: 'PNL-NOSPEC',
-      reason: expect.stringMatching(/^Specs missing/),
-    })
+    const noSpecFirst = [rows.at(-1)!, ...rows.slice(0, -1)]
+    const p = priceListFromRows({ components: noSpecFirst, installs, panelWatts: 550 })
+    expect(p.panel.sku).toBe('PNL-NOSPEC')
+    expect(p.skipped ?? []).toEqual([])
   })
   it('with no specs anywhere yet, everything is still used (quotes keep working)', () => {
     const p = priceListFromRows({ components, installs, panelWatts: 550 })

@@ -1,4 +1,4 @@
-import { SPEC_FIELDS, missingSpecs, type Specs } from '@/lib/components/specs'
+import { SPEC_FIELDS, type Specs } from '@/lib/components/specs'
 
 import { ASSUMED_PANEL, assumedInverter, type AssumedInverter } from './assumed'
 import type { BatteryOption, Equipment, InverterOption, PanelOption } from './types'
@@ -32,7 +32,7 @@ const INVERTER_KEYS: (keyof AssumedInverter)[] = [
 /**
  * The equipment the sizing engine works with, from the price list: each inverter's own specs,
  * missing ones filled from the assumed table (and listed, so admin knows what to enter); the
- * panel's Voc/Vmp the same way; and the batteries whose specs are complete (the catalogue).
+ * panel's Voc/Vmp the same way; and the batteries with a nominal voltage (the catalogue).
  */
 export function equipmentFrom(input: {
   inverters: InverterRow[]
@@ -73,11 +73,8 @@ export function equipmentFrom(input: {
   }
 
   const batteries: BatteryOption[] = input.batteries.flatMap((b) => {
-    if (
-      b.nominalVoltage === null ||
-      missingSpecs({ category: 'battery', nominalVoltage: b.nominalVoltage, specs: b.specs }).length
-    )
-      return []
+    // Only the nominal voltage is needed to count whole batteries; the rest is optional.
+    if (b.nominalVoltage === null) return []
     const dod = num(b.specs, 'usableDod')
     return [
       {
