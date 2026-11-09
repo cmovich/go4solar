@@ -120,7 +120,8 @@ export async function saveComponents(input: unknown): Promise<Result> {
   }
   const duplicate = duplicateSkuMessage(parsed.data)
   if (duplicate) return { ok: false, error: duplicate, field: 'sku' }
-  // Specs must make sense (missing ones are allowed: the row shows "Specs missing").
+  // Filled-in specs must be numbers in a sensible range; empty ones are fine ("Incomplete").
+  // Pairs that do not match (e.g. Vmp ≥ Voc) are only warnings on screen and never block.
   const cleaned = parsed.data.map((c) => cleanSpecs(c.category, c.specs))
   for (const [i, c] of parsed.data.entries()) {
     const problem = specProblems({ ...c, specs: cleaned[i] })[0]

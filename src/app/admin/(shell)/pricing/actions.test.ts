@@ -386,7 +386,7 @@ describe('confirmSamplePrices', () => {
   })
 })
 
-// Part A: component specs are saved with the row; impossible values are refused, naming the row.
+// Component specs are saved with the row, partial or empty; out-of-range values are refused.
 describe('saveComponents: specs', () => {
   beforeEach(() => getSessionInfo.mockResolvedValue(superAdmin))
   const panel = {
@@ -412,12 +412,26 @@ describe('saveComponents: specs', () => {
     })
   })
 
-  it('an impossible spec is refused in plain words, naming the row; nothing saved', async () => {
-    const r = await saveComponents([{ ...panel, specs: { ...panel.specs, vmp: 52 } }])
+  it('an out-of-range spec is refused in plain words, naming the row; nothing saved', async () => {
+    const r = await saveComponents([{ ...panel, specs: { ...panel.specs, voc: 400 } }])
     expect(r).toMatchObject({
       ok: false,
-      error: 'Row 1 (PNL-550): Vmp must be lower than Voc. Nothing was saved.',
+      error: 'Row 1 (PNL-550): Voc must be between 5 and 120 V. Nothing was saved.',
     })
     expect(calls.filter((c) => c.op === 'upsert')).toEqual([])
+  })
+
+  it('partial specs and no nominal voltage are saved', async () => {
+    const partial = { ...panel, nominalVoltage: null, specs: { voc: 49.6, vmp: null } }
+    expect(await saveComponents([partial])).toEqual({ ok: true })
+    const rows = calls.find((c) => c.table === 'components' && c.op === 'upsert')
+      ?.payload as Record<string, unknown>[]
+    expect(rows[0]).toMatchObject({ nominal_voltage: null, specs: { voc: 49.6 } })
+  })
+
+  it('a pair that does not match (Vmp above Voc) is only a warning: it is saved', async () => {
+    expect(await saveComponents([{ ...panel, specs: { ...panel.specs, vmp: 52 } }])).toEqual({
+      ok: true,
+    })
   })
 })

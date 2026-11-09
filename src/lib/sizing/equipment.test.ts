@@ -65,7 +65,7 @@ describe('equipmentFrom (price list → what the sizing engine uses)', () => {
     expect(e.inverters[0]!.assumed).not.toContain('battery voltage')
   })
 
-  it('only batteries with complete specs join the catalogue', () => {
+  it('batteries with a nominal voltage join the catalogue, even with partial specs', () => {
     const e = equipmentFrom({
       inverters: [],
       panel: { sku: 'P', watts: 550, specs: {} },
@@ -86,10 +86,12 @@ describe('equipmentFrom (price list → what the sizing engine uses)', () => {
           },
         },
         { sku: 'BAT-2.5', kwh: 2.5, unitCost: 420_000, nominalVoltage: null, specs: {} },
+        { sku: 'BAT-10-48', kwh: 10, unitCost: 1_900_000, nominalVoltage: 48, specs: {} },
       ],
     })
     expect(e.batteries).toEqual([
       { sku: 'BAT-5-48', kwh: 5.12, voltage: 48, usableDod: 0.9, unitCost: 1_000_000 },
+      { sku: 'BAT-10-48', kwh: 10, voltage: 48, usableDod: null, unitCost: 1_900_000 },
     ])
   })
 })

@@ -91,7 +91,7 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 const num = (v: number) => (v < 0 ? `−${Math.abs(v)}` : String(v))
 const present = (v: unknown) => v !== null && v !== undefined && v !== ''
 
-/** What is still missing (accessories need nothing; others also need a nominal voltage). */
+/** What is still missing for the row to be complete ("Incomplete" badge). Never blocks quoting. */
 export function missingSpecs(c: Item): string[] {
   if (c.category === 'accessories') return []
   const specs = c.specs ?? {}
@@ -103,7 +103,29 @@ export function missingSpecs(c: Item): string[] {
   ]
 }
 
-/** Values out of range or inconsistent with each other, in plain words. */
+/**
+ * What an item needs to be quoted at all: the main columns of its row, never a datasheet spec.
+ * Missing specs only make the row "Incomplete"; sizing fills the gaps with assumed values.
+ */
+export const NEEDED_TO_QUOTE: Record<SpecCategory, string[]> = {
+  inverter: ['size (kVA)', 'unit cost'],
+  panels: ['size (W)', 'unit cost'],
+  battery: ['size (kWh)', 'unit cost'],
+  accessories: ['size (max kVA)', 'unit cost'],
+}
+
+/** What a missing spec costs, in plain words (shown on the row). */
+export const MISSING_EFFECT: Partial<Record<SpecCategory, string>> = {
+  inverter: 'Missing values are filled with typical (assumed) ones for sizing.',
+  panels:
+    'Missing Voc/Vmp are filled with typical values. Without the length, a roof rack cannot be priced.',
+  battery: 'Without the nominal voltage the battery is sized in steps instead of whole batteries.',
+}
+
+/**
+ * Problems with the values that are filled in (numbers are numbers, sensible ranges). These block
+ * saving. Empty fields are never a problem.
+ */
 export function specProblems(c: Item): string[] {
   const specs = c.specs ?? {}
   const out: string[] = []
@@ -111,7 +133,9 @@ export function specProblems(c: Item): string[] {
     const v = specs[f.key]
     if (!present(v)) continue
     if (f.kind === 'number') {
-      if (typeof v !== 'number' || !Number.isFinite(v) || v < f.min || v > f.max) {
+      if (typeof v !== 'number' || !Number.isFinite(v)) {
+        out.push(`${cap(f.label)} must be a number`)
+      } else if (v < f.min || v > f.max) {
         const unit = f.unit ? ` ${f.unit}` : ''
         out.push(`${cap(f.label)} must be between ${num(f.min)} and ${num(f.max)}${unit}`)
       }
@@ -121,11 +145,21 @@ export function specProblems(c: Item): string[] {
       out.push(`Keep the ${f.label} to ${f.max} characters`)
     }
   }
-  const val = (k: string) => (typeof specs[k] === 'number' ? (specs[k] as number) : null)
+  return out
+}
+
+/** Filled-in pairs that do not match each other. Shown as a warning; never block saving. */
+export function specWarnings(c: Item): string[] {
+  const specs = c.specs ?? {}
+  const out: string[] = []
+  const val = (k: string) => {
+    const v = specs[k]
+    return typeof v === 'number' && Number.isFinite(v) ? v : null
+  }
   if (c.category === 'panels') {
     const [voc, vmp, isc, imp] = [val('voc'), val('vmp'), val('isc'), val('imp')]
-    if (voc !== null && vmp !== null && vmp >= voc) out.push('Vmp must be lower than Voc')
-    if (isc !== null && imp !== null && imp > isc) out.push('Imp must not be higher than Isc')
+    if (voc !== null && vmp !== null && vmp >= voc) out.push('Vmp is usually lower than Voc')
+    if (isc !== null && imp !== null && imp > isc) out.push('Imp is usually not higher than Isc')
   }
   if (c.category === 'inverter') {
     const [lo, hi, voc, w, surge] = [
@@ -135,10 +169,11 @@ export function specProblems(c: Item): string[] {
       val('ratedW'),
       val('surgeW'),
     ]
-    if (lo !== null && hi !== null && lo >= hi) out.push('MPPT min must be lower than MPPT max')
+    if (lo !== null && hi !== null && lo >= hi) out.push('MPPT min is usually lower than MPPT max')
     if (hi !== null && voc !== null && hi > voc)
-      out.push('MPPT max must not be higher than max PV Voc')
-    if (w !== null && surge !== null && surge < w) out.push('Surge W must be at least the rated W')
+      out.push('MPPT max is usually not higher than max PV Voc')
+    if (w !== null && surge !== null && surge < w)
+      out.push('Surge W is usually at least the rated W')
   }
   if (c.category === 'battery') {
     const [v, ah, kwh] = [val('nominalV'), val('capacityAh'), val('capacityKwh')]
@@ -150,35 +185,4 @@ export function specProblems(c: Item): string[] {
     }
   }
   return out
-}
-
-type Row = Item & { id: string; sku: string; active: boolean }
-
-/**
- * Which active components the sizing engine and the system builder may use. Items with missing
- * specs are skipped with a note. While a whole category has no item with complete specs yet,
- * its items are still used (otherwise every quote would stop) and the category is flagged.
- */
-export function usableComponents<T extends Row>(
-  rows: T[],
-): {
-  usable: T[]
-  skipped: { sku: string; reason: string }[]
-  categoriesWithoutSpecs: SpecCategory[]
-} {
-  const active = rows.filter((r) => r.active)
-  const complete = (r: T) => missingSpecs(r).length === 0
-  const categories = [...new Set(active.map((r) => r.category))]
-  const categoriesWithoutSpecs = categories.filter(
-    (cat) => !active.some((r) => r.category === cat && complete(r)),
-  )
-  const usable: T[] = []
-  const skipped: { sku: string; reason: string }[] = []
-  for (const r of active) {
-    // Inverters are always usable: sizing fills missing specs from its assumed table (Part B).
-    if (complete(r) || r.category === 'inverter' || categoriesWithoutSpecs.includes(r.category))
-      usable.push(r)
-    else skipped.push({ sku: r.sku, reason: `Specs missing: ${missingSpecs(r).join(', ')}` })
-  }
-  return { usable, skipped, categoriesWithoutSpecs }
 }

@@ -6,7 +6,7 @@ const hasStaff = () => Boolean(process.env.E2E_STAFF_EMAIL && process.env.E2E_ST
 
 // The price list is shared with the live site: this test edits on screen and DISCARDS, never
 // saving.
-test('component specs: badge, filter, editor with plain-English checks (not saved)', async ({
+test('component specs: incomplete badge, filter, partial specs, warnings vs problems (not saved)', async ({
   page,
 }) => {
   test.skip(!hasStaff(), 'needs the e2e staff account')
@@ -17,14 +17,15 @@ test('component specs: badge, filter, editor with plain-English checks (not save
   await expect(rows.first()).toBeVisible()
   const total = await rows.count()
 
-  // Filter: only rows missing specs.
-  await page.getByRole('checkbox', { name: 'Show only rows missing specs' }).check()
+  // Filter: only incomplete rows.
+  await page.getByRole('checkbox', { name: 'Show only incomplete rows' }).check()
   const missing = await rows.count()
   expect(missing).toBeLessThanOrEqual(total)
-  await page.getByRole('checkbox', { name: 'Show only rows missing specs' }).uncheck()
+  await page.getByRole('checkbox', { name: 'Show only incomplete rows' }).uncheck()
   await expect(rows).toHaveCount(total)
 
-  // Open the first panel's specs and type an impossible Vmp (higher than Voc).
+  // Open the first panel's specs: a pair that does not match is a warning; text in a number
+  // field and an out-of-range value are problems.
   const panelRow = rows
     .filter({ has: page.getByRole('option', { name: 'Panels', selected: true }) })
     .first()
@@ -35,7 +36,13 @@ test('component specs: badge, filter, editor with plain-English checks (not save
     .first()
   await editor.getByLabel(/^Voc/).fill('40')
   await editor.getByLabel(/^Vmp/).fill('45')
-  await expect(editor.getByRole('alert')).toContainText('Vmp must be lower than Voc')
+  await expect(editor.getByTestId('specs-warnings')).toContainText('Vmp is usually lower than Voc')
+  await expect(editor.getByRole('alert')).toHaveCount(0)
+  await editor.getByLabel(/^Voc/).fill('400')
+  await expect(editor.getByRole('alert')).toContainText('Voc must be between 5 and 120 V')
+  // Partial specs: clearing a field is fine.
+  await editor.getByLabel(/^Voc/).fill('')
+  await expect(editor.getByRole('alert')).toHaveCount(0)
 
   // Discard: nothing is saved.
   await page.getByRole('button', { name: 'Discard' }).click()
