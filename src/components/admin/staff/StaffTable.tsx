@@ -8,7 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { STAFF_ROLES, type StaffRole } from '@/lib/auth/staffRoles'
+import { SALES_ROLE, STAFF_ROLES, type StaffRole as BackOfficeRole } from '@/lib/auth/staffRoles'
+
+/** Back-office staff roles, plus Sales (Quotations only). */
+type StaffRole = BackOfficeRole | typeof SALES_ROLE
+const ROLES: readonly StaffRole[] = [...STAFF_ROLES, SALES_ROLE]
 
 import {
   inviteStaff,
@@ -25,6 +29,8 @@ export type StaffRowView = {
   assistedEntry: boolean
   /** May delete waiting-list entries (super admins always can). */
   waitlistDelete: boolean
+  /** May make quotations with the builder (super admins always can). */
+  createQuotations: boolean
   disabled: boolean
   isMe: boolean
 }
@@ -36,6 +42,7 @@ const ROLE_LABELS: Record<StaffRole, string> = {
   collections: 'Collections',
   finance: 'Finance',
   content: 'Content',
+  sales: 'Sales (Quotations only)',
 }
 
 function StaffRow({ initial }: { initial: StaffRowView }) {
@@ -43,13 +50,15 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
   const [role, setRole] = useState<StaffRole>(initial.role)
   const [assisted, setAssisted] = useState(initial.assistedEntry)
   const [canDelete, setCanDelete] = useState(initial.waitlistDelete)
+  const [canQuote, setCanQuote] = useState(initial.createQuotations)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
   const [pending, start] = useTransition()
   const dirty =
     role !== initial.role ||
     assisted !== initial.assistedEntry ||
-    canDelete !== initial.waitlistDelete
+    canDelete !== initial.waitlistDelete ||
+    canQuote !== initial.createQuotations
 
   function save() {
     setError(null)
@@ -59,6 +68,7 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
         role,
         assistedEntry: assisted,
         waitlistDelete: canDelete,
+        createQuotations: canQuote,
       })
       if (r.ok) router.refresh()
       else setError(r.error)
@@ -99,7 +109,7 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
             aria-label={`Role for ${initial.email}`}
             disabled={initial.isMe}
           >
-            {STAFF_ROLES.map((r) => (
+            {ROLES.map((r) => (
               <option key={r} value={r}>
                 {ROLE_LABELS[r]}
               </option>
@@ -119,6 +129,14 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
             disabled={role === 'super_admin'}
             onCheckedChange={(v) => setCanDelete(v === true)}
             aria-label={`Delete waiting-list entries for ${initial.email}`}
+          />
+        </td>
+        <td className="px-3 py-2 text-center">
+          <Checkbox
+            checked={role === 'super_admin' || role === 'sales' || canQuote}
+            disabled={role === 'super_admin' || role === 'sales'}
+            onCheckedChange={(v) => setCanQuote(v === true)}
+            aria-label={`Create quotations for ${initial.email}`}
           />
         </td>
         <td className="px-3 py-2">{initial.disabled ? 'Disabled' : 'Active'}</td>
@@ -171,6 +189,7 @@ export function StaffTable({ rows }: { rows: StaffRowView[] }) {
   const [role, setRole] = useState<StaffRole>('operations')
   const [assisted, setAssisted] = useState(false)
   const [canDelete, setCanDelete] = useState(false)
+  const [canQuote, setCanQuote] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const [pending, start] = useTransition()
 
@@ -184,6 +203,7 @@ export function StaffTable({ rows }: { rows: StaffRowView[] }) {
         role,
         assistedEntry: assisted,
         waitlistDelete: canDelete,
+        createQuotations: canQuote,
       })
       if (r.ok) {
         setMessage({ ok: true, text: `Invitation sent to ${email}.` })
@@ -226,7 +246,7 @@ export function StaffTable({ rows }: { rows: StaffRowView[] }) {
               onChange={(e) => setRole(e.target.value as StaffRole)}
               className="border-input mt-1 h-10 w-full rounded-md border bg-white px-2 text-sm"
             >
-              {STAFF_ROLES.map((r) => (
+              {ROLES.map((r) => (
                 <option key={r} value={r}>
                   {ROLE_LABELS[r]}
                 </option>
@@ -241,6 +261,10 @@ export function StaffTable({ rows }: { rows: StaffRowView[] }) {
             <label className="flex h-10 items-center gap-2 text-sm">
               <Checkbox checked={canDelete} onCheckedChange={(v) => setCanDelete(v === true)} />{' '}
               Delete waiting list
+            </label>
+            <label className="flex h-10 items-center gap-2 text-sm">
+              <Checkbox checked={canQuote} onCheckedChange={(v) => setCanQuote(v === true)} />{' '}
+              Create quotations
             </label>
             <Button type="submit" disabled={pending}>
               {pending ? 'Sending…' : 'Invite'}
@@ -261,13 +285,19 @@ export function StaffTable({ rows }: { rows: StaffRowView[] }) {
         <table className="w-full text-sm" data-testid="staff-table">
           <thead className="bg-brand-green text-left text-white">
             <tr>
-              {['Person', 'Role', 'Assisted entry', 'Delete waiting list', 'Status', ''].map(
-                (h) => (
-                  <th key={h} className="px-3 py-2 font-semibold whitespace-nowrap">
-                    {h}
-                  </th>
-                ),
-              )}
+              {[
+                'Person',
+                'Role',
+                'Assisted entry',
+                'Delete waiting list',
+                'Create quotations',
+                'Status',
+                '',
+              ].map((h) => (
+                <th key={h} className="px-3 py-2 font-semibold whitespace-nowrap">
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>

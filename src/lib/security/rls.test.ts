@@ -30,6 +30,7 @@ type Access = 'own' | 'staff' | 'server' | 'public' | 'profit-staff'
 const ACCESS: Record<Table, Access> = {
   accessory_rules: 'staff',
   vision_usage: 'staff',
+  staff_quotations: 'staff',
   agreement_templates: 'staff',
   logistics_costs: 'staff',
   rack_prices: 'staff',
@@ -142,6 +143,7 @@ describe.skipIf(!hasDb)('RLS against the real database', () => {
     b = ub.client
     staff = us.client
     ids.a = ua.id
+    ids.staff = us.id
     anon = createClient<Database>(url!, anonKey!, { auth: { persistSession: false } })
 
     const quote = must(
@@ -410,6 +412,7 @@ describe.skipIf(!hasDb)('RLS against the real database', () => {
     }
   }, 90_000)
 
+  // One remote read per table, one after another (~50 tables): allow 2 minutes.
   it('a visitor who is not signed in reads nothing private', async () => {
     for (const t of Object.keys(ACCESS) as Table[]) {
       if (ACCESS[t] === 'public') continue
@@ -419,7 +422,7 @@ describe.skipIf(!hasDb)('RLS against the real database', () => {
         .limit(5)
       expect(data ?? [], t).toEqual([])
     }
-  }, 60_000)
+  }, 120_000)
 
   it('staff-only and server-only tables return nothing to a customer', async () => {
     for (const t of Object.keys(ACCESS) as Table[]) {
@@ -430,7 +433,51 @@ describe.skipIf(!hasDb)('RLS against the real database', () => {
         .limit(5)
       expect(data ?? [], t).toEqual([])
     }
-  }, 60_000)
+  }, 120_000)
+
+  // Migration 0032: super admins read every staff quotation; other staff only their own, and
+  // only with the create_quotations permission. Nobody writes from the browser.
+  it('staff quotations: no reads without the permission, no writes from the browser', async () => {
+    const row = await admin
+      .from('staff_quotations')
+      .insert({
+        public_code: `rls${Date.now().toString(36)}`.slice(0, 14),
+        created_by: ids.staff,
+        state: 'Lagos',
+        builder: {},
+        deposit_share: 0.2,
+        tenure: 12,
+        total: 1,
+        monthly: 1,
+        valid_until: new Date(Date.now() + 86_400_000).toISOString(),
+        is_test: true,
+      })
+      .select('id')
+      .single()
+    if (!row.data) return // 0032 not applied yet
+    for (const c of [staff, a, anon]) {
+      const { data } = await c.from('staff_quotations').select('id').eq('id', row.data.id)
+      expect(data ?? []).toEqual([])
+    }
+    const insert = await staff.from('staff_quotations').insert({
+      public_code: 'rlsbrowser01',
+      state: 'Lagos',
+      builder: {},
+      deposit_share: 0.2,
+      tenure: 12,
+      total: 1,
+      monthly: 1,
+      valid_until: new Date().toISOString(),
+    })
+    expect(insert.error).not.toBeNull()
+    await staff.from('staff_quotations').update({ total: 0 }).eq('id', row.data.id)
+    const after = await admin
+      .from('staff_quotations')
+      .select('total')
+      .eq('id', row.data.id)
+      .single()
+    expect(Number(after.data?.total)).toBe(1)
+  }, 30_000)
 
   it('server-only tables refuse even a plain read (no table privileges)', async () => {
     for (const t of [

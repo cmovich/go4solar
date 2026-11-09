@@ -42,7 +42,7 @@ export default async function AuditLogPage({
     (await createClient())
       .from('profiles')
       .select('id, email, full_name, role')
-      .in('role', [...STAFF_ROLES])
+      .in('role', [...STAFF_ROLES, 'sales'])
       .order('email'),
   ])
   const qs = new URLSearchParams(

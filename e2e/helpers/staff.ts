@@ -30,10 +30,11 @@ async function freshCode(secret: string): Promise<string> {
 
 /**
  * Signs in as an e2e staff member made by global-setup, with the authenticator:
- * 'staff' = super admin (default), 'ops' = operations role with no extra permissions.
+ * 'staff' = super admin (default), 'ops' = operations role with no extra permissions, 'sales' =
+ * the Sales role (Quotations only; from migration 0033).
  */
-export async function loginAsStaff(page: Page, who: 'staff' | 'ops' = 'staff') {
-  const env = who === 'ops' ? 'E2E_OPS' : 'E2E_STAFF'
+export async function loginAsStaff(page: Page, who: 'staff' | 'ops' | 'sales' = 'staff') {
+  const env = who === 'ops' ? 'E2E_OPS' : who === 'sales' ? 'E2E_SALES' : 'E2E_STAFF'
   test.setTimeout(Math.max(test.info().timeout, 300_000))
   await page.goto('/login')
   await page.getByLabel('Email').fill(process.env[`${env}_EMAIL`]!)
@@ -42,6 +43,9 @@ export async function loginAsStaff(page: Page, who: 'staff' | 'ops' = 'staff') {
   await page.waitForURL(/\/admin\/mfa/)
   await page.getByLabel('6-digit code').fill(await freshCode(process.env[`${env}_TOTP_SECRET`]!))
   await page.getByRole('button', { name: 'Verify' }).click()
-  await page.waitForURL(/\/admin$/)
-  await expect(page.getByRole('heading', { name: 'Back office' })).toBeVisible()
+  // Sales land on Quotations (the only page they may use).
+  await page.waitForURL(who === 'sales' ? /\/admin\/quotations$/ : /\/admin$/)
+  await expect(
+    page.getByRole('heading', { level: 1, name: who === 'sales' ? 'Quotations' : 'Back office' }),
+  ).toBeVisible({ timeout: 30_000 })
 }

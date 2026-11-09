@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { launchMode, siteConfig } from '@/config/site'
-import { isStaffRole } from '@/lib/auth/roles'
+import { isBackOfficeRole } from '@/lib/auth/roles'
 import { getSessionInfo } from '@/lib/auth/session'
 
 import { LoginForm } from './LoginForm'
@@ -24,7 +24,7 @@ export default async function LoginPage({
 
   // Already signed in: skip the form.
   const { user, role } = await getSessionInfo()
-  if (user) redirect(isStaffRole(role) ? '/admin' : (next ?? '/'))
+  if (user) redirect(isBackOfficeRole(role) ? '/admin' : (next ?? '/'))
 
   return (
     <main className="bg-brand-mist flex min-h-screen items-center justify-center px-4 py-12">

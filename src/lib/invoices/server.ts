@@ -109,6 +109,7 @@ async function prepare(
   number: string,
   publicCode: string,
   verifyUrl: string | null,
+  issuedAt: Date = new Date(),
 ): Promise<InvoiceData> {
   // Only the item sizes are needed here (not the price settings), so the catalogue alone.
   const [company, validityDays, roofTypes, catalogue] = await Promise.all([
@@ -127,7 +128,7 @@ async function prepare(
     number,
     publicCode,
     verifyUrl,
-    issuedAt: new Date(),
+    issuedAt,
     validityDays,
     company,
     customer: src.customer,
@@ -227,6 +228,46 @@ export async function quotationForBuilderLead(
     customer: customerFromLead(lead),
     isTest: Boolean(lead.is_test),
   })
+}
+
+
+/**
+ * A staff quotation (/admin/quotations, the customer link /q/<code>): its stored snapshot, with
+ * the optional name, phone and state staff typed. The caller checks access.
+ */
+export async function quotationForStaff(
+  row: Database['public']['Tables']['staff_quotations']['Row'],
+): Promise<DocResult> {
+  const stored = storedBuild(row.builder)
+  if (!stored) return { ok: false, reason: 'not_found' }
+  if (stored.sample || row.sample) return { ok: false, reason: 'sample' }
+  const name = row.customer_name?.trim() || 'Customer'
+  const doc = await prepare(
+    {
+      result: (row.builder as unknown as { quote: QuoteResult }).quote,
+      // Same title as the quote and invoice it becomes once accepted.
+      title: OWN_SYSTEM_LABEL,
+      reference: quoteReference(row.id),
+      site: row.site,
+      builder: row.builder,
+      customer: {
+        firstName: name.split(/\s+/)[0] ?? 'Customer',
+        name,
+        phone: row.customer_phone,
+        email: null,
+        place: placeOf(null, row.state),
+        businessName: null,
+      },
+      isTest: row.is_test,
+    },
+    'quotation',
+    quoteReference(row.id),
+    '',
+    null,
+    // Dated the day staff made it (valid for the same number of days from then).
+    new Date(row.created_at),
+  )
+  return { ok: true, id: null, invoice: doc }
 }
 
 // ------------------------------------------------------------------ invoices (numbered)

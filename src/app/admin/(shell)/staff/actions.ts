@@ -6,7 +6,7 @@ import { z } from 'zod'
 
 import { siteOrigin } from '@/lib/auth/emailVerification'
 import { authCallbackUrl, sendPasswordLink } from '@/lib/auth/passwordLinks'
-import { STAFF_ROLES, isStaffRole } from '@/lib/auth/roles'
+import { SALES_ROLE, STAFF_ROLES, isBackOfficeRole } from '@/lib/auth/roles'
 import { getSessionInfo, type SessionInfo } from '@/lib/auth/session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
@@ -19,22 +19,25 @@ async function superAdmin(): Promise<SessionInfo | null> {
 }
 const DENIED: Result = { ok: false, error: 'Only a super admin can manage staff.' }
 
-const roleSchema = z.enum(STAFF_ROLES)
+// Back-office staff, or sales (Quotations only).
+const roleSchema = z.enum([...STAFF_ROLES, SALES_ROLE])
 const inviteSchema = z.object({
   email: z.email('Enter a valid email address'),
   fullName: z.string().trim().min(2).max(80),
   role: roleSchema,
   assistedEntry: z.boolean(),
   waitlistDelete: z.boolean().default(false),
+  createQuotations: z.boolean().default(false),
 })
 const updateSchema = z.object({
   profileId: z.uuid(),
   role: roleSchema,
   assistedEntry: z.boolean(),
   waitlistDelete: z.boolean().default(false),
+  createQuotations: z.boolean().default(false),
 })
 
-type Permission = 'assisted_entry' | 'waitlist_delete'
+type Permission = 'assisted_entry' | 'waitlist_delete' | 'create_quotations'
 
 /** Give or take away one extra permission (only writes when it changes). */
 async function setPermission(
@@ -105,17 +108,19 @@ export async function inviteStaff(input: unknown): Promise<Result> {
   if (roleError) return { ok: false, error: roleError.message }
   await setPermission(id, 'assisted_entry', false, d.assistedEntry, session.user!.id)
   await setPermission(id, 'waitlist_delete', false, d.waitlistDelete, session.user!.id)
+  await setPermission(id, 'create_quotations', false, d.createQuotations, session.user!.id)
   await audit(session, 'staff.invite', id, null, {
     email: d.email,
     role: d.role,
     assistedEntry: d.assistedEntry,
     waitlistDelete: d.waitlistDelete,
+    createQuotations: d.createQuotations,
   })
   revalidatePath('/admin/staff')
   return { ok: true }
 }
 
-/** Change a staff member's role and the assisted-entry permission. */
+/** Change a staff member's role and the extra permissions. */
 export async function updateStaff(input: unknown): Promise<Result> {
   const session = await superAdmin()
   if (!session) return DENIED
@@ -138,17 +143,35 @@ export async function updateStaff(input: unknown): Promise<Result> {
     .eq('profile_id', d.profileId)
   const hadAssisted = (perms ?? []).some((p) => p.permission === 'assisted_entry')
   const hadDelete = (perms ?? []).some((p) => p.permission === 'waitlist_delete')
+  const hadQuote = (perms ?? []).some((p) => p.permission === 'create_quotations')
 
   const { error } = await admin.from('profiles').update({ role: d.role }).eq('id', d.profileId)
   if (error) return { ok: false, error: error.message }
   await setPermission(d.profileId, 'assisted_entry', hadAssisted, d.assistedEntry, session.user!.id)
   await setPermission(d.profileId, 'waitlist_delete', hadDelete, d.waitlistDelete, session.user!.id)
+  await setPermission(
+    d.profileId,
+    'create_quotations',
+    hadQuote,
+    d.createQuotations,
+    session.user!.id,
+  )
   await audit(
     session,
     'staff.update',
     d.profileId,
-    { role: before?.role ?? null, assistedEntry: hadAssisted, waitlistDelete: hadDelete },
-    { role: d.role, assistedEntry: d.assistedEntry, waitlistDelete: d.waitlistDelete },
+    {
+      role: before?.role ?? null,
+      assistedEntry: hadAssisted,
+      waitlistDelete: hadDelete,
+      createQuotations: hadQuote,
+    },
+    {
+      role: d.role,
+      assistedEntry: d.assistedEntry,
+      waitlistDelete: d.waitlistDelete,
+      createQuotations: d.createQuotations,
+    },
   )
   revalidatePath('/admin/staff')
   return { ok: true }
@@ -198,7 +221,7 @@ export async function resendStaffInvite(input: unknown): Promise<Result> {
     .select('role')
     .eq('id', profileId)
     .maybeSingle()
-  if (!isStaffRole(profile?.role ?? null)) return { ok: false, error: 'Not a staff account.' }
+  if (!isBackOfficeRole(profile?.role ?? null)) return { ok: false, error: 'Not a staff account.' }
   const { data, error: userError } = await admin.auth.admin.getUserById(profileId)
   const email = data?.user?.email
   if (userError || !email) return { ok: false, error: 'Could not find this account.' }

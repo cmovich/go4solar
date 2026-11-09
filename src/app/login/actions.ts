@@ -4,7 +4,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 import { launchMode } from '@/config/site'
-import { isStaffRole } from '@/lib/auth/roles'
+import { isBackOfficeRole } from '@/lib/auth/roles'
 import { getSessionInfo } from '@/lib/auth/session'
 import { clientIp } from '@/lib/ratelimit/clientIp'
 import { hitRateLimit } from '@/lib/ratelimit/hitRateLimit'
@@ -26,7 +26,7 @@ function safeNext(next: string | undefined): string | null {
 
 async function redirectAfterLogin(next: string | undefined): Promise<never> {
   const { role } = await getSessionInfo()
-  if (isStaffRole(role)) redirect('/admin')
+  if (isBackOfficeRole(role)) redirect('/admin')
   // Customers land on "My account" (it sends them on to their application if unfinished).
   redirect(safeNext(next) ?? '/app')
 }
