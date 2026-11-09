@@ -45,5 +45,7 @@ export async function loginAsStaff(page: Page, who: 'staff' | 'ops' | 'sales' = 
   await page.getByRole('button', { name: 'Verify' }).click()
   // Sales land on Quotations (the only page they may use).
   await page.waitForURL(who === 'sales' ? /\/admin\/quotations$/ : /\/admin$/)
-  await expect(page.getByRole('heading', { name: 'Back office' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { level: 1, name: who === 'sales' ? 'Quotations' : 'Back office' }),
+  ).toBeVisible({ timeout: 30_000 })
 }

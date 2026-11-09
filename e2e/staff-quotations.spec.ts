@@ -129,6 +129,11 @@ test.describe('sales role', () => {
     // Their own quotations only: a fresh sales account has none from anyone else.
     await page.goto('/admin/quotations')
     await expect(page.getByText('Only your own quotations are shown.')).toBeVisible()
-    await expect(page.getByTestId('new-quotation')).toBeVisible()
+    // What sales is for: make a quotation, then find it in their own list.
+    const { adminUrl } = await createQuotationAsStaff(page, { name: '', phone: '' })
+    const id = adminUrl.split('/').pop()!
+    await page.goto('/admin/quotations?test=1')
+    await expect(page.locator(`a[href="/admin/quotations/${id}"]`)).toBeVisible()
+    await expect(page.getByTestId('quotation-row').first()).toContainText('E2E Sales')
   })
 })
