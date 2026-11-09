@@ -16,7 +16,13 @@ import { createClient } from '@/lib/supabase/server'
 import { currentVisitorHash } from '@/lib/waitlist/token'
 import { z } from 'zod'
 
-import { canCreateQuotations, customerSchema, isTestQuotation, quotationStatus } from './rules'
+import {
+  canCreateQuotations,
+  canStartAssistedApplication,
+  customerSchema,
+  isTestQuotation,
+  quotationStatus,
+} from './rules'
 
 export type StaffQuotationRow = Database['public']['Tables']['staff_quotations']['Row']
 type Result<T> = ({ ok: true } & T) | { ok: false; error: string; field?: string }
@@ -31,6 +37,14 @@ export async function mayCreateQuotations(session: SessionInfo): Promise<boolean
     target: 'create_quotations',
   })
   return canCreateQuotations(session.role, Boolean(data))
+}
+
+/** May the signed-in person start a customer's application (assisted entry)? Never sales. */
+export async function mayStartAssistedApplication(session: SessionInfo): Promise<boolean> {
+  if (!session.user || session.aal !== 'aal2' || session.role === 'sales') return false
+  if (session.role === 'super_admin') return true
+  const { data } = await (await createClient()).rpc('has_permission', { target: 'assisted_entry' })
+  return canStartAssistedApplication(session.role, Boolean(data))
 }
 
 export const createSchema = z.object({

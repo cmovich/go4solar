@@ -11,6 +11,21 @@ import { phoneSchema } from '@/lib/waitlist/schema'
  * message and the list filters. Pure.
  */
 
+/** Under "New quotation" on Admin → Quotations. */
+export const QUOTATION_NOTE = 'Price quote only. No account or ID checks. Share as PDF or WhatsApp.'
+/** Under "New application on behalf of a customer" (not shown to Sales). */
+export const APPLICATION_NOTE =
+  "Starts the customer's real application (their details and ID checks). Use when the customer is ready to apply now."
+
+/** May start an application for a customer (assisted entry): never sales. */
+export function canStartAssistedApplication(
+  role: AppRole | null | undefined,
+  hasPermission: boolean,
+): boolean {
+  if (role === 'super_admin') return true
+  return isStaffRole(role) && hasPermission
+}
+
 /** Super admins and sales always; other staff only with the create_quotations permission. */
 export function canCreateQuotations(role: AppRole | null | undefined, hasPermission: boolean) {
   if (role === 'super_admin' || role === 'sales') return true

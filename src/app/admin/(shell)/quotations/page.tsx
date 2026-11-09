@@ -10,8 +10,18 @@ import { requireBackOfficeWithMfa } from '@/lib/auth/roles'
 import { formatNaira } from '@/lib/money'
 import { stateLabel, isNgStateId } from '@/lib/nigeria/states'
 import { quoteReference } from '@/lib/quotes/quote'
-import { listFilters, quotationStatus, STATUS_LABELS } from '@/lib/staffQuotes/rules'
-import { listStaffQuotations, mayCreateQuotations } from '@/lib/staffQuotes/server'
+import {
+  APPLICATION_NOTE,
+  listFilters,
+  QUOTATION_NOTE,
+  quotationStatus,
+  STATUS_LABELS,
+} from '@/lib/staffQuotes/rules'
+import {
+  listStaffQuotations,
+  mayCreateQuotations,
+  mayStartAssistedApplication,
+} from '@/lib/staffQuotes/server'
 import { includeTestData } from '@/lib/testmode/server'
 
 export const metadata: Metadata = { title: 'Quotations' }
@@ -40,18 +50,37 @@ export default async function QuotationsPage({
   const f = { ...listFilters(raw), test: await includeTestData(sp.test) }
   const r = await listStaffQuotations(session, f)
   const superAdmin = session.role === 'super_admin'
+  const canStartApplication = await mayStartAssistedApplication(session)
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-brand-dark text-3xl font-bold">Quotations</h1>
-        <Button asChild className="h-11">
-          <Link href="/admin/quotations/new" data-testid="new-quotation">
-            New quotation
-          </Link>
-        </Button>
+      <h1 className="text-brand-dark text-3xl font-bold">Quotations</h1>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2" data-testid="quotation-actions">
+        <div>
+          <Button asChild className="h-11">
+            <Link href="/admin/quotations/new" data-testid="new-quotation">
+              New quotation
+            </Link>
+          </Button>
+          <p className="text-muted-foreground mt-1 text-sm" data-testid="new-quotation-note">
+            {QUOTATION_NOTE}
+          </p>
+        </div>
+        {/* Sales never starts applications; other staff only with the assisted-entry right. */}
+        {canStartApplication && (
+          <div>
+            <Button asChild variant="outline" className="h-11">
+              <Link href="/admin/applications/new" data-testid="new-application">
+                New application on behalf of a customer
+              </Link>
+            </Button>
+            <p className="text-muted-foreground mt-1 text-sm" data-testid="new-application-note">
+              {APPLICATION_NOTE}
+            </p>
+          </div>
+        )}
       </div>
-      <p className="text-muted-foreground mt-1 text-sm">
+      <p className="text-muted-foreground mt-6 text-sm">
         Quotations made by staff with the system builder.{' '}
         {superAdmin ? 'Everyone’s quotations are shown.' : 'Only your own quotations are shown.'}{' '}
         Test data is left out.
