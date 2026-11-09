@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
+import { Calculator } from '@/components/calculator/Calculator'
 import {
   Choice,
   ExistingStep,
@@ -20,7 +21,9 @@ import {
   WireStep,
 } from '@/components/waitlist/QuoteQuestions'
 import type { LaunchMode } from '@/config/site'
+import type { LibraryItem } from '@/lib/calculator/store'
 import { adviceFacts } from '@/lib/build/advice'
+import type { BuildSelectionInput } from '@/lib/build/schema'
 import type { PricedBuild } from '@/lib/build/server'
 import {
   BUILDER_STORAGE_KEY,
@@ -143,6 +146,7 @@ export function Builder({
   done,
   applyCalculatedLoad = false,
   adjust = null,
+  staff = null,
 }: {
   items: BuilderItem[]
   roofTypes: RoofTypeCard[]
@@ -164,6 +168,21 @@ export function Builder({
     plan: 'essential' | 'comfort' | 'independence'
     planLabel: string
   } | null
+  /**
+   * Staff quotation tool (/admin/quotations/new): the same steps for a customer. The state comes
+   * from the customer box above; "I don't know my load" opens the calculator on the same page;
+   * the summary ends with "Create quotation" (no customer details asked). Nothing is kept on the
+   * device.
+   */
+  staff?: {
+    state: NgStateId | null
+    library: LibraryItem[]
+    onCreate: (input: {
+      selection: BuildSelectionInput
+      depositShare: number
+      tenure: TenureMonths
+    }) => Promise<string | null>
+  } | null
 }) {
   const router = useRouter()
   const [s, setS] = useState<BuilderState>(FRESH)
@@ -176,6 +195,7 @@ export function Builder({
   const [contact, setContact] = useState<ContactDraft>(EMPTY_CONTACT)
   const [loadNote, setLoadNote] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [showCalculator, setShowCalculator] = useState(false)
   const touched = useRef(new Set<string>())
 
   const keyOf = useCallback(
@@ -190,6 +210,11 @@ export function Builder({
   useEffect(() => {
     let saved: BuilderState | null = null
     let calc: number | null = null
+    // Staff quotations start fresh every time (nothing from this device's own builder).
+    if (staff) {
+      setReady(true)
+      return
+    }
     try {
       saved = parseBuilderState(window.localStorage.getItem(BUILDER_STORAGE_KEY))
       calc = kvaFromItems(parseStoredItems(window.localStorage.getItem(CALC_KEY)))
@@ -208,13 +233,21 @@ export function Builder({
 
   // Keep progress on this device.
   useEffect(() => {
-    if (!ready || adjust) return
+    if (!ready || adjust || staff) return
     try {
       window.localStorage.setItem(BUILDER_STORAGE_KEY, serialiseBuilderState(s))
     } catch {
       // Storage blocked: progress is not kept.
     }
-  }, [s, ready, adjust])
+  }, [s, ready, adjust, staff])
+
+  // Staff: the state chosen in the customer box above.
+  const staffState = staff?.state ?? null
+  useEffect(() => {
+    if (staff) setS((cur) => ({ ...cur, state: staffState ?? undefined }))
+    // Only the state matters here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staffState])
 
   const selection = useMemo(
     () =>
@@ -323,6 +356,9 @@ export function Builder({
     )
   }
 
+  const noStateMessage = staff
+    ? "Choose the customer's state at the top first."
+    : 'Choose your state first.'
   const back = adjust ? (s.step === 'summary' ? 'items' : null) : prevStep(s)
   const plansHref = adjust
     ? launchMode === 'live'
@@ -368,7 +404,7 @@ export function Builder({
 
       {s.step === 'start' && (
         <div className="space-y-4">
-          <div>
+          <div hidden={Boolean(staff)}>
             <Label htmlFor="build-state">Where will it be installed?</Label>
             <select
               id="build-state"
@@ -388,17 +424,13 @@ export function Builder({
             selected={s.scope === 'complete'}
             label="A complete system"
             note="Inverter, battery, panels, accessories and installation."
-            onClick={() =>
-              s.state ? advance({ scope: 'complete' }) : setError('Choose your state first.')
-            }
+            onClick={() => (s.state ? advance({ scope: 'complete' }) : setError(noStateMessage))}
           />
           <Choice
             selected={s.scope === 'some'}
             label="Just some items"
             note="For example, just a battery, or more panels for the inverter you already have."
-            onClick={() =>
-              s.state ? advance({ scope: 'some' }) : setError('Choose your state first.')
-            }
+            onClick={() => (s.state ? advance({ scope: 'some' }) : setError(noStateMessage))}
           />
         </div>
       )}
@@ -418,14 +450,39 @@ export function Builder({
             chosen={s.items}
             showPrices={showPrices && !priced?.sample}
             loadKva={s.loadKva ?? null}
-            calculatedKva={calcKva}
+            calculatedKva={staff ? null : calcKva}
             pending={pending}
             loadNote={loadNote}
             loadError={loadError}
             onChoose={choose}
             onKnownLoad={knownLoad}
-            onCalculate={() => router.push('/calculate?from=build')}
+            onCalculate={() =>
+              staff ? setShowCalculator(true) : router.push('/calculate?from=build')
+            }
           />
+          {staff && showCalculator && (
+            <section className="rounded-2xl border p-3" data-testid="staff-calculator">
+              <div className="flex items-center justify-between">
+                <h2 className="text-brand-dark font-semibold">Load calculator</h2>
+                <Button type="button" variant="ghost" onClick={() => setShowCalculator(false)}>
+                  Close
+                </Button>
+              </div>
+              <Calculator
+                library={staff.library}
+                launchMode={launchMode}
+                photoLookup={false}
+                builderLink={false}
+                continueLabel="Use this load"
+                onContinue={(list) => {
+                  const kva = kvaFromItems(list)
+                  setShowCalculator(false)
+                  if (kva !== null) knownLoad(kva)
+                  window.scrollTo({ top: 0 })
+                }}
+              />
+            </section>
+          )}
           {priced && priced.warnings.length > 0 && (
             <ul className="text-sm text-amber-900">
               {priced.warnings.map((w) => (
@@ -561,6 +618,22 @@ export function Builder({
                   )
               : null
           }
+          onCreate={
+            staff
+              ? () =>
+                  new Promise<string | null>((resolve) =>
+                    start(async () => {
+                      resolve(
+                        await staff.onCreate({
+                          selection,
+                          depositShare: s.depositPct / 100,
+                          tenure: s.tenure,
+                        }),
+                      )
+                    }),
+                  )
+              : null
+          }
           onDeposit={(pct) => setS({ ...s, depositPct: pct })}
           onTenure={(t) => setS({ ...s, tenure: t })}
           onSubmit={(contact) =>
@@ -635,6 +708,7 @@ function Summary({
   onContact,
   adjustLabel,
   onAdjust,
+  onCreate,
   onDeposit,
   onTenure,
   onSubmit,
@@ -649,6 +723,8 @@ function Summary({
   /** "Adjust this quote": the plan being changed (no details, no deposit choice here). */
   adjustLabel: string | null
   onAdjust: (() => Promise<string | null>) | null
+  /** Staff quotation tool: "Create quotation" instead of the customer's details. */
+  onCreate: (() => Promise<string | null>) | null
   onDeposit: (pct: number) => void
   onTenure: (t: TenureMonths) => void
   onSubmit: (contact: {
@@ -845,60 +921,85 @@ function Summary({
         <p className="mt-1 text-sm">{advice ?? facts.join(' ')}</p>
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-brand-dark text-lg font-bold">Your details</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {(
-            [
-              ['firstName', 'First name', 'given-name', 'text'],
-              ['surname', 'Surname', 'family-name', 'text'],
-              ['phone', 'Phone number', 'tel', 'tel'],
-              ['email', 'Email address', 'email', 'email'],
-              ['lga', 'Local government area', 'address-level2', 'text'],
-            ] as const
-          ).map(([k, label, auto, type]) => (
-            <div key={k}>
-              <Label htmlFor={`c-${k}`}>{label}</Label>
-              <Input
-                id={`c-${k}`}
-                type={type}
-                autoComplete={auto}
-                value={c[k]}
-                onChange={(e) => setC({ ...c, [k]: e.target.value })}
-                className="mt-1 h-11"
-              />
-            </div>
-          ))}
-        </div>
-        <label className="flex min-h-11 items-start gap-2 text-sm">
-          <Checkbox
-            checked={consent}
-            onCheckedChange={(v) => setConsent(v === true)}
-            className="mt-0.5"
-          />
-          I agree that Go4Solar may contact me about this system by phone, WhatsApp and email.
-        </label>
-        {error && (
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        <Button
-          type="button"
-          className={primary}
-          disabled={sending || !consent || priced.blocking.length > 0}
-          data-testid="build-submit"
-          onClick={async () => {
-            setError(null)
-            setSending(true)
-            const e = await onSubmit({ ...c, consent: true })
-            setSending(false)
-            if (e) setError(e)
-          }}
-        >
-          {sending ? 'Saving…' : launchMode === 'live' ? 'Apply' : 'Submit'}
-        </Button>
-      </section>
+      {onCreate ? (
+        <section className="space-y-3">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <Button
+            type="button"
+            className={primary}
+            disabled={sending || priced.blocking.length > 0}
+            data-testid="create-quotation"
+            onClick={async () => {
+              setError(null)
+              setSending(true)
+              const e = await onCreate()
+              setSending(false)
+              if (e) setError(e)
+            }}
+          >
+            {sending ? 'Creating…' : 'Create quotation'}
+          </Button>
+        </section>
+      ) : (
+        <section className="space-y-3">
+          <h2 className="text-brand-dark text-lg font-bold">Your details</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                ['firstName', 'First name', 'given-name', 'text'],
+                ['surname', 'Surname', 'family-name', 'text'],
+                ['phone', 'Phone number', 'tel', 'tel'],
+                ['email', 'Email address', 'email', 'email'],
+                ['lga', 'Local government area', 'address-level2', 'text'],
+              ] as const
+            ).map(([k, label, auto, type]) => (
+              <div key={k}>
+                <Label htmlFor={`c-${k}`}>{label}</Label>
+                <Input
+                  id={`c-${k}`}
+                  type={type}
+                  autoComplete={auto}
+                  value={c[k]}
+                  onChange={(e) => setC({ ...c, [k]: e.target.value })}
+                  className="mt-1 h-11"
+                />
+              </div>
+            ))}
+          </div>
+          <label className="flex min-h-11 items-start gap-2 text-sm">
+            <Checkbox
+              checked={consent}
+              onCheckedChange={(v) => setConsent(v === true)}
+              className="mt-0.5"
+            />
+            I agree that Go4Solar may contact me about this system by phone, WhatsApp and email.
+          </label>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <Button
+            type="button"
+            className={primary}
+            disabled={sending || !consent || priced.blocking.length > 0}
+            data-testid="build-submit"
+            onClick={async () => {
+              setError(null)
+              setSending(true)
+              const e = await onSubmit({ ...c, consent: true })
+              setSending(false)
+              if (e) setError(e)
+            }}
+          >
+            {sending ? 'Saving…' : launchMode === 'live' ? 'Apply' : 'Submit'}
+          </Button>
+        </section>
+      )}
     </div>
   )
 }

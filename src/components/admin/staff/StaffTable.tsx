@@ -25,6 +25,8 @@ export type StaffRowView = {
   assistedEntry: boolean
   /** May delete waiting-list entries (super admins always can). */
   waitlistDelete: boolean
+  /** May make quotations with the builder (super admins always can). */
+  createQuotations: boolean
   disabled: boolean
   isMe: boolean
 }
@@ -43,13 +45,15 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
   const [role, setRole] = useState<StaffRole>(initial.role)
   const [assisted, setAssisted] = useState(initial.assistedEntry)
   const [canDelete, setCanDelete] = useState(initial.waitlistDelete)
+  const [canQuote, setCanQuote] = useState(initial.createQuotations)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
   const [pending, start] = useTransition()
   const dirty =
     role !== initial.role ||
     assisted !== initial.assistedEntry ||
-    canDelete !== initial.waitlistDelete
+    canDelete !== initial.waitlistDelete ||
+    canQuote !== initial.createQuotations
 
   function save() {
     setError(null)
@@ -59,6 +63,7 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
         role,
         assistedEntry: assisted,
         waitlistDelete: canDelete,
+        createQuotations: canQuote,
       })
       if (r.ok) router.refresh()
       else setError(r.error)
@@ -121,6 +126,14 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
             aria-label={`Delete waiting-list entries for ${initial.email}`}
           />
         </td>
+        <td className="px-3 py-2 text-center">
+          <Checkbox
+            checked={role === 'super_admin' || canQuote}
+            disabled={role === 'super_admin'}
+            onCheckedChange={(v) => setCanQuote(v === true)}
+            aria-label={`Create quotations for ${initial.email}`}
+          />
+        </td>
         <td className="px-3 py-2">{initial.disabled ? 'Disabled' : 'Active'}</td>
         <td className="px-3 py-2 whitespace-nowrap">
           <Button type="button" size="sm" onClick={save} disabled={!dirty || pending}>
@@ -171,6 +184,7 @@ export function StaffTable({ rows }: { rows: StaffRowView[] }) {
   const [role, setRole] = useState<StaffRole>('operations')
   const [assisted, setAssisted] = useState(false)
   const [canDelete, setCanDelete] = useState(false)
+  const [canQuote, setCanQuote] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const [pending, start] = useTransition()
 
@@ -184,6 +198,7 @@ export function StaffTable({ rows }: { rows: StaffRowView[] }) {
         role,
         assistedEntry: assisted,
         waitlistDelete: canDelete,
+        createQuotations: canQuote,
       })
       if (r.ok) {
         setMessage({ ok: true, text: `Invitation sent to ${email}.` })
@@ -242,6 +257,10 @@ export function StaffTable({ rows }: { rows: StaffRowView[] }) {
               <Checkbox checked={canDelete} onCheckedChange={(v) => setCanDelete(v === true)} />{' '}
               Delete waiting list
             </label>
+            <label className="flex h-10 items-center gap-2 text-sm">
+              <Checkbox checked={canQuote} onCheckedChange={(v) => setCanQuote(v === true)} />{' '}
+              Create quotations
+            </label>
             <Button type="submit" disabled={pending}>
               {pending ? 'Sending…' : 'Invite'}
             </Button>
@@ -261,13 +280,19 @@ export function StaffTable({ rows }: { rows: StaffRowView[] }) {
         <table className="w-full text-sm" data-testid="staff-table">
           <thead className="bg-brand-green text-left text-white">
             <tr>
-              {['Person', 'Role', 'Assisted entry', 'Delete waiting list', 'Status', ''].map(
-                (h) => (
-                  <th key={h} className="px-3 py-2 font-semibold whitespace-nowrap">
-                    {h}
-                  </th>
-                ),
-              )}
+              {[
+                'Person',
+                'Role',
+                'Assisted entry',
+                'Delete waiting list',
+                'Create quotations',
+                'Status',
+                '',
+              ].map((h) => (
+                <th key={h} className="px-3 py-2 font-semibold whitespace-nowrap">
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>

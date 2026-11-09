@@ -21,6 +21,7 @@ export function Results({
   hasItems,
   launchMode,
   onContinue,
+  continueLabel = 'Continue',
   needsEssential = false,
   onSuggestEssential,
   builderReturn = false,
@@ -30,6 +31,7 @@ export function Results({
   launchMode: LaunchMode
   /** When given, a Continue button replaces the link (waiting-list flow). */
   onContinue?: () => void
+  continueLabel?: string
   /** No item is ticked Essential yet: the Essentials plan needs at least one. */
   needsEssential?: boolean
   /** Tick the suggested items (lights, fans, TVs, phone charging). */
@@ -106,7 +108,7 @@ export function Results({
             onClick={onContinue}
             className="bg-brand-orange hover:bg-brand-orange/90 focus-visible:ring-brand-green text-brand-dark inline-flex h-14 w-full items-center justify-center rounded-lg px-8 text-lg font-semibold shadow-lg transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:w-auto"
           >
-            Continue
+            {continueLabel}
           </button>
         ) : ready ? (
           <Link

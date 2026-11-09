@@ -14,6 +14,7 @@ import {
   Mail,
   Plug,
   Quote,
+  ReceiptText,
   Tags,
   TrendingUp,
   UserPen,
@@ -22,9 +23,16 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-import type { AppRole, StaffRole } from '@/lib/auth/staffRoles'
+import { isStaffRole, type AppRole, type StaffRole } from '@/lib/auth/staffRoles'
 
-type NavItem = { href: string; label: string; icon: LucideIcon; roles: readonly StaffRole[] }
+type NavItem = {
+  href: string
+  label: string
+  icon: LucideIcon
+  roles: readonly StaffRole[]
+  /** Also shown to any staff role given this permission on /admin/staff. */
+  permission?: 'create_quotations'
+}
 
 const ALL: readonly StaffRole[] = [
   'super_admin',
@@ -67,6 +75,13 @@ export const NAV: readonly NavItem[] = [
     label: 'Jobs',
     icon: Hammer,
     roles: ['super_admin', 'operations', 'finance'],
+  },
+  {
+    href: '/admin/quotations',
+    label: 'Quotations',
+    icon: ReceiptText,
+    roles: ['super_admin'],
+    permission: 'create_quotations',
   },
   { href: '/admin/pricing', label: 'Pricing', icon: Tags, roles: ['super_admin'] },
   { href: '/admin/profit', label: 'Profit', icon: TrendingUp, roles: ['super_admin', 'finance'] },
@@ -114,6 +129,11 @@ export const NAV: readonly NavItem[] = [
   { href: '/admin/audit', label: 'Audit log', icon: BookOpenText, roles: ['super_admin'] },
 ]
 
-export function navFor(role: AppRole | null): NavItem[] {
-  return NAV.filter((n) => role !== null && (n.roles as readonly string[]).includes(role))
+export function navFor(role: AppRole | null, permissions: readonly string[] = []): NavItem[] {
+  if (!isStaffRole(role)) return []
+  return NAV.filter(
+    (n) =>
+      (n.roles as readonly string[]).includes(role) ||
+      (n.permission !== undefined && permissions.includes(n.permission)),
+  )
 }

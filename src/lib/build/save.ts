@@ -2,7 +2,8 @@ import 'server-only'
 
 import { recordConsents } from '@/lib/consent/server'
 import { consentRecord } from '@/lib/consent/texts'
-import type { TenureMonths } from '@/lib/pricing/types'
+import type { QuoteResult, TenureMonths } from '@/lib/pricing/types'
+import type { SystemSize } from '@/lib/sizing/types'
 import { validUntil } from '@/lib/quotes/quote'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
@@ -44,17 +45,52 @@ export async function saveBuild(input: {
   const { priced, quote } = priceSelection(ctx, sel, input.depositShare, input.tenure)
   if (!priced || !quote) return { ok: false, error: 'Choose at least one item first.' }
   if (priced.blocking.length > 0) return { ok: false, error: priced.blocking[0]! }
+  const { size } = selectionSummary(ctx, sel)
+  return saveBuiltSystem({
+    stored: { selection: sel, notes: priced.notes, size, quote, sample: priced.sample },
+    contact,
+    live: input.live,
+    ip: input.ip,
+    validityDays: input.validityDays,
+  })
+}
 
+/** A priced builder system as stored on leads, quotes and staff quotations (`builder` column). */
+export type StoredSystem = {
+  selection: BuildSelectionInput
+  notes: string[]
+  size: SystemSize
+  quote: QuoteResult
+  sample: boolean
+}
+
+/**
+ * Save an already-priced system with the customer's details: the waiting-list entry (both modes)
+ * and, in live mode, the quote for the account step. Used by the builder (just priced) and by
+ * "Accept and apply" on a staff quotation (its stored snapshot, so the price never changes).
+ * `fromStaff`: who made the quotation (shown as "Entered by"); the customer has accepted it.
+ */
+export async function saveBuiltSystem(input: {
+  stored: StoredSystem
+  contact: Contact
+  live: boolean
+  ip: string
+  validityDays: number
+  fromStaff?: { enteredBy: string | null }
+}): Promise<{ ok: true; leadId: string; quoteId: string | null } | { ok: false; error: string }> {
+  const { stored, contact } = input
+  const { selection: sel, quote, size } = stored
+  const depositShare = quote.snapshot.depositShare
+  const accepted = input.fromStaff ? new Date().toISOString() : null
   const admin = createAdminClient()
   const { hash } = await getOrCreateVisitorToken()
-  const { size } = selectionSummary(ctx, sel)
   const builder = {
     kind: 'builder',
     selection: sel,
-    notes: priced.notes,
+    notes: stored.notes,
     size,
     quote,
-    sample: priced.sample,
+    sample: stored.sample,
   } as unknown as Json
 
   const { data: existing } = await admin
@@ -81,12 +117,19 @@ export async function saveBuild(input: {
       applicant_type: 'individual',
       load_items: [],
       load_totals: {},
-      deposit_share: input.depositShare,
+      deposit_share: depositShare,
       ready_when: 'now',
       site: sel.site as Json,
       grid: gridFromAnswers(sel.site) as Json | null,
       builder,
       duplicate_of: existing?.id ?? null,
+      ...(input.fromStaff
+        ? {
+            entered_by: input.fromStaff.enteredBy,
+            entry_channel: 'staff quotation',
+            quotation_accepted_at: accepted,
+          }
+        : {}),
     })
     .select('id')
     .single()
@@ -119,13 +162,14 @@ export async function saveBuild(input: {
         plan: 'comfort',
         system_size: size as unknown as Json,
         tenure: quote.snapshot.tenureMonths,
-        deposit_share: input.depositShare,
+        deposit_share: depositShare,
         result: quote as unknown as Json,
         valid_until: validUntil(new Date(), input.validityDays).toISOString(),
         status: 'draft',
         site: sel.site as Json,
         grid: gridFromAnswers(sel.site) as Json | null,
         builder,
+        ...(accepted ? { accepted_at: accepted } : {}),
       })
       .select('id')
       .single()
@@ -142,12 +186,12 @@ export async function saveBuild(input: {
       email: contact.email,
       plan: 'comfort',
       planLabel: OWN_SYSTEM_LABEL,
-      depositShare: input.depositShare,
+      depositShare,
       systemPrice: quote.systemPrice,
       deposit: quote.deposit,
       monthly: quote.monthly,
       tenureMonths: quote.snapshot.tenureMonths,
-      samplePrices: priced.sample,
+      samplePrices: stored.sample,
     })
   }
   return { ok: true, leadId: lead.id, quoteId }

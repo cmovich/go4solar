@@ -2050,6 +2050,97 @@ export type Database = {
           },
         ]
       }
+      staff_quotations: {
+        Row: {
+          accepted_at: string | null
+          accepted_lead_id: string | null
+          accepted_quote_id: string | null
+          builder: Json
+          created_at: string
+          created_by: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          deposit_share: number
+          id: string
+          is_test: boolean
+          monthly: number
+          public_code: string
+          sample: boolean
+          shared_at: string | null
+          site: Json
+          state: string
+          tenure: number
+          total: number
+          valid_until: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_lead_id?: string | null
+          accepted_quote_id?: string | null
+          builder: Json
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          deposit_share: number
+          id?: string
+          is_test?: boolean
+          monthly: number
+          public_code: string
+          sample?: boolean
+          shared_at?: string | null
+          site?: Json
+          state: string
+          tenure: number
+          total: number
+          valid_until: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_lead_id?: string | null
+          accepted_quote_id?: string | null
+          builder?: Json
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          deposit_share?: number
+          id?: string
+          is_test?: boolean
+          monthly?: number
+          public_code?: string
+          sample?: boolean
+          shared_at?: string | null
+          site?: Json
+          state?: string
+          tenure?: number
+          total?: number
+          valid_until?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'staff_quotations_accepted_lead_id_fkey'
+            columns: ['accepted_lead_id']
+            isOneToOne: false
+            referencedRelation: 'waitlist_consumers'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'staff_quotations_accepted_quote_id_fkey'
+            columns: ['accepted_quote_id']
+            isOneToOne: false
+            referencedRelation: 'quotes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'staff_quotations_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       sun_hours: {
         Row: {
           annual_psh: number

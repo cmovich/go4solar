@@ -45,6 +45,9 @@ export default async function StaffPage() {
             waitlistDelete: (perms ?? []).some(
               (x) => x.profile_id === p.id && x.permission === 'waitlist_delete',
             ),
+            createQuotations: (perms ?? []).some(
+              (x) => x.profile_id === p.id && x.permission === 'create_quotations',
+            ),
             disabled: banned.has(p.id),
             isMe: p.id === session.user?.id,
           },
@@ -56,8 +59,8 @@ export default async function StaffPage() {
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <h1 className="text-brand-dark text-3xl font-bold">Staff</h1>
       <p className="text-muted-foreground mt-1 mb-6 text-sm">
-        Every staff account needs two-factor login. Roles follow the PRD staff table; assisted entry
-        and deleting waiting-list entries can be given to any role.
+        Every staff account needs two-factor login. Roles follow the PRD staff table; assisted
+        entry, deleting waiting-list entries and creating quotations can be given to any role.
       </p>
       <StaffTable rows={rows} />
     </main>

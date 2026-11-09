@@ -27,15 +27,18 @@ const ROLE_LABELS: Record<string, string> = {
 export function AdminShell({
   email,
   role,
+  permissions = [],
   children,
 }: {
   email: string | null
   role: AppRole | null
+  /** Extra permissions given on /admin/staff (they add menu items). */
+  permissions?: string[]
   children: React.ReactNode
 }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
-  const items = navFor(role)
+  const items = navFor(role, permissions)
 
   const nav = (
     <nav aria-label="Back office" className="space-y-1">

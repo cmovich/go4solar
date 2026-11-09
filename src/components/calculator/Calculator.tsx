@@ -38,6 +38,8 @@ export function Calculator({
   launchMode,
   photoLookup,
   onContinue,
+  continueLabel,
+  builderLink = true,
 }: {
   library: LibraryItem[]
   launchMode: LaunchMode
@@ -45,16 +47,20 @@ export function Calculator({
   photoLookup: boolean
   /** Waiting-list mode: replaces the "See my solar plans" link with a Continue button. */
   onContinue?: (items: LoadItem[]) => void
+  /** The Continue button's words (default "Continue"). */
+  continueLabel?: string
+  /** False inside the staff quotation tool: no link back to the public builder. */
+  builderLink?: boolean
 }) {
   // Came from the builder ("I don't know my load")? Offer the way back once there is a load.
   const [builderReturn, setBuilderReturn] = useState(false)
   useEffect(() => {
     try {
-      setBuilderReturn(window.localStorage.getItem(BUILDER_STORAGE_KEY) !== null)
+      setBuilderReturn(builderLink && window.localStorage.getItem(BUILDER_STORAGE_KEY) !== null)
     } catch {
       // Storage blocked: no way back to show.
     }
-  }, [])
+  }, [builderLink])
   const [items, setItems] = useState<LoadItem[]>([])
   const [hydrated, setHydrated] = useState(false)
   // Part C: the photo button shows only while the lookup is open today (key set, cap not reached).
@@ -143,6 +149,7 @@ export function Calculator({
         hasItems={items.length > 0}
         launchMode={launchMode}
         onContinue={onContinue ? () => onContinue(items) : undefined}
+        continueLabel={continueLabel}
         needsEssential={items.length > 0 && !hasEssential(items)}
         builderReturn={builderReturn}
         onSuggestEssential={() =>
