@@ -6,7 +6,7 @@ import { TestDataToggle } from '@/components/admin/TestDataToggle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { requireStaffWithMfa } from '@/lib/auth/roles'
+import { requireBackOfficeWithMfa } from '@/lib/auth/roles'
 import { formatNaira } from '@/lib/money'
 import { stateLabel, isNgStateId } from '@/lib/nigeria/states'
 import { quoteReference } from '@/lib/quotes/quote'
@@ -33,7 +33,7 @@ export default async function QuotationsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const session = await requireStaffWithMfa()
+  const session = await requireBackOfficeWithMfa()
   if (!(await mayCreateQuotations(session))) redirect('/admin')
   const sp = await searchParams
   const raw = { staff: one(sp.staff), from: one(sp.from), to: one(sp.to) }

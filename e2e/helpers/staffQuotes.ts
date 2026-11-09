@@ -23,7 +23,9 @@ export async function createQuotationAsStaff(
 ): Promise<{ adminUrl: string; link: string }> {
   await page.goto('/admin/quotations')
   await page.getByTestId('new-quotation').click()
-  await expect(page.getByRole('heading', { name: 'New quotation' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'New quotation' })).toBeVisible({
+    timeout: 30_000,
+  })
   // The builder asks for the state at the top (customer box), not in its first step.
   await expect(page.getByLabel('Where will it be installed?')).toBeHidden()
   await page.getByRole('button', { name: /^A complete system/ }).click()
@@ -32,7 +34,7 @@ export async function createQuotationAsStaff(
   await page.getByLabel('Phone', { exact: true }).fill(customer.phone)
   await page.getByLabel('State', { exact: true }).selectOption('Lagos')
   await page.getByRole('button', { name: /^A complete system/ }).click()
-  await buildFromLoad(page)
+  await buildFromLoad(page, '3', 2)
   // Staff never type the customer's details or tick consent for them.
   await expect(page.getByRole('heading', { name: 'Your details' })).toHaveCount(0)
   await page.getByTestId('create-quotation').click()

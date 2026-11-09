@@ -22,6 +22,7 @@ const ROLE_LABELS: Record<string, string> = {
   collections: 'Collections',
   finance: 'Finance',
   content: 'Content',
+  sales: 'Sales',
 }
 
 export function AdminShell({

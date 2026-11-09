@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { STAFF_ROLES, requireRole } from '@/lib/auth/roles'
+import { SALES_ROLE, STAFF_ROLES, requireRole } from '@/lib/auth/roles'
 
 import { MfaSetup } from './MfaSetup'
 
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function MfaPage() {
   // Staff only; a consumer never sees this page.
-  const { aal } = await requireRole(...STAFF_ROLES)
+  const { aal } = await requireRole(...STAFF_ROLES, SALES_ROLE)
   if (aal === 'aal2') redirect('/admin')
 
   return (

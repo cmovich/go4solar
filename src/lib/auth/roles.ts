@@ -2,9 +2,15 @@ import { redirect } from 'next/navigation'
 
 import { getSessionInfo, type AppRole, type SessionInfo } from './session'
 
-import { isStaffRole } from './staffRoles'
+import { SALES_ROLE, isBackOfficeRole } from './staffRoles'
 
-export { STAFF_ROLES, isStaffRole, type StaffRole } from './staffRoles'
+export {
+  SALES_ROLE,
+  STAFF_ROLES,
+  isBackOfficeRole,
+  isStaffRole,
+  type StaffRole,
+} from './staffRoles'
 
 function loginUrl(next?: string): string {
   return next ? `/login?next=${encodeURIComponent(next)}` : '/login'
@@ -32,7 +38,21 @@ export async function requireRole(...roles: AppRole[]): Promise<SessionInfo> {
 export async function requireStaffWithMfa(): Promise<SessionInfo> {
   const info = await getSessionInfo()
   if (!info.user) redirect(loginUrl('/admin'))
-  if (!isStaffRole(info.role)) redirect('/')
+  if (!isBackOfficeRole(info.role)) redirect('/')
+  if (info.aal !== 'aal2') redirect('/admin/mfa')
+  // Sales may only use Quotations: every other back-office page sends them there.
+  if (info.role === SALES_ROLE) redirect('/admin/quotations')
+  return info
+}
+
+/**
+ * Anyone who signs in to /admin (staff or sales), two-factor verified. Only for the admin shell
+ * and the Quotations pages; everything else uses requireStaffWithMfa.
+ */
+export async function requireBackOfficeWithMfa(): Promise<SessionInfo> {
+  const info = await getSessionInfo()
+  if (!info.user) redirect(loginUrl('/admin'))
+  if (!isBackOfficeRole(info.role)) redirect('/')
   if (info.aal !== 'aal2') redirect('/admin/mfa')
   return info
 }

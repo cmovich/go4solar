@@ -31,7 +31,7 @@ export default async function globalSetup() {
     .from('rate_limits')
     .delete()
     .or(
-      'key.like.waitlist:%,key.like.waitlist-phone:%,key.like.vision:%,key.like.vision-day:%,key.like.otp-send:%,key.like.otp-verify:%,key.like.sig-otp:%,key.like.sig-verify:%,key.like.login:%,key.like.login-email:%,key.like.signup:%,key.like.guarantee-open:%,key.like.guarantee-steps:%,key.like.export:%,key.like.forgot:%,key.like.forgot-email:%,key.like.build:%,key.like.advice:%',
+      'key.like.waitlist:%,key.like.waitlist-phone:%,key.like.vision:%,key.like.vision-day:%,key.like.otp-send:%,key.like.otp-verify:%,key.like.sig-otp:%,key.like.sig-verify:%,key.like.login:%,key.like.login-email:%,key.like.signup:%,key.like.guarantee-open:%,key.like.guarantee-steps:%,key.like.export:%,key.like.forgot:%,key.like.forgot-email:%,key.like.build:%,key.like.advice:%,key.like.staffq:%',
     )
 
   const staff = await prepareStaff(
@@ -52,6 +52,18 @@ export default async function globalSetup() {
     `E2e-ops-${service.slice(-12)}!`,
   )
   await admin.from('staff_permissions').delete().eq('profile_id', ops.userId)
+  // A sales account (Quotations only). The role exists from migration 0033; before it, skipped.
+  const sales = await prepareStaff(
+    url,
+    anon,
+    admin,
+    `e2e-sales@${TEST_EMAIL_DOMAIN}`,
+    'sales',
+    `E2e-sales-${service.slice(-12)}!`,
+  ).catch((e: unknown) => {
+    console.warn('[global-setup] no sales test account (migration 0033 not applied?):', e)
+    return null
+  })
 
   // 4. hand over to the tests
   process.env.E2E_STAFF_EMAIL = staff.email
@@ -60,6 +72,11 @@ export default async function globalSetup() {
   process.env.E2E_OPS_EMAIL = ops.email
   process.env.E2E_OPS_PASSWORD = ops.password
   process.env.E2E_OPS_TOTP_SECRET = ops.secret
+  if (sales) {
+    process.env.E2E_SALES_EMAIL = sales.email
+    process.env.E2E_SALES_PASSWORD = sales.password
+    process.env.E2E_SALES_TOTP_SECRET = sales.secret
+  }
 }
 
 const serviceClient = (url: string, service: string) =>
@@ -75,7 +92,7 @@ async function prepareStaff(
   anon: string,
   admin: Admin,
   email: string,
-  role: 'super_admin' | 'operations',
+  role: 'super_admin' | 'operations' | 'sales',
   password: string,
 ) {
   // 1. user
@@ -96,14 +113,18 @@ async function prepareStaff(
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name: role === 'super_admin' ? 'E2E Staff' : 'E2E Operations' },
+      user_metadata: {
+        full_name:
+          role === 'super_admin' ? 'E2E Staff' : role === 'sales' ? 'E2E Sales' : 'E2E Operations',
+      },
     })
     if (error) throw error
     userId = data.user.id
   }
 
   // 2. role
-  await admin.from('profiles').update({ role }).eq('id', userId)
+  const { error: roleError } = await admin.from('profiles').update({ role }).eq('id', userId)
+  if (roleError) throw roleError
 
   // 3. MFA: wipe old factors, enrol a new one as the user, verify it with a computed code
   const { data: factors } = await admin.auth.admin.mfa.listFactors({ userId })

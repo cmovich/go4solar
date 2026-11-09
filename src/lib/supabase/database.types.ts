@@ -2546,6 +2546,7 @@ export type Database = {
         | 'collections'
         | 'finance'
         | 'content'
+        | 'sales'
       appliance_category:
         | 'lighting'
         | 'tv_electronics'
@@ -2725,6 +2726,7 @@ export const Constants = {
         'collections',
         'finance',
         'content',
+        'sales',
       ],
       appliance_category: [
         'lighting',

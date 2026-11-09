@@ -11,9 +11,9 @@ import { phoneSchema } from '@/lib/waitlist/schema'
  * message and the list filters. Pure.
  */
 
-/** Super admins always; other staff only with the create_quotations permission. */
+/** Super admins and sales always; other staff only with the create_quotations permission. */
 export function canCreateQuotations(role: AppRole | null | undefined, hasPermission: boolean) {
-  if (role === 'super_admin') return true
+  if (role === 'super_admin' || role === 'sales') return true
   return isStaffRole(role) && hasPermission
 }
 

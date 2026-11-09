@@ -130,6 +130,8 @@ export const NAV: readonly NavItem[] = [
 ]
 
 export function navFor(role: AppRole | null, permissions: readonly string[] = []): NavItem[] {
+  // Sales (installers, marketers): Quotations only.
+  if (role === 'sales') return NAV.filter((n) => n.href === '/admin/quotations')
   if (!isStaffRole(role)) return []
   return NAV.filter(
     (n) =>

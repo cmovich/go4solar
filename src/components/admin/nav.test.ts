@@ -13,6 +13,9 @@ describe('navFor', () => {
     expect(hrefs('content', ['create_quotations'])).toContain('/admin/quotations')
     expect(hrefs('content', ['create_quotations'])).toContain('/admin/testimonials')
   })
+  it('sales sees Quotations and nothing else', () => {
+    expect(hrefs('sales')).toEqual(['/admin/quotations'])
+  })
   it('a permission never opens the back office to a non-staff role', () => {
     expect(hrefs('installer', ['create_quotations'])).toEqual([])
     expect(hrefs(null, ['create_quotations'])).toEqual([])

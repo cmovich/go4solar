@@ -16,6 +16,7 @@ describe('canCreateQuotations', () => {
     expect(canCreateQuotations('super_admin', false)).toBe(true)
     expect(canCreateQuotations('content', true)).toBe(true)
     expect(canCreateQuotations('operations', false)).toBe(false)
+    expect(canCreateQuotations('sales', false)).toBe(true)
     expect(canCreateQuotations('consumer', true)).toBe(false)
     expect(canCreateQuotations('installer', true)).toBe(false)
     expect(canCreateQuotations(null, true)).toBe(false)

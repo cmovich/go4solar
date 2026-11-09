@@ -99,3 +99,36 @@ test.describe('staff quotations', () => {
     await expect(page.getByTestId('quotation-missing')).toBeVisible()
   })
 })
+
+/** Sales (installers, marketers, migration 0033): Quotations only, no customer data. */
+test.describe('sales role', () => {
+  test.beforeEach(async ({ context }) => ownConnection(context))
+
+  test('lands on Quotations; every other page and export is closed', async ({ page }) => {
+    test.skip(!process.env.E2E_SALES_EMAIL, 'needs the e2e sales account (migration 0033)')
+    test.skip(test.info().project.name === 'mobile', 'one browser is enough')
+    await loginAsStaff(page, 'sales')
+    const nav = page.getByRole('navigation', { name: 'Back office' })
+    await expect(nav.getByRole('link')).toHaveText(['Quotations'])
+    for (const path of [
+      '/admin',
+      '/admin/waitlist',
+      '/admin/outbox',
+      '/admin/applications',
+      '/admin/pricing',
+      '/admin/staff',
+      '/admin/audit',
+    ]) {
+      await page.goto(path)
+      await expect(page, path).toHaveURL(/\/admin\/quotations$|\/$/)
+    }
+    for (const api of ['/api/admin/waitlist/export.csv', '/api/admin/audit.csv']) {
+      const res = await page.request.get(api, { maxRedirects: 0 })
+      expect(res.status(), api).not.toBe(200)
+    }
+    // Their own quotations only: a fresh sales account has none from anyone else.
+    await page.goto('/admin/quotations')
+    await expect(page.getByText('Only your own quotations are shown.')).toBeVisible()
+    await expect(page.getByTestId('new-quotation')).toBeVisible()
+  })
+})

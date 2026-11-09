@@ -24,7 +24,7 @@ type Result<T> = ({ ok: true } & T) | { ok: false; error: string; field?: string
 /** May the signed-in staff member (two-factor verified) make quotations? */
 export async function mayCreateQuotations(session: SessionInfo): Promise<boolean> {
   if (!session.user || session.aal !== 'aal2') return false
-  if (session.role === 'super_admin') return true
+  if (session.role === 'super_admin' || session.role === 'sales') return true
   const { data } = await (
     await createClient()
   ).rpc('has_permission', {
@@ -293,12 +293,12 @@ export async function listStaffQuotations(
     .select('id, full_name, email')
     .in('id', [...new Set(data.map((r) => r.created_by).filter((x): x is string => Boolean(x)))])
   const names = new Map((people ?? []).map((p) => [p.id, p.full_name || p.email || 'Staff']))
-  // Everyone who may make quotations, for the staff filter (super admin only).
+  // Everyone who may make quotations (super admins, sales, ticked staff), for the staff filter.
   let staff: { id: string; name: string }[] = []
   if (session.role === 'super_admin') {
     const [{ data: perms }, { data: supers }] = await Promise.all([
       admin.from('staff_permissions').select('profile_id').eq('permission', 'create_quotations'),
-      admin.from('profiles').select('id').eq('role', 'super_admin'),
+      admin.from('profiles').select('id').in('role', ['super_admin', 'sales']),
     ])
     const ids = [
       ...new Set([...(perms ?? []).map((p) => p.profile_id), ...(supers ?? []).map((p) => p.id)]),

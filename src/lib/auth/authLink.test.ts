@@ -53,6 +53,7 @@ describe('afterPasswordSet (where the person goes next)', () => {
   it('staff set up the authenticator next (then /admin)', () => {
     expect(afterPasswordSet('super_admin', 'prelaunch')).toBe('/admin/mfa')
     expect(afterPasswordSet('operations', 'live')).toBe('/admin/mfa')
+    expect(afterPasswordSet('sales', 'live')).toBe('/admin/mfa')
   })
 
   it('customers go to their dashboard when live, home in prelaunch', () => {

@@ -7,7 +7,7 @@ import { InvoiceLink } from '@/components/invoices/InvoiceLink'
 import { QuotationView } from '@/components/invoices/QuotationView'
 import { SampleQuotation } from '@/components/quotations/SampleQuotation'
 import { ShareQuotation } from '@/components/quotations/ShareQuotation'
-import { requireStaffWithMfa } from '@/lib/auth/roles'
+import { requireBackOfficeWithMfa } from '@/lib/auth/roles'
 import { storedBuild } from '@/lib/build/stored'
 import { quotationForStaff } from '@/lib/invoices/server'
 import { quoteReference } from '@/lib/quotes/quote'
@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic'
 
 /** One staff quotation: as the customer sees it, with Download PDF, Share on WhatsApp and the link. */
 export default async function StaffQuotationPage({ params }: { params: Promise<{ id: string }> }) {
-  const session = await requireStaffWithMfa()
+  const session = await requireBackOfficeWithMfa()
   if (!(await mayCreateQuotations(session))) redirect('/admin')
   const { id } = await params
   const row = await staffQuotationForAdmin(session, id)

@@ -1,15 +1,18 @@
 import { AdminShell } from '@/components/admin/AdminShell'
-import { requireStaffWithMfa } from '@/lib/auth/roles'
+import { requireBackOfficeWithMfa } from '@/lib/auth/roles'
 import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
-/** Every back-office page: staff only, two-factor verified. /admin/mfa sits outside this group. */
+/**
+ * Every back-office page: staff (or sales, who only reach Quotations: each other page checks its
+ * own role), two-factor verified. /admin/mfa sits outside this group.
+ */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await requireStaffWithMfa()
+  const session = await requireBackOfficeWithMfa()
   // Extra permissions that add menu items (super admins see everything anyway).
   const permissions: string[] = []
-  if (session.role !== 'super_admin') {
+  if (session.role !== 'super_admin' && session.role !== 'sales') {
     const { data } = await (
       await createClient()
     ).rpc('has_permission', {

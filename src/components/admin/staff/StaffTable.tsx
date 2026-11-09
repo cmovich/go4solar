@@ -8,7 +8,11 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { STAFF_ROLES, type StaffRole } from '@/lib/auth/staffRoles'
+import { SALES_ROLE, STAFF_ROLES, type StaffRole as BackOfficeRole } from '@/lib/auth/staffRoles'
+
+/** Back-office staff roles, plus Sales (Quotations only). */
+type StaffRole = BackOfficeRole | typeof SALES_ROLE
+const ROLES: readonly StaffRole[] = [...STAFF_ROLES, SALES_ROLE]
 
 import {
   inviteStaff,
@@ -38,6 +42,7 @@ const ROLE_LABELS: Record<StaffRole, string> = {
   collections: 'Collections',
   finance: 'Finance',
   content: 'Content',
+  sales: 'Sales (Quotations only)',
 }
 
 function StaffRow({ initial }: { initial: StaffRowView }) {
@@ -104,7 +109,7 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
             aria-label={`Role for ${initial.email}`}
             disabled={initial.isMe}
           >
-            {STAFF_ROLES.map((r) => (
+            {ROLES.map((r) => (
               <option key={r} value={r}>
                 {ROLE_LABELS[r]}
               </option>
@@ -128,8 +133,8 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
         </td>
         <td className="px-3 py-2 text-center">
           <Checkbox
-            checked={role === 'super_admin' || canQuote}
-            disabled={role === 'super_admin'}
+            checked={role === 'super_admin' || role === 'sales' || canQuote}
+            disabled={role === 'super_admin' || role === 'sales'}
             onCheckedChange={(v) => setCanQuote(v === true)}
             aria-label={`Create quotations for ${initial.email}`}
           />
@@ -241,7 +246,7 @@ export function StaffTable({ rows }: { rows: StaffRowView[] }) {
               onChange={(e) => setRole(e.target.value as StaffRole)}
               className="border-input mt-1 h-10 w-full rounded-md border bg-white px-2 text-sm"
             >
-              {STAFF_ROLES.map((r) => (
+              {ROLES.map((r) => (
                 <option key={r} value={r}>
                   {ROLE_LABELS[r]}
                 </option>

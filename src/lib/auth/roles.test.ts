@@ -21,6 +21,8 @@ vi.mock('next/navigation', () => ({
 const {
   STAFF_ROLES,
   isStaffRole,
+  isBackOfficeRole,
+  requireBackOfficeWithMfa,
   requireRole,
   requireStaffWithMfa,
   requireUser,
@@ -122,6 +124,41 @@ describe('requireStaffWithMfa', () => {
     await expect(requireStaffWithMfa()).resolves.toEqual(staffWithMfa)
     getSessionInfo.mockResolvedValue(superAdminWithMfa)
     await expect(requireStaffWithMfa()).resolves.toEqual(superAdminWithMfa)
+  })
+})
+
+// Sales (installers, marketers): only Admin → Quotations. Not a back-office staff role.
+const salesNoMfa: SessionInfo = { ...staffNoMfa, role: 'sales' }
+const salesWithMfa: SessionInfo = { ...salesNoMfa, aal: 'aal2' }
+
+describe('the sales role', () => {
+  it('is not a staff role (no back-office page lets it in) but may sign in to the back office', () => {
+    expect(isStaffRole('sales')).toBe(false)
+    expect(STAFF_ROLES).not.toContain('sales')
+    expect(isBackOfficeRole('sales')).toBe(true)
+    expect(isBackOfficeRole('super_admin')).toBe(true)
+    expect(isBackOfficeRole('installer')).toBe(false)
+    expect(isBackOfficeRole('consumer')).toBe(false)
+  })
+
+  it('every staff-only page sends sales to Quotations (after two-factor)', async () => {
+    getSessionInfo.mockResolvedValue(salesNoMfa)
+    expect(await redirectOf(() => requireStaffWithMfa())).toBe('/admin/mfa')
+    getSessionInfo.mockResolvedValue(salesWithMfa)
+    expect(await redirectOf(() => requireStaffWithMfa())).toBe('/admin/quotations')
+  })
+
+  it('requireBackOfficeWithMfa: staff and sales with two-factor; nobody else', async () => {
+    getSessionInfo.mockResolvedValue(salesWithMfa)
+    await expect(requireBackOfficeWithMfa()).resolves.toEqual(salesWithMfa)
+    getSessionInfo.mockResolvedValue(staffWithMfa)
+    await expect(requireBackOfficeWithMfa()).resolves.toEqual(staffWithMfa)
+    getSessionInfo.mockResolvedValue(salesNoMfa)
+    expect(await redirectOf(() => requireBackOfficeWithMfa())).toBe('/admin/mfa')
+    getSessionInfo.mockResolvedValue({ ...consumer, aal: 'aal2' })
+    expect(await redirectOf(() => requireBackOfficeWithMfa())).toBe('/')
+    getSessionInfo.mockResolvedValue(anon)
+    expect(await redirectOf(() => requireBackOfficeWithMfa())).toBe('/login?next=%2Fadmin')
   })
 })
 

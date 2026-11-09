@@ -23,8 +23,11 @@ export async function skipWithoutCatalogue(page: Page) {
   test.skip(empty !== false, 'Builder catalogue not set up yet (migration 0027 not applied)')
 }
 
-/** "I know my load" → suggested system → the site questions → installer → summary. */
-export async function buildFromLoad(page: Page, kva = '3') {
+/**
+ * "I know my load" → suggested system → the site questions → installer → summary. `level`: the
+ * step titles are h2 in the staff quotation tool (its page has its own h1).
+ */
+export async function buildFromLoad(page: Page, kva = '3', level: 1 | 2 = 1) {
   await skipWithoutCatalogue(page)
   await page.getByRole('button', { name: 'I know my load (kVA)' }).click()
   await page.getByLabel('Your load (kVA)').fill(kva)
@@ -34,26 +37,26 @@ export async function buildFromLoad(page: Page, kva = '3') {
   await expect(next).toBeEnabled({ timeout: 30_000 })
   await next.click()
 
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+  await expect(page.getByRole('heading', { level })).toHaveText(
     'Where should the panels be mounted?',
   )
   await page.getByRole('button', { name: /^Roof/ }).click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('What type of roof do you have?')
+  await expect(page.getByRole('heading', { level })).toHaveText('What type of roof do you have?')
   const cards = page.getByTestId('roof-card')
   if ((await cards.count()) > 0) await cards.first().click()
   else await page.getByRole('button', { name: 'Continue' }).click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Do you want a roofing rack?')
+  await expect(page.getByRole('heading', { level })).toHaveText('Do you want a roofing rack?')
   await page.getByRole('button', { name: /^Yes/ }).click()
   await page.getByRole('button', { name: 'Aluminium' }).click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('How tall is the building?')
+  await expect(page.getByRole('heading', { level })).toHaveText('How tall is the building?')
   await page.getByRole('button', { name: 'Next', exact: true }).click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+  await expect(page.getByRole('heading', { level })).toHaveText(
     'Do you know the length of wire needed?',
   )
   await page.getByRole('button', { name: /^No, estimate it for me/ }).click()
   await page.getByRole('button', { name: 'Next', exact: true }).click()
 
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Who will install it?')
+  await expect(page.getByRole('heading', { level })).toHaveText('Who will install it?')
   await page.getByRole('button', { name: /^My own installer/ }).click()
   await expect(page.getByRole('alert').filter({ hasText: 'not liable' })).toBeVisible()
   await page.getByRole('button', { name: /^Go4Solar recognised installer/ }).click()

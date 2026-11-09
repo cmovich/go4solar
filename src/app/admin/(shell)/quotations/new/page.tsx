@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { StaffQuotationForm } from '@/components/quotations/StaffQuotationForm'
 import { launchMode } from '@/config/site'
 import { fetchApplianceLibrary } from '@/lib/appliances/library'
-import { requireStaffWithMfa } from '@/lib/auth/roles'
+import { requireBackOfficeWithMfa } from '@/lib/auth/roles'
 import { builderContext, builderItems } from '@/lib/build/server'
 import { mayCreateQuotations } from '@/lib/staffQuotes/server'
 import { fetchRoofTypes, fetchWiring } from '@/lib/wizard/server'
@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic'
 
 /** A quotation for a customer, made with the system builder. No account or sign-up needed. */
 export default async function NewQuotationPage() {
-  const session = await requireStaffWithMfa()
+  const session = await requireBackOfficeWithMfa()
   if (!(await mayCreateQuotations(session))) redirect('/admin')
   const [ctx, roofTypes, wiring, library] = await Promise.all([
     builderContext(),

@@ -356,6 +356,7 @@ export function Builder({
     )
   }
 
+  const Title = staff ? 'h2' : 'h1'
   const noStateMessage = staff
     ? "Choose the customer's state at the top first."
     : 'Choose your state first.'
@@ -388,7 +389,8 @@ export function Builder({
 
   return (
     <div className="space-y-6 pb-24 sm:pb-6">
-      <h1 className="text-brand-dark text-2xl font-bold tracking-tight">{TITLES[s.step]}</h1>
+      {/* In the staff tool the page has its own title ("New quotation"): steps are h2 there. */}
+      <Title className="text-brand-dark text-2xl font-bold tracking-tight">{TITLES[s.step]}</Title>
 
       {priced && priced.blocking.length > 0 && s.step !== 'start' && (
         <Alert variant="destructive" data-testid="build-blocking">

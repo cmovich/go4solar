@@ -72,6 +72,8 @@ describe('mayCreateQuotations', () => {
     expect(await mayCreateQuotations(sa)).toBe(true)
     expect(await mayCreateQuotations(marketer)).toBe(false)
     expect(await mayCreateQuotations({ ...sa, aal: 'aal1' })).toBe(false)
+    // Sales accounts always may (that is all they can do).
+    expect(await mayCreateQuotations({ ...marketer, role: 'sales' })).toBe(true)
     db.defineFunction('has_permission', (a) => a.target === 'create_quotations')
     expect(await mayCreateQuotations(marketer)).toBe(true)
   })

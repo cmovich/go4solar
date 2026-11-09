@@ -1,7 +1,7 @@
 import type { LaunchMode } from '@/config/site'
 
 import type { AppRole } from './session'
-import { isStaffRole } from './staffRoles'
+import { isBackOfficeRole } from './staffRoles'
 
 export type AuthLinkResult =
   { kind: 'session'; accessToken: string; refreshToken: string; type: string } | { kind: 'expired' }
@@ -42,6 +42,6 @@ export function canSetPassword(methods: string[]): boolean {
 
 /** After choosing a password: staff set up the authenticator (then /admin); customers continue. */
 export function afterPasswordSet(role: AppRole | null, mode: LaunchMode): string {
-  if (isStaffRole(role)) return '/admin/mfa'
+  if (isBackOfficeRole(role)) return '/admin/mfa'
   return mode === 'live' ? '/app' : '/'
 }

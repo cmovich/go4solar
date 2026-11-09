@@ -40,8 +40,10 @@ export function StaffQuotationForm({
   const [state, setState] = useState<NgStateId | ''>('')
   return (
     <div className="space-y-8">
-      <section className="bg-brand-mist space-y-3 rounded-2xl p-4" data-testid="quote-customer">
-        <h2 className="text-brand-dark font-semibold">Customer (optional)</h2>
+      <fieldset className="bg-brand-mist space-y-3 rounded-2xl p-4" data-testid="quote-customer">
+        <legend className="text-brand-dark float-left mb-3 w-full font-semibold">
+          Customer (optional)
+        </legend>
         <div className="grid gap-3 sm:grid-cols-3">
           <div>
             <Label htmlFor="q-name">Name</Label>
@@ -86,7 +88,7 @@ export function StaffQuotationForm({
           The state sets the installation and delivery prices and the sun hours. Name and phone are
           only printed on the quotation and used for the WhatsApp message.
         </p>
-      </section>
+      </fieldset>
 
       <Builder
         items={items}

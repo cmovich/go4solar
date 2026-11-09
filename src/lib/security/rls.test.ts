@@ -412,6 +412,7 @@ describe.skipIf(!hasDb)('RLS against the real database', () => {
     }
   }, 90_000)
 
+  // One remote read per table, one after another (~50 tables): allow 2 minutes.
   it('a visitor who is not signed in reads nothing private', async () => {
     for (const t of Object.keys(ACCESS) as Table[]) {
       if (ACCESS[t] === 'public') continue
@@ -421,7 +422,7 @@ describe.skipIf(!hasDb)('RLS against the real database', () => {
         .limit(5)
       expect(data ?? [], t).toEqual([])
     }
-  }, 60_000)
+  }, 120_000)
 
   it('staff-only and server-only tables return nothing to a customer', async () => {
     for (const t of Object.keys(ACCESS) as Table[]) {
@@ -432,7 +433,7 @@ describe.skipIf(!hasDb)('RLS against the real database', () => {
         .limit(5)
       expect(data ?? [], t).toEqual([])
     }
-  }, 60_000)
+  }, 120_000)
 
   // Migration 0032: super admins read every staff quotation; other staff only their own, and
   // only with the create_quotations permission. Nobody writes from the browser.
