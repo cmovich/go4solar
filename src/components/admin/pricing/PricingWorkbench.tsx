@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { formatNaira, formatPercent } from '@/lib/money'
-import { missingSpecs, usableComponents } from '@/lib/components/specs'
+import { missingSpecs } from '@/lib/components/specs'
 import { equipmentFrom } from '@/lib/sizing/equipment'
 import { NG_STATE_IDS, stateLabel, type NgStateId } from '@/lib/nigeria/states'
 import {
@@ -610,8 +610,6 @@ function ComponentsForm({ draft, onChange }: FormProps) {
       else next.add(i)
       return next
     })
-  const usage = usableComponents(draft.components.map((c, i) => ({ ...c, id: c.id ?? `new-${i}` })))
-  const skippedBySku = new Map(usage.skipped.map((s) => [s.sku, s.reason]))
   const missingCount = draft.components.filter((c) => c.active && missingSpecs(c).length > 0).length
   const add = () =>
     onChange({
@@ -640,9 +638,9 @@ function ComponentsForm({ draft, onChange }: FormProps) {
       </h2>
       <p className="text-muted-foreground text-sm">
         Landed cost per unit. The sizing engine picks by size. Open &ldquo;Specs&rdquo; on a row to
-        enter its datasheet values; items with missing specs are not used by quotes once another
-        item in the same category has complete specs. Inverters are always used: a missing spec is
-        filled with a typical (assumed) value.
+        enter its datasheet values. Fill in what you have: an item with missing specs shows
+        &ldquo;Incomplete&rdquo; but is still quoted, and sizing fills the gaps with typical
+        (assumed) values. To be quoted an item only needs its size and unit cost.
       </p>
       <AssumedInverterSpecs components={draft.components} />
       <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
@@ -650,19 +648,10 @@ function ComponentsForm({ draft, onChange }: FormProps) {
           <Checkbox
             checked={onlyMissing}
             onCheckedChange={(v) => setOnlyMissing(v === true)}
-            aria-label="Show only rows missing specs"
+            aria-label="Show only incomplete rows"
           />
-          Show only rows missing specs ({missingCount})
+          Show only incomplete rows ({missingCount})
         </label>
-        {usage.categoriesWithoutSpecs.length > 0 && (
-          <p className="text-xs text-amber-900" data-testid="specs-category-note">
-            No{' '}
-            {usage.categoriesWithoutSpecs
-              .map((c) => COMPONENT_CATEGORY_LABELS[c].toLowerCase())
-              .join(', ')}{' '}
-            item has complete specs yet, so quotes still use them all until one does.
-          </p>
-        )}
       </div>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-sm">
@@ -802,7 +791,6 @@ function ComponentsForm({ draft, onChange }: FormProps) {
                           category={c.category}
                           nominalVoltage={c.nominalVoltage}
                           specs={c.specs}
-                          skippedReason={skippedBySku.get(c.sku) ?? null}
                           onChange={(specs) => update(i, { specs }, false)}
                         />
                         {c.kind !== undefined && (

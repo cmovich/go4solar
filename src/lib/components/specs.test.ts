@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { SPEC_FIELDS, missingSpecs, specProblems, usableComponents } from './specs'
+import { SPEC_FIELDS, NEEDED_TO_QUOTE, missingSpecs, specProblems, specWarnings } from './specs'
 
 const inverter = {
   category: 'inverter' as const,
@@ -101,78 +101,56 @@ describe('missingSpecs', () => {
   })
 })
 
-describe('specProblems (sensible values)', () => {
+describe('specProblems (only what is filled in; blocks saving)', () => {
   it('accepts real datasheet values', () => {
     for (const c of [inverter, battery, panel]) expect(specProblems(c)).toEqual([])
   })
-  it('refuses impossible numbers and inconsistent pairs', () => {
-    expect(specProblems({ ...panel, specs: { ...panel.specs, vmp: 52 } })).toContain(
-      'Vmp must be lower than Voc',
-    )
-    expect(specProblems({ ...panel, specs: { ...panel.specs, imp: 15 } })).toContain(
-      'Imp must not be higher than Isc',
-    )
-    expect(specProblems({ ...inverter, specs: { ...inverter.specs, mpptMax: 500 } })).toContain(
-      'MPPT max must not be higher than max PV Voc',
-    )
-    expect(specProblems({ ...inverter, specs: { ...inverter.specs, mpptMin: 440 } })).toContain(
-      'MPPT min must be lower than MPPT max',
-    )
-    expect(specProblems({ ...inverter, specs: { ...inverter.specs, surgeW: 2000 } })).toContain(
-      'Surge W must be at least the rated W',
-    )
+  it('accepts partial specs: one field, or none at all', () => {
+    expect(specProblems({ ...inverter, nominalVoltage: null, specs: { ratedKva: 5 } })).toEqual([])
+    expect(specProblems({ ...battery, nominalVoltage: null, specs: {} })).toEqual([])
+    expect(specProblems({ ...panel, specs: { voc: 49.6 } })).toEqual([])
+  })
+  it('refuses numbers out of a sensible range', () => {
     expect(specProblems({ ...battery, specs: { ...battery.specs, usableDod: 120 } })).toContain(
       'Usable DoD must be between 10 and 100 %',
-    )
-    expect(specProblems({ ...battery, specs: { ...battery.specs, capacityKwh: 12 } })).toContain(
-      'Capacity kWh does not match V × Ah (25.6 V × 200 Ah ≈ 5.12 kWh)',
     )
     expect(specProblems({ ...panel, specs: { ...panel.specs, tempCoeffPmax: 0.4 } })).toContain(
       'Temperature coefficient of Pmax must be between −1 and 0 %/°C',
     )
   })
+  it('refuses text in a number field', () => {
+    expect(specProblems({ ...panel, specs: { voc: '49.6V' } })).toEqual(['Voc must be a number'])
+  })
+  it('never blocks on pairs that do not match (those are warnings)', () => {
+    expect(specProblems({ ...panel, specs: { ...panel.specs, vmp: 52 } })).toEqual([])
+    expect(specProblems({ ...battery, specs: { ...battery.specs, capacityKwh: 12 } })).toEqual([])
+  })
 })
 
-describe('usableComponents (what the engine and builder may use)', () => {
-  const rows = [
-    {
-      id: 'p1',
-      sku: 'PNL-550',
-      category: 'panels' as const,
-      active: true,
-      nominalVoltage: 24,
-      specs: panel.specs,
-    },
-    {
-      id: 'p2',
-      sku: 'PNL-400',
-      category: 'panels' as const,
-      active: true,
-      nominalVoltage: null,
-      specs: {},
-    },
-    {
-      id: 'b1',
-      sku: 'BAT-5',
-      category: 'battery' as const,
-      active: true,
-      nominalVoltage: null,
-      specs: {},
-    },
-  ]
-  it('skips items with missing specs, with a note', () => {
-    const r = usableComponents(rows)
-    expect(r.usable.map((c) => c.id)).toContain('p1')
-    expect(r.usable.map((c) => c.id)).not.toContain('p2')
-    expect(r.skipped).toContainEqual({
-      sku: 'PNL-400',
-      reason: expect.stringMatching(/^Specs missing: /),
-    })
+describe('specWarnings (pairs that do not match; shown, never block saving)', () => {
+  it('none for real datasheet values or partial specs', () => {
+    for (const c of [inverter, battery, panel]) expect(specWarnings(c)).toEqual([])
+    expect(specWarnings({ ...panel, specs: { vmp: 52 } })).toEqual([])
   })
-  it('while a whole category has no complete item yet, it is kept (so quotes keep working) and flagged', () => {
-    const r = usableComponents(rows)
-    expect(r.usable.map((c) => c.id)).toContain('b1')
-    expect(r.categoriesWithoutSpecs).toEqual(['battery'])
+  it('names inconsistent pairs in plain words', () => {
+    expect(specWarnings({ ...panel, specs: { ...panel.specs, vmp: 52 } })).toContain(
+      'Vmp is usually lower than Voc',
+    )
+    expect(specWarnings({ ...panel, specs: { ...panel.specs, imp: 15 } })).toContain(
+      'Imp is usually not higher than Isc',
+    )
+    expect(specWarnings({ ...inverter, specs: { ...inverter.specs, mpptMax: 500 } })).toContain(
+      'MPPT max is usually not higher than max PV Voc',
+    )
+    expect(specWarnings({ ...inverter, specs: { ...inverter.specs, mpptMin: 440 } })).toContain(
+      'MPPT min is usually lower than MPPT max',
+    )
+    expect(specWarnings({ ...inverter, specs: { ...inverter.specs, surgeW: 2000 } })).toContain(
+      'Surge W is usually at least the rated W',
+    )
+    expect(specWarnings({ ...battery, specs: { ...battery.specs, capacityKwh: 12 } })).toContain(
+      'Capacity kWh does not match V × Ah (25.6 V × 200 Ah ≈ 5.12 kWh)',
+    )
   })
 })
 
@@ -185,28 +163,22 @@ describe('inverter specs in Part B', () => {
       optional: true,
     })
   })
+})
 
-  it('inverters with missing specs are never skipped', () => {
-    const { usable, skipped } = usableComponents([
-      { id: 'i1', sku: 'INV-3.5', active: true, ...inverter },
-      {
-        id: 'i2',
-        sku: 'INV-5',
-        category: 'inverter',
-        active: true,
-        nominalVoltage: null,
-        specs: {},
-      },
-    ])
-    expect(usable.map((u) => u.sku)).toEqual(['INV-3.5', 'INV-5'])
-    expect(skipped).toEqual([])
+// Part F: the rack is priced per cm of panel length; without it the panel is "Incomplete".
+describe('panel length and width', () => {
+  it('missing → listed as incomplete', () => {
+    const specs: Record<string, number | null> = { ...panel.specs, lengthCm: null, widthCm: null }
+    expect(missingSpecs({ ...panel, specs })).toEqual(['length', 'width'])
   })
 })
 
-// Part F: a panel needs its size before it can be quoted (the rack is priced per cm).
-describe('panel length and width', () => {
-  it('are required: missing → "Specs missing"', () => {
-    const specs: Record<string, number | null> = { ...panel.specs, lengthCm: null, widthCm: null }
-    expect(missingSpecs({ ...panel, specs })).toEqual(['length', 'width'])
+// No datasheet spec is needed for an item to be quoted: the row's size and unit cost are.
+describe('neededToQuote', () => {
+  it('names the main columns each category needs (no datasheet specs)', () => {
+    expect(NEEDED_TO_QUOTE.inverter).toEqual(['size (kVA)', 'unit cost'])
+    expect(NEEDED_TO_QUOTE.panels).toEqual(['size (W)', 'unit cost'])
+    expect(NEEDED_TO_QUOTE.battery).toEqual(['size (kWh)', 'unit cost'])
+    expect(NEEDED_TO_QUOTE.accessories).toEqual(['size (max kVA)', 'unit cost'])
   })
 })

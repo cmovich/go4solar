@@ -81,12 +81,12 @@ const specced = {
 
 export const priceListSchema = z.object({
   sample: z.boolean().default(false),
-  /** Components left out because their specs are incomplete (shown to admin as a note). */
+  /** Older snapshots only: components once left out for incomplete specs (no longer done). */
   skipped: z.array(z.object({ sku: z.string(), reason: z.string() })).optional(),
   currency: z.literal('NGN').default('NGN'),
   panel: z.object({ ...costed, ...specced, watts: z.number().positive() }),
   batteryModule: z.object({ ...costed, kwh: z.number().positive() }),
-  /** Every active battery: the sizing engine picks from those with complete specs. */
+  /** Every active battery: the sizing engine picks from those with a nominal voltage. */
   batteries: z.array(z.object({ ...costed, ...specced, kwh: z.number().positive() })).optional(),
   inverters: z.array(z.object({ ...costed, ...specced, kva: z.number().positive() })).min(1),
   accessoriesByKva: z

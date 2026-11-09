@@ -1,4 +1,4 @@
-import { usableComponents, type Specs } from '@/lib/components/specs'
+import { type Specs } from '@/lib/components/specs'
 import type { PriceList, PricingSettings, SizeBand } from '@/lib/settings/schemas'
 
 import { ESTIMATE_TENURE } from './tenures'
@@ -72,20 +72,17 @@ export function priceListFromRows(input: {
   installs: InstallationCostRow[]
   panelWatts: number
 }): PriceList {
-  // Only components the engine may use: items with missing specs are skipped (with a note) once
-  // their category has at least one item with complete specs (src/lib/components/specs.ts).
-  const { usable, skipped } = usableComponents(
-    input.components.map((c) => ({
+  // Every active component is used; missing specs never stop a quote (sizing fills the gaps).
+  const active = input.components
+    .filter((c) => c.active)
+    .map((c) => ({
       ...c,
-      id: c.sku,
       nominalVoltage:
         c.nominal_voltage === null || c.nominal_voltage === undefined
           ? null
           : Number(c.nominal_voltage),
       specs: (c.specs && typeof c.specs === 'object' ? c.specs : {}) as Specs,
-    })),
-  )
-  const active = usable
+    }))
   const panels = active.filter((c) => c.category === 'panels')
   const panel = panels.find((p) => sizeOf(p, 'watts') === input.panelWatts) ?? panels[0]
   const battery = active.find((c) => c.category === 'battery')
@@ -126,7 +123,6 @@ export function priceListFromRows(input: {
   ) as PriceList['installByState']
 
   return {
-    skipped,
     // Any ACTIVE SAMPLE component hides prices, as the admin banner counts it (sampleStatus.ts).
     sample:
       input.components.some((c) => c.active && c.sample) || input.installs.some((r) => r.sample),
