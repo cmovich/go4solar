@@ -40,11 +40,18 @@ export function StaffQuotationForm({
   const [state, setState] = useState<NgStateId | ''>('')
   return (
     <div className="space-y-8">
-      <fieldset className="bg-brand-mist space-y-3 rounded-2xl p-4" data-testid="quote-customer">
-        <legend className="text-brand-dark float-left mb-3 w-full font-semibold">
+      {/* A plain group (no floated legend): the title sits above, the fields form their own
+          rows: Name and Phone side by side from tablet width, State below; one per line on phones. */}
+      <div
+        role="group"
+        aria-labelledby="q-customer-title"
+        className="bg-brand-mist space-y-3 rounded-2xl p-4"
+        data-testid="quote-customer"
+      >
+        <p id="q-customer-title" className="text-brand-dark font-semibold">
           Customer (optional)
-        </legend>
-        <div className="grid gap-3 sm:grid-cols-3">
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <Label htmlFor="q-name">Name</Label>
             <Input
@@ -88,7 +95,7 @@ export function StaffQuotationForm({
           The state sets the installation and delivery prices and the sun hours. Name and phone are
           only printed on the quotation and used for the WhatsApp message.
         </p>
-      </fieldset>
+      </div>
 
       <Builder
         items={items}

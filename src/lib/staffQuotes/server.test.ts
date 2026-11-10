@@ -33,8 +33,13 @@ vi.mock('@/lib/invoices/server', () => ({
   ensureInvoiceForQuote: (...a: unknown[]) => ensureInvoiceForQuote(...a),
 }))
 
-const { acceptStaffQuotation, createStaffQuotation, mayCreateQuotations, staffQuotationForAdmin } =
-  await import('./server')
+const {
+  acceptStaffQuotation,
+  createStaffQuotation,
+  mayCreateQuotations,
+  mayStartAssistedApplication,
+  staffQuotationForAdmin,
+} = await import('./server')
 
 const sa: SessionInfo = { user: { id: 'sa', email: 's@x.test' }, role: 'super_admin', aal: 'aal2' }
 const marketer: SessionInfo = {
@@ -76,6 +81,18 @@ describe('mayCreateQuotations', () => {
     expect(await mayCreateQuotations({ ...marketer, role: 'sales' })).toBe(true)
     db.defineFunction('has_permission', (a) => a.target === 'create_quotations')
     expect(await mayCreateQuotations(marketer)).toBe(true)
+  })
+})
+
+describe('mayStartAssistedApplication', () => {
+  it('never sales (even with the tick); others need two-factor and the assisted-entry tick', async () => {
+    db.defineFunction('has_permission', (a) => a.target === 'assisted_entry')
+    expect(await mayStartAssistedApplication({ ...marketer, role: 'sales' })).toBe(false)
+    expect(await mayStartAssistedApplication(marketer)).toBe(true)
+    expect(await mayStartAssistedApplication(sa)).toBe(true)
+    expect(await mayStartAssistedApplication({ ...sa, aal: 'aal1' })).toBe(false)
+    db.defineFunction('has_permission', () => false)
+    expect(await mayStartAssistedApplication(marketer)).toBe(false)
   })
 })
 

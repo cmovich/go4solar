@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  APPLICATION_NOTE,
   canCreateQuotations,
+  canStartAssistedApplication,
+  QUOTATION_NOTE,
   customerSchema,
   isTestQuotation,
   listFilters,
@@ -146,5 +149,22 @@ describe('listFilters', () => {
       to: null,
       test: true,
     })
+  })
+})
+
+describe('Admin → Quotations buttons', () => {
+  it('"New application on behalf of a customer": super admins, or staff with assisted entry; never sales', () => {
+    expect(canStartAssistedApplication('super_admin', false)).toBe(true)
+    expect(canStartAssistedApplication('operations', true)).toBe(true)
+    expect(canStartAssistedApplication('operations', false)).toBe(false)
+    expect(canStartAssistedApplication('sales', true)).toBe(false)
+  })
+  it('the one-line explanations', () => {
+    expect(QUOTATION_NOTE).toBe(
+      'Price quote only. No account or ID checks. Share as PDF or WhatsApp.',
+    )
+    expect(APPLICATION_NOTE).toBe(
+      "Starts the customer's real application (their details and ID checks). Use when the customer is ready to apply now.",
+    )
   })
 })
