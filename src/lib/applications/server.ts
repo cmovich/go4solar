@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { isOwnSystem } from '@/lib/build/stored'
+import { isOwnSystem, isReadyPlan, systemTitle } from '@/lib/build/stored'
 
 import { isStaffRole } from '@/lib/auth/staffRoles'
 import { getSessionInfo } from '@/lib/auth/session'
@@ -67,6 +67,10 @@ export type WizardState = {
     plan: Plan
     /** Built by the customer in /build (Part F): shown as "Your own system". */
     ownSystem: boolean
+    /** The stored system's name ("Your own system" or a ready-made plan's), if any. */
+    systemName: string | null
+    /** A ready-made plan: no "interest" wording. */
+    fixedPrice: boolean
     tenure: number | null
     monthly: number
     deposit: number
@@ -294,6 +298,8 @@ export async function wizardState(app: ApplicationRow): Promise<WizardState> {
             reference: quoteReference(quote.id),
             plan: quote.plan as Plan,
             ownSystem: 'builder' in quote && isOwnSystem(quote.builder),
+            systemName: 'builder' in quote ? systemTitle(quote.builder) : null,
+            fixedPrice: 'builder' in quote && isReadyPlan(quote.builder),
             tenure: quote.tenure,
             monthly: result.monthly,
             deposit: result.deposit,

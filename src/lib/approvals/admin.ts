@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { isOwnSystem } from '@/lib/build/stored'
+import { isOwnSystem, storedBuild, systemTitle } from '@/lib/build/stored'
 
 import { staffSignedUrl } from '@/lib/applications/server'
 import { lateFeeSettings } from '@/lib/agreements/server'
@@ -145,6 +145,8 @@ export type ApplicationDetail = {
   plan: Plan | null
   /** Built by the customer in /build (Part F): no plan sizing, "Their own system". */
   ownSystem: boolean
+  /** A ready-made plan's name (null for a system built in the builder). */
+  readyPlanName: string | null
   /** The sizing stored with the quote ("How this was sized"). */
   size: SystemSize | null
   checks: {
@@ -268,6 +270,12 @@ export async function applicationDetail(id: string): Promise<ApplicationDetail |
     quote,
     plan,
     ownSystem,
+    readyPlanName:
+      quoteRes.data && 'builder' in quoteRes.data
+        ? storedBuild(quoteRes.data.builder)?.fixed
+          ? (systemTitle(quoteRes.data.builder) ?? null)
+          : null
+        : null,
     size: ownSystem ? null : ((quoteRes.data?.system_size ?? null) as SystemSize | null),
     checks: (checks.data ?? []).map((c) => ({
       id: c.id,

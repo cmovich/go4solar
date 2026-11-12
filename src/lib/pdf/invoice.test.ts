@@ -5,6 +5,8 @@ import { buildInvoice } from '@/lib/invoices/build'
 import { formatNaira } from '@/lib/money'
 import { sampleQuoteInput } from '@/lib/pricing/pricing.fixture'
 import { priceQuote } from '@/lib/pricing/price'
+import { SEEDED_PLANS } from '@/lib/readyPlans/plans.fixture'
+import { priceReadyPlan, readyQuoteResult } from '@/lib/readyPlans/price'
 import { pdfPageTexts } from '@/test/pdfText'
 
 import { renderInvoicePdf } from './InvoicePdf'
@@ -111,4 +113,55 @@ describe('invoice PDF', () => {
     expect(text).not.toContain('G4S-INV')
     expect(text).not.toContain('/verify/')
   }, 30000)
+})
+
+describe('ready-made plan quotation PDF', () => {
+  it('items without prices, pay-in-full price, extra delivery, "One fixed price"; never "interest"', async () => {
+    const oga = SEEDED_PLANS.find((p) => p.slug === 'oga-boss')!
+    const priced = priceReadyPlan(oga, 12, 45_000)
+    const doc = buildInvoice({
+      kind: 'quotation',
+      number: 'G4S-1A2B3C4D',
+      publicCode: '',
+      verifyUrl: null,
+      issuedAt: new Date('2026-11-12T10:00:00Z'),
+      validityDays: 7,
+      company: DEFAULT_COMPANY,
+      customer: data.customer,
+      reference: 'G4S-1A2B3C4D',
+      site: {},
+      roofNeedsRack: false,
+      installer: 'go4solar',
+      packIncluded: false,
+      title: 'Oga Boss',
+      result: readyQuoteResult(oga, priced, 'Lagos'),
+      items: {},
+      fixed: {
+        fullPayment: priced.fullPayment,
+        fullDiscount: 0.25,
+        extra: { state: 'Lagos', amount: 45_000 },
+      },
+    })
+    const text = pdfPageTexts(await renderInvoicePdf(doc)).join(' ')
+    for (const part of [
+      'Oga Boss',
+      'Battery 3.6 kWh lithium-ion 12 V',
+      formatNaira(priced.totalPayable),
+      formatNaira(261_400),
+      'Delivery to Lagos (extra, paid with the deposit)',
+      formatNaira(45_000),
+      formatNaira(139_413),
+      'Or pay in full',
+      '25% off',
+      formatNaira(1_450_770 + 45_000),
+      'One fixed price. No hidden charges.',
+      'Late payments',
+    ]) {
+      expect(text, part).toContain(part)
+    }
+    // No per-line price (battery ₦470,000, panels ₦400,000) and never the word "interest".
+    expect(text).not.toContain(formatNaira(470_000))
+    expect(text).not.toContain(formatNaira(400_000))
+    expect(text).not.toMatch(/interest/i)
+  })
 })

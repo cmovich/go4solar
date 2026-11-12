@@ -90,3 +90,12 @@ describe('the builder (Part F)', () => {
     expect(prelaunchBlock('/build', 'live')).toBeNull()
   })
 })
+
+describe('ready-made plans (/plans/<name>) are open in both modes', () => {
+  it('the plan page, its start flow and PDF stay open; the live /plans chooser stays closed', () => {
+    for (const p of ['/plans/oga-boss', '/plans/oga-boss/start', '/plans/relax/pdf']) {
+      expect(prelaunchBlock(p, 'prelaunch'), p).toBeNull()
+    }
+    expect(prelaunchBlock('/plans', 'prelaunch')).toEqual({ redirect: '/' })
+  })
+})

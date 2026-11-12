@@ -1,0 +1,142 @@
+import { expect, test } from '@playwright/test'
+
+import { ownConnection } from './helpers/connection'
+import { chooseAndAccept, PLAN_ORDER, readyPlansMigrated } from './helpers/readyPlans'
+import { loginAsStaff } from './helpers/staff'
+
+/**
+ * Ready-made plans (prelaunch). The plans are SAMPLE until Semako confirms them, so customer pages
+ * show no naira; the figures are unit-tested (src/lib/readyPlans/price.test.ts) and read here from
+ * the admin preview. Nothing in the price list is saved by these tests.
+ */
+test.beforeEach(async ({ context }) => {
+  await ownConnection(context)
+  test.skip(!(await readyPlansMigrated()), 'migration 0034 not applied yet')
+})
+
+test.describe('ready-made plans', () => {
+  test.setTimeout(180_000)
+
+  test('home page: six plans after the hero, smallest first; swipe on phones, grid on desktop', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    const section = page.getByTestId('ready-plans')
+    await expect(section).toBeVisible()
+    const cards = section.locator('article[data-testid^="ready-plan-"]')
+    expect(await cards.evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')))).toEqual(
+      PLAN_ORDER.map((s) => `ready-plan-${s}`),
+    )
+    await expect(section.getByTestId('ready-plans-note')).toHaveText(
+      'Prices for Kaduna. Delivery to other states is paid by the customer.',
+    )
+    // The voltage tag on every card; Relax is the 48 V system.
+    await expect(page.getByTestId('ready-plan-relax')).toContainText('48 V system')
+    await expect(page.getByTestId('ready-plan-no-wahala')).toContainText('24 V system')
+    // SAMPLE: no naira on any card, never the word "interest".
+    await expect(section).not.toContainText('₦')
+    await expect(section).not.toContainText(/interest/i)
+    // Section order: straight after the hero.
+    const order = await page
+      .locator('main > section')
+      .evaluateAll((els) => els.map((e) => e.id || e.getAttribute('data-testid') || ''))
+    expect(order.indexOf('ready-plans')).toBe(1)
+    const list = section.getByTestId('ready-plans-list')
+    const scrolls = await list.evaluate((el) => el.scrollWidth > el.clientWidth + 10)
+    expect(scrolls).toBe(test.info().project.name === 'mobile')
+    // Anyone who can't find a plan: calculator and builder.
+    await expect(section.getByRole('link', { name: 'Calculate my load' })).toBeVisible()
+  })
+
+  test('plan page: items without prices, what it powers, backup note, months and state', async ({
+    page,
+  }) => {
+    await page.goto('/plans/oga-boss')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Oga Boss')
+    await expect(page.getByText('12 V system')).toBeVisible()
+    const included = page.getByTestId('plan-included')
+    await expect(included).toContainText('Battery · 3.6 kWh lithium-ion 12 V')
+    await expect(included).toContainText('Inverter · 2 kVA 12 V')
+    await expect(included).not.toContainText('₦')
+    await expect(page.getByTestId('plan-can-power')).toContainText('0.5 HP water pump at times')
+    await expect(
+      page.getByText('Estimates — depends on how many items are on at once.'),
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: '6 months' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '9 months' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '12 months' })).toBeVisible()
+    await expect(page.getByTestId('plan-price-later')).toBeVisible()
+    await expect(page.locator('main')).not.toContainText(/interest|vendor/i)
+    await expect(page.locator('main')).not.toContainText('admin')
+    await expect(page.getByText(/Charge controller must be|needs ~130 A/)).toHaveCount(0)
+    await expect(page.getByText('Subject to a site check.')).toBeVisible()
+  })
+
+  test('Choose this plan → questions → quotation → Accept and apply → thank-you', async ({
+    page,
+  }) => {
+    await chooseAndAccept(page, 'level-up')
+    await expect(page.getByTestId('accepted')).toContainText('Thank you!', { timeout: 45_000 })
+  })
+
+  test('Customise this plan → the builder with a system suggested for the plan', async ({
+    page,
+  }) => {
+    await page.goto('/plans/oga-boss')
+    await page.getByTestId('customise-plan').click()
+    await expect(page).toHaveURL(/\/build\?ready=oga-boss&state=Kaduna/)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Choose your items', {
+      timeout: 30_000,
+    })
+    await expect(page.getByTestId('bar-inverter')).toContainText('kVA', { timeout: 30_000 })
+  })
+
+  test('a plan that does not exist: not found', async ({ page }) => {
+    const res = await page.goto('/plans/no-such-plan')
+    expect(res?.status()).toBe(404)
+  })
+})
+
+test.describe('ready-made plans: staff', () => {
+  test.beforeEach(() => {
+    test.skip(test.info().project.name === 'mobile', 'one browser is enough')
+  })
+
+  test('admin: six plans, SAMPLE, staff notes; the editor preview shows the exact figures', async ({
+    page,
+  }) => {
+    test.skip(!process.env.E2E_STAFF_EMAIL, 'needs the e2e staff account')
+    await loginAsStaff(page)
+    await page.goto('/admin/pricing/ready-plans')
+    const rows = page.getByTestId('ready-plan-row')
+    await expect(rows).toHaveCount(6)
+    await expect(rows.first()).toContainText('SAMPLE')
+    await expect(rows.first()).toContainText('Charge controller must be ≥30 A.')
+    await expect(rows.nth(2)).toContainText('needs ~130 A charging')
+    // I Pass My Neighbour: ₦93,000 deposit, ₦49,600 a month, pay in full ₦516,150.
+    await expect(rows.first()).toContainText('₦93,000 / ₦49,600')
+    await rows.first().getByRole('button', { name: 'Edit' }).click()
+    const preview = page.getByTestId('plan-preview')
+    await expect(preview).toContainText('6 months: deposit ₦93,000, then ₦80,600 a month')
+    await expect(preview).toContainText('9 months: deposit ₦93,000, then ₦59,933 a month')
+    await expect(preview).toContainText('Pay in full: ₦516,150 (25% off)')
+    // Cancel: nothing saved.
+    await page.getByRole('button', { name: 'Cancel' }).first().click()
+  })
+
+  test('staff quotation tool: Start from a ready-made plan', async ({ page }) => {
+    test.skip(!process.env.E2E_STAFF_EMAIL, 'needs the e2e staff account')
+    await loginAsStaff(page)
+    await page.goto('/admin/quotations/new')
+    await page.getByLabel('State', { exact: true }).selectOption('Kaduna')
+    const box = page.getByTestId('start-from-plan')
+    await box.getByLabel('Plan').selectOption('relax')
+    await box.getByLabel('Months').selectOption('9')
+    await box.getByTestId('create-from-plan').click()
+    await page.waitForURL(/\/admin\/quotations\/[0-9a-f-]{36}$/, { timeout: 45_000 })
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Quotation')
+    await expect(
+      page.getByTestId('quotation').or(page.getByTestId('quotation-sample')),
+    ).toBeVisible()
+  })
+})

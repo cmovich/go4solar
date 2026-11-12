@@ -115,7 +115,13 @@ export function ConsumerTable({
                 <td className="px-3 py-2 whitespace-nowrap tabular-nums">{r.phone}</td>
                 <td className="px-3 py-2 whitespace-nowrap">{stateLabelOf(r.state)}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
-                  {r.build ? 'Own system' : r.plan ? PLAN_LABELS[r.plan] : '—'}
+                  {r.build
+                    ? r.build.fixed
+                      ? r.build.title
+                      : 'Own system'
+                    : r.plan
+                      ? PLAN_LABELS[r.plan]
+                      : '—'}
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.generator ? GENERATOR_LABELS[r.generator] : '—'}
@@ -261,7 +267,10 @@ export function ConsumerTable({
               {open.build && (
                 <div className="mt-6 px-4" data-testid="lead-build">
                   <p className="text-brand-dark text-sm font-semibold">
-                    System they built ({open.build.months} months)
+                    {open.build.fixed
+                      ? `Ready-made plan: ${open.build.title}`
+                      : 'System they built'}{' '}
+                    ({open.build.months} months)
                   </p>
                   <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                     {open.build.lines.map((l, i) => (

@@ -12,6 +12,8 @@ import { THANK_YOU_TEXT } from '@/lib/waitlist/schema'
 
 import { acceptSharedQuotation } from '@/app/(public)/q/actions'
 
+type AcceptResult = { ok: true; next: string | null } | { ok: false; error: string }
+
 const FIELDS = [
   ['firstName', 'First name', 'given-name', 'text'],
   ['surname', 'Surname', 'family-name', 'text'],
@@ -21,10 +23,7 @@ const FIELDS = [
 ] as const
 type Key = (typeof FIELDS)[number][0]
 
-/**
- * "Accept and apply": the customer gives their own details (the name and phone staff typed are
- * only a starting point), then the normal sign-up continues from this quotation.
- */
+/** A staff quotation's "Accept and apply" (the link /q/<code>). */
 export function AcceptSharedQuotation({
   code,
   name,
@@ -33,6 +32,29 @@ export function AcceptSharedQuotation({
   code: string
   name: string | null
   phone: string | null
+}) {
+  return (
+    <AcceptAndApply
+      name={name}
+      phone={phone}
+      accept={(contact) => acceptSharedQuotation({ code, contact })}
+    />
+  )
+}
+
+/**
+ * "Accept and apply": the customer gives their own details (any name and phone already known are
+ * only a starting point), then the normal sign-up continues: live → `next` (the account step),
+ * prelaunch → the thank-you here.
+ */
+export function AcceptAndApply({
+  name,
+  phone,
+  accept,
+}: {
+  name: string | null
+  phone: string | null
+  accept: (contact: Record<string, unknown>) => Promise<AcceptResult>
 }) {
   const router = useRouter()
   const [first, ...rest] = (name ?? '').trim().split(/\s+/)
@@ -111,7 +133,7 @@ export function AcceptSharedQuotation({
         onClick={() =>
           start(async () => {
             setError(null)
-            const r = await acceptSharedQuotation({ code, contact: { ...c, consent: true } })
+            const r = await accept({ ...c, consent: true })
             if (!r.ok) return setError(r.error)
             if (r.next) router.push(r.next)
             else setDone(true)

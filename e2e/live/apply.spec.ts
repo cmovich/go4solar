@@ -166,7 +166,8 @@ test.describe('live mode: application wizard with mock KYC', () => {
     await page.waitForURL(/\/app\/apply\/sign/)
     await expect(page.getByTestId('sign-summary')).toContainText('Total amount payable')
     await expect(page.getByTestId('sign-summary')).toContainText('No interest')
-    await expect(page.getByText('DRAFT — lawyer review required').first()).toBeVisible()
+    // Approved by Go4Solar's legal team on 4 Nov (migration 0029): no DRAFT line any more.
+    await expect(page.getByText('DRAFT — lawyer review required')).toHaveCount(0)
     await readTickDrawAndSign(page, p.phone)
     await expect(page.getByTestId('signed-done')).toBeVisible({ timeout: 60000 })
     await expect(page.getByTestId('signed-done')).toContainText(

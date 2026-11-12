@@ -26,6 +26,17 @@ vi.mock('@/lib/build/server', () => ({
   }),
   selectionSummary: () => ({ size: { inverterKva: 5 }, panelWatts: 550 }),
 }))
+vi.mock('@/lib/readyPlans/server', async (orig) => {
+  const { SEEDED_PLANS } = await import('@/lib/readyPlans/plans.fixture')
+  return {
+    ...(await orig<typeof import('@/lib/readyPlans/server')>()),
+    loadReadyPlan: async (slug: string) => {
+      const p = SEEDED_PLANS.find((x) => x.slug === slug)
+      return p ? { ...p, sample: false } : null
+    },
+    loadDeliveryRows: async () => [],
+  }
+})
 const saveBuiltSystem = vi.fn()
 vi.mock('@/lib/build/save', () => ({ saveBuiltSystem: (...a: unknown[]) => saveBuiltSystem(...a) }))
 const ensureInvoiceForQuote = vi.fn()
@@ -36,6 +47,7 @@ vi.mock('@/lib/invoices/server', () => ({
 const {
   acceptStaffQuotation,
   createStaffQuotation,
+  createStaffQuotationFromPlan,
   mayCreateQuotations,
   mayStartAssistedApplication,
   staffQuotationForAdmin,
@@ -207,7 +219,7 @@ describe('acceptStaffQuotation ("Accept and apply")', () => {
         stored: builder,
         live: false,
         contact: expect.objectContaining({ firstName: 'Ada', phone: '+2348031234567' }),
-        fromStaff: { enteredBy: 'mk' },
+        accepted: { enteredBy: 'mk', channel: 'staff quotation' },
       }),
     )
     expect(db.rows('staff_quotations')[0]).toMatchObject({
@@ -266,5 +278,36 @@ describe('acceptStaffQuotation ("Accept and apply")', () => {
     seed({ accepted_at: new Date().toISOString(), accepted_quote_id: 'quote-9' })
     db.seed('quotes', { id: 'quote-9', anon_token_hash: 'visitor-hash' })
     expect(await accept(true)).toEqual({ ok: true, next: '/account?quote=quote-9' })
+  })
+})
+
+describe('createStaffQuotationFromPlan ("Start from a ready-made plan")', () => {
+  it('the plan at its fixed price for the length chosen, saved like any quotation (audited)', async () => {
+    const r = await createStaffQuotationFromPlan(sa, {
+      customer: { name: 'Ada Obi', phone: '', state: 'Kaduna' },
+      ready: { slug: 'oga-boss', months: 12 },
+    })
+    expect(r).toMatchObject({ ok: true })
+    const row = db.rows('staff_quotations')[0]!
+    expect(row).toMatchObject({ tenure: 12, monthly: 139_413, sample: false, state: 'Kaduna' })
+    expect(row.builder).toMatchObject({
+      kind: 'ready',
+      plan: { slug: 'oga-boss', name: 'Oga Boss' },
+      fixed: { fullPayment: 1_450_770 },
+    })
+    expect(db.rows('audit_log')[0]).toMatchObject({
+      action: 'staff_quotation.create',
+      after: expect.objectContaining({ readyPlan: 'oga-boss' }),
+    })
+  })
+  it('refuses a plan that is not on, or a length it does not offer', async () => {
+    const customer = { name: '', phone: '', state: 'Kaduna' }
+    expect(
+      await createStaffQuotationFromPlan(sa, { customer, ready: { slug: 'gone', months: 12 } }),
+    ).toMatchObject({ ok: false })
+    expect(
+      await createStaffQuotationFromPlan(sa, { customer, ready: { slug: 'relax', months: 24 } }),
+    ).toMatchObject({ ok: false, error: 'Relax is not offered over 24 months.' })
+    expect(db.rows('staff_quotations')).toEqual([])
   })
 })

@@ -1,6 +1,7 @@
 import 'server-only'
 
-import { isOwnSystem, OWN_SYSTEM_LABEL, storedBuild } from '@/lib/build/stored'
+import type { StoredSystem } from '@/lib/build/save'
+import { isOwnSystem, OWN_SYSTEM_LABEL, storedBuild, systemTitle } from '@/lib/build/stored'
 import { itemSizes, loadCatalogue } from '@/lib/catalogue/server'
 import { loadCompany } from '@/lib/company/server'
 import { isNgStateId, stateLabel } from '@/lib/nigeria/states'
@@ -86,9 +87,7 @@ async function sourceFromQuote(quote: QuoteRow): Promise<Source | null> {
   if (!customer) return null
   return {
     result: quote.result as unknown as QuoteResult,
-    title: isOwnSystem(quote.builder)
-      ? OWN_SYSTEM_LABEL
-      : `${PLAN_LABELS[quote.plan as Plan]} plan`,
+    title: systemTitle(quote.builder) ?? `${PLAN_LABELS[quote.plan as Plan]} plan`,
     reference: quoteReference(quote.id),
     site: quote.site,
     builder: quote.builder,
@@ -140,6 +139,8 @@ async function prepare(
     roofNeedsRack: roof?.needsRack ?? false,
     installer: selection?.installer === 'own' ? 'own' : 'go4solar',
     packIncluded: src.result.lines.some((l) => items[l.sku]?.pack),
+    // Ready-made plans: one fixed price (items without prices) and the pay-in-full price.
+    fixed: storedBuild(src.builder)?.fixed ?? null,
   })
 }
 
@@ -221,7 +222,7 @@ export async function quotationForBuilderLead(
   if (stored.sample) return { ok: false, reason: 'sample' }
   return quotation({
     result: (lead.builder as unknown as { quote: QuoteResult }).quote,
-    title: OWN_SYSTEM_LABEL,
+    title: stored.title,
     reference: quoteReference(lead.id),
     site: lead.site,
     builder: lead.builder,
@@ -229,7 +230,6 @@ export async function quotationForBuilderLead(
     isTest: Boolean(lead.is_test),
   })
 }
-
 
 /**
  * A staff quotation (/admin/quotations, the customer link /q/<code>): its stored snapshot, with
@@ -246,7 +246,7 @@ export async function quotationForStaff(
     {
       result: (row.builder as unknown as { quote: QuoteResult }).quote,
       // Same title as the quote and invoice it becomes once accepted.
-      title: OWN_SYSTEM_LABEL,
+      title: stored.title,
       reference: quoteReference(row.id),
       site: row.site,
       builder: row.builder,
@@ -268,6 +268,31 @@ export async function quotationForStaff(
     new Date(row.created_at),
   )
   return { ok: true, id: null, invoice: doc }
+}
+
+/**
+ * A ready-made plan's quotation before the customer gives any details ("Your quotation" on the
+ * plan pages): nothing is saved and no number is used. SAMPLE prices: no document.
+ */
+export async function quotationForReadyPlan(stored: StoredSystem): Promise<DocResult> {
+  if (stored.sample) return { ok: false, reason: 'sample' }
+  return quotation({
+    result: stored.quote,
+    title: stored.plan?.name ?? OWN_SYSTEM_LABEL,
+    // No quote exists yet: the plan's own reference (the quote's comes on acceptance).
+    reference: `G4S-${(stored.plan?.slug ?? 'plan').toUpperCase()}`,
+    site: stored.selection.site,
+    builder: stored,
+    customer: {
+      firstName: 'Customer',
+      name: 'Customer',
+      phone: null,
+      email: null,
+      place: placeOf(null, stored.selection.state),
+      businessName: null,
+    },
+    isTest: false,
+  })
 }
 
 // ------------------------------------------------------------------ invoices (numbered)

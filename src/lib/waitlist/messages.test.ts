@@ -65,3 +65,17 @@ describe('confirmation for a builder system (Part F)', () => {
     expect(text).not.toContain('Comfort')
   })
 })
+
+describe('confirmation for a ready-made plan', () => {
+  it('says "One fixed price. No hidden charges." and never "interest"', () => {
+    const t = confirmationText({
+      ...base,
+      planLabel: 'Oga Boss',
+      samplePrices: false,
+      fixedPrice: true,
+    })
+    expect(t).toContain('Oga Boss')
+    expect(t).toContain('One fixed price. No hidden charges.')
+    expect(t).not.toMatch(/interest/i)
+  })
+})

@@ -132,7 +132,12 @@ describe('quotationForStaff (staff quotation tool)', () => {
       title: 'Your own system',
       issuedAt: '2026-11-09T10:00:00.000Z',
       validUntil: '2026-11-16T10:00:00.000Z',
-      customer: { name: 'Ada Obi', firstName: 'Ada', phone: '+2348031234567', place: 'Abuja (FCT)' },
+      customer: {
+        name: 'Ada Obi',
+        firstName: 'Ada',
+        phone: '+2348031234567',
+        place: 'Abuja (FCT)',
+      },
     })
     expect(r.invoice.totals.total).toBe(result.systemPrice)
     expect(db.rows('invoices')).toEqual([])

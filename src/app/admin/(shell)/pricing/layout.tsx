@@ -39,6 +39,12 @@ export default async function PricingLayout({ children }: { children: React.Reac
         >
           Builder
         </Link>
+        <Link
+          href="/admin/pricing/ready-plans"
+          className="text-muted-foreground hover:text-brand-dark -mb-px border-b-2 border-transparent px-3 py-2 text-sm font-semibold"
+        >
+          Ready-made plans
+        </Link>
       </nav>
       <div className="mt-6">{children}</div>
     </main>

@@ -379,7 +379,9 @@ export default async function ApplicationPage({
           )}
           {d.ownSystem && (
             <p className="text-brand-dark font-semibold" data-testid="own-system">
-              Their own system (built in the system builder)
+              {d.readyPlanName
+                ? `Ready-made plan: ${d.readyPlanName} (fixed price)`
+                : 'Their own system (built in the system builder)'}
             </p>
           )}
           {d.size && d.plan && <SizingPanel size={d.size} plan={d.plan} />}

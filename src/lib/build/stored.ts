@@ -1,7 +1,16 @@
 import { z } from 'zod'
 
+const fixedSchema = z.object({
+  fullPayment: z.number(),
+  fullDiscount: z.number(),
+  extra: z.object({ state: z.string(), amount: z.number() }).nullable(),
+})
+
 const storedSchema = z.object({
-  kind: z.literal('builder'),
+  kind: z.enum(['builder', 'ready']),
+  /** Ready-made plans only. */
+  plan: z.object({ slug: z.string(), name: z.string() }).optional(),
+  fixed: fixedSchema.optional(),
   notes: z.array(z.string()).optional(),
   sample: z.boolean().optional(),
   quote: z.object({
@@ -25,6 +34,10 @@ export type StoredBuild = {
   notes: string[]
   /** Priced with SAMPLE values: hide amounts from the customer. */
   sample: boolean
+  /** "Your own system", or the ready-made plan's name. */
+  title: string
+  /** Ready-made plans: the pay-in-full price and any extra delivery (paid upfront). */
+  fixed: z.infer<typeof fixedSchema> | null
 }
 
 /**
@@ -44,15 +57,40 @@ export function storedBuild(value: unknown): StoredBuild | null {
     extras: q.noMarkup ?? [],
     notes: p.data.notes ?? [],
     sample: p.data.sample ?? true,
+    title: titleOf(p.data),
+    fixed: p.data.fixed ?? null,
   }
 }
+
+function titleOf(v: { kind: 'builder' | 'ready'; plan?: { name: string } }): string {
+  return v.kind === 'ready' && v.plan ? v.plan.name : OWN_SYSTEM_LABEL
+}
+
+/** The name a stored system shows where a plan name would: the ready-made plan's, or "Your own system". */
+export function systemTitle(value: unknown): string | null {
+  const p = storedSchema.pick({ kind: true, plan: true }).safeParse(value)
+  return p.success ? titleOf(p.data) : null
+}
+
+/** True for a ready-made plan (fixed bundle): customers never see the word "interest". */
+export function isReadyPlan(value: unknown): boolean {
+  return (
+    typeof value === 'object' && value !== null && (value as { kind?: unknown }).kind === 'ready'
+  )
+}
+
+/** What ready-made plans say instead of "0% interest". */
+export const FIXED_PRICE_LINE = 'One fixed price. No hidden charges.'
 
 /** How a customer-built system is named wherever a plan name would show. */
 export const OWN_SYSTEM_LABEL = 'Your own system'
 
-/** True when a quote or lead's `builder` value marks a system the customer built in /build. */
+/**
+ * True when a quote or lead's `builder` value holds a stored system (built in /build, or a
+ * ready-made plan) rather than one of the three sized plans.
+ */
 export function isOwnSystem(value: unknown): boolean {
-  return (
-    typeof value === 'object' && value !== null && (value as { kind?: unknown }).kind === 'builder'
-  )
+  if (typeof value !== 'object' || value === null) return false
+  const kind = (value as { kind?: unknown }).kind
+  return kind === 'builder' || kind === 'ready'
 }

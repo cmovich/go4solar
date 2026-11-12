@@ -31,7 +31,7 @@ export default async function globalSetup() {
     .from('rate_limits')
     .delete()
     .or(
-      'key.like.waitlist:%,key.like.waitlist-phone:%,key.like.vision:%,key.like.vision-day:%,key.like.otp-send:%,key.like.otp-verify:%,key.like.sig-otp:%,key.like.sig-verify:%,key.like.login:%,key.like.login-email:%,key.like.signup:%,key.like.guarantee-open:%,key.like.guarantee-steps:%,key.like.export:%,key.like.forgot:%,key.like.forgot-email:%,key.like.build:%,key.like.advice:%,key.like.staffq:%',
+      'key.like.waitlist:%,key.like.waitlist-phone:%,key.like.vision:%,key.like.vision-day:%,key.like.otp-send:%,key.like.otp-verify:%,key.like.sig-otp:%,key.like.sig-verify:%,key.like.login:%,key.like.login-email:%,key.like.signup:%,key.like.guarantee-open:%,key.like.guarantee-steps:%,key.like.export:%,key.like.forgot:%,key.like.forgot-email:%,key.like.build:%,key.like.advice:%,key.like.staffq:%,key.like.ready-plan:%',
     )
 
   const staff = await prepareStaff(

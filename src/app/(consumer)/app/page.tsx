@@ -1,4 +1,5 @@
 import { Check, Circle, X } from 'lucide-react'
+import { FIXED_PRICE_LINE } from '@/lib/build/stored'
 import type { Metadata } from 'next'
 
 import { headers } from 'next/headers'
@@ -321,7 +322,9 @@ export default async function DashboardPage({
           ))}
         </dl>
         <p className="mt-2 text-sm">
-          0% interest. The total amount payable above is everything you pay for the system.
+          {d.plan.fixedPrice
+            ? FIXED_PRICE_LINE
+            : '0% interest. The total amount payable above is everything you pay for the system.'}
         </p>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm" data-testid="plan-rules">
           <li>

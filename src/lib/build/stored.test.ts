@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isOwnSystem, OWN_SYSTEM_LABEL, storedBuild } from './stored'
+import { isOwnSystem, OWN_SYSTEM_LABEL, storedBuild, systemTitle } from './stored'
 
 const quote = {
   systemPrice: 2_000_000,
@@ -32,6 +32,8 @@ describe('storedBuild (a saved builder system, for staff and the customer)', () 
       extras: quote.noMarkup,
       notes: ['Rack: metal'],
       sample: false,
+      title: OWN_SYSTEM_LABEL,
+      fixed: null,
     })
     expect(JSON.stringify(b)).not.toMatch(/unitCost/)
   })
@@ -56,5 +58,31 @@ describe('isOwnSystem', () => {
     expect(isOwnSystem(undefined)).toBe(false)
     expect(isOwnSystem({ kind: 'other' })).toBe(false)
     expect(OWN_SYSTEM_LABEL).toBe('Your own system')
+  })
+})
+
+// Ready-made plans are stored in the same column (kind 'ready'), with the plan's name and the
+// pay-in-full price (customers see these; vendor costs never leave the server).
+describe('a stored ready-made plan', () => {
+  const ready = {
+    kind: 'ready',
+    plan: { slug: 'oga-boss', name: 'Oga Boss' },
+    fixed: { fullPayment: 1_450_770, fullDiscount: 0.25, extra: null },
+    quote,
+    notes: [],
+    sample: false,
+  }
+  it('is a stored system, titled with the plan name, with its pay-in-full price', () => {
+    expect(isOwnSystem(ready)).toBe(true)
+    expect(systemTitle(ready)).toBe('Oga Boss')
+    expect(storedBuild(ready)).toMatchObject({
+      title: 'Oga Boss',
+      fixed: { fullPayment: 1_450_770, fullDiscount: 0.25, extra: null },
+      systemPrice: 2_000_000,
+    })
+  })
+  it('a customer-built system keeps its own title; anything else has none', () => {
+    expect(systemTitle({ kind: 'builder', quote })).toBe(OWN_SYSTEM_LABEL)
+    expect(systemTitle(null)).toBeNull()
   })
 })

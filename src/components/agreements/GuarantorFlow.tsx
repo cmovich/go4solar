@@ -1,5 +1,6 @@
 'use client'
 
+import { FIXED_PRICE_LINE } from '@/lib/build/stored'
 import { Loader2, ScanFace } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useRef, useState, useTransition } from 'react'
@@ -72,7 +73,14 @@ export function GuarantorFlow({
   current: GuarantorStepId
   invitedName: string
   applicantName: string
-  plan: { totalPayable: string; deposit: string; monthly: string; tenure: number }
+  plan: {
+    totalPayable: string
+    deposit: string
+    monthly: string
+    tenure: number
+    /** A ready-made plan: no "interest" wording. */
+    fixedPrice?: boolean
+  }
   faceStatus: string | null
   text: string
   phoneHint: string
@@ -188,7 +196,13 @@ function IntroStep({
 }: {
   invitedName: string
   applicantName: string
-  plan: { totalPayable: string; deposit: string; monthly: string; tenure: number }
+  plan: {
+    totalPayable: string
+    deposit: string
+    monthly: string
+    tenure: number
+    fixedPrice?: boolean
+  }
   pending: boolean
   onAccept: () => void
   onDecline: (reason: string) => void
@@ -221,9 +235,10 @@ function IntroStep({
         ))}
       </dl>
       <p className="text-sm">
-        No interest is charged. As guarantor, you agree to pay any overdue amounts if{' '}
-        {applicantName} does not, after Go4Solar gives you written notice. It takes about 10
-        minutes: your NIN, a face check, a few details and your signature.
+        {plan.fixedPrice ? `${FIXED_PRICE_LINE} ` : 'No interest is charged. '}As guarantor, you
+        agree to pay any overdue amounts if {applicantName} does not, after Go4Solar gives you
+        written notice. It takes about 10 minutes: your NIN, a face check, a few details and your
+        signature.
       </p>
       {!declining ? (
         <div className="space-y-2">

@@ -100,6 +100,7 @@ export default async function GuaranteePage({ params }: { params: Promise<{ toke
               deposit: ctx.values.deposit ?? '',
               monthly: ctx.values.monthly ?? '',
               tenure: ctx.tenure,
+              fixedPrice: ctx.fixedPrice,
             }}
             faceStatus={latestStatus(await checkSummaries(g.row.id), 'liveness')}
             text={ctx.text}

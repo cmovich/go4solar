@@ -21,6 +21,8 @@ export type WaitlistConfirmation = {
   tenureMonths: number
   /** True while any price used is a SAMPLE price: no naira amounts are sent. */
   samplePrices: boolean
+  /** A ready-made plan: "One fixed price. No hidden charges." instead of the interest line. */
+  fixedPrice?: boolean
 }
 
 export { PRICE_LATER_TEXT, THANK_YOU_TEXT }
@@ -39,7 +41,8 @@ export function confirmationText(c: WaitlistConfirmation): string {
     `Hi ${c.firstName}. ${THANK_YOU_TEXT}\n\n` +
     `Your estimate: ${what} — total ${formatNaira(c.systemPrice)}, ` +
     `${formatNaira(c.deposit)} upfront (${formatPercent(c.depositShare)}) then ` +
-    `${formatNaira(c.monthly)} a month for ${c.tenureMonths} months. 0% interest. ` +
+    `${formatNaira(c.monthly)} a month for ${c.tenureMonths} months. ` +
+    (c.fixedPrice ? 'One fixed price. No hidden charges. ' : '0% interest. ') +
     `This is an estimate; your final quote comes at launch.`
   )
 }
