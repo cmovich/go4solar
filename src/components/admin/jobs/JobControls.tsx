@@ -20,7 +20,7 @@ import {
 
 type Result = { ok: true } | { ok: false; error: string }
 
-function useRun() {
+function useRun(onSuccess?: () => void) {
   const router = useRouter()
   const [pending, start] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -32,6 +32,7 @@ function useRun() {
       const r = await fn()
       if (r.ok) {
         setDone(success)
+        onSuccess?.()
         router.refresh()
       } else setError(r.error)
     })
@@ -56,8 +57,30 @@ function useRun() {
 const select = 'border-input h-10 w-full rounded-md border bg-white px-3 text-sm'
 
 /** Assign an installer to an approved loan (Phase 1: by hand). */
-export function AssignJobForm({ loanId }: { loanId: string }) {
-  const { pending, run, feedback } = useRun()
+/**
+ * One approved loan waiting for an installer. After a successful "Assign" the card leaves the list
+ * at once (in the browser), and the page refreshes so the new job shows under "Jobs" — no reload.
+ */
+export function AwaitingJobCard({ loanId, label }: { loanId: string; label: string }) {
+  const [assigned, setAssigned] = useState(false)
+  if (assigned) return null
+  return (
+    <li className="rounded-xl border bg-white p-4" data-testid="awaiting-job">
+      <p className="mb-2 text-sm font-semibold">{label}</p>
+      <AssignJobForm loanId={loanId} onAssigned={() => setAssigned(true)} />
+    </li>
+  )
+}
+
+export function AssignJobForm({
+  loanId,
+  onAssigned,
+}: {
+  loanId: string
+  /** Called once the job is saved (the card can leave the list). */
+  onAssigned?: () => void
+}) {
+  const { pending, run, feedback } = useRun(onAssigned)
   const [v, setV] = useState({
     installerName: '',
     installerPhone: '',
