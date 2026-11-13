@@ -18,9 +18,9 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const plan = await loadReadyPlan((await params).slug)
-  return plan
-    ? { title: `${plan.name} — ready-made solar plan`, description: plan.summary }
-    : { title: 'Plan not found' }
+  // Here, before the page starts streaming, so a missing plan answers with a real 404.
+  if (!plan) notFound()
+  return { title: `${plan.name} — ready-made solar plan`, description: plan.summary }
 }
 
 /** A ready-made plan: what is included, what it powers, and its fixed price per length. */

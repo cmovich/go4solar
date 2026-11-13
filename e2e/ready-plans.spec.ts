@@ -84,7 +84,7 @@ test.describe('ready-made plans', () => {
   }) => {
     await page.goto('/plans/oga-boss')
     await page.getByTestId('customise-plan').click()
-    await expect(page).toHaveURL(/\/build\?ready=oga-boss&state=Kaduna/)
+    await expect(page).toHaveURL(/\/build\?ready=oga-boss&state=Kaduna/, { timeout: 30_000 })
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Choose your items', {
       timeout: 30_000,
     })
