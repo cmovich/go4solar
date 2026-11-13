@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
-import { AssignJobForm } from '@/components/admin/jobs/JobControls'
+import { AwaitingJobCard } from '@/components/admin/jobs/JobControls'
 import { requireRole } from '@/lib/auth/roles'
 import { jobsOverview } from '@/lib/jobs/admin'
 
@@ -29,16 +29,11 @@ export default async function JobsPage() {
         </h2>
         <ul className="mt-3 space-y-3">
           {waiting.map((w) => (
-            <li
+            <AwaitingJobCard
               key={w.loanId}
-              className="rounded-xl border bg-white p-4"
-              data-testid="awaiting-job"
-            >
-              <p className="mb-2 text-sm font-semibold">
-                {w.name} · {w.state ?? '—'} · {w.phone ?? ''}
-              </p>
-              <AssignJobForm loanId={w.loanId} />
-            </li>
+              loanId={w.loanId}
+              label={`${w.name} · ${w.state ?? '—'} · ${w.phone ?? ''}`}
+            />
           ))}
           {waiting.length === 0 && (
             <li className="text-muted-foreground text-sm">Nothing waiting.</li>

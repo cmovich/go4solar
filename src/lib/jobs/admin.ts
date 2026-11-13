@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { unstable_noStore as noStore } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database } from '@/lib/supabase/database.types'
 
@@ -21,6 +22,8 @@ const nameOf = (personal: unknown) => {
 
 /** Approved loans still without a job, and all jobs with their customer. */
 export async function jobsOverview() {
+  // Always read fresh (the page refreshes right after an assignment).
+  noStore()
   const admin = createAdminClient()
   const [{ data: loans }, { data: jobs }] = await Promise.all([
     admin
