@@ -78,8 +78,6 @@ export function GuarantorFlow({
     deposit: string
     monthly: string
     tenure: number
-    /** A ready-made plan: no "interest" wording. */
-    fixedPrice?: boolean
   }
   faceStatus: string | null
   text: string
@@ -196,13 +194,7 @@ function IntroStep({
 }: {
   invitedName: string
   applicantName: string
-  plan: {
-    totalPayable: string
-    deposit: string
-    monthly: string
-    tenure: number
-    fixedPrice?: boolean
-  }
+  plan: { totalPayable: string; deposit: string; monthly: string; tenure: number }
   pending: boolean
   onAccept: () => void
   onDecline: (reason: string) => void
@@ -235,10 +227,9 @@ function IntroStep({
         ))}
       </dl>
       <p className="text-sm">
-        {plan.fixedPrice ? `${FIXED_PRICE_LINE} ` : 'No interest is charged. '}As guarantor, you
-        agree to pay any overdue amounts if {applicantName} does not, after Go4Solar gives you
-        written notice. It takes about 10 minutes: your NIN, a face check, a few details and your
-        signature.
+        {FIXED_PRICE_LINE} As guarantor, you agree to pay any overdue amounts if {applicantName}{' '}
+        does not, after Go4Solar gives you written notice. It takes about 10 minutes: your NIN, a
+        face check, a few details and your signature.
       </p>
       {!declining ? (
         <div className="space-y-2">

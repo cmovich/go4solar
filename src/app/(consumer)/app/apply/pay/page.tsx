@@ -64,10 +64,8 @@ export default async function PayDepositPage({
           ))}
         </dl>
         <p className="mt-2 text-sm">
-          {d.plan.fixedPrice
-            ? `${FIXED_PRICE_LINE} `
-            : '0% interest: the total amount payable above is everything you pay. '}
-          A late fee applies only if a monthly payment is late, as set out in your agreement.
+          {FIXED_PRICE_LINE} The total amount payable above is everything you pay. A late fee
+          applies only if a monthly payment is late, as set out in your agreement.
         </p>
       </section>
 

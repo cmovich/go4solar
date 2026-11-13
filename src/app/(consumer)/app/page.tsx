@@ -322,9 +322,7 @@ export default async function DashboardPage({
           ))}
         </dl>
         <p className="mt-2 text-sm">
-          {d.plan.fixedPrice
-            ? FIXED_PRICE_LINE
-            : '0% interest. The total amount payable above is everything you pay for the system.'}
+          {FIXED_PRICE_LINE} The total amount payable above is everything you pay for the system.
         </p>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm" data-testid="plan-rules">
           <li>

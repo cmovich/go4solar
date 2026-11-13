@@ -756,7 +756,7 @@ export function PlanCard({
           </p>
           <p className="text-muted-foreground text-sm">
             {formatNaira(quote.deposit)} upfront ({formatPercent(quote.snapshot.depositShare)}) ·
-            total {formatNaira(quote.systemPrice)} · 0% interest
+            total {formatNaira(quote.systemPrice)} · One fixed price. No hidden charges.
           </p>
         </>
       ) : (

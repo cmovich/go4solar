@@ -213,10 +213,8 @@ function InvoiceDoc({ d, qr }: { d: InvoiceData; qr: string | null }) {
               </View>
             )}
             <Text style={{ color: MUTED, marginTop: 4 }}>
-              {d.fixed
-                ? 'One fixed price. No hidden charges. '
-                : '0% interest: the total above is everything you pay. '}
-              Late payments attract 0.75% of the overdue amount per day.
+              One fixed price. No hidden charges: the total above is everything you pay. Late
+              payments attract 0.75% of the overdue amount per day.
             </Text>
           </View>
 

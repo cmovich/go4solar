@@ -2,7 +2,6 @@ import 'server-only'
 
 import type { BusinessDetails, Personal } from '@/lib/applications/server'
 import type { QuoteResult } from '@/lib/pricing/types'
-import { isReadyPlan } from '@/lib/build/stored'
 import { quoteReference } from '@/lib/quotes/quote'
 import type { SystemSize } from '@/lib/sizing/types'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -26,8 +25,6 @@ export type ConsumerSignContext = {
   reference: string
   quote: QuoteResult
   tenure: number
-  /** A ready-made plan: no "interest" wording on the summary. */
-  fixedPrice: boolean
   values: AgreementValues
   template: TemplateRow
   text: string
@@ -58,7 +55,11 @@ export async function loadConsumerSignContext(
   const steps = (app?.steps ?? {}) as Record<string, boolean>
   if (!app || !steps.review || !app.quote_id) return null
 
-  const { data: quote } = await admin.from('quotes').select('*').eq('id', app.quote_id).single()
+  const { data: quote } = await admin
+    .from('quotes')
+    .select('id, tenure, result, system_size')
+    .eq('id', app.quote_id)
+    .single()
   if (!quote?.tenure) return null
 
   const personal = (app.personal ?? {}) as Personal
@@ -116,7 +117,6 @@ export async function loadConsumerSignContext(
   })
 
   return {
-    fixedPrice: 'builder' in quote && isReadyPlan(quote.builder),
     applicationId: app.id,
     userId,
     isBusiness,

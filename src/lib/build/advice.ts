@@ -40,7 +40,7 @@ export function adviceFacts(i: {
   facts.push(...i.warnings)
   if (i.systemPrice > 0) {
     facts.push(
-      `You pay ${formatNaira(i.monthly)} a month for ${i.months} months; the total amount payable is ${formatNaira(i.systemPrice)} with 0% interest.`,
+      `You pay ${formatNaira(i.monthly)} a month for ${i.months} months; the total amount payable is ${formatNaira(i.systemPrice)}: one fixed price, no hidden charges.`,
     )
   }
   return facts

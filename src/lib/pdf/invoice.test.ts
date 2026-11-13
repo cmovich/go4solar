@@ -85,7 +85,7 @@ describe('invoice PDF', () => {
       'Installation',
       'Delivery — Go4Solar logistics (Kaduna)',
       'Total amount payable',
-      '0% interest',
+      'One fixed price. No hidden charges',
       'Customer provides ladder/scaffold',
       'go4solar.app/verify/abc123def456',
     ]) {
@@ -154,7 +154,7 @@ describe('ready-made plan quotation PDF', () => {
       'Or pay in full',
       '25% off',
       formatNaira(1_450_770 + 45_000),
-      'One fixed price. No hidden charges.',
+      'One fixed price. No hidden charges',
       'Late payments',
     ]) {
       expect(text, part).toContain(part)

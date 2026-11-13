@@ -5,12 +5,9 @@ import { FIXED_PRICE_LINE } from '@/lib/build/stored'
 export function SummaryCard({
   v,
   businessName,
-  fixedPrice = false,
 }: {
   v: AgreementValues
   businessName?: string | null
-  /** A ready-made plan: "One fixed price. No hidden charges." */
-  fixedPrice?: boolean
 }) {
   const rows: [string, string][] = [
     ['Total amount payable', v.totalPayable ?? ''],
@@ -41,9 +38,7 @@ export function SummaryCard({
         ))}
       </dl>
       <p className="mt-2 text-sm font-semibold">
-        {fixedPrice
-          ? FIXED_PRICE_LINE
-          : 'No interest. The total amount payable above is everything you pay for the system.'}
+        {FIXED_PRICE_LINE} The total amount payable above is everything you pay for the system.
       </p>
       <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm">
         <li>

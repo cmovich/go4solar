@@ -202,7 +202,6 @@ export async function saveBuiltSystem(input: {
       monthly: quote.monthly,
       tenureMonths: quote.snapshot.tenureMonths,
       samplePrices: stored.sample,
-      fixedPrice: stored.kind === 'ready',
     })
   }
   return { ok: true, leadId: lead.id, quoteId }

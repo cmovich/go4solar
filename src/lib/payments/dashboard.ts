@@ -2,7 +2,6 @@ import 'server-only'
 
 import { lateFeeSettings } from '@/lib/agreements/server'
 import type { QuoteResult } from '@/lib/pricing/types'
-import { isReadyPlan } from '@/lib/build/stored'
 import { quoteReference } from '@/lib/quotes/quote'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database } from '@/lib/supabase/database.types'
@@ -31,8 +30,6 @@ export type DashboardData = {
   reference: string
   plan: {
     systemPrice: number
-    /** A ready-made plan: "One fixed price. No hidden charges." instead of "0% interest". */
-    fixedPrice: boolean
     deposit: number
     monthly: number
     months: number
@@ -292,7 +289,6 @@ export async function loadDashboard(userId: string): Promise<DashboardData | nul
     reference: quoteReference(quote.id),
     plan: {
       systemPrice: q.systemPrice,
-      fixedPrice: 'builder' in quote && isReadyPlan(quote.builder),
       deposit: q.deposit,
       monthly: q.monthly,
       months: q.instalments.length,

@@ -19,13 +19,13 @@ describe('confirmationText', () => {
   it('real prices: the estimate with naira amounts and the total', () => {
     const t = confirmationText({ ...base, samplePrices: false })
     expect(t).toContain('₦2,475,248')
-    expect(t).toContain('0% interest')
+    expect(t).toContain('One fixed price. No hidden charges.')
   })
 
   // Prompt 16A: while any price is a SAMPLE price, no naira amount (and no 0% claim) goes out.
   it('sample prices: plan only, no amounts, the "price confirmed later" line', () => {
     const t = confirmationText({ ...base, samplePrices: true })
-    expect(t).not.toMatch(/₦|0% interest/)
+    expect(t).not.toMatch(/₦|interest/i)
     expect(t).toContain('Comfort')
     expect(t).toContain(PRICE_LATER_TEXT)
     expect(PRICE_LATER_TEXT).toBe('Your exact price will be confirmed when we contact you.')
@@ -66,16 +66,13 @@ describe('confirmation for a builder system (Part F)', () => {
   })
 })
 
-describe('confirmation for a ready-made plan', () => {
-  it('says "One fixed price. No hidden charges." and never "interest"', () => {
-    const t = confirmationText({
-      ...base,
-      planLabel: 'Oga Boss',
-      samplePrices: false,
-      fixedPrice: true,
-    })
-    expect(t).toContain('Oga Boss')
-    expect(t).toContain('One fixed price. No hidden charges.')
-    expect(t).not.toMatch(/interest/i)
+describe('wording (Semako, 2026-11-13)', () => {
+  it('every confirmation says "One fixed price. No hidden charges." and never "interest"', () => {
+    for (const extra of [{}, { planLabel: 'Oga Boss' }]) {
+      const t = confirmationText({ ...base, ...extra, samplePrices: false })
+      expect(t).toContain('One fixed price. No hidden charges.')
+      expect(t).not.toMatch(/interest/i)
+    }
+    expect(confirmationText({ ...base, samplePrices: true })).not.toMatch(/interest/i)
   })
 })

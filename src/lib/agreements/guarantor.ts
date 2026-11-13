@@ -1,6 +1,5 @@
 import 'server-only'
 
-import { isReadyPlan } from '@/lib/build/stored'
 import type { Personal } from '@/lib/applications/server'
 import type { QuoteResult } from '@/lib/pricing/types'
 import { quoteReference } from '@/lib/quotes/quote'
@@ -66,8 +65,6 @@ export type GuaranteeContext = {
   reference: string
   quote: QuoteResult
   tenure: number
-  /** A ready-made plan: no "interest" wording for the guarantor. */
-  fixedPrice: boolean
   values: AgreementValues
   template: TemplateRow
   text: string
@@ -84,7 +81,11 @@ export async function guaranteeContext(row: GuaranteeRow): Promise<GuaranteeCont
     .eq('id', row.application_id)
     .single()
   if (!app?.quote_id) return null
-  const { data: quote } = await admin.from('quotes').select('*').eq('id', app.quote_id).single()
+  const { data: quote } = await admin
+    .from('quotes')
+    .select('id, tenure, result, system_size')
+    .eq('id', app.quote_id)
+    .single()
   if (!quote?.tenure) return null
 
   const personal = (app.personal ?? {}) as Personal
@@ -129,7 +130,6 @@ export async function guaranteeContext(row: GuaranteeRow): Promise<GuaranteeCont
     reference,
     quote: result,
     tenure: quote.tenure,
-    fixedPrice: 'builder' in quote && isReadyPlan(quote.builder),
     values,
     template,
     text: renderTemplate(templateBody(template), values),

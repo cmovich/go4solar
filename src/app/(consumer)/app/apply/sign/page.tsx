@@ -77,11 +77,7 @@ export default async function SignPage() {
         </section>
       ) : (
         <>
-          <SummaryCard
-            v={ctx.values}
-            businessName={ctx.isBusiness ? ctx.customerName : null}
-            fixedPrice={ctx.fixedPrice}
-          />
+          <SummaryCard v={ctx.values} businessName={ctx.isBusiness ? ctx.customerName : null} />
           {session.emailVerified ? (
             <ConsumerSign
               text={ctx.text}

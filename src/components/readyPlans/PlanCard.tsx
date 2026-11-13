@@ -20,12 +20,16 @@ export function PlanTags({ voltage, tag }: { voltage: number; tag: string | null
   )
 }
 
-/** One ready-made plan on the home page (card in the carousel / grid). */
+/**
+ * One ready-made plan on the home page (card in the carousel / grid). `relative`: the link's
+ * screen-reader text is positioned inside the card, so cards off to the side of the swipeable
+ * row never widen the page.
+ */
 export function PlanCard({ offer, imageUrl }: { offer: ReadyPlanOffer; imageUrl: string | null }) {
   const p = offer.plan
   return (
     <article
-      className="flex h-full w-[85vw] max-w-sm shrink-0 snap-start flex-col overflow-hidden rounded-2xl border bg-white shadow-sm sm:w-auto sm:max-w-none"
+      className="relative flex h-full w-[85vw] max-w-sm shrink-0 snap-start flex-col overflow-hidden rounded-2xl border bg-white shadow-sm sm:w-auto sm:max-w-none"
       data-testid={`ready-plan-${p.slug}`}
     >
       {imageUrl ? (

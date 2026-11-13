@@ -1059,8 +1059,7 @@ function ReviewStep({ state, act, pending }: StepProps) {
           <p className="mt-1">
             {formatNaira(state.quote.deposit)} upfront, then {formatNaira(state.quote.monthly)} a
             month for {state.quote.tenure} months. Total amount payable{' '}
-            {formatNaira(state.quote.systemPrice)} ·{' '}
-            {state.quote.fixedPrice ? FIXED_PRICE_LINE : '0% interest.'}
+            {formatNaira(state.quote.systemPrice)} · {FIXED_PRICE_LINE}
           </p>
           {a.paysForItself && (
             <p className="text-brand-green mt-2 font-semibold">

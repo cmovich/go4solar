@@ -828,7 +828,7 @@ function Summary({
         {prices && (
           <p className="text-sm" data-testid="build-total">
             Total amount payable at a {state.depositPct}% deposit:{' '}
-            <strong>{formatNaira(priced.systemPrice)}</strong> · 0% interest
+            <strong>{formatNaira(priced.systemPrice)}</strong> · One fixed price. No hidden charges.
           </p>
         )}
         {error && (
@@ -919,8 +919,8 @@ function Summary({
             <strong>{formatNaira(priced.monthly)}</strong> a month for {priced.months} months
           </p>
           <p className="text-sm" data-testid="build-total">
-            Total amount payable: <strong>{formatNaira(priced.systemPrice)}</strong> · 0% interest.
-            Late payments attract 0.75% of the overdue amount per day.
+            Total amount payable: <strong>{formatNaira(priced.systemPrice)}</strong> · One fixed
+            price. No hidden charges. Late payments attract 0.75% of the overdue amount per day.
           </p>
         </div>
       )}
