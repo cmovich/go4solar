@@ -49,9 +49,9 @@ export default async function ReadyPlanPage({ params }: { params: Promise<{ slug
           <img
             src={image}
             alt=""
-            className="aspect-[3/2] w-full rounded-2xl object-cover"
-            width={1200}
-            height={800}
+            className="aspect-[4/3] w-full rounded-2xl object-cover sm:mx-auto sm:max-w-xl"
+            width={800}
+            height={600}
           />
         )}
         <div className="space-y-2">

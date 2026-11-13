@@ -55,6 +55,9 @@ export async function saveReadyPlan(input: unknown): Promise<Result> {
     : null
   if (plan.id && !before) return { ok: false, error: 'This plan no longer exists.' }
   const row = { ...planToRow(plan), sample: before ? before.sample : true }
+  // Copies taken before the write (the audit row and the old picture).
+  const previous = before ? { ...before } : null
+  const oldImage = previous?.image ?? null
   const { data, error } = before
     ? await admin
         .from('ready_plans')
@@ -76,11 +79,22 @@ export async function saveReadyPlan(input: unknown): Promise<Result> {
     session,
     before ? 'ready_plan.update' : 'ready_plan.create',
     data.id,
-    (before ?? null) as Json,
+    previous as Json,
     row as Json,
   )
+  // A replaced picture: its old file leaves storage (never blocks the save).
+  if (oldImage && oldImage !== row.image) await removeOldPicture(session, data.id, oldImage)
   refresh()
   return { ok: true, id: data.id }
+}
+
+async function removeOldPicture(session: SessionInfo, id: string, path: string) {
+  const { error } = await createAdminClient().storage.from('site-media').remove([path])
+  if (error) {
+    console.error(`[site-media] could not remove the old plan picture: ${error.message}`)
+    return
+  }
+  await audit(session, 'site_media.delete', id, { paths: [path] }, null)
 }
 
 const idSchema = z.object({ id: z.string().min(1) })

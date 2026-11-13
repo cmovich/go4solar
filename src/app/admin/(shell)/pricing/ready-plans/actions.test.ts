@@ -8,7 +8,19 @@ import { fakeSupabase } from '@/test/fakeSupabase'
 let db = fakeSupabase()
 let session: SessionInfo = { user: null, role: null, aal: null }
 vi.mock('@/lib/auth/session', () => ({ getSessionInfo: async () => session }))
-vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => db.client }))
+let removed: string[][] = []
+let removeFails = false
+const storage = {
+  from: () => ({
+    remove: async (paths: string[]) => {
+      removed.push(paths)
+      return removeFails
+        ? { data: null, error: { message: 'storage down' } }
+        : { data: [], error: null }
+    },
+  }),
+}
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => ({ ...db.client, storage }) }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
 const { confirmReadyPlan, moveReadyPlan, saveReadyPlan, setReadyPlanActive } =
@@ -21,6 +33,8 @@ const [one, two] = SEEDED_PLANS as [(typeof SEEDED_PLANS)[0], (typeof SEEDED_PLA
 beforeEach(() => {
   db = fakeSupabase({ ready_plans: [['slug']] })
   session = sa
+  removed = []
+  removeFails = false
 })
 
 describe('ready-made plan actions (Admin → Pricing → Ready-made plans)', () => {
@@ -83,5 +97,34 @@ describe('ready-made plan actions (Admin → Pricing → Ready-made plans)', () 
       'ready_plan.switch_off',
       'ready_plan.move',
     ])
+  })
+})
+
+describe('plan pictures (upload/replace in the editor)', () => {
+  const old = 'plan/i-pass-my-neighbour-60ac8de7.webp'
+  const next = 'plan/1f0e2c3a-aaaa-bbbb-cccc-0123456789ab.webp'
+  beforeEach(() => db.seed('ready_plans', { ...planToRow(one), id: 'p1', image: old }))
+
+  it('a new picture is saved (audited) and the old file is removed from storage', async () => {
+    expect(await saveReadyPlan({ ...one, id: 'p1', image: next })).toEqual({ ok: true, id: 'p1' })
+    expect(db.rows('ready_plans')[0]).toMatchObject({ image: next })
+    expect(removed).toEqual([[old]])
+    expect(db.rows('audit_log').map((a) => a.action)).toEqual([
+      'ready_plan.update',
+      'site_media.delete',
+    ])
+    expect(db.rows('audit_log')[0]).toMatchObject({
+      before: expect.objectContaining({ image: old }),
+      after: expect.objectContaining({ image: next }),
+    })
+  })
+  it('the same picture: nothing removed', async () => {
+    await saveReadyPlan({ ...one, id: 'p1', image: old })
+    expect(removed).toEqual([])
+  })
+  it('if storage fails the save still stands (the old file is only logged)', async () => {
+    removeFails = true
+    expect(await saveReadyPlan({ ...one, id: 'p1', image: next })).toEqual({ ok: true, id: 'p1' })
+    expect(db.rows('ready_plans')[0]).toMatchObject({ image: next })
   })
 })

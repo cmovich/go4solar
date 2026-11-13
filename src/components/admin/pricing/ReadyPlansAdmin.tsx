@@ -146,14 +146,31 @@ export function ReadyPlansAdmin({ plans, states }: { plans: AdminPlan[]; states:
                       ↓
                     </Button>
                   </td>
-                  <td className="px-3 py-2">
-                    <span className="text-brand-dark font-semibold">{p.name}</span>
-                    <span className="text-muted-foreground block text-xs">{p.summary}</span>
-                    {p.adminNote && (
-                      <span className="block text-xs text-amber-900" data-testid="admin-note">
-                        {p.adminNote}
+                  <td className="flex items-start gap-3 px-3 py-2">
+                    {p.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.imageUrl}
+                        alt=""
+                        width={64}
+                        height={48}
+                        className="h-12 w-16 shrink-0 rounded object-cover"
+                        data-testid="plan-thumb"
+                      />
+                    ) : (
+                      <span className="bg-brand-mist text-muted-foreground flex h-12 w-16 shrink-0 items-center justify-center rounded text-[10px]">
+                        No picture
                       </span>
                     )}
+                    <span>
+                      <span className="text-brand-dark block font-semibold">{p.name}</span>
+                      <span className="text-muted-foreground block text-xs">{p.summary}</span>
+                      {p.adminNote && (
+                        <span className="block text-xs text-amber-900" data-testid="admin-note">
+                          {p.adminNote}
+                        </span>
+                      )}
+                    </span>
                   </td>
                   <td className="px-3 py-2 tabular-nums">{formatNaira(planPrice(p))}</td>
                   <td className="px-3 py-2 tabular-nums">{formatNaira(vendorTotal(p))}</td>
@@ -320,7 +337,7 @@ function PlanEditor({
 
       <ImageUpload
         kind="plan"
-        label={p.image ? 'Picture (saved; choose another to replace)' : 'Picture (optional, 3:2)'}
+        label={p.image ? 'Picture (saved; choose another to replace)' : 'Picture (optional, 4:3)'}
         previewUrl={preview}
         onUploaded={(path, url) => {
           setPreview(url)

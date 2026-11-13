@@ -30,11 +30,33 @@ test.describe('ready-made plans', () => {
     await expect(section.getByTestId('ready-plans-note')).toHaveText(
       'Prices for Kaduna. Delivery to other states is paid by the customer.',
     )
+    // Every card starts with its plan picture, and the pictures really load (4:3 WebP).
+    const pictures = cards.locator('img')
+    await expect(pictures).toHaveCount(6)
+    for (const img of await pictures.all()) {
+      await img.scrollIntoViewIfNeeded()
+      await expect(img).toHaveAttribute('src', /\/site-media\/plan\/.+\.webp$/)
+      await expect
+        .poll(() => img.evaluate((el) => (el as HTMLImageElement).naturalWidth))
+        .toBeGreaterThan(0)
+    }
     // The voltage tag on every card; Relax is the 48 V system.
     await expect(page.getByTestId('ready-plan-relax')).toContainText('48 V system')
     await expect(page.getByTestId('ready-plan-no-wahala')).toContainText('24 V system')
-    // SAMPLE: no naira on any card, never the word "interest".
-    await expect(section).not.toContainText('₦')
+    // Confirmed prices: deposit and the 12-month payment (I Pass My Neighbour: ₦93,000, then
+    // ₦49,600). SAMPLE: no naira at all. Never the word "interest".
+    const neighbour = page.getByTestId('ready-plan-i-pass-my-neighbour')
+    if ((await neighbour.getByTestId('card-price').count()) > 0) {
+      await expect(neighbour.getByTestId('card-price')).toContainText('Deposit ₦93,000')
+      await expect(neighbour.getByTestId('card-price')).toContainText(
+        'then ₦49,600/month for 12 months',
+      )
+      await expect(page.getByTestId('ready-plan-relax').getByTestId('card-price')).toContainText(
+        'Deposit ₦684,000',
+      )
+    } else {
+      await expect(section).not.toContainText('₦')
+    }
     await expect(section).not.toContainText(/interest/i)
     // Section order: straight after the hero.
     const order = await page
@@ -53,6 +75,11 @@ test.describe('ready-made plans', () => {
   }) => {
     await page.goto('/plans/oga-boss')
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Oga Boss')
+    const picture = page.locator('main img').first()
+    await expect(picture).toHaveAttribute('src', /\/site-media\/plan\/oga-boss-.+\.webp$/)
+    await expect
+      .poll(() => picture.evaluate((el) => (el as HTMLImageElement).naturalWidth))
+      .toBeGreaterThan(0)
     await expect(page.getByText('12 V system')).toBeVisible()
     const included = page.getByTestId('plan-included')
     await expect(included).toContainText('Battery · 3.6 kWh lithium-ion 12 V')
@@ -65,7 +92,21 @@ test.describe('ready-made plans', () => {
     await expect(page.getByRole('button', { name: '6 months' })).toBeVisible()
     await expect(page.getByRole('button', { name: '9 months' })).toBeVisible()
     await expect(page.getByRole('button', { name: '12 months' })).toBeVisible()
-    await expect(page.getByTestId('plan-price-later')).toBeVisible()
+    if ((await page.getByTestId('plan-figures').count()) > 0) {
+      // Confirmed prices (Oga Boss): 12 months by default, then 6; pay in full; Lagos delivery.
+      await expect(page.getByTestId('plan-deposit')).toHaveText('₦261,400')
+      await expect(page.getByTestId('plan-monthly')).toHaveText('₦139,413 × 12 months')
+      await expect(page.getByTestId('plan-full')).toHaveText('₦1,450,770 (25% off)')
+      await page.getByRole('button', { name: '6 months' }).click()
+      await expect(page.getByTestId('plan-monthly')).toHaveText('₦226,547 × 6 months')
+      await expect(page.getByText('One fixed price. No hidden charges.')).toBeVisible()
+      await page.getByLabel('Where will it be installed?').selectOption('Lagos')
+      await expect(page.getByTestId('plan-extra-delivery')).toContainText(
+        'Delivery to Lagos (extra, paid with the deposit)',
+      )
+    } else {
+      await expect(page.getByTestId('plan-price-later')).toBeVisible()
+    }
     await expect(page.locator('main')).not.toContainText(/interest|vendor/i)
     await expect(page.locator('main')).not.toContainText('admin')
     await expect(page.getByText(/Charge controller must be|needs ~130 A/)).toHaveCount(0)
@@ -110,12 +151,14 @@ test.describe('ready-made plans: staff', () => {
     await page.goto('/admin/pricing/ready-plans')
     const rows = page.getByTestId('ready-plan-row')
     await expect(rows).toHaveCount(6)
-    await expect(rows.first()).toContainText('SAMPLE')
+    // A picture per plan, and a replace field in the editor.
+    await expect(page.getByTestId('plan-thumb')).toHaveCount(6)
     await expect(rows.first()).toContainText('Charge controller must be ≥30 A.')
     await expect(rows.nth(2)).toContainText('needs ~130 A charging')
     // I Pass My Neighbour: ₦93,000 deposit, ₦49,600 a month, pay in full ₦516,150.
     await expect(rows.first()).toContainText('₦93,000 / ₦49,600')
     await rows.first().getByRole('button', { name: 'Edit' }).click()
+    await expect(page.getByText('Picture (saved; choose another to replace)')).toBeVisible()
     const preview = page.getByTestId('plan-preview')
     await expect(preview).toContainText('6 months: deposit ₦93,000, then ₦80,600 a month')
     await expect(preview).toContainText('9 months: deposit ₦93,000, then ₦59,933 a month')

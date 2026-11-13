@@ -38,12 +38,12 @@ export function PlanCard({ offer, imageUrl }: { offer: ReadyPlanOffer; imageUrl:
           src={imageUrl}
           alt=""
           loading="lazy"
-          className="aspect-[3/2] w-full object-cover"
-          width={600}
-          height={400}
+          className="aspect-[4/3] w-full object-cover"
+          width={800}
+          height={600}
         />
       ) : (
-        <div className="bg-brand-mist flex aspect-[3/2] items-center justify-center">
+        <div className="bg-brand-mist flex aspect-[4/3] items-center justify-center">
           <Sun className="text-brand-orange size-12" aria-hidden />
         </div>
       )}
