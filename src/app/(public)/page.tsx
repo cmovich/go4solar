@@ -9,6 +9,9 @@ import { activePartners, publishedTestimonials } from '@/lib/content/server'
 import { HowItWorks } from '@/components/landing/HowItWorks'
 import { Partners } from '@/components/landing/Partners'
 import { Proof } from '@/components/landing/Proof'
+import { ReadyPlans } from '@/components/landing/ReadyPlans'
+import { siteMediaUrl } from '@/lib/content/server'
+import { loadDeliveryRows, loadReadyPlans, offerFor } from '@/lib/readyPlans/server'
 import { Savings } from '@/components/landing/Savings'
 import { sampleHomeItems } from '@/lib/load/load.fixture'
 import { computeLoadTotals } from '@/lib/load/totals'
@@ -21,12 +24,17 @@ import { launchMode } from '@/config/site'
 export const revalidate = 3600
 
 export default async function HomePage() {
-  const [settings, lateFee, testimonials, partners] = await Promise.all([
+  const [settings, lateFee, testimonials, partners, readyPlans, deliveryRows] = await Promise.all([
     getQuoteSettings(),
     lateFeeSettings(),
     publishedTestimonials(),
     activePartners(),
+    loadReadyPlans({ activeOnly: true }),
+    loadDeliveryRows(),
   ])
+  // Ready-made plans: customer figures only (no vendor costs, line prices or rate).
+  const offers = readyPlans.map((p) => offerFor(p, deliveryRows))
+  const planImages = Object.fromEntries(readyPlans.map((p) => [p.slug, siteMediaUrl(p.image)]))
   const tenures = offeredTenures(settings.pricing.pricingRateByTenure)
   const comfortEstimate = buildEstimate(computeLoadTotals(sampleHomeItems), 'Lagos', 0.2, settings)
   const comfort = comfortEstimate.plans.comfort
@@ -51,6 +59,7 @@ export default async function HomePage() {
     <>
       <main>
         <Hero example={example} />
+        <ReadyPlans offers={offers} images={planImages} />
         <HowItWorks />
         <CtaBand place="middle" title="Ready to see your solar plan?" />
         {/* Illustrative naira figures: hidden while any price is still a SAMPLE price. */}

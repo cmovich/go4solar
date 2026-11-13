@@ -31,6 +31,8 @@ const ACCESS: Record<Table, Access> = {
   accessory_rules: 'staff',
   vision_usage: 'staff',
   staff_quotations: 'staff',
+  // Vendor costs: super admin and finance only (customers and other staff read nothing).
+  ready_plans: 'staff',
   agreement_templates: 'staff',
   logistics_costs: 'staff',
   rack_prices: 'staff',

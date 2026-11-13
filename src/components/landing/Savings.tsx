@@ -72,7 +72,7 @@ export function Savings() {
               Over 2 years you save {formatNaira(saving)} — and you own the system.
             </p>
             <p className="text-brand-green mt-4 text-sm font-semibold">
-              0% interest · one fixed price, no hidden charges
+              One fixed price. No hidden charges.
             </p>
           </article>
         </div>

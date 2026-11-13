@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { ActionButton } from '@/components/payments/ActionButton'
 import { requireUser } from '@/lib/auth/roles'
 import { formatNaira } from '@/lib/money'
+import { FIXED_PRICE_LINE } from '@/lib/build/stored'
 import { autoPayDecided, loadDashboard } from '@/lib/payments/dashboard'
 
 import { chooseManualPayments, payDeposit, setUpAutoPay } from '../../pay/actions'
@@ -63,8 +64,8 @@ export default async function PayDepositPage({
           ))}
         </dl>
         <p className="mt-2 text-sm">
-          0% interest: the total amount payable above is everything you pay. A late fee applies only
-          if a monthly payment is late, as set out in your agreement.
+          {FIXED_PRICE_LINE} The total amount payable above is everything you pay. A late fee
+          applies only if a monthly payment is late, as set out in your agreement.
         </p>
       </section>
 

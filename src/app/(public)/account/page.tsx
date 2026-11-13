@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
-import { isOwnSystem, OWN_SYSTEM_LABEL } from '@/lib/build/stored'
+import { systemTitle } from '@/lib/build/stored'
 
 import { AccountFlow } from '@/components/plans/AccountFlow'
 import { IdentityChoice } from '@/components/plans/IdentityChoice'
@@ -92,9 +92,8 @@ export default async function AccountPage({
               : `Create your account, ${lead.first_name}`}
         </h1>
         <p className="bg-brand-mist mt-3 rounded-lg px-4 py-3 text-sm">
-          {'builder' in quote && isOwnSystem(quote.builder)
-            ? OWN_SYSTEM_LABEL
-            : `${PLAN_LABELS[quote.plan as Plan]} plan`}{' '}
+          {('builder' in quote ? systemTitle(quote.builder) : null) ??
+            `${PLAN_LABELS[quote.plan as Plan]} plan`}{' '}
           · {quoteReference(quote.id)} · {formatNaira(result.monthly ?? 0)} a month for{' '}
           {quote.tenure} months · total {formatNaira(result.systemPrice ?? 0)}
         </p>

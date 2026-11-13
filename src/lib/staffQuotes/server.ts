@@ -10,6 +10,7 @@ import { ensureInvoiceForQuote } from '@/lib/invoices/server'
 import { TENURES, type TenureMonths } from '@/lib/pricing/types'
 import { quoteValidityDays } from '@/lib/quotes/leadForPlans'
 import { quoteReference, validUntil } from '@/lib/quotes/quote'
+import { loadDeliveryRows, loadReadyPlan, storedReadyPlan } from '@/lib/readyPlans/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database, Json } from '@/lib/supabase/database.types'
 import { createClient } from '@/lib/supabase/server'
@@ -95,15 +96,62 @@ export async function createStaffQuotation(
   if (!priced || !quote) return { ok: false, error: 'Choose at least one item first.' }
   if (priced.blocking.length > 0) return { ok: false, error: priced.blocking[0]! }
   const { size } = selectionSummary(ctx, selection)
-  const stored: StoredSystem & { kind: 'builder' } = {
+  return saveStaffQuotation(session, customer, {
     kind: 'builder',
     selection,
     notes: priced.notes,
     size,
     quote,
     sample: priced.sample,
-  }
+  })
+}
 
+export const fromPlanSchema = z.object({
+  customer: customerSchema,
+  ready: z.object({ slug: z.string().max(80), months: z.number().int() }),
+})
+
+/**
+ * "Start from a ready-made plan": the plan at its fixed price for the customer's state (extra
+ * delivery outside the plan's included state) and the chosen length. Same quotation as any
+ * other: share, PDF, Accept and apply.
+ */
+export async function createStaffQuotationFromPlan(
+  session: SessionInfo,
+  input: unknown,
+): Promise<Result<{ id: string }>> {
+  const p = fromPlanSchema.safeParse(input)
+  if (!p.success) {
+    const issue = p.error.issues[0]
+    return {
+      ok: false,
+      error: issue?.message ?? 'Check the quotation',
+      field: issue?.path.at(-1)?.toString(),
+    }
+  }
+  const plan = await loadReadyPlan(p.data.ready.slug)
+  if (!plan) return { ok: false, error: 'That plan is not available.' }
+  if (!plan.tenures.includes(p.data.ready.months)) {
+    return { ok: false, error: `${plan.name} is not offered over ${p.data.ready.months} months.` }
+  }
+  const stored = storedReadyPlan(
+    plan,
+    p.data.ready.months,
+    p.data.customer.state,
+    {},
+    await loadDeliveryRows(),
+  )
+  return saveStaffQuotation(session, p.data.customer, stored)
+}
+
+/** Saves a priced system as a staff quotation (with its snapshot) and audits it. */
+async function saveStaffQuotation(
+  session: SessionInfo,
+  customer: z.infer<typeof customerSchema>,
+  stored: StoredSystem,
+): Promise<Result<{ id: string }>> {
+  const { quote } = stored
+  const selection = stored.selection
   const admin = createAdminClient()
   const { data: me } = await admin
     .from('profiles')
@@ -126,7 +174,7 @@ export async function createStaffQuotation(
       tenure: quote.snapshot.tenureMonths,
       total: quote.systemPrice,
       monthly: quote.monthly,
-      sample: priced.sample,
+      sample: stored.sample,
       valid_until: validUntil(now, await quoteValidityDays()).toISOString(),
       is_test: isTestQuotation(Boolean(me?.is_test), customer.phone),
     })
@@ -141,7 +189,8 @@ export async function createStaffQuotation(
     customerName: customer.name,
     state: customer.state,
     total: quote.systemPrice,
-    sample: priced.sample,
+    sample: stored.sample,
+    ...(stored.plan ? { readyPlan: stored.plan.slug } : {}),
   })
   return { ok: true, id: row.id }
 }
@@ -250,7 +299,7 @@ export async function acceptStaffQuotation(input: {
     live: input.live,
     ip: input.ip,
     validityDays: await quoteValidityDays(),
-    fromStaff: { enteredBy: row.created_by },
+    accepted: { enteredBy: row.created_by, channel: 'staff quotation' },
   })
   if (!saved.ok) return saved
   const admin = createAdminClient()

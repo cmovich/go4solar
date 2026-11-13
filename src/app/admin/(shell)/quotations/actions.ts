@@ -4,7 +4,12 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { requireBackOfficeWithMfa } from '@/lib/auth/roles'
-import { createStaffQuotation, markShared, mayCreateQuotations } from '@/lib/staffQuotes/server'
+import {
+  createStaffQuotation,
+  createStaffQuotationFromPlan,
+  markShared,
+  mayCreateQuotations,
+} from '@/lib/staffQuotes/server'
 
 type Result<T> = ({ ok: true } & T) | { ok: false; error: string; field?: string }
 
@@ -15,6 +20,15 @@ export async function createQuotation(input: unknown): Promise<Result<{ id: stri
   const session = await requireBackOfficeWithMfa()
   if (!(await mayCreateQuotations(session))) return DENIED
   const r = await createStaffQuotation(session, input)
+  if (r.ok) revalidatePath('/admin/quotations')
+  return r
+}
+
+/** "Start from a ready-made plan": the plan's fixed price for the customer's state and length. */
+export async function createQuotationFromPlan(input: unknown): Promise<Result<{ id: string }>> {
+  const session = await requireBackOfficeWithMfa()
+  if (!(await mayCreateQuotations(session))) return DENIED
+  const r = await createStaffQuotationFromPlan(session, input)
   if (r.ok) revalidatePath('/admin/quotations')
   return r
 }

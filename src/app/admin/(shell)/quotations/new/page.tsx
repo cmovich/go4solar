@@ -7,6 +7,7 @@ import { launchMode } from '@/config/site'
 import { fetchApplianceLibrary } from '@/lib/appliances/library'
 import { requireBackOfficeWithMfa } from '@/lib/auth/roles'
 import { builderContext, builderItems } from '@/lib/build/server'
+import { loadReadyPlans } from '@/lib/readyPlans/server'
 import { mayCreateQuotations } from '@/lib/staffQuotes/server'
 import { fetchRoofTypes, fetchWiring } from '@/lib/wizard/server'
 
@@ -17,11 +18,12 @@ export const dynamic = 'force-dynamic'
 export default async function NewQuotationPage() {
   const session = await requireBackOfficeWithMfa()
   if (!(await mayCreateQuotations(session))) redirect('/admin')
-  const [ctx, roofTypes, wiring, library] = await Promise.all([
+  const [ctx, roofTypes, wiring, library, readyPlans] = await Promise.all([
     builderContext(),
     fetchRoofTypes(),
     fetchWiring(),
     fetchApplianceLibrary(),
+    loadReadyPlans({ activeOnly: true }),
   ])
   const sample = ctx.settings.priceList.sample || ctx.settings.pricing.sample
   return (
@@ -41,6 +43,12 @@ export default async function NewQuotationPage() {
         library={library}
         launchMode={launchMode()}
         showPrices={!sample}
+        plans={readyPlans.map((p) => ({
+          slug: p.slug,
+          name: p.name,
+          summary: p.summary,
+          tenures: p.tenures,
+        }))}
       />
     </main>
   )

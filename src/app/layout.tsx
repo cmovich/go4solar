@@ -26,8 +26,8 @@ export const metadata: Metadata = {
   },
   description: DESCRIPTION,
   metadataBase: new URL(siteConfig.url),
-  // Share cards (WhatsApp, Facebook, X) cannot show the total payable, so they make no interest
-  // claim (our rule: "no interest" only beside the total amount payable).
+  // Share cards (WhatsApp, Facebook, X) cannot show the total payable, so they make no price
+  // claim. Customer pages never say "interest" (Semako, 2026-11-13).
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,

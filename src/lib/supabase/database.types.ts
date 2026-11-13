@@ -1863,6 +1863,84 @@ export type Database = {
           },
         ]
       }
+      ready_plans: {
+        Row: {
+          active: boolean
+          admin_note: string | null
+          backup: Json
+          can_power: Json
+          created_at: string
+          delivery_state: string
+          deposit_share: number
+          full_discount: number
+          id: string
+          image: string | null
+          inverter_kva: number
+          lines: Json
+          monthly_rate: number
+          name: string
+          sample: boolean
+          slug: string
+          sort_order: number
+          summary: string
+          system_voltage: number
+          tag: string | null
+          tagline: string | null
+          tenures: number[]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          admin_note?: string | null
+          backup?: Json
+          can_power?: Json
+          created_at?: string
+          delivery_state?: string
+          deposit_share?: number
+          full_discount?: number
+          id?: string
+          image?: string | null
+          inverter_kva: number
+          lines: Json
+          monthly_rate?: number
+          name: string
+          sample?: boolean
+          slug: string
+          sort_order?: number
+          summary: string
+          system_voltage: number
+          tag?: string | null
+          tagline?: string | null
+          tenures?: number[]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          admin_note?: string | null
+          backup?: Json
+          can_power?: Json
+          created_at?: string
+          delivery_state?: string
+          deposit_share?: number
+          full_discount?: number
+          id?: string
+          image?: string | null
+          inverter_kva?: number
+          lines?: Json
+          monthly_rate?: number
+          name?: string
+          sample?: boolean
+          slug?: string
+          sort_order?: number
+          summary?: string
+          system_voltage?: number
+          tag?: string | null
+          tagline?: string | null
+          tenures?: number[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       repayment_schedule: {
         Row: {
           amount: number

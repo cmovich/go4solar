@@ -39,7 +39,8 @@ export function confirmationText(c: WaitlistConfirmation): string {
     `Hi ${c.firstName}. ${THANK_YOU_TEXT}\n\n` +
     `Your estimate: ${what} — total ${formatNaira(c.systemPrice)}, ` +
     `${formatNaira(c.deposit)} upfront (${formatPercent(c.depositShare)}) then ` +
-    `${formatNaira(c.monthly)} a month for ${c.tenureMonths} months. 0% interest. ` +
+    `${formatNaira(c.monthly)} a month for ${c.tenureMonths} months. ` +
+    'One fixed price. No hidden charges. ' +
     `This is an estimate; your final quote comes at launch.`
   )
 }

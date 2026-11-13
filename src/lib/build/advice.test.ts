@@ -20,7 +20,7 @@ describe('adviceFacts (numbers from our engine only)', () => {
     expect(adviceFacts(base)).toEqual([
       'Your battery stores about 8.1 kWh you can use: about 2 hours with the 5 kVA inverter at full load.',
       'Your 3.3 kW of panels make roughly 13 kWh on a sunny day.',
-      'You pay ₦250,000 a month for 12 months; the total amount payable is ₦3,500,000 with 0% interest.',
+      'You pay ₦250,000 a month for 12 months; the total amount payable is ₦3,500,000: one fixed price, no hidden charges.',
     ])
     expect(adviceFacts({ ...base, loadKva: 2 })[0]).toBe(
       'Your battery stores about 8.1 kWh you can use: about 5.1 hours at your 2 kVA load.',

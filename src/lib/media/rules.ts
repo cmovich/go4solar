@@ -9,6 +9,8 @@ export const MEDIA_KINDS = {
   job: { width: 1200, height: 800, fit: 'cover', label: 'job photo' },
   /** Product photo in the builder: square. */
   product: { width: 600, height: 600, fit: 'cover', label: 'product photo' },
+  /** Ready-made plan picture (cards and the plan page): 4:3, like the plan photos. */
+  plan: { width: 800, height: 600, fit: 'cover', label: 'plan photo' },
   /** Roof type picture for the quote wizard: 4:3. */
   roof: { width: 800, height: 600, fit: 'cover', label: 'roof photo' },
   /** Partner logo: fitted inside, transparency kept. */

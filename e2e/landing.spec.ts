@@ -13,7 +13,7 @@ test.describe('landing page', () => {
 
     const h1 = page.getByRole('heading', { level: 1 })
     await expect(h1).toBeVisible()
-    // While any price is a SAMPLE price the hero makes no interest claim (no total is shown).
+    // Headline "No Hidden Charges" (Semako, 2026-11-13); customer pages never say "interest".
     const total = page.getByTestId('hero-total')
     await expect(total).toBeVisible() // directly under the explainer, on phones and desktop
     await expect(
@@ -21,11 +21,9 @@ test.describe('landing page', () => {
         exact: true,
       }),
     ).toBeVisible()
-    if (await samplePrices(page)) {
-      await expect(h1).toHaveText('Go 4 Solar, Pay Easy')
-      await expect(page.getByText(/no interest/i)).toHaveCount(0)
-    } else {
-      await expect(h1).toHaveText('Go 4 Solar, Pay Easy, No Interest')
+    await expect(h1).toHaveText('Go 4 Solar, Pay Easy, No Hidden Charges')
+    await expect(page.locator('body')).not.toContainText(/interest/i)
+    if (!(await samplePrices(page))) {
       await expect(total).toHaveText('Total amount payable is shown on every plan before you sign.')
     }
     // The orange corner triangle shows on phones and desktop.
@@ -66,6 +64,8 @@ test.describe('landing page', () => {
     // Customer stories and partner logos appear only when staff have published some.
     const dataDriven = ['What our customers say', 'Our partners']
     expect(all.filter((h) => !dataDriven.includes(h))).toEqual([
+      // Ready-made plans, right after the hero (hidden when no plan is switched on).
+      'Choose a ready-made solar plan',
       'From appliances to installed solar in four steps',
       // Part G: the middle and bottom button pairs.
       'Ready to see your solar plan?',
@@ -94,17 +94,16 @@ test.describe('landing page', () => {
     await expect(page.getByText('worth of installations')).toBeVisible()
     // Nationwide: no three-state wording anywhere on the page.
     await expect(page.getByText(/Abuja|3 states/)).toHaveCount(0)
-    // Kaduna appears only in the company address (footer), never as a coverage limit.
+    // Kaduna appears only in the company address (footer) and in the ready-made plans' price
+    // note ("Prices for Kaduna. Delivery to other states…"), never as a coverage limit.
+    const planNote = await page.getByTestId('ready-plans-note').count()
     await expect(page.getByText(/Kaduna/)).toHaveCount(
-      await page
-        .locator('address')
-        .getByText(/Kaduna/)
-        .count(),
+      (await page.locator('address').getByText(/Kaduna/).count()) + planNote,
     )
     await expect(page.getByText('Serving homes and businesses across Nigeria.')).toBeVisible()
   })
 
-  test('savings example shows the total amount payable beside 0% interest', async ({ page }) => {
+  test('savings example shows the total amount payable and "One fixed price"', async ({ page }) => {
     await page.goto('/')
     if (await samplePrices(page)) {
       // Prompt 16A safety net: no naira amounts while prices are SAMPLE prices.
@@ -118,6 +117,7 @@ test.describe('landing page', () => {
     await expect(savings.getByText('Example', { exact: true })).toBeVisible()
     await expect(savings.getByText('₦165,017').first()).toBeVisible()
     await expect(savings.getByText('₦2,475,248')).toBeVisible()
+    await expect(savings).toContainText('One fixed price. No hidden charges.')
     await expect(page.getByText('Over 2 years: ₦4,320,000 — and it keeps going.')).toBeVisible()
     await expect(
       page.getByText('Over 2 years you save ₦1,844,752 — and you own the system.'),
@@ -126,6 +126,8 @@ test.describe('landing page', () => {
 
   test('FAQ opens and mentions the late fee', async ({ page }) => {
     await page.goto('/')
+    await page.getByRole('button', { name: 'Is it really one fixed price?' }).click()
+    await expect(page.getByText(/No hidden charges: the total amount payable/)).toBeVisible()
     await page.getByRole('button', { name: 'What happens if I miss a payment?' }).click()
     await expect(
       page.getByText('If a payment is 7 days overdue the system can be locked'),

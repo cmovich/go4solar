@@ -47,10 +47,10 @@ export function savedQuotesText(
         (l) =>
           `• ${PLAN_LABELS[l.plan]} (${l.reference}): ${formatNaira(l.deposit)} upfront ` +
           `(${formatPercent(l.depositShare)}), then ${formatNaira(l.monthly)} a month for ${l.tenureMonths} months. ` +
-          `Total ${formatNaira(l.systemPrice)}, 0% interest.`,
+          `Total ${formatNaira(l.systemPrice)}.`,
       )
       .join('\n') +
-    `\nLate payments attract 0.75% of the overdue amount per day. Reply here when you are ready to choose.`
+    `\nOne fixed price. No hidden charges. Late payments attract 0.75% of the overdue amount per day. Reply here when you are ready to choose.`
   )
 }
 

@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_COMPANY } from '@/lib/company/schema'
 import { sampleQuoteInput } from '@/lib/pricing/pricing.fixture'
 import { priceQuote } from '@/lib/pricing/price'
+import { SEEDED_PLANS } from '@/lib/readyPlans/plans.fixture'
+import { priceReadyPlan, readyQuoteResult } from '@/lib/readyPlans/price'
 
 import { buildInvoice, newPublicCode, type InvoiceInput } from './build'
 import { verifyView } from './verify'
@@ -179,5 +181,47 @@ describe('quotation (before Accept: no invoice number, no verify link)', () => {
 
   it('an invoice is kind invoice by default', () => {
     expect(buildInvoice(base).kind).toBe('invoice')
+  })
+})
+
+// Ready-made plans: items without prices, deposit, any extra delivery paid with it, the monthly
+// payments, the pay-in-full price and "One fixed price. No hidden charges."
+describe('a ready-made plan quotation', () => {
+  const oga = SEEDED_PLANS.find((p) => p.slug === 'oga-boss')!
+  const pricedOga = priceReadyPlan(oga, 12, 45_000)
+  const doc = buildInvoice({
+    ...base,
+    kind: 'quotation',
+    title: 'Oga Boss',
+    result: readyQuoteResult(oga, pricedOga, 'Lagos'),
+    items: {},
+    fixed: {
+      fullPayment: pricedOga.fullPayment,
+      fullDiscount: 0.25,
+      extra: { state: 'Lagos', amount: 45_000 },
+    },
+  })
+  it('lists every item and hides every per-line price; the extra delivery is in the totals', () => {
+    expect(doc.lines.map((l) => l.item)).toContain('Battery 3.6 kWh lithium-ion 12 V')
+    expect(doc.lines.every((l) => l.hideAmount)).toBe(true)
+    expect(doc.lines.some((l) => l.item.startsWith('Delivery to Lagos'))).toBe(false)
+  })
+  it('totals: the deposit without the extra delivery, which is its own amount', () => {
+    expect(doc.totals).toMatchObject({
+      total: pricedOga.totalPayable,
+      deposit: 261_400,
+      monthly: 139_413,
+      months: 12,
+    })
+    expect(doc.fixed).toEqual({
+      fullPayment: 1_450_770 + 45_000,
+      fullDiscount: 0.25,
+      extra: { state: 'Lagos', amount: 45_000 },
+    })
+  })
+  it('notes: ladder or scaffold and the site check; no interest wording anywhere', () => {
+    expect(doc.notes).toContain('Customer provides ladder/scaffold (not charged).')
+    expect(doc.notes).toContain('Subject to a site check.')
+    expect(JSON.stringify(doc)).not.toMatch(/interest/i)
   })
 })

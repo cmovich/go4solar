@@ -32,8 +32,8 @@ const faqs = (lockAfterDays: number, tenures: readonly TenureMonths[]) => [
     a: 'A verified Go4Solar partner installer in your state. Installers are checked for identity, experience and references, and they upload photos and serial numbers when your job is done.',
   },
   {
-    q: 'Is it really 0% interest?',
-    a: 'Yes. You pay one fixed price for your system, shown in full before you sign, split into a deposit and equal monthly payments. There is no interest and no hidden finance charge; the total amount payable is always on your quote.',
+    q: 'Is it really one fixed price?',
+    a: 'Yes. You pay one fixed price for your system, shown in full before you sign, split into a deposit and equal monthly payments. No hidden charges: the total amount payable is always on your quote. A late fee applies only if a monthly payment is late.',
   },
 ]
 

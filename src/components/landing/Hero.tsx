@@ -2,6 +2,7 @@ import Link from 'next/link'
 
 import { HERO_SLIDES } from '@/config/heroSlides'
 import { siteConfig } from '@/config/site'
+import { FIXED_PRICE_LINE } from '@/lib/build/stored'
 import { formatNaira } from '@/lib/money'
 import { PRICE_LATER_TEXT } from '@/lib/waitlist/schema'
 
@@ -16,33 +17,31 @@ export type HeroExample = {
   monthly: number
   months: number
   total: number
-  /** True while any price used is a SAMPLE price: no naira amounts and no interest claims. */
+  /** True while any price used is a SAMPLE price: no naira amounts. */
   sample: boolean
   /** Longest payment plan switched on in /admin/pricing. */
   maxMonths: number
 }
 
-/** Hero explainer (Semako, 2026-10-20; no interest claim, so the same in every price mode). */
+/** Hero explainer (Semako, 2026-10-20; the same in every price mode). */
 export const EXPLAINER = 'Starting from 20% deposit. Get your solar installed and pay monthly.'
 
 /** Under the hero explainer (Semako, 2026-10-20). */
 export const TOTAL_ON_EVERY_PLAN = 'Total amount payable is shown on every plan before you sign.'
 
-const badgesFor = (sample: boolean, maxMonths: number) => [
-  sample
-    ? { title: 'One fixed price', line: 'Shown in full before you sign' }
-    : { title: '0% interest', line: 'One fixed price, shown in full before you sign' },
+const badgesFor = (maxMonths: number) => [
+  { title: 'One fixed price', line: 'No hidden charges, shown in full before you sign' },
   { title: 'Direct importers', line: 'Factory prices, no middlemen, genuine warranty' },
   { title: 'From 20% deposit', line: `The rest in up to ${maxMonths} monthly payments` },
 ]
 
 /**
- * Headline "Go 4 Solar, Pay Easy, No Interest". Any interest claim must sit next to the total
- * amount payable, so while prices are SAMPLE prices (totals hidden) the hero drops "No Interest"
- * and "no interest attached" until real prices are saved.
+ * Headline "Go 4 Solar, Pay Easy, No Hidden Charges" (Semako, 2026-11-13: customer pages never say
+ * "interest"; "One fixed price. No hidden charges." instead). While prices are SAMPLE no total
+ * is shown, only "Your exact price will be confirmed…".
  */
 export function Hero({ example }: { example: HeroExample }) {
-  const badges = badgesFor(example.sample, example.maxMonths)
+  const badges = badgesFor(example.maxMonths)
   return (
     <Band angled accent>
       <HeroBackdrop slides={HERO_SLIDES} />
@@ -75,17 +74,12 @@ export function Hero({ example }: { example: HeroExample }) {
             {/* Three short lines on a phone, two on wider screens. */}
             <h1 className="text-[2.6rem] leading-[1.05] font-bold tracking-tight sm:text-6xl">
               <span className="block sm:inline">Go 4 Solar,</span>{' '}
-              <span className="block sm:inline">Pay Easy{example.sample ? '' : ','}</span>
-              {!example.sample && (
-                <>
-                  {' '}
-                  <span className="text-brand-gold block">No Interest</span>
-                </>
-              )}
+              <span className="block sm:inline">Pay Easy,</span>{' '}
+              <span className="text-brand-gold block">No Hidden Charges</span>
             </h1>
             <p className="mt-6 max-w-2xl text-lg text-white sm:text-xl">{EXPLAINER}</p>
-            {/* Decision 2026-10-20 (CLAUDE.md §9): the hero's no-interest claim carries this line
-                instead of an example total; every plan, quote and agreement shows the total. */}
+            {/* Decision 2026-10-20 (CLAUDE.md §9): every plan, quote and agreement shows the
+                total amount payable. */}
             <p className="mt-3 text-sm font-semibold text-white" data-testid="hero-total">
               {example.sample ? PRICE_LATER_TEXT : TOTAL_ON_EVERY_PLAN}
             </p>
@@ -142,7 +136,7 @@ export function Hero({ example }: { example: HeroExample }) {
                   </span>
                 </p>
                 <p className="text-muted-foreground mt-2 text-sm font-medium">
-                  Total {formatNaira(example.total)} · 0% interest
+                  Total {formatNaira(example.total)} · {FIXED_PRICE_LINE}
                 </p>
               </>
             )}

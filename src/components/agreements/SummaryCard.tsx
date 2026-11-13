@@ -1,4 +1,5 @@
 import type { AgreementValues } from '@/lib/agreements/render'
+import { FIXED_PRICE_LINE } from '@/lib/build/stored'
 
 /** Plain-language summary shown before the full agreement. Values come from the stored quote. */
 export function SummaryCard({
@@ -37,7 +38,7 @@ export function SummaryCard({
         ))}
       </dl>
       <p className="mt-2 text-sm font-semibold">
-        No interest. The total amount payable above is everything you pay for the system.
+        {FIXED_PRICE_LINE} The total amount payable above is everything you pay for the system.
       </p>
       <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm">
         <li>

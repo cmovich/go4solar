@@ -4,7 +4,6 @@ export type Block = { redirect: string } | { notFound: true }
 
 /** Live-only pages: closed in prelaunch (the visitor is sent home). */
 const LIVE_ONLY_PAGES = [
-  '/plans',
   '/quotation',
   '/account',
   '/app',
@@ -26,6 +25,8 @@ const under = (path: string, base: string) => path === base || path.startsWith(`
 export function prelaunchBlock(path: string, mode: LaunchMode): Block | null {
   if (mode !== 'prelaunch') return null
   if (under(path, '/get-started')) return { redirect: '/waitlist' }
+  // /plans is the live plan chooser; /plans/<name> (ready-made plans) is open in both modes.
+  if (path === '/plans') return { redirect: '/' }
   if (LIVE_ONLY_PAGES.some((p) => under(path, p))) return { redirect: '/' }
   if (LIVE_ONLY_APIS.some((p) => under(path, p))) return { notFound: true }
   return null

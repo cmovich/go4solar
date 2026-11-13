@@ -52,8 +52,8 @@ export default async function PlansPage({
           Here are your plans, {ctx.lead.first_name}
         </h1>
         <p className="text-muted-foreground mt-2 text-base">
-          Choose how much to pay upfront and over how many months. Every plan is one fixed price
-          with 0% interest.
+          Choose how much to pay upfront and over how many months. Every plan is one fixed price. No
+          hidden charges.
         </p>
         {ctx.estimate.sample && (
           <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">

@@ -26,6 +26,16 @@ export type InvoiceLine = {
   qty: string
   amount: number
   kind: 'equipment' | 'rack' | 'installation' | 'delivery'
+  /** Ready-made plans: the line is listed without its price. */
+  hideAmount?: true
+}
+
+/** Ready-made plans (fixed price): the pay-in-full price and any extra delivery. */
+export type FixedPlanTotals = {
+  fullPayment: number
+  fullDiscount: number
+  /** Delivery outside the plan's included state: paid with the deposit, not financed. */
+  extra: { state: string; amount: number } | null
 }
 
 /** Everything the invoice prints; stored with the invoice so it never changes afterwards. */
@@ -54,6 +64,8 @@ export type InvoiceData = {
     months: number
   }
   notes: string[]
+  /** Ready-made plans only (missing on documents made before them). */
+  fixed?: FixedPlanTotals | null
 }
 
 /** The priced quote the invoice is drawn from (customer figures only are read). */
@@ -88,7 +100,12 @@ export type InvoiceInput = {
   installer: 'go4solar' | 'own'
   /** The quote uses the accessories pack (not itemised accessories). */
   packIncluded: boolean
+  /** A ready-made plan: items without prices, pay-in-full price, extra delivery apart. */
+  fixed?: FixedPlanTotals | null
 }
+
+/** Added for ready-made plans (the ladder/scaffold note is already on every quote). */
+export const FIXED_PLAN_NOTES = ['Subject to a site check.']
 
 const PACK_NOTE = 'Includes the standard accessories pack.'
 
@@ -100,7 +117,9 @@ export function buildInvoice(i: InvoiceInput): InvoiceData {
     (i.result.installCost > 0
       ? [{ label: 'Installation and logistics', amount: i.result.installCost }]
       : [])
-  const lines: InvoiceLine[] = [
+  const fixed = i.fixed ?? null
+  const extraLabel = fixed?.extra ? `Delivery to ${fixed.extra.state} (extra)` : null
+  const allLines: InvoiceLine[] = [
     ...i.result.lines.map((l) => {
       const item = i.items[l.sku]
       return {
@@ -119,10 +138,18 @@ export function buildInvoice(i: InvoiceInput): InvoiceData {
       kind: x.label.startsWith('Delivery') ? ('delivery' as const) : ('installation' as const),
     })),
   ]
+  // A ready-made plan has one fixed price: items are listed without prices, and the extra
+  // delivery is shown with the totals (paid with the deposit).
+  const lines: InvoiceLine[] = fixed
+    ? allLines
+        .filter((l) => l.item !== extraLabel)
+        .map((l) => ({ ...l, hideAmount: true as const }))
+    : allLines
   const notes = quoteNotes(i.site, { needsRack: i.roofNeedsRack }).filter(
     (n) => n !== PACK_NOTE || i.packIncluded,
   )
   if (i.installer === 'own') notes.push(OWN_INSTALLER_WARNING)
+  if (fixed) for (const n of FIXED_PLAN_NOTES) if (!notes.includes(n)) notes.push(n)
   notes.push(`Prices valid until ${invoiceDay(until)}.`)
   return {
     version: 1,
@@ -139,13 +166,14 @@ export function buildInvoice(i: InvoiceInput): InvoiceData {
     lines,
     totals: {
       total: i.result.systemPrice,
-      deposit: i.result.deposit,
+      deposit: i.result.deposit - (fixed?.extra?.amount ?? 0),
       depositShare: i.result.snapshot.depositShare,
       balance: i.result.balance,
       monthly: i.result.monthly,
       months: i.result.snapshot.tenureMonths,
     },
     notes,
+    ...(fixed ? { fixed } : {}),
   }
 }
 

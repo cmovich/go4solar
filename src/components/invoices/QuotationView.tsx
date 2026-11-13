@@ -56,7 +56,7 @@ export function QuotationView({ d }: { d: InvoiceData }) {
               <th className="px-2 py-2 font-semibold">Item</th>
               <th className="hidden px-2 py-2 font-semibold sm:table-cell">Size / spec</th>
               <th className="px-2 py-2 text-right font-semibold">Qty</th>
-              <th className="px-2 py-2 text-right font-semibold">Price</th>
+              {!d.fixed && <th className="px-2 py-2 text-right font-semibold">Price</th>}
             </tr>
           </thead>
           <tbody>
@@ -70,9 +70,11 @@ export function QuotationView({ d }: { d: InvoiceData }) {
                 </td>
                 <td className="text-muted-foreground hidden px-2 py-2 sm:table-cell">{l.spec}</td>
                 <td className="px-2 py-2 text-right whitespace-nowrap">{l.qty}</td>
-                <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
-                  {formatNaira(l.amount)}
-                </td>
+                {!d.fixed && (
+                  <td className="px-2 py-2 text-right whitespace-nowrap tabular-nums">
+                    {l.hideAmount ? '' : formatNaira(l.amount)}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -89,15 +91,27 @@ export function QuotationView({ d }: { d: InvoiceData }) {
             <span>Deposit ({formatPercent(d.totals.depositShare)})</span>
             <strong>{formatNaira(d.totals.deposit)}</strong>
           </p>
+          {d.fixed?.extra && (
+            <p className="flex justify-between gap-3" data-testid="quotation-extra-delivery">
+              <span>Delivery to {d.fixed.extra.state} (extra, paid with the deposit)</span>
+              <strong>{formatNaira(d.fixed.extra.amount)}</strong>
+            </p>
+          )}
           <p className="flex justify-between gap-3">
             <span>Monthly payment</span>
             <strong>
               {formatNaira(d.totals.monthly)} × {d.totals.months} months
             </strong>
           </p>
+          {d.fixed && (
+            <p className="flex justify-between gap-3" data-testid="quotation-full-payment">
+              <span>Or pay in full ({formatPercent(d.fixed.fullDiscount, 0)} off)</span>
+              <strong>{formatNaira(d.fixed.fullPayment)}</strong>
+            </p>
+          )}
           <p className="text-muted-foreground pt-1 text-xs">
-            0% interest: the total above is everything you pay. Late payments attract 0.75% of the
-            overdue amount per day.
+            One fixed price. No hidden charges: the total above is everything you pay. Late payments
+            attract 0.75% of the overdue amount per day.
           </p>
         </section>
 

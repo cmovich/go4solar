@@ -25,7 +25,7 @@ export async function adviseFromFacts(facts: string[]): Promise<{ text: string; 
         model: process.env.ANTHROPIC_ADVISOR_MODEL || DEFAULT_ADVISOR_MODEL,
         max_tokens: 300,
         system:
-          'You are a friendly solar advisor for Go4Solar customers in Nigeria. Explain the facts you are given in plain, warm English in at most 90 words. Use only the numbers in the facts; never add, change or estimate any number, price or promise. Never say "loan" or "interest" except "0% interest" exactly as given. No headings or lists.',
+          'You are a friendly solar advisor for Go4Solar customers in Nigeria. Explain the facts you are given in plain, warm English in at most 90 words. Use only the numbers in the facts; never add, change or estimate any number, price or promise. Never say "loan" or "interest"; say "one fixed price, no hidden charges". No headings or lists.',
         messages: [{ role: 'user', content: facts.map((f) => `- ${f}`).join('\n') }],
       }),
       signal: AbortSignal.timeout(8000),

@@ -235,8 +235,8 @@ export function PlansChooser({
       />
       <p className="text-muted-foreground text-xs">{BACKUP_NOTICE}</p>
       <p className="text-muted-foreground text-xs">
-        0% interest: one fixed price, the total amount payable above. Late payments attract 0.75% of
-        the overdue amount per day.
+        One fixed price. No hidden charges: the total amount payable above is everything you pay.
+        Late payments attract 0.75% of the overdue amount per day.
       </p>
 
       {notice && (

@@ -174,14 +174,14 @@ function InvoiceDoc({ d, qr }: { d: InvoiceData; qr: string | null }) {
             <Text style={s.cItem}>Item</Text>
             <Text style={s.cSpec}>Size / spec</Text>
             <Text style={s.cQty}>Qty / length</Text>
-            <Text style={s.cAmt}>Price</Text>
+            {!d.fixed && <Text style={s.cAmt}>Price</Text>}
           </View>
           {d.lines.map((l, i) => (
             <View key={i} style={s.tr} wrap={false}>
               <Text style={s.cItem}>{l.item}</Text>
               <Text style={s.cSpec}>{l.spec}</Text>
               <Text style={s.cQty}>{l.qty}</Text>
-              <Text style={s.cAmt}>{formatNaira(l.amount)}</Text>
+              {!d.fixed && <Text style={s.cAmt}>{l.hideAmount ? '' : formatNaira(l.amount)}</Text>}
             </View>
           ))}
 
@@ -194,15 +194,27 @@ function InvoiceDoc({ d, qr }: { d: InvoiceData; qr: string | null }) {
               <Text>Deposit ({formatPercent(d.totals.depositShare)})</Text>
               <Text style={{ fontWeight: 700 }}>{formatNaira(d.totals.deposit)}</Text>
             </View>
+            {d.fixed?.extra && (
+              <View style={s.totalRow}>
+                <Text>Delivery to {d.fixed.extra.state} (extra, paid with the deposit)</Text>
+                <Text style={{ fontWeight: 700 }}>{formatNaira(d.fixed.extra.amount)}</Text>
+              </View>
+            )}
             <View style={s.totalRow}>
               <Text>Monthly payment</Text>
               <Text style={{ fontWeight: 700 }}>
                 {formatNaira(d.totals.monthly)} × {d.totals.months} months
               </Text>
             </View>
+            {d.fixed && (
+              <View style={s.totalRow}>
+                <Text>Or pay in full ({formatPercent(d.fixed.fullDiscount, 0)} off)</Text>
+                <Text style={{ fontWeight: 700 }}>{formatNaira(d.fixed.fullPayment)}</Text>
+              </View>
+            )}
             <Text style={{ color: MUTED, marginTop: 4 }}>
-              0% interest: the total above is everything you pay. Late payments attract 0.75% of the
-              overdue amount per day.
+              One fixed price. No hidden charges: the total above is everything you pay. Late
+              payments attract 0.75% of the overdue amount per day.
             </Text>
           </View>
 

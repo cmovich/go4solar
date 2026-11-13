@@ -12,6 +12,8 @@ import { getOrCreateVisitorToken } from '@/lib/waitlist/token'
 import { gridFromAnswers } from '@/lib/wizard/questions'
 
 import type { BuildSelectionInput } from './schema'
+import type { FixedPlanTotals } from '@/lib/invoices/build'
+
 import { OWN_SYSTEM_LABEL } from './stored'
 import { priceSelection, selectionSummary, type BuilderContext } from './server'
 
@@ -57,6 +59,11 @@ export async function saveBuild(input: {
 
 /** A priced builder system as stored on leads, quotes and staff quotations (`builder` column). */
 export type StoredSystem = {
+  /** 'builder' (default): built in /build; 'ready': a ready-made plan. */
+  kind?: 'builder' | 'ready'
+  /** Ready-made plans: which plan, and its pay-in-full price and any extra delivery. */
+  plan?: { slug: string; name: string }
+  fixed?: FixedPlanTotals
   selection: BuildSelectionInput
   notes: string[]
   size: SystemSize
@@ -68,7 +75,8 @@ export type StoredSystem = {
  * Save an already-priced system with the customer's details: the waiting-list entry (both modes)
  * and, in live mode, the quote for the account step. Used by the builder (just priced) and by
  * "Accept and apply" on a staff quotation (its stored snapshot, so the price never changes).
- * `fromStaff`: who made the quotation (shown as "Entered by"); the customer has accepted it.
+ * `accepted`: the customer accepted a quotation shown before their details (a staff quotation or a
+ * ready-made plan): accepted times are set, with who made it ("Entered by") and the channel.
  */
 export async function saveBuiltSystem(input: {
   stored: StoredSystem
@@ -76,16 +84,18 @@ export async function saveBuiltSystem(input: {
   live: boolean
   ip: string
   validityDays: number
-  fromStaff?: { enteredBy: string | null }
+  accepted?: { enteredBy: string | null; channel: 'staff quotation' | 'ready plan' }
 }): Promise<{ ok: true; leadId: string; quoteId: string | null } | { ok: false; error: string }> {
   const { stored, contact } = input
   const { selection: sel, quote, size } = stored
   const depositShare = quote.snapshot.depositShare
-  const accepted = input.fromStaff ? new Date().toISOString() : null
+  const accepted = input.accepted ? new Date().toISOString() : null
   const admin = createAdminClient()
   const { hash } = await getOrCreateVisitorToken()
   const builder = {
-    kind: 'builder',
+    kind: stored.kind ?? 'builder',
+    ...(stored.plan ? { plan: stored.plan } : {}),
+    ...(stored.fixed ? { fixed: stored.fixed } : {}),
     selection: sel,
     notes: stored.notes,
     size,
@@ -123,10 +133,10 @@ export async function saveBuiltSystem(input: {
       grid: gridFromAnswers(sel.site) as Json | null,
       builder,
       duplicate_of: existing?.id ?? null,
-      ...(input.fromStaff
+      ...(input.accepted
         ? {
-            entered_by: input.fromStaff.enteredBy,
-            entry_channel: 'staff quotation',
+            entered_by: input.accepted.enteredBy,
+            entry_channel: input.accepted.channel,
             quotation_accepted_at: accepted,
           }
         : {}),
@@ -185,7 +195,7 @@ export async function saveBuiltSystem(input: {
       whatsappE164: contact.phone,
       email: contact.email,
       plan: 'comfort',
-      planLabel: OWN_SYSTEM_LABEL,
+      planLabel: stored.plan?.name ?? OWN_SYSTEM_LABEL,
       depositShare,
       systemPrice: quote.systemPrice,
       deposit: quote.deposit,

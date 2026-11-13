@@ -9,6 +9,7 @@ import { launchMode, siteConfig } from '@/config/site'
 import { builderContext, builderItems } from '@/lib/build/server'
 import type { BuilderState } from '@/lib/build/store'
 import { isNgStateId } from '@/lib/nigeria/states'
+import { loadReadyPlan } from '@/lib/readyPlans/server'
 import { PLAN_LABELS, type Estimate } from '@/lib/quotes/buildEstimate'
 import type { Plan } from '@/lib/sizing/types'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -59,6 +60,8 @@ export default async function BuildPage({
     done?: string
     load?: string
     quotation?: string
+    ready?: string
+    state?: string
   }>
 }) {
   const sp = await searchParams
@@ -67,7 +70,25 @@ export default async function BuildPage({
     fetchRoofTypes(),
     fetchWiring(),
   ])
-  const initial = sp.lead && sp.plan ? await adjustFrom(sp.lead, sp.plan) : null
+  // "Customise this plan" from a ready-made plan: its state, and its size as the starting load.
+  const readyPlan = !sp.lead && sp.ready ? await loadReadyPlan(sp.ready) : null
+  const readyState =
+    readyPlan && sp.state && isNgStateId(sp.state) ? sp.state : (readyPlan?.deliveryState ?? null)
+  const initial =
+    sp.lead && sp.plan
+      ? await adjustFrom(sp.lead, sp.plan)
+      : readyPlan && readyState && isNgStateId(readyState)
+        ? {
+            scope: 'complete' as const,
+            state: readyState,
+            items: readyPlan.lines
+              .filter((l) => l.sku)
+              // Items no longer sold are dropped by the builder itself (sanitiseBuilderState).
+              .map((l) => ({ sku: l.sku!, qty: l.qty })),
+            site: {},
+            installer: 'go4solar' as const,
+          }
+        : null
   const sample = ctx.settings.priceList.sample || ctx.settings.pricing.sample
   return (
     <>
@@ -99,6 +120,7 @@ export default async function BuildPage({
             }
             done={sp.done === '1'}
             applyCalculatedLoad={sp.load === 'calculated'}
+            startLoadKva={readyPlan?.inverterKva ?? null}
           />
         )}
       </main>

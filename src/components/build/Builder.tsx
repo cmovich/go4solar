@@ -147,6 +147,7 @@ export function Builder({
   applyCalculatedLoad = false,
   adjust = null,
   staff = null,
+  startLoadKva = null,
 }: {
   items: BuilderItem[]
   roofTypes: RoofTypeCard[]
@@ -157,6 +158,11 @@ export function Builder({
   /** "Adjust this quote": the plan's items and answers. */
   initial: Partial<BuilderState> | null
   done: boolean
+  /**
+   * "Customise this plan" (a ready-made plan): start from this load in kVA, so the builder
+   * suggests a system to change from (priced the normal custom way).
+   */
+  startLoadKva?: number | null
   /** Came back from the calculator with "Back to the builder with this load". */
   applyCalculatedLoad?: boolean
   /**
@@ -329,6 +335,16 @@ export function Builder({
       )
     })
   }
+
+  // "Customise this plan": suggest a system for the plan's load once, on arrival.
+  const planApplied = useRef(false)
+  useEffect(() => {
+    if (!startLoadKva || planApplied.current || !ready || !selection) return
+    planApplied.current = true
+    if (s.items.length === 0) knownLoad(startLoadKva, selection)
+    // Runs once, when the plan's state and scope are in place.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, startLoadKva, selection])
 
   // "Back to the builder with this load" (/build?load=calculated): apply the calculator's load
   // on arrival, then tidy the address so a reload does not apply it again.
@@ -812,7 +828,7 @@ function Summary({
         {prices && (
           <p className="text-sm" data-testid="build-total">
             Total amount payable at a {state.depositPct}% deposit:{' '}
-            <strong>{formatNaira(priced.systemPrice)}</strong> · 0% interest
+            <strong>{formatNaira(priced.systemPrice)}</strong> · One fixed price. No hidden charges.
           </p>
         )}
         {error && (
@@ -903,8 +919,8 @@ function Summary({
             <strong>{formatNaira(priced.monthly)}</strong> a month for {priced.months} months
           </p>
           <p className="text-sm" data-testid="build-total">
-            Total amount payable: <strong>{formatNaira(priced.systemPrice)}</strong> · 0% interest.
-            Late payments attract 0.75% of the overdue amount per day.
+            Total amount payable: <strong>{formatNaira(priced.systemPrice)}</strong> · One fixed
+            price. No hidden charges. Late payments attract 0.75% of the overdue amount per day.
           </p>
         </div>
       )}

@@ -1,0 +1,62 @@
+-- Ready-made plans (fixed bundles). Adds one table and its seed; nothing dropped or renamed.
+--
+-- * ready_plans: a fixed bundle with its own price list (Go4Solar price per line, vendor cost per
+--   line), deposit share, flat monthly rate, tenures, full-payment discount and the state whose
+--   delivery is included. Priced by src/lib/readyPlans (NOT the sizing engine). New plans start
+--   SAMPLE: no naira is shown to customers until a super admin confirms the prices.
+-- * Vendor costs live in `lines`, so customers never read this table: only super admins and
+--   finance (profit) read it under RLS. Public pages read it on the server and strip every cost
+--   and per-line price before anything reaches the browser. Writes are server-only (service role,
+--   super admin checked, audit_log), and the 0020 trigger records every change.
+-- * Quotes made from a plan reuse the existing `builder` jsonb column on quotes, leads and staff
+--   quotations (kind 'ready'), so no other table changes.
+
+create table public.ready_plans (
+  id              uuid primary key default gen_random_uuid(),
+  slug            text not null unique check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+  name            text not null check (length(name) between 2 and 80),
+  tagline         text check (tagline is null or length(tagline) <= 160),
+  summary         text not null check (length(summary) between 2 and 160),
+  tag             text check (tag is null or length(tag) <= 40),
+  system_voltage  integer not null check (system_voltage in (12, 24, 48)),
+  inverter_kva    numeric(6,2) not null check (inverter_kva > 0 and inverter_kva <= 100),
+  image           text,
+  -- [{kind, name, spec, qty, vendorCost, price, sku?}], amounts are line totals in naira.
+  lines           jsonb not null check (jsonb_typeof(lines) = 'array' and jsonb_array_length(lines) > 0),
+  can_power       jsonb not null default '[]'::jsonb check (jsonb_typeof(can_power) = 'array'),
+  backup          jsonb not null default '[]'::jsonb check (jsonb_typeof(backup) = 'array'),
+  deposit_share   numeric(5,4) not null default 0.2 check (deposit_share >= 0.2 and deposit_share <= 0.95),
+  monthly_rate    numeric(6,4) not null default 0.05 check (monthly_rate >= 0 and monthly_rate <= 0.2),
+  tenures         integer[] not null default '{6,9,12}'
+                  check (cardinality(tenures) > 0 and tenures <@ array[3,6,9,12,18,24]),
+  full_discount   numeric(5,4) not null default 0 check (full_discount >= 0 and full_discount < 0.9),
+  delivery_state  text not null default 'Kaduna',
+  admin_note      text check (admin_note is null or length(admin_note) <= 500),
+  sort_order      integer not null default 0,
+  active          boolean not null default true,
+  sample          boolean not null default true,
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+create index ready_plans_order_idx on public.ready_plans (sort_order, name);
+
+alter table public.ready_plans enable row level security;
+create policy "ready_plans: super_admin and finance read" on public.ready_plans
+  for select to authenticated using (public.has_role('super_admin') or public.has_role('finance'));
+-- No insert/update/delete policies: only the server (service role) writes.
+revoke insert, update, delete on public.ready_plans from anon, authenticated;
+
+create trigger audit_changes after insert or update or delete on public.ready_plans
+  for each row execute function public.audit_row_change('all');
+
+-- The six launch plans (SAMPLE until Semako confirms). Every battery is lithium-ion.
+insert into public.ready_plans
+  (slug, name, summary, system_voltage, inverter_kva, lines, can_power, backup, full_discount,
+   admin_note, sort_order)
+values
+  ('i-pass-my-neighbour', 'I Pass My Neighbour', '500 W · 1 kWh lithium-ion · 2 × 200 W · 12 V', 12, 0.5, '[{"kind": "battery", "name": "Battery", "spec": "1 kWh lithium-ion 12 V", "qty": 1, "vendorCost": 195000, "price": 235000}, {"kind": "inverter", "name": "Inverter", "spec": "500 W 12 V", "qty": 1, "vendorCost": 20000, "price": 30000}, {"kind": "controller", "name": "Charge controller", "spec": "", "qty": 1, "vendorCost": 15000, "price": 20000}, {"kind": "panels", "name": "Solar panels", "spec": "200 W", "qty": 2, "vendorCost": 70000, "price": 80000}, {"kind": "cable", "name": "DC cable", "spec": "", "qty": 1, "vendorCost": 30000, "price": 30000}, {"kind": "cable", "name": "AC cable", "spec": "", "qty": 1, "vendorCost": 12000, "price": 12000}, {"kind": "breakers", "name": "AC/DC breakers", "spec": "", "qty": 1, "vendorCost": 3000, "price": 3000}, {"kind": "accessories", "name": "Accessories", "spec": "", "qty": 1, "vendorCost": 10000, "price": 10000}, {"kind": "installation", "name": "Installation", "spec": "", "qty": 1, "vendorCost": 35000, "price": 35000}, {"kind": "logistics", "name": "Delivery (Kaduna)", "spec": "", "qty": 1, "vendorCost": 10000, "price": 10000}]'::jsonb, '["Lights", "Fan", "TV", "Phone charging", "One heavy item at a time"]'::jsonb, '["About 4 hours", "Lights and fan only: about 8 hours"]'::jsonb, 0.25, 'Charge controller must be ≥30 A.', 1),
+  ('level-up', 'Level Up', '1 kVA · 1.8 kWh lithium-ion · 2 × 350 W · 12 V', 12, 1, '[{"kind": "battery", "name": "Battery", "spec": "1.8 kWh lithium-ion 12 V", "qty": 1, "vendorCost": 250000, "price": 300000}, {"kind": "inverter", "name": "Inverter", "spec": "1 kVA 12 V", "qty": 1, "vendorCost": 150000, "price": 180000}, {"kind": "panels", "name": "Solar panels", "spec": "350 W", "qty": 2, "vendorCost": 150000, "price": 180000}, {"kind": "cable", "name": "DC cable", "spec": "", "qty": 1, "vendorCost": 37500, "price": 45000}, {"kind": "cable", "name": "AC cable", "spec": "", "qty": 1, "vendorCost": 12000, "price": 12000}, {"kind": "breakers", "name": "AC/DC breakers", "spec": "", "qty": 1, "vendorCost": 7000, "price": 10000}, {"kind": "accessories", "name": "Accessories", "spec": "", "qty": 1, "vendorCost": 10000, "price": 20000}, {"kind": "surge", "name": "AC/DC surge protection", "spec": "", "qty": 1, "vendorCost": 16000, "price": 20000}, {"kind": "box", "name": "Breaker box", "spec": "", "qty": 1, "vendorCost": 5000, "price": 10000}, {"kind": "installation", "name": "Installation", "spec": "", "qty": 1, "vendorCost": 35000, "price": 50000}, {"kind": "logistics", "name": "Delivery (Kaduna)", "spec": "", "qty": 1, "vendorCost": 10000, "price": 20000}]'::jsonb, '["Small fridge", "Lights", "Fan", "TV", "Not for 24-hour use"]'::jsonb, '["About 5 hours", "Without the fridge: about 8 hours"]'::jsonb, 0.25, null, 2),
+  ('oga-boss', 'Oga Boss', '2 kVA · 3.6 kWh lithium-ion · 4 × 400 W · 12 V', 12, 2, '[{"kind": "battery", "name": "Battery", "spec": "3.6 kWh lithium-ion 12 V", "qty": 1, "vendorCost": 400000, "price": 470000}, {"kind": "inverter", "name": "Inverter", "spec": "2 kVA 12 V", "qty": 1, "vendorCost": 210000, "price": 250000}, {"kind": "panels", "name": "Solar panels", "spec": "400 W", "qty": 4, "vendorCost": 360000, "price": 400000}, {"kind": "cable", "name": "DC cable", "spec": "6 mm, 15 yd", "qty": 1, "vendorCost": 37500, "price": 45000}, {"kind": "cable", "name": "AC cable", "spec": "", "qty": 1, "vendorCost": 12000, "price": 12000}, {"kind": "breakers", "name": "AC/DC breakers", "spec": "", "qty": 1, "vendorCost": 7000, "price": 10000}, {"kind": "accessories", "name": "Accessories", "spec": "", "qty": 1, "vendorCost": 10000, "price": 20000}, {"kind": "surge", "name": "AC/DC surge protection", "spec": "", "qty": 1, "vendorCost": 16000, "price": 20000}, {"kind": "box", "name": "Breaker box", "spec": "", "qty": 1, "vendorCost": 5000, "price": 10000}, {"kind": "installation", "name": "Installation", "spec": "", "qty": 1, "vendorCost": 35000, "price": 50000}, {"kind": "logistics", "name": "Delivery (Kaduna)", "spec": "", "qty": 1, "vendorCost": 10000, "price": 20000}]'::jsonb, '["Medium fridge", "Lights", "Fans", "TV", "0.5 HP water pump at times"]'::jsonb, '["About 6–7 hours"]'::jsonb, 0.25, 'Check: 1.6 kW of panels on 12 V needs ~130 A charging — confirm the inverter''s charge current, or move to 24 V.', 3),
+  ('no-wahala', 'No Wahala', '2.3 kVA · 3 kWh lithium-ion · 4 × 600 W · 24 V', 24, 2.3, '[{"kind": "battery", "name": "Battery", "spec": "3 kWh lithium-ion 24 V", "qty": 1, "vendorCost": 520000, "price": 590000}, {"kind": "inverter", "name": "Inverter", "spec": "2.3 kVA 24 V", "qty": 1, "vendorCost": 215000, "price": 250000}, {"kind": "panels", "name": "Solar panels", "spec": "600 W", "qty": 4, "vendorCost": 360000, "price": 400000}, {"kind": "cable", "name": "DC cable", "spec": "6 mm, 15 yd", "qty": 1, "vendorCost": 37500, "price": 45000}, {"kind": "cable", "name": "AC cable", "spec": "2.5 mm 4-core, 6 yd", "qty": 1, "vendorCost": 12000, "price": 12000}, {"kind": "breakers", "name": "AC/DC breakers", "spec": "", "qty": 1, "vendorCost": 7000, "price": 10000}, {"kind": "accessories", "name": "Accessories", "spec": "", "qty": 1, "vendorCost": 10000, "price": 20000}, {"kind": "surge", "name": "AC/DC surge protection", "spec": "", "qty": 1, "vendorCost": 16000, "price": 20000}, {"kind": "box", "name": "Breaker box", "spec": "", "qty": 1, "vendorCost": 5000, "price": 10000}, {"kind": "installation", "name": "Installation", "spec": "", "qty": 1, "vendorCost": 35000, "price": 50000}, {"kind": "logistics", "name": "Delivery (Kaduna)", "spec": "", "qty": 1, "vendorCost": 10000, "price": 20000}]'::jsonb, '["Medium fridge", "Lights", "Fans", "TV", "0.5 HP water pump at times"]'::jsonb, '["About 5–6 hours"]'::jsonb, 0.25, null, 4),
+  ('no-shaking', 'No Shaking', '3.2 kVA · 5 kWh lithium-ion · 4 × 650 W · 24 V', 24, 3.2, '[{"kind": "battery", "name": "Battery", "spec": "5 kWh lithium-ion 24 V", "qty": 1, "vendorCost": 850000, "price": 950000}, {"kind": "inverter", "name": "Inverter", "spec": "3.2 kVA 24 V", "qty": 1, "vendorCost": 235000, "price": 270000}, {"kind": "panels", "name": "Solar panels", "spec": "650 W", "qty": 4, "vendorCost": 440000, "price": 520000}, {"kind": "cable", "name": "DC cable", "spec": "6 mm, 15 yd", "qty": 1, "vendorCost": 37500, "price": 45000}, {"kind": "cable", "name": "AC cable", "spec": "2.5 mm 4-core, 10 yd", "qty": 1, "vendorCost": 20000, "price": 20000}, {"kind": "breakers", "name": "AC/DC breakers", "spec": "", "qty": 1, "vendorCost": 7000, "price": 10000}, {"kind": "accessories", "name": "Accessories", "spec": "", "qty": 1, "vendorCost": 10000, "price": 20000}, {"kind": "surge", "name": "AC/DC surge protection", "spec": "", "qty": 1, "vendorCost": 16000, "price": 20000}, {"kind": "box", "name": "Breaker box", "spec": "", "qty": 1, "vendorCost": 5000, "price": 10000}, {"kind": "installation", "name": "Installation", "spec": "", "qty": 1, "vendorCost": 35000, "price": 50000}, {"kind": "logistics", "name": "Delivery (Kaduna)", "spec": "", "qty": 1, "vendorCost": 10000, "price": 20000}]'::jsonb, '["Everything in Oga Boss", "1 HP air conditioner"]'::jsonb, '["About 3 hours with the air conditioner on", "About 9 hours without it"]'::jsonb, 0.25, null, 5),
+  ('relax', 'Relax', '5 kVA · 10 kWh lithium-ion · 8 × 650 W · 48 V', 48, 5, '[{"kind": "battery", "name": "Battery", "spec": "10 kWh lithium-ion 48 V", "qty": 1, "vendorCost": 1500000, "price": 1650000}, {"kind": "inverter", "name": "Inverter", "spec": "5 kVA 48 V", "qty": 1, "vendorCost": 450000, "price": 520000}, {"kind": "panels", "name": "Solar panels", "spec": "650 W", "qty": 8, "vendorCost": 880000, "price": 960000}, {"kind": "cable", "name": "DC cable", "spec": "10 mm, 20 yd", "qty": 1, "vendorCost": 70000, "price": 90000}, {"kind": "cable", "name": "AC cable", "spec": "2.5 mm, 10 yd", "qty": 1, "vendorCost": 20000, "price": 20000}, {"kind": "breakers", "name": "AC/DC breakers", "spec": "", "qty": 1, "vendorCost": 7000, "price": 10000}, {"kind": "surge", "name": "AC/DC surge protection", "spec": "", "qty": 1, "vendorCost": 16000, "price": 20000}, {"kind": "box", "name": "Breaker box", "spec": "", "qty": 1, "vendorCost": 5000, "price": 10000}, {"kind": "accessories", "name": "Accessories", "spec": "", "qty": 1, "vendorCost": 10000, "price": 20000}, {"kind": "installation", "name": "Installation", "spec": "", "qty": 1, "vendorCost": 50000, "price": 100000}, {"kind": "logistics", "name": "Delivery (Kaduna)", "spec": "", "qty": 1, "vendorCost": 10000, "price": 20000}]'::jsonb, '["Whole home", "1.5 HP air conditioner", "Freezer"]'::jsonb, '["About 4–5 hours with everything on", "All night at normal use"]'::jsonb, 0.2, null, 6);
