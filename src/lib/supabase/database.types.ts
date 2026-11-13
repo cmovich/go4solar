@@ -1141,6 +1141,7 @@ export type Database = {
           extension_until: string | null
           funder_id: string | null
           id: string
+          payment_type: string
           profit_snapshot: Json | null
           quote_id: string | null
           start_date: string | null
@@ -1165,6 +1166,7 @@ export type Database = {
           extension_until?: string | null
           funder_id?: string | null
           id?: string
+          payment_type?: string
           profit_snapshot?: Json | null
           quote_id?: string | null
           start_date?: string | null
@@ -1189,6 +1191,7 @@ export type Database = {
           extension_until?: string | null
           funder_id?: string | null
           id?: string
+          payment_type?: string
           profit_snapshot?: Json | null
           quote_id?: string | null
           start_date?: string | null
@@ -2662,7 +2665,7 @@ export type Database = {
         'pending_approval' | 'approved' | 'active' | 'completed' | 'defaulted' | 'cancelled'
       mandate_status: 'pending' | 'active' | 'failed' | 'cancelled'
       outbox_channel: 'sms' | 'whatsapp' | 'email'
-      payment_kind: 'deposit' | 'instalment' | 'refund'
+      payment_kind: 'deposit' | 'instalment' | 'refund' | 'full_payment'
       payment_status: 'pending' | 'success' | 'failed'
       profit_stage: 'quoted' | 'approved' | 'actual'
       quote_status: 'draft' | 'chosen' | 'expired'
@@ -2857,7 +2860,7 @@ export const Constants = {
       ],
       mandate_status: ['pending', 'active', 'failed', 'cancelled'],
       outbox_channel: ['sms', 'whatsapp', 'email'],
-      payment_kind: ['deposit', 'instalment', 'refund'],
+      payment_kind: ['deposit', 'instalment', 'refund', 'full_payment'],
       payment_status: ['pending', 'success', 'failed'],
       profit_stage: ['quoted', 'approved', 'actual'],
       quote_status: ['draft', 'chosen', 'expired'],

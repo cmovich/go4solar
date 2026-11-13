@@ -147,6 +147,8 @@ export type ApplicationDetail = {
   ownSystem: boolean
   /** A ready-made plan's name (null for a system built in the builder). */
   readyPlanName: string | null
+  /** A ready-made plan paid in full (one payment, no credit review). */
+  paidInFull: boolean
   /** The sizing stored with the quote ("How this was sized"). */
   size: SystemSize | null
   checks: {
@@ -270,6 +272,10 @@ export async function applicationDetail(id: string): Promise<ApplicationDetail |
     quote,
     plan,
     ownSystem,
+    paidInFull:
+      quoteRes.data && 'builder' in quoteRes.data
+        ? storedBuild(quoteRes.data.builder)?.fixed?.payment === 'full'
+        : false,
     readyPlanName:
       quoteRes.data && 'builder' in quoteRes.data
         ? storedBuild(quoteRes.data.builder)?.fixed

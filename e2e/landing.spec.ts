@@ -98,7 +98,10 @@ test.describe('landing page', () => {
     // note ("Prices for Kaduna. Delivery to other states…"), never as a coverage limit.
     const planNote = await page.getByTestId('ready-plans-note').count()
     await expect(page.getByText(/Kaduna/)).toHaveCount(
-      (await page.locator('address').getByText(/Kaduna/).count()) + planNote,
+      (await page
+        .locator('address')
+        .getByText(/Kaduna/)
+        .count()) + planNote,
     )
     await expect(page.getByText('Serving homes and businesses across Nigeria.')).toBeVisible()
   })

@@ -4,6 +4,8 @@ const fixedSchema = z.object({
   fullPayment: z.number(),
   fullDiscount: z.number(),
   extra: z.object({ state: z.string(), amount: z.number() }).nullable(),
+  /** 'full': paid in one payment (no deposit, no monthly payments). */
+  payment: z.enum(['plan', 'full']).optional(),
 })
 
 const storedSchema = z.object({

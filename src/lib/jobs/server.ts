@@ -279,7 +279,7 @@ export async function customerSignOff(userId: string): Promise<Result> {
   const admin = createAdminClient()
   const { data: loan } = await admin
     .from('loans')
-    .select('id, application_id, status')
+    .select('id, application_id, status, payment_type')
     .eq('consumer_id', userId)
     .eq('status', 'approved')
     .limit(1)
@@ -311,9 +311,11 @@ export async function customerSignOff(userId: string): Promise<Result> {
       .update({ due_date: dates[r.n - 1]! })
       .eq('id', r.id)
   }
+  // Paid in full: nothing more to pay, so the order is completed. Otherwise the plan starts.
+  const paidInFull = loan.payment_type === 'full'
   await admin
     .from('loans')
-    .update({ status: 'active', start_date: lagosDate(now) })
+    .update({ status: paidInFull ? 'completed' : 'active', start_date: lagosDate(now) })
     .eq('id', loan.id)
   await audit(
     { id: userId, role: 'consumer' },
@@ -324,7 +326,12 @@ export async function customerSignOff(userId: string): Promise<Result> {
   )
 
   const c = await customerOf(loan.id)
-  if (c && dates[0]) {
+  if (c && paidInFull) {
+    await notifyCustomer(c, 'installation_confirmed', {
+      subject: 'Thank you: your solar system is confirmed',
+      text: `Thank you, ${c.firstName}. Your solar system is confirmed. It is fully paid: there is nothing more to pay.`,
+    })
+  } else if (c && dates[0]) {
     await notifyCustomer(c, 'plan_started', {
       subject: 'Thank you: your payment plan has started',
       text: `Thank you, ${c.firstName}. Your solar system is confirmed. Your first monthly payment is due on ${longDate(dates[0])}.`,

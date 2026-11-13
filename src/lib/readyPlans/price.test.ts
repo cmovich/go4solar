@@ -4,6 +4,7 @@ import { SEEDED_PLANS } from './plans.fixture'
 import {
   cardFigures,
   deliveryExtra,
+  fullPaymentQuoteResult,
   planSize,
   planPrice,
   priceReadyPlan,
@@ -158,5 +159,31 @@ describe('cardFigures (landing cards and the plan page)', () => {
       { months: 12, deposit: 93_000, monthly: 49_600, totalPayable: 688_200 },
     ])
     expect(c.fullPayment).toBe(516_150)
+  })
+})
+
+describe('fullPaymentQuoteResult (pay in full: one payment, no monthly schedule)', () => {
+  it('the whole pay-in-full price is paid upfront; nothing financed; cost = vendor costs', () => {
+    const p = plan('oga-boss')
+    const q = fullPaymentQuoteResult(p, priceReadyPlan(p, 12), 'Kaduna')
+    expect(q).toMatchObject({
+      systemPrice: 1_450_770,
+      deposit: 1_450_770,
+      balance: 0,
+      instalments: [],
+      monthly: 0,
+      costPrice: 1_102_500,
+    })
+    // The stored deposit share stays the plan's (records allow 20–95%); "pay in full" is marked
+    // on the stored plan (fixed.payment), not by a 100% deposit.
+    expect(q.snapshot).toMatchObject({ tenureMonths: 12, depositShare: 0.2 })
+  })
+  it('extra delivery is part of the one payment (never discounted)', () => {
+    const p = plan('oga-boss')
+    const q = fullPaymentQuoteResult(p, priceReadyPlan(p, 12, 45_000), 'Lagos')
+    expect(q.systemPrice).toBe(1_450_770 + 45_000)
+    expect(q.deposit).toBe(1_450_770 + 45_000)
+    expect(q.costPrice).toBe(1_102_500 + 45_000)
+    expect(q.noMarkup).toContainEqual({ label: 'Delivery to Lagos (extra)', amount: 45_000 })
   })
 })

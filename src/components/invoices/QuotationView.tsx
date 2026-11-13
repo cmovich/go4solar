@@ -87,32 +87,52 @@ export function QuotationView({ d }: { d: InvoiceData }) {
               {formatNaira(d.totals.total)}
             </strong>
           </p>
-          <p className="flex justify-between gap-3">
-            <span>Deposit ({formatPercent(d.totals.depositShare)})</span>
-            <strong>{formatNaira(d.totals.deposit)}</strong>
-          </p>
-          {d.fixed?.extra && (
-            <p className="flex justify-between gap-3" data-testid="quotation-extra-delivery">
-              <span>Delivery to {d.fixed.extra.state} (extra, paid with the deposit)</span>
-              <strong>{formatNaira(d.fixed.extra.amount)}</strong>
-            </p>
+          {d.fixed?.payment === 'full' ? (
+            <>
+              {d.fixed.extra && (
+                <p className="flex justify-between gap-3" data-testid="quotation-extra-delivery">
+                  <span>Includes delivery to {d.fixed.extra.state} (extra)</span>
+                  <strong>{formatNaira(d.fixed.extra.amount)}</strong>
+                </p>
+              )}
+              <p data-testid="quotation-paid-in-full">
+                Paid in one payment ({formatPercent(d.fixed.fullDiscount, 0)} off the 12-month
+                price). No monthly payments.
+              </p>
+              <p className="text-muted-foreground pt-1 text-xs">
+                One fixed price. No hidden charges: the total above is everything you pay.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="flex justify-between gap-3">
+                <span>Deposit ({formatPercent(d.totals.depositShare)})</span>
+                <strong>{formatNaira(d.totals.deposit)}</strong>
+              </p>
+              {d.fixed?.extra && (
+                <p className="flex justify-between gap-3" data-testid="quotation-extra-delivery">
+                  <span>Delivery to {d.fixed.extra.state} (extra, paid with the deposit)</span>
+                  <strong>{formatNaira(d.fixed.extra.amount)}</strong>
+                </p>
+              )}
+              <p className="flex justify-between gap-3">
+                <span>Monthly payment</span>
+                <strong>
+                  {formatNaira(d.totals.monthly)} × {d.totals.months} months
+                </strong>
+              </p>
+              {d.fixed && (
+                <p className="flex justify-between gap-3" data-testid="quotation-full-payment">
+                  <span>Or pay in full ({formatPercent(d.fixed.fullDiscount, 0)} off)</span>
+                  <strong>{formatNaira(d.fixed.fullPayment)}</strong>
+                </p>
+              )}
+              <p className="text-muted-foreground pt-1 text-xs">
+                One fixed price. No hidden charges: the total above is everything you pay. Late
+                payments attract 0.75% of the overdue amount per day.
+              </p>
+            </>
           )}
-          <p className="flex justify-between gap-3">
-            <span>Monthly payment</span>
-            <strong>
-              {formatNaira(d.totals.monthly)} × {d.totals.months} months
-            </strong>
-          </p>
-          {d.fixed && (
-            <p className="flex justify-between gap-3" data-testid="quotation-full-payment">
-              <span>Or pay in full ({formatPercent(d.fixed.fullDiscount, 0)} off)</span>
-              <strong>{formatNaira(d.fixed.fullPayment)}</strong>
-            </p>
-          )}
-          <p className="text-muted-foreground pt-1 text-xs">
-            One fixed price. No hidden charges: the total above is everything you pay. Late payments
-            attract 0.75% of the overdue amount per day.
-          </p>
         </section>
 
         <section>

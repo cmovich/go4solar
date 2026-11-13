@@ -36,6 +36,8 @@ export type FixedPlanTotals = {
   fullDiscount: number
   /** Delivery outside the plan's included state: paid with the deposit, not financed. */
   extra: { state: string; amount: number } | null
+  /** 'full': the customer pays everything in one payment (no deposit, no monthly payments). */
+  payment?: 'plan' | 'full'
 }
 
 /** Everything the invoice prints; stored with the invoice so it never changes afterwards. */
@@ -166,11 +168,14 @@ export function buildInvoice(i: InvoiceInput): InvoiceData {
     lines,
     totals: {
       total: i.result.systemPrice,
-      deposit: i.result.deposit - (fixed?.extra?.amount ?? 0),
+      deposit:
+        fixed?.payment === 'full'
+          ? i.result.deposit
+          : i.result.deposit - (fixed?.extra?.amount ?? 0),
       depositShare: i.result.snapshot.depositShare,
       balance: i.result.balance,
       monthly: i.result.monthly,
-      months: i.result.snapshot.tenureMonths,
+      months: fixed?.payment === 'full' ? 0 : i.result.snapshot.tenureMonths,
     },
     notes,
     ...(fixed ? { fixed } : {}),

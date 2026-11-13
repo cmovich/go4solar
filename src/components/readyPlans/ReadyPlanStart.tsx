@@ -33,12 +33,15 @@ export function ReadyPlanStart({
   planName,
   months,
   state,
+  payment = 'plan',
   roofTypes,
 }: {
   slug: string
   planName: string
   months: number
   state: NgStateId
+  /** 'full': pay in full (one payment, no monthly payments, no ID checks). */
+  payment?: 'plan' | 'full'
   roofTypes: RoofTypeCard[]
 }) {
   const [step, setStep] = useState<Step>('mounting')
@@ -46,7 +49,7 @@ export function ReadyPlanStart({
   const [doc, setDoc] = useState<InvoiceData | null | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
-  const choice = { slug, months, state }
+  const choice = { slug, months, state, payment }
 
   function toQuotation(next: SiteAnswers) {
     setSite(next)
@@ -72,6 +75,7 @@ export function ReadyPlanStart({
   const pdf = `/plans/${slug}/pdf?${new URLSearchParams({
     months: String(months),
     state,
+    ...(payment === 'full' ? { pay: 'full' } : {}),
     site: encodeSite(site),
   })}`
 

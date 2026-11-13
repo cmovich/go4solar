@@ -161,6 +161,30 @@ export function readyQuoteResult(p: ReadyPlan, priced: ReadyPriced, state: strin
   }
 }
 
+/**
+ * Pay in full: the same plan as one payment of its pay-in-full price (the 12-month total payable
+ * less the discount, plus any extra delivery). Nothing is financed: no balance, no monthly
+ * payments. Cost price = vendor costs (+ the extra delivery), as for a monthly plan.
+ */
+export function fullPaymentQuoteResult(
+  p: ReadyPlan,
+  priced: ReadyPriced,
+  state: string,
+): QuoteResult {
+  const base = readyQuoteResult(p, priced, state)
+  return {
+    ...base,
+    systemPrice: priced.fullPayment,
+    deposit: priced.fullPayment,
+    balance: 0,
+    instalments: [],
+    monthly: 0,
+    // Deposit share stays the plan's: records allow 20–95%, and "pay in full" is marked on the
+    // stored plan (fixed.payment), not by a 100% deposit.
+    snapshot: { ...base.snapshot, tenureMonths: 12 },
+  }
+}
+
 /** What may reach a browser: no vendor costs, no per-line prices, no rate, no admin note. */
 export type PublicReadyPlan = {
   slug: string

@@ -28,7 +28,11 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     .eq('consumer_id', session.user.id)
     .eq('status', 'success')
     .maybeSingle()
-  if (!pay || (pay.kind !== 'deposit' && pay.kind !== 'instalment') || !pay.application_id) {
+  if (
+    !pay ||
+    (pay.kind !== 'deposit' && pay.kind !== 'instalment' && pay.kind !== 'full_payment') ||
+    !pay.application_id
+  ) {
     return new Response('Not found', { status: 404 })
   }
 
@@ -41,8 +45,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     : { data: null }
   const financed = Number((quote?.result as { balance?: number } | null)?.balance ?? 0)
 
-  let label = 'Deposit'
-  let amountLeft = financed
+  let label = pay.kind === 'full_payment' ? 'Full payment (paid in full)' : 'Deposit'
+  let amountLeft = pay.kind === 'full_payment' ? 0 : financed
   if (pay.kind === 'instalment') {
     const [{ data: months }, { data: paidBefore }] = await Promise.all([
       pay.loan_id

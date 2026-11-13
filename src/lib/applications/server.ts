@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { isOwnSystem, systemTitle } from '@/lib/build/stored'
+import { isOwnSystem, storedBuild, systemTitle } from '@/lib/build/stored'
 
 import { isStaffRole } from '@/lib/auth/staffRoles'
 import { getSessionInfo } from '@/lib/auth/session'
@@ -133,6 +133,17 @@ export async function waitingQuote(userId: string): Promise<string | null> {
  * moves to it (and the guarantor is asked again), a declined application gives way to a new
  * one, and a signed or submitted application stays as it is (see applicationForNewQuote).
  */
+/** Is this application's quote a ready-made plan paid in full (no wizard, one payment)? */
+export async function paysInFull(app: ApplicationRow): Promise<boolean> {
+  if (!app.quote_id) return false
+  const { data } = await createAdminClient()
+    .from('quotes')
+    .select('*')
+    .eq('id', app.quote_id)
+    .maybeSingle()
+  return Boolean(data && 'builder' in data && storedBuild(data.builder)?.fixed?.payment === 'full')
+}
+
 export async function ensureApplication(userId: string): Promise<ApplicationRow | null> {
   const admin = createAdminClient()
   const { data: existing } = await admin

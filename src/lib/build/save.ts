@@ -202,6 +202,7 @@ export async function saveBuiltSystem(input: {
       monthly: quote.monthly,
       tenureMonths: quote.snapshot.tenureMonths,
       samplePrices: stored.sample,
+      paidInFull: stored.fixed?.payment === 'full',
     })
   }
   return { ok: true, leadId: lead.id, quoteId }

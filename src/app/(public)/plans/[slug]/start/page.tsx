@@ -21,7 +21,7 @@ export default async function ReadyPlanStartPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ months?: string; state?: string }>
+  searchParams: Promise<{ months?: string; state?: string; pay?: string }>
 }) {
   const [{ slug }, sp] = await Promise.all([params, searchParams])
   const plan = await loadReadyPlan(slug)
@@ -46,6 +46,7 @@ export default async function ReadyPlanStartPage({
           planName={plan.name}
           months={months}
           state={state}
+          payment={sp.pay === 'full' ? 'full' : 'plan'}
           roofTypes={roofTypes}
         />
       </main>

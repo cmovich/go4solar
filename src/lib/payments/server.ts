@@ -3,7 +3,9 @@ import 'server-only'
 import { randomBytes } from 'node:crypto'
 
 import type { CheckSummary } from '@/lib/applications/rules'
+import { storedBuild } from '@/lib/build/stored'
 import { formatNaira } from '@/lib/money'
+import { fullPaymentProfit } from '@/lib/profit/fullPayment'
 import type { QuoteResult } from '@/lib/pricing/types'
 import { getMessagingProvider } from '@/lib/providers/messaging'
 import { getPaymentsProvider } from '@/lib/providers/payments'
@@ -20,7 +22,7 @@ type Payment = Database['public']['Tables']['payments']['Row']
 
 export type EventOutcome = 'applied' | 'duplicate' | 'unknown' | 'rejected' | 'ignored'
 
-const newReference = (prefix: 'DEP' | 'INS' | 'MDT' | 'RFD') =>
+const newReference = (prefix: 'DEP' | 'FUL' | 'INS' | 'MDT' | 'RFD') =>
   `G4S-${prefix}-${randomBytes(6).toString('hex').toUpperCase()}`
 
 // ------------------------------------------------------------ loading
@@ -40,11 +42,17 @@ async function storedQuote(app: Application) {
   if (!app.quote_id) return null
   const { data } = await createAdminClient()
     .from('quotes')
-    .select('id, tenure, result')
+    .select('*')
     .eq('id', app.quote_id)
     .maybeSingle()
   if (!data?.tenure) return null
-  return { id: data.id, tenure: data.tenure, result: data.result as unknown as QuoteResult }
+  return {
+    id: data.id,
+    tenure: data.tenure,
+    result: data.result as unknown as QuoteResult,
+    // Ready-made plan paid in full (one payment, no monthly schedule).
+    paysInFull: 'builder' in data && storedBuild(data.builder)?.fixed?.payment === 'full',
+  }
 }
 
 /** Signatures + KYC → can the deposit be paid yet, and what is still missing. */
@@ -228,8 +236,142 @@ async function chargeSucceeded(
   if (error || !won?.length) return 'duplicate'
 
   if (row.kind === 'deposit') await submitAfterDeposit(row)
+  if (row.kind === 'full_payment') await approveAfterFullPayment(row, fromKobo(ev.feesKobo))
   if (row.kind === 'instalment') await applyInstalment(row)
   return 'applied'
+}
+
+// ------------------------------------------------------------ pay in full
+/**
+ * Pay in full (a ready-made plan): one payment of the pay-in-full price. No ID checks, guarantor
+ * or agreement are needed (nothing is financed); the installation address and an email are.
+ */
+export async function startFullPayment(userId: string, origin: string): Promise<StartResult> {
+  const app = await latestApplication(userId)
+  if (!app) return { ok: false, error: 'No order found.' }
+  if (app.status !== 'draft') return { ok: false, error: 'This order has already been paid.' }
+  const quote = await storedQuote(app)
+  if (!quote?.paysInFull) return { ok: false, error: 'This plan is not set to be paid in full.' }
+  const address = (app.install_address ?? null) as { line1?: string } | null
+  if (!address?.line1?.trim()) {
+    return { ok: false, error: 'Add the installation address first.', missing: ['address'] }
+  }
+  const { email } = contactOf(app)
+  if (!email) return { ok: false, error: 'Add your email address first.' }
+
+  const admin = createAdminClient()
+  const provider = await getPaymentsProvider()
+  const reference = newReference('FUL')
+  const { error } = await admin.from('payments').insert({
+    provider: provider.name,
+    reference,
+    kind: 'full_payment',
+    consumer_id: userId,
+    application_id: app.id,
+    amount: quote.result.deposit,
+    status: 'pending',
+  })
+  if (error) return { ok: false, error: 'Could not start the payment. Please try again.' }
+  const { authorizationUrl } = await provider.initDeposit({
+    email,
+    amount: quote.result.deposit,
+    reference,
+    callbackUrl: `${origin}/app/pay-in-full/return`,
+    metadata: { kind: 'full_payment', application_id: app.id },
+  })
+  return { ok: true, url: authorizationUrl }
+}
+
+/**
+ * Paid in full: the order is approved at once (no credit review), nothing is drawn from a funder
+ * and there is no repayment schedule. The profit is saved now (price − cost − the payment fee).
+ * It then waits in Admin → Jobs for an installer like any approved plan.
+ */
+async function approveAfterFullPayment(payment: Payment, fees: number) {
+  const admin = createAdminClient()
+  const { data: app } = await admin
+    .from('applications')
+    .select('*')
+    .eq('id', payment.application_id!)
+    .single()
+  if (!app) throw new Error('full payment for a missing application')
+  const quote = await storedQuote(app)
+  if (!quote) throw new Error('full payment for an application without a quote')
+  const now = new Date().toISOString()
+  const profit = fullPaymentProfit({
+    systemPrice: quote.result.systemPrice,
+    costPrice: quote.result.costPrice,
+    fees,
+  })
+  // The unique application_id makes this safe to repeat.
+  await admin.from('loans').upsert(
+    {
+      application_id: app.id,
+      consumer_id: app.consumer_id,
+      quote_id: quote.id,
+      payment_type: 'full',
+      system_price: quote.result.systemPrice,
+      cost_price: quote.result.costPrice,
+      deposit: Number(payment.amount),
+      balance: 0,
+      tenure: quote.tenure,
+      status: 'approved',
+      approved_at: now,
+      drawn: 0,
+      funder_id: null,
+      auto_pay: false,
+      profit_snapshot: {
+        stage: 'approved',
+        at: now,
+        paidInFull: true,
+        funderId: null,
+        funderName: null,
+        recordedFees: fees,
+        netShare: quote.result.systemPrice > 0 ? profit.netProfit / quote.result.systemPrice : 0,
+        profit,
+      } as unknown as Json,
+    },
+    { onConflict: 'application_id', ignoreDuplicates: true },
+  )
+  const { data: loan } = await admin
+    .from('loans')
+    .select('id')
+    .eq('application_id', app.id)
+    .single()
+  if (!loan) throw new Error('loan not created')
+  await admin.from('payments').update({ loan_id: loan.id }).eq('id', payment.id)
+  await admin
+    .from('applications')
+    .update({
+      status: 'approved',
+      submitted_at: now,
+      decided_at: now,
+      decision_reason: 'Paid in full',
+    })
+    .eq('id', app.id)
+    .eq('status', 'draft')
+
+  const { email, phone, firstName } = contactOf(app)
+  const text =
+    `Hi ${firstName}, we have received your full payment of ${formatNaira(Number(payment.amount))}. ` +
+    'Thank you. We will call you to schedule your installation.'
+  const messaging = await getMessagingProvider()
+  await Promise.allSettled([
+    phone &&
+      messaging.send({
+        channel: 'sms',
+        to: phone,
+        template: 'full_payment_received',
+        payload: { text },
+      }),
+    email &&
+      messaging.send({
+        channel: 'email',
+        to: email,
+        template: 'full_payment_received',
+        payload: { subject: 'Payment received: your solar system is on its way', text },
+      }),
+  ])
 }
 
 /** Deposit paid: application submitted, loan pending approval, schedule from the quote. */

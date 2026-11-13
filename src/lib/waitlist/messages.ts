@@ -21,6 +21,8 @@ export type WaitlistConfirmation = {
   tenureMonths: number
   /** True while any price used is a SAMPLE price: no naira amounts are sent. */
   samplePrices: boolean
+  /** A ready-made plan paid in full: one payment (systemPrice), no deposit or monthly payments. */
+  paidInFull?: boolean
 }
 
 export { PRICE_LATER_TEXT, THANK_YOU_TEXT }
@@ -33,6 +35,13 @@ export function confirmationText(c: WaitlistConfirmation): string {
       `Hi ${c.firstName}. ${THANK_YOU_TEXT}\n\n` +
       `Your choice: ${what}, ${formatPercent(c.depositShare)} upfront. ` +
       PRICE_LATER_TEXT
+    )
+  }
+  if (c.paidInFull) {
+    return (
+      `Hi ${c.firstName}. ${THANK_YOU_TEXT}\n\n` +
+      `Your estimate: ${what} — pay in full: ${formatNaira(c.systemPrice)} in one payment. ` +
+      'One fixed price. No hidden charges. This is an estimate; your final quote comes at launch.'
     )
   }
   return (

@@ -162,6 +162,19 @@ describe('customer sign-off (commissioning)', () => {
   })
 })
 
+describe('customerSignOff: paid in full', () => {
+  it('the order is completed (nothing more to pay): no due dates, no "first monthly payment"', async () => {
+    db.rows('loans')[0]!.payment_type = 'full'
+    db.rows('repayment_schedule').length = 0
+    await installedJob()
+    expect(await jobs.customerSignOff('u-1')).toEqual({ ok: true })
+    expect(db.rows('loans')[0]).toMatchObject({ status: 'completed' })
+    const done = sent.find((m) => m.template === 'installation_confirmed')
+    expect(done?.payload.text).toMatch(/fully paid/)
+    expect(sent.map((m) => m.template)).not.toContain('plan_started')
+  })
+})
+
 describe('confirmPayout (separation of duties)', () => {
   async function commissioned() {
     const id = await installedJob()

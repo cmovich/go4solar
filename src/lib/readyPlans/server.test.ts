@@ -84,3 +84,17 @@ describe('loadReadyPlans', () => {
     expect(await loadReadyPlans({ activeOnly: false })).toHaveLength(6)
   })
 })
+
+describe('storedReadyPlan: pay in full', () => {
+  it('one payment of the pay-in-full price, marked full; the months are ignored', () => {
+    const s = storedReadyPlan(oga, 6, 'Lagos', {}, rows, 'full')
+    expect(s.fixed).toMatchObject({ payment: 'full', fullPayment: 1_450_770 + 50_000 })
+    expect(s.quote).toMatchObject({
+      systemPrice: 1_500_770,
+      deposit: 1_500_770,
+      balance: 0,
+      monthly: 0,
+    })
+    expect(s.quote.instalments).toEqual([])
+  })
+})
