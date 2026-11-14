@@ -238,8 +238,11 @@ export function planSize(p: ReadyPlan): SystemSize {
   const panels = p.lines.filter((l) => l.kind === 'panels')
   const panelCount = panels.reduce((t, l) => t + l.qty, 0)
   const panelW = panels.reduce((t, l) => t + firstNumber(l.spec, 'W') * l.qty, 0)
+  const inverterSpec = p.lines.find((l) => l.kind === 'inverter')?.spec ?? ''
+  const label = /([0-9]+(?:\.[0-9]+)?)\s*(kVA|kW|W)\b/i.exec(inverterSpec)
   return {
     inverterKva: p.inverterKva,
+    ...(label ? { inverterLabel: `${label[1]} ${label[2]}` } : {}),
     batteryKwh: r2(battery),
     panelCount,
     panelKw: r2(panelW / 1000),

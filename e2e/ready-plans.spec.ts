@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 import { ownConnection } from './helpers/connection'
-import { chooseAndAccept, PLAN_ORDER, readyPlansMigrated } from './helpers/readyPlans'
+import { chooseAndAccept, PLAN_ORDER, readyPlansMigrated, RELAX_MAX } from './helpers/readyPlans'
 import { loginAsStaff } from './helpers/staff'
 
 /**
@@ -24,15 +24,17 @@ test.describe('ready-made plans', () => {
     const section = page.getByTestId('ready-plans')
     await expect(section).toBeVisible()
     const cards = section.locator('article[data-testid^="ready-plan-"]')
+    const maxShown = (await page.getByTestId(`ready-plan-${RELAX_MAX}`).count()) > 0
+    const expected = maxShown ? [...PLAN_ORDER, RELAX_MAX] : PLAN_ORDER
     expect(await cards.evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')))).toEqual(
-      PLAN_ORDER.map((s) => `ready-plan-${s}`),
+      expected.map((s) => `ready-plan-${s}`),
     )
     await expect(section.getByTestId('ready-plans-note')).toHaveText(
       'Prices for Kaduna. Delivery to other states is paid by the customer.',
     )
     // Every card starts with its plan picture, and the pictures really load (4:3 WebP).
     const pictures = cards.locator('img')
-    await expect(pictures).toHaveCount(6)
+    await expect(pictures).toHaveCount(expected.length)
     for (const img of await pictures.all()) {
       await img.scrollIntoViewIfNeeded()
       await expect(img).toHaveAttribute('src', /\/site-media\/plan\/.+\.webp$/)
@@ -43,6 +45,21 @@ test.describe('ready-made plans', () => {
     // The voltage tag on every card; Relax is the 48 V system.
     await expect(page.getByTestId('ready-plan-relax')).toContainText('48 V system')
     await expect(page.getByTestId('ready-plan-no-wahala')).toContainText('24 V system')
+    // Relax Max (7th plan): switched off → no card and its page is not found. Once switched on:
+    // 48 V, after Relax (checked above), Relax's photo for now, and no naira while SAMPLE.
+    if (maxShown) {
+      const max = page.getByTestId(`ready-plan-${RELAX_MAX}`)
+      await expect(max).toContainText('48 V system')
+      await expect(max.locator('img')).toHaveAttribute(
+        'src',
+        (await page.getByTestId('ready-plan-relax').locator('img').getAttribute('src'))!,
+      )
+      if ((await max.getByTestId('card-price').count()) === 0) {
+        await expect(max).not.toContainText('₦')
+      }
+    } else {
+      expect((await page.request.get(`/plans/${RELAX_MAX}`)).status()).toBe(404)
+    }
     // Confirmed prices: deposit and the 12-month payment (I Pass My Neighbour: ₦93,000, then
     // ₦49,600). SAMPLE: no naira at all. Never the word "interest".
     const neighbour = page.getByTestId('ready-plan-i-pass-my-neighbour')
@@ -156,16 +173,16 @@ test.describe('ready-made plans: staff', () => {
     test.skip(test.info().project.name === 'mobile', 'one browser is enough')
   })
 
-  test('admin: six plans, SAMPLE, staff notes; the editor preview shows the exact figures', async ({
+  test('admin: seven plans (Relax Max last), staff notes; the editor preview shows the exact figures', async ({
     page,
   }) => {
     test.skip(!process.env.E2E_STAFF_EMAIL, 'needs the e2e staff account')
     await loginAsStaff(page)
     await page.goto('/admin/pricing/ready-plans')
     const rows = page.getByTestId('ready-plan-row')
-    await expect(rows).toHaveCount(6)
+    await expect(rows).toHaveCount(7)
     // A picture per plan, and a replace field in the editor.
-    await expect(page.getByTestId('plan-thumb')).toHaveCount(6)
+    await expect(page.getByTestId('plan-thumb')).toHaveCount(7)
     await expect(rows.first()).toContainText('Charge controller must be ≥30 A.')
     await expect(rows.nth(2)).toContainText('needs ~130 A charging')
     // I Pass My Neighbour: ₦93,000 deposit, ₦49,600 a month, pay in full ₦516,150.
@@ -177,6 +194,16 @@ test.describe('ready-made plans: staff', () => {
     await expect(preview).toContainText('9 months: deposit ₦93,000, then ₦59,933 a month')
     await expect(preview).toContainText('Pay in full: ₦516,150 (25% off)')
     // Cancel: nothing saved.
+    await page.getByRole('button', { name: 'Cancel' }).first().click()
+    // Relax Max (added switched off): its staff note and Semako's figures.
+    const max = rows.nth(6)
+    await expect(max).toContainText('Relax Max')
+    await expect(max).toContainText("Check the inverter's max PV input ≥ 11.7 kW.")
+    await expect(max).toContainText('₦1,216,400 / ₦648,747')
+    await max.getByRole('button', { name: 'Edit' }).click()
+    await expect(preview).toContainText('6 months: deposit ₦1,216,400, then ₦1,054,213 a month')
+    await expect(preview).toContainText('9 months: deposit ₦1,216,400, then ₦783,902 a month')
+    await expect(preview).toContainText('Pay in full: ₦7,201,088 (20% off)')
     await page.getByRole('button', { name: 'Cancel' }).first().click()
   })
 

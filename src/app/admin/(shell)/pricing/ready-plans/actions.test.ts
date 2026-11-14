@@ -122,6 +122,12 @@ describe('plan pictures (upload/replace in the editor)', () => {
     await saveReadyPlan({ ...one, id: 'p1', image: old })
     expect(removed).toEqual([])
   })
+  it("a picture another plan still uses stays in storage (Relax Max shares Relax's photo)", async () => {
+    db.seed('ready_plans', { ...planToRow(two), id: 'p2', image: old })
+    expect(await saveReadyPlan({ ...one, id: 'p1', image: next })).toEqual({ ok: true, id: 'p1' })
+    expect(removed).toEqual([])
+    expect(db.rows('audit_log').map((a) => a.action)).toEqual(['ready_plan.update'])
+  })
   it('if storage fails the save still stands (the old file is only logged)', async () => {
     removeFails = true
     expect(await saveReadyPlan({ ...one, id: 'p1', image: next })).toEqual({ ok: true, id: 'p1' })

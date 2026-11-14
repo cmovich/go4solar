@@ -66,3 +66,8 @@ export function planBlurb(size: SystemSize, plan: Plan): string {
   if (plan === 'comfort') return `Everything on, at full load, ${span} when there is no grid.`
   return `Everything on, at full load, ${span} without grid or generator.`
 }
+
+/** The inverter size customers read: the plan's own wording ("12 kW") or "<n> kVA". */
+export function inverterText(size: Pick<SystemSize, 'inverterKva' | 'inverterLabel'>): string {
+  return size.inverterLabel ?? `${size.inverterKva} kVA`
+}

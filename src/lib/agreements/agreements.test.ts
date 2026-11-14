@@ -7,6 +7,8 @@ import { computeLoadTotals } from '@/lib/load/totals'
 import { formatNaira } from '@/lib/money'
 import { buildEstimate } from '@/lib/quotes/buildEstimate'
 import { priceVariant } from '@/lib/quotes/quote'
+import { SEEDED_PLANS } from '@/lib/readyPlans/plans.fixture'
+import { planSize } from '@/lib/readyPlans/price'
 import { DEFAULT_QUOTE_SETTINGS } from '@/lib/settings/schemas'
 
 import {
@@ -149,6 +151,27 @@ describe('agreement rendering', () => {
     expect(short.systemDescription).toContain(
       'The battery is smaller than this plan calls for: expect about 0.64 hours less backup than planned.',
     )
+  })
+
+  it('a ready-made plan keeps its own inverter wording (Relax Max: 12 kW, not kVA)', () => {
+    const max = SEEDED_PLANS.find((p) => p.slug === 'relax-max')!
+    const v = agreementValues({
+      reference: 'G4S-2',
+      date: new Date(),
+      quote,
+      tenure: 12,
+      size: planSize(max),
+      customerName: 'Chidi Eze',
+      business: null,
+      signerName: 'Chidi Eze',
+      signerTitle: null,
+      address: 'x',
+      lateFeeDaily: 0.0075,
+      lateFeeCap: 0.25,
+      lockAfterDays: 7,
+    })
+    expect(v.systemDescription).toMatch(/^a 12 kW inverter, 17.5 kWh/)
+    expect(values.systemDescription).toMatch(/^a [0-9.]+ kVA inverter/)
   })
 
   it('every number comes from the stored quote snapshot', () => {

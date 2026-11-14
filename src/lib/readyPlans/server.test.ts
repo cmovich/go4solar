@@ -81,7 +81,7 @@ describe('loadReadyPlans', () => {
     expect((await loadReadyPlans({ activeOnly: true })).map((p) => p.slug)).not.toContain(
       'oga-boss',
     )
-    expect(await loadReadyPlans({ activeOnly: false })).toHaveLength(6)
+    expect(await loadReadyPlans({ activeOnly: false })).toHaveLength(SEEDED_PLANS.length)
   })
 })
 
