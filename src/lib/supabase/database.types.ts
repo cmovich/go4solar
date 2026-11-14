@@ -1883,6 +1883,7 @@ export type Database = {
           monthly_rate: number
           name: string
           sample: boolean
+          show_on_home: boolean
           slug: string
           sort_order: number
           summary: string
@@ -1908,6 +1909,7 @@ export type Database = {
           monthly_rate?: number
           name: string
           sample?: boolean
+          show_on_home?: boolean
           slug: string
           sort_order?: number
           summary: string
@@ -1933,6 +1935,7 @@ export type Database = {
           monthly_rate?: number
           name?: string
           sample?: boolean
+          show_on_home?: boolean
           slug?: string
           sort_order?: number
           summary?: string

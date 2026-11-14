@@ -77,3 +77,55 @@ export async function chooseAndAccept(
   await page.getByTestId('accept-submit').click()
   return { phone, email }
 }
+
+/** Ticked "Show on home page" (migration 0037); with none ticked the first three show anyway. */
+export const HOME_SHOWN = ['i-pass-my-neighbour', 'level-up', 'oga-boss']
+
+/**
+ * Home page "See more plans": the ticked plans show at once; "See more plans (N)" (the last card
+ * on phones, the button under the list on any screen) reveals the other switched-on plans with no
+ * reload; "Show fewer" hides them and leaves the button where it was on screen. Ends collapsed.
+ */
+export async function checkSeeMore(page: Page, mobile: boolean) {
+  const section = page.getByTestId('ready-plans')
+  const cards = section.locator('article[data-testid^="ready-plan-"]')
+  const slugs = (onlyVisible: boolean) =>
+    cards.evaluateAll(
+      (els, v) =>
+        els
+          .filter((e) => !v || e.checkVisibility())
+          .map((e) => e.getAttribute('data-testid')!.replace('ready-plan-', '')),
+      onlyVisible,
+    )
+  const all = await slugs(false)
+  const moreCount = all.length - HOME_SHOWN.length
+  expect(moreCount).toBeGreaterThan(0)
+  expect(await slugs(true)).toEqual(HOME_SHOWN)
+  const button = section.getByTestId('see-more-plans')
+  const card = section.getByTestId('see-more-card')
+  await expect(button).toHaveText(`See more plans (${moreCount})`)
+  await expect(button).toHaveAttribute('aria-expanded', 'false')
+  const url = page.url()
+  if (mobile) {
+    await expect(card).toBeVisible()
+    await expect(card).toContainText(`See more plans (${moreCount})`)
+    await card.click()
+  } else {
+    await expect(card).toBeHidden()
+    await button.click()
+  }
+  await expect.poll(() => slugs(true)).toEqual(all)
+  await expect(button).toHaveText('Show fewer')
+  await expect(button).toHaveAttribute('aria-expanded', 'true')
+  await expect(card).toHaveCount(0)
+  expect(page.url()).toBe(url)
+  // Show fewer: the hidden plans go, and the button stays put on screen (no jump).
+  await button.scrollIntoViewIfNeeded()
+  const before = (await button.boundingBox())!.y
+  await button.click()
+  await expect.poll(() => slugs(true)).toEqual(HOME_SHOWN)
+  await expect(button).toHaveText(`See more plans (${moreCount})`)
+  expect(Math.abs((await button.boundingBox())!.y - before)).toBeLessThan(3)
+  if (mobile) await expect(card).toBeVisible()
+  expect(page.url()).toBe(url)
+}

@@ -65,6 +65,7 @@ export const readyPlanSchema = z.object({
   adminNote: text(500).default(null),
   sortOrder: z.number().int().default(0),
   active: z.boolean().default(true),
+  showOnHome: z.boolean().default(false),
   sample: z.boolean().default(true),
 })
 
@@ -104,6 +105,7 @@ export function planToRow(p: ReadyPlan): Insert {
     admin_note: p.adminNote,
     sort_order: p.sortOrder,
     active: p.active,
+    show_on_home: p.showOnHome,
     sample: p.sample,
   }
 }
@@ -136,6 +138,8 @@ export function planFromRow(r: Row): ReadyPlan {
     adminNote: r.admin_note,
     sortOrder: r.sort_order,
     active: r.active,
+    // Missing before migration 0037: then no plan is ticked (the home page shows the first 3).
+    showOnHome: r.show_on_home ?? false,
     sample: r.sample,
   }
 }

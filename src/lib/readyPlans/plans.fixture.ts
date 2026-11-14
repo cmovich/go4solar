@@ -103,6 +103,7 @@ export const SEEDED_PLANS: ReadyPlan[] = [
     adminNote: 'Charge controller must be ≥30 A.',
     sortOrder: 1,
     active: true,
+    showOnHome: true,
     sample: true,
   },
   {
@@ -214,6 +215,7 @@ export const SEEDED_PLANS: ReadyPlan[] = [
     adminNote: null,
     sortOrder: 2,
     active: true,
+    showOnHome: true,
     sample: true,
   },
   {
@@ -326,6 +328,7 @@ export const SEEDED_PLANS: ReadyPlan[] = [
       "Check: 1.6 kW of panels on 12 V needs ~130 A charging — confirm the inverter's charge current, or move to 24 V.",
     sortOrder: 3,
     active: true,
+    showOnHome: true,
     sample: true,
   },
   {
@@ -437,6 +440,7 @@ export const SEEDED_PLANS: ReadyPlan[] = [
     adminNote: null,
     sortOrder: 4,
     active: true,
+    showOnHome: false,
     sample: true,
   },
   {
@@ -548,6 +552,7 @@ export const SEEDED_PLANS: ReadyPlan[] = [
     adminNote: null,
     sortOrder: 5,
     active: true,
+    showOnHome: false,
     sample: true,
   },
   {
@@ -659,6 +664,7 @@ export const SEEDED_PLANS: ReadyPlan[] = [
     adminNote: null,
     sortOrder: 6,
     active: true,
+    showOnHome: false,
     sample: true,
   },
   {
@@ -763,6 +769,7 @@ export const SEEDED_PLANS: ReadyPlan[] = [
     adminNote: "Check the inverter's max PV input ≥ 11.7 kW.",
     sortOrder: 7,
     active: true,
+    showOnHome: false,
     sample: true,
   },
 ]

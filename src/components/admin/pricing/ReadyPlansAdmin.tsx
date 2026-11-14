@@ -19,6 +19,7 @@ import {
   moveReadyPlan,
   saveReadyPlan,
   setReadyPlanActive,
+  setReadyPlanShowOnHome,
 } from '@/app/admin/(shell)/pricing/ready-plans/actions'
 
 type AdminPlan = ReadyPlan & { imageUrl: string | null }
@@ -51,6 +52,7 @@ const BLANK: AdminPlan = {
   adminNote: null,
   sortOrder: 99,
   active: true,
+  showOnHome: false,
   sample: true,
 }
 
@@ -91,6 +93,9 @@ export function ReadyPlansAdmin({ plans, states }: { plans: AdminPlan[]; states:
             Fixed bundles on the home page and at /plans/&lt;address&gt;. Priced with their own flat
             monthly rate, not the sizing engine. Customers never see vendor costs, line prices or
             the rate. A new plan stays SAMPLE (no naira shown) until you confirm its prices.
+            &ldquo;Show on home page&rdquo;: ticked plans show at once; other switched-on plans sit
+            under &ldquo;See more plans&rdquo; (new plans start unticked; with none ticked, the
+            first 3 show).
           </p>
         </div>
         <Button type="button" onClick={() => setEditing({ ...BLANK, sortOrder: plans.length + 1 })}>
@@ -106,13 +111,20 @@ export function ReadyPlansAdmin({ plans, states }: { plans: AdminPlan[]; states:
         <table className="w-full text-sm">
           <thead className="bg-brand-green text-left text-white">
             <tr>
-              {['Order', 'Plan', 'Price', 'Vendor cost', 'Deposit / 12 months', 'Status', ''].map(
-                (h) => (
-                  <th key={h} className="px-3 py-2 font-semibold whitespace-nowrap">
-                    {h}
-                  </th>
-                ),
-              )}
+              {[
+                'Order',
+                'Plan',
+                'Price',
+                'Vendor cost',
+                'Deposit / 12 months',
+                'Status',
+                'Show on home page',
+                '',
+              ].map((h) => (
+                <th key={h} className="px-3 py-2 font-semibold whitespace-nowrap">
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -184,6 +196,20 @@ export function ReadyPlansAdmin({ plans, states }: { plans: AdminPlan[]; states:
                       </span>
                     )}{' '}
                     {p.active ? 'On' : 'Off'}
+                  </td>
+                  <td className="px-3 py-2">
+                    <label className="flex items-center gap-2 text-xs">
+                      <Checkbox
+                        checked={p.showOnHome}
+                        disabled={pending}
+                        aria-label={`Show ${p.name} on the home page`}
+                        data-testid="show-on-home"
+                        onCheckedChange={(v) =>
+                          run(() => setReadyPlanShowOnHome({ id: p.id, showOnHome: v === true }))
+                        }
+                      />
+                      {p.showOnHome ? 'Shown' : 'Under “See more”'}
+                    </label>
                   </td>
                   <td className="space-x-1 px-3 py-2 whitespace-nowrap">
                     <Button type="button" size="sm" onClick={() => setEditing(p)}>

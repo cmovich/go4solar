@@ -1,7 +1,13 @@
 import { expect, test } from '@playwright/test'
 
 import { ownConnection } from './helpers/connection'
-import { chooseAndAccept, PLAN_ORDER, readyPlansMigrated, RELAX_MAX } from './helpers/readyPlans'
+import {
+  checkSeeMore,
+  chooseAndAccept,
+  PLAN_ORDER,
+  readyPlansMigrated,
+  RELAX_MAX,
+} from './helpers/readyPlans'
 import { loginAsStaff } from './helpers/staff'
 
 /**
@@ -17,13 +23,16 @@ test.beforeEach(async ({ context }) => {
 test.describe('ready-made plans', () => {
   test.setTimeout(180_000)
 
-  test('home page: six plans after the hero, smallest first; swipe on phones, grid on desktop', async ({
+  test('home page: ticked plans after the hero, See more for the rest; swipe on phones, grid on desktop', async ({
     page,
   }) => {
     await page.goto('/')
     const section = page.getByTestId('ready-plans')
     await expect(section).toBeVisible()
     const cards = section.locator('article[data-testid^="ready-plan-"]')
+    await checkSeeMore(page, test.info().project.name === 'mobile')
+    // Open them again for the checks below (every switched-on plan, in order).
+    await section.getByTestId('see-more-plans').click()
     const maxShown = (await page.getByTestId(`ready-plan-${RELAX_MAX}`).count()) > 0
     const expected = maxShown ? [...PLAN_ORDER, RELAX_MAX] : PLAN_ORDER
     expect(await cards.evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')))).toEqual(

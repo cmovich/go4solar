@@ -4,19 +4,27 @@ import { PlanCard } from '@/components/readyPlans/PlanCard'
 import type { ReadyPlanOffer } from '@/lib/readyPlans/server'
 
 import { Container, SectionHeading } from './Band'
+import { SeeMorePlans } from './SeeMorePlans'
 
 /**
- * Right after the hero: the ready-made plans, smallest to largest. A swipeable row on phones, a
- * grid on larger screens. Hidden when no plan is switched on.
+ * Right after the hero: the ready-made plans ticked "Show on home page" (in order), the other
+ * switched-on plans behind "See more plans". A swipeable row on phones, a grid on larger
+ * screens. Hidden when no plan is switched on.
  */
 export function ReadyPlans({
-  offers,
+  shown,
+  more,
   images,
 }: {
-  offers: ReadyPlanOffer[]
+  shown: ReadyPlanOffer[]
+  more: ReadyPlanOffer[]
   images: Record<string, string | null>
 }) {
-  if (offers.length === 0) return null
+  const first = shown[0] ?? more[0]
+  if (!first) return null
+  const card = (o: ReadyPlanOffer) => (
+    <PlanCard key={o.plan.slug} offer={o} imageUrl={images[o.plan.slug] ?? null} />
+  )
   return (
     <section id="ready-plans" className="py-16 sm:py-20" data-testid="ready-plans">
       <Container>
@@ -25,18 +33,9 @@ export function ReadyPlans({
           title="Choose a ready-made solar plan"
           lead="One fixed price. No hidden charges."
         />
-        <div
-          className="-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3"
-          aria-label="Ready-made plans"
-          data-testid="ready-plans-list"
-        >
-          {offers.map((o) => (
-            <PlanCard key={o.plan.slug} offer={o} imageUrl={images[o.plan.slug] ?? null} />
-          ))}
-        </div>
+        <SeeMorePlans shown={shown.map(card)} more={more.map(card)} moreCount={more.length} />
         <p className="text-muted-foreground mt-2 text-sm" data-testid="ready-plans-note">
-          Prices for {offers[0]!.plan.deliveryState}. Delivery to other states is paid by the
-          customer.
+          Prices for {first.plan.deliveryState}. Delivery to other states is paid by the customer.
         </p>
         <p className="mt-4 text-sm">
           Can&rsquo;t find a plan that fits?{' '}
