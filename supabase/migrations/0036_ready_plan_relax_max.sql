@@ -3,7 +3,8 @@
 -- SAMPLE until a super admin confirms the prices in Admin → Pricing → Ready-made plans (no naira
 -- is shown to customers before that). Ordered straight after Relax. Uses Relax's current photo
 -- for now (copied from that row; replace it in admin). Lithium-ion, 48 V, Kaduna delivery included.
--- Price ₦6,082,000 (vendor cost ₦5,314,000). If the slug already exists nothing changes.
+-- Price ₦6,082,000 (vendor cost ₦5,314,000). Added SWITCHED OFF (active = false): customers see it
+-- only after a super admin switches it on. If the slug already exists nothing changes.
 
 insert into public.ready_plans
   (slug, name, summary, system_voltage, inverter_kva, image, lines, can_power, backup,
@@ -16,5 +17,5 @@ select
   '["About 5 hours with heavy items on", "All night at normal use"]'::jsonb,
   0.2, 'Check the inverter''s max PV input ≥ 11.7 kW.',
   coalesce((select sort_order from public.ready_plans where slug = 'relax'), 6) + 1,
-  true, true
+  false, true
 on conflict (slug) do nothing;

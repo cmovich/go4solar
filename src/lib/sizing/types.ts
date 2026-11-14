@@ -141,6 +141,8 @@ export type SizingWorkings = {
 
 export type SystemSize = {
   inverterKva: number
+  /** The inverter as customers read it, when the plan states it ("12 kW"); else "<kVA> kVA". */
+  inverterLabel?: string
   batteryKwh: number
   panelCount: number
   panelKw: number

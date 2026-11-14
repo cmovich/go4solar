@@ -470,7 +470,7 @@ export default async function DashboardPage({
           <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
             {(
               [
-                ['Inverter', `${d.system.inverterKva} kVA`],
+                ['Inverter', d.system.inverterText],
                 ['Battery', `${d.system.batteryKwh} kWh`],
                 ['Solar panels', `${d.system.panelCount} × ${d.system.panelWatts} W`],
                 ['Installed', d.installedAt ? fmtDate(d.installedAt.slice(0, 10)) : 'Not yet'],

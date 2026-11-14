@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { inverterText } from '@/lib/sizing/describe'
+
 import { SEEDED_PLANS } from './plans.fixture'
 import {
   cardFigures,
@@ -217,5 +219,17 @@ describe('Relax Max (the 7th plan, Semako 14 Nov)', () => {
     expect(p().sortOrder).toBeGreaterThan(relax.sortOrder)
     expect(planSize(p())).toMatchObject({ inverterKva: 12, batteryKwh: 17.5, panelCount: 18 })
     expect(() => priceReadyPlan(p(), 18)).toThrow(/not offered/)
+  })
+})
+
+describe("the inverter as customers read it (from the plan's inverter line)", () => {
+  it('Relax Max says 12 kW; the others keep their kVA', () => {
+    expect(planSize(plan('relax-max')).inverterLabel).toBe('12 kW')
+    expect(planSize(plan('relax')).inverterLabel).toBe('5 kVA')
+    expect(planSize(plan('i-pass-my-neighbour')).inverterLabel).toBe('500 W')
+    expect(inverterText(planSize(plan('relax-max')))).toBe('12 kW')
+  })
+  it('sizes made by the sizing engine (no label) read "<n> kVA"', () => {
+    expect(inverterText({ inverterKva: 3.5 })).toBe('3.5 kVA')
   })
 })

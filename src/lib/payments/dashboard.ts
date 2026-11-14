@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { lateFeeSettings } from '@/lib/agreements/server'
+import { inverterText } from '@/lib/sizing/describe'
 import type { QuoteResult } from '@/lib/pricing/types'
 import { quoteReference } from '@/lib/quotes/quote'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -74,7 +75,13 @@ export type DashboardData = {
   nextPayment: { n: number; dueDate: string; amount: number; late: boolean } | null
   amountLeft: number
   /** The system in the quote snapshot, and when it was installed. */
-  system: { inverterKva: number; batteryKwh: number; panelCount: number; panelWatts: number } | null
+  system: {
+    inverterKva: number
+    inverterText: string
+    batteryKwh: number
+    panelCount: number
+    panelWatts: number
+  } | null
   installedAt: string | null
   details: {
     name: string | null
@@ -250,6 +257,7 @@ export async function loadDashboard(userId: string): Promise<DashboardData | nul
     system: size
       ? {
           inverterKva: size.inverterKva,
+          inverterText: inverterText(size),
           batteryKwh: size.batteryKwh,
           panelCount: size.panelCount,
           panelWatts: size.panelWatts ?? Math.round((size.panelKw * 1000) / size.panelCount),

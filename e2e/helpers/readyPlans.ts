@@ -31,8 +31,10 @@ export const PLAN_ORDER = [
   'no-wahala',
   'no-shaking',
   'relax',
-  'relax-max',
 ]
+
+/** Added 14 Nov switched off: shown after Relax only once a super admin switches it on. */
+export const RELAX_MAX = 'relax-max'
 
 /** Plan page → Choose this plan → roof questions → "Your quotation" → Accept and apply. */
 export async function chooseAndAccept(

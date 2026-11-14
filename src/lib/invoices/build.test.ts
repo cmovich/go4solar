@@ -226,6 +226,23 @@ describe('a ready-made plan quotation', () => {
   })
 })
 
+describe('Relax Max quotation: the inverter reads 12 kW (as on the plan)', () => {
+  const max = SEEDED_PLANS.find((p) => p.slug === 'relax-max')!
+  const priced = priceReadyPlan(max, 12)
+  const doc = buildInvoice({
+    ...base,
+    kind: 'quotation',
+    title: 'Relax Max',
+    result: readyQuoteResult(max, priced, 'Kaduna'),
+    items: {},
+    fixed: { fullPayment: priced.fullPayment, fullDiscount: 0.2, extra: null },
+  })
+  it('lists "Inverter 12 kW 48 V" and never kVA', () => {
+    expect(doc.lines.map((l) => l.item)).toContain('Inverter 12 kW 48 V')
+    expect(JSON.stringify(doc.lines)).not.toMatch(/kVA/)
+  })
+})
+
 describe('a pay-in-full quotation or invoice', () => {
   const oga = SEEDED_PLANS.find((p) => p.slug === 'oga-boss')!
   const priced = priceReadyPlan(oga, 12, 45_000)
