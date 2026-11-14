@@ -76,3 +76,18 @@ describe('wording (Semako, 2026-11-13)', () => {
     expect(confirmationText({ ...base, samplePrices: true })).not.toMatch(/interest/i)
   })
 })
+
+describe('confirmation when paying in full', () => {
+  it('one payment, no deposit or monthly amounts', () => {
+    const t = confirmationText({
+      ...base,
+      planLabel: 'Oga Boss',
+      samplePrices: false,
+      paidInFull: true,
+      systemPrice: 1_450_770,
+    })
+    expect(t).toContain('Oga Boss — pay in full: ₦1,450,770 in one payment.')
+    expect(t).not.toMatch(/a month|upfront|interest/i)
+    expect(t).toContain('One fixed price. No hidden charges.')
+  })
+})

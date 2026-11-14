@@ -4,7 +4,7 @@ import { DEFAULT_COMPANY } from '@/lib/company/schema'
 import { sampleQuoteInput } from '@/lib/pricing/pricing.fixture'
 import { priceQuote } from '@/lib/pricing/price'
 import { SEEDED_PLANS } from '@/lib/readyPlans/plans.fixture'
-import { priceReadyPlan, readyQuoteResult } from '@/lib/readyPlans/price'
+import { fullPaymentQuoteResult, priceReadyPlan, readyQuoteResult } from '@/lib/readyPlans/price'
 
 import { buildInvoice, newPublicCode, type InvoiceInput } from './build'
 import { verifyView } from './verify'
@@ -222,6 +222,35 @@ describe('a ready-made plan quotation', () => {
   it('notes: ladder or scaffold and the site check; no interest wording anywhere', () => {
     expect(doc.notes).toContain('Customer provides ladder/scaffold (not charged).')
     expect(doc.notes).toContain('Subject to a site check.')
+    expect(JSON.stringify(doc)).not.toMatch(/interest/i)
+  })
+})
+
+describe('a pay-in-full quotation or invoice', () => {
+  const oga = SEEDED_PLANS.find((p) => p.slug === 'oga-boss')!
+  const priced = priceReadyPlan(oga, 12, 45_000)
+  const doc = buildInvoice({
+    ...base,
+    kind: 'invoice',
+    title: 'Oga Boss',
+    result: fullPaymentQuoteResult(oga, priced, 'Lagos'),
+    items: {},
+    fixed: {
+      fullPayment: priced.fullPayment,
+      fullDiscount: 0.25,
+      extra: { state: 'Lagos', amount: 45_000 },
+      payment: 'full',
+    },
+  })
+  it('one payment: total = everything paid now; no monthly payments', () => {
+    expect(doc.totals).toMatchObject({
+      total: 1_450_770 + 45_000,
+      deposit: 1_450_770 + 45_000,
+      balance: 0,
+      monthly: 0,
+      months: 0,
+    })
+    expect(doc.fixed?.payment).toBe('full')
     expect(JSON.stringify(doc)).not.toMatch(/interest/i)
   })
 })

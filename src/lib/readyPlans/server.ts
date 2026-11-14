@@ -9,6 +9,7 @@ import type { SiteAnswers } from '@/lib/wizard/questions'
 import {
   cardFigures,
   deliveryExtra,
+  fullPaymentQuoteResult,
   planSize,
   priceReadyPlan,
   publicPlan,
@@ -110,9 +111,12 @@ export function storedReadyPlan(
   state: NgStateId,
   site: SiteAnswers,
   rows: (LogisticsRow & { sample: boolean })[],
+  /** 'full': one payment of the pay-in-full price (the months are then ignored). */
+  payment: 'plan' | 'full' = 'plan',
 ): StoredSystem & { kind: 'ready' } {
   const extra = extraFor(p, state, rows)
-  const priced = priceReadyPlan(p, months, extra ?? 0)
+  const full = payment === 'full'
+  const priced = priceReadyPlan(p, full ? 12 : months, extra ?? 0)
   return {
     kind: 'ready',
     plan: { slug: p.slug, name: p.name },
@@ -120,6 +124,7 @@ export function storedReadyPlan(
       fullPayment: priced.fullPayment,
       fullDiscount: p.fullDiscount,
       extra: priced.extra > 0 ? { state, amount: priced.extra } : null,
+      ...(full ? { payment: 'full' as const } : {}),
     },
     selection: { scope: 'complete', state, items: [], site, installer: 'go4solar' },
     notes: [
@@ -127,7 +132,7 @@ export function storedReadyPlan(
       ...(extra === null ? [`Delivery to ${state} is confirmed when we contact you.`] : []),
     ],
     size: planSize(p),
-    quote: readyQuoteResult(p, priced, state),
+    quote: full ? fullPaymentQuoteResult(p, priced, state) : readyQuoteResult(p, priced, state),
     // A SAMPLE plan, or a delivery price still SAMPLE: no naira is shown.
     sample: p.sample || extra === null,
   }

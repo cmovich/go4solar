@@ -70,3 +70,22 @@ describe('GET /api/app/receipts/[id]', () => {
     )
   })
 })
+
+describe('a full payment (ready-made plan paid in full)', () => {
+  it('a receipt for the whole amount: nothing left to pay', async () => {
+    session = { user: { id: 'u-love', email: 'l@x.test' }, role: 'consumer', aal: 'aal1' }
+    db.rows('payments')[0]!.kind = 'full_payment'
+    db.rows('payments')[0]!.amount = 1_450_770
+    db.rows('payments')[0]!.schedule_id = null
+    db.rows('quotes')[0]!.result = { balance: 0 }
+    const res = await call()
+    expect(res.status).toBe(200)
+    expect(renderReceiptPdf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: 'Full payment (paid in full)',
+        amount: 1_450_770,
+        amountLeft: 0,
+      }),
+    )
+  })
+})

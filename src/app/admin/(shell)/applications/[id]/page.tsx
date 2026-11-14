@@ -380,7 +380,7 @@ export default async function ApplicationPage({
           {d.ownSystem && (
             <p className="text-brand-dark font-semibold" data-testid="own-system">
               {d.readyPlanName
-                ? `Ready-made plan: ${d.readyPlanName} (fixed price)`
+                ? `Ready-made plan: ${d.readyPlanName} (fixed price${d.paidInFull ? ', paid in full' : ''})`
                 : 'Their own system (built in the system builder)'}
             </p>
           )}

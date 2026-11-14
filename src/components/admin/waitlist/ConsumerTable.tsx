@@ -117,7 +117,7 @@ export function ConsumerTable({
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.build
                     ? r.build.fixed
-                      ? r.build.title
+                      ? `${r.build.title}${r.build.fixed.payment === 'full' ? ' (pay in full)' : ''}`
                       : 'Own system'
                     : r.plan
                       ? PLAN_LABELS[r.plan]

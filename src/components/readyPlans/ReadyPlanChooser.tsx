@@ -23,10 +23,14 @@ export function ReadyPlanChooser({
     p.tenures.includes(12) ? 12 : (p.tenures[p.tenures.length - 1] ?? 12),
   )
   const [state, setState] = useState<NgStateId>(included)
+  // "Pay in full": one payment of the pay-in-full price instead of a deposit and monthly payments.
+  const [full, setFull] = useState(false)
   const extra = offer.extras[state]
   const add = typeof extra === 'number' ? extra : 0
   const row = offer.tenures?.find((t) => t.months === months) ?? null
-  const q = new URLSearchParams({ months: String(months), state })
+  const q = new URLSearchParams(
+    full ? { months: '12', state, pay: 'full' } : { months: String(months), state },
+  )
 
   return (
     <section className="bg-brand-mist space-y-4 rounded-2xl p-4" data-testid="plan-chooser">
@@ -51,17 +55,48 @@ export function ReadyPlanChooser({
           <Button
             key={t}
             type="button"
-            variant={months === t ? 'default' : 'outline'}
+            variant={!full && months === t ? 'default' : 'outline'}
             className="h-11"
-            aria-pressed={months === t}
-            onClick={() => setMonths(t)}
+            aria-pressed={!full && months === t}
+            onClick={() => {
+              setFull(false)
+              setMonths(t)
+            }}
           >
             {t} months
           </Button>
         ))}
+        <Button
+          type="button"
+          variant={full ? 'default' : 'outline'}
+          className="h-11"
+          aria-pressed={full}
+          data-testid="choose-full"
+          onClick={() => setFull(true)}
+        >
+          Pay in full
+        </Button>
       </div>
 
-      {row && offer.fullPayment !== null ? (
+      {full && offer.fullPayment !== null ? (
+        <div className="space-y-1 tabular-nums" data-testid="plan-figures-full">
+          {state !== p.deliveryState && typeof extra === 'number' && extra > 0 && (
+            <p className="flex justify-between gap-3">
+              <span>Includes delivery to {stateLabel(state)} (extra)</span>
+              <strong>{formatNaira(extra)}</strong>
+            </p>
+          )}
+          <p className="flex justify-between gap-3">
+            <span>Pay in full, one payment</span>
+            <strong data-testid="plan-full-total">{formatNaira(offer.fullPayment + add)}</strong>
+          </p>
+          <p className="text-sm">
+            {formatPercent(p.fullDiscount, 0)} off the 12-month price. No monthly payments, no ID
+            checks or guarantor needed.
+          </p>
+          <p className="text-muted-foreground pt-1 text-sm">One fixed price. No hidden charges.</p>
+        </div>
+      ) : row && offer.fullPayment !== null ? (
         <div className="space-y-1 tabular-nums" data-testid="plan-figures">
           <p className="flex justify-between gap-3">
             <span>Deposit</span>

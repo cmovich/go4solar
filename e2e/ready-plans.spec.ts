@@ -120,6 +120,19 @@ test.describe('ready-made plans', () => {
     await expect(page.getByTestId('accepted')).toContainText('Thank you!', { timeout: 45_000 })
   })
 
+  test('Pay in full: one price on the plan page, the quotation, then the sign-up', async ({
+    page,
+  }) => {
+    await page.goto('/plans/oga-boss')
+    await page.getByTestId('choose-full').click()
+    if ((await page.getByTestId('plan-figures-full').count()) > 0) {
+      await expect(page.getByTestId('plan-full-total')).toHaveText('₦1,450,770')
+      await expect(page.getByTestId('plan-figures-full')).not.toContainText(/a month|deposit/i)
+    }
+    await chooseAndAccept(page, 'oga-boss', { payInFull: true })
+    await expect(page.getByTestId('accepted')).toContainText('Thank you!', { timeout: 45_000 })
+  })
+
   test('Customise this plan → the builder with a system suggested for the plan', async ({
     page,
   }) => {

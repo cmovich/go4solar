@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
 import { ApplyWizard } from '@/components/apply/ApplyWizard'
-import { ensureApplication, waitingQuote, wizardState } from '@/lib/applications/server'
+import { ensureApplication, paysInFull, waitingQuote, wizardState } from '@/lib/applications/server'
 import { requireUser } from '@/lib/auth/roles'
 
 export const metadata: Metadata = { title: 'Your application' }
@@ -19,6 +19,8 @@ export default async function ApplyPage({
   if (!app) redirect('/get-started')
   // Submitted (deposit paid) or decided: the dashboard shows where things stand.
   if (app.status !== 'draft') redirect('/app')
+  // A ready-made plan paid in full: no application wizard, just the address and one payment.
+  if (await paysInFull(app)) redirect('/app/pay-in-full')
   const [state, waiting] = await Promise.all([wizardState(app), waitingQuote(user!.id)])
   const sp = await searchParams
   return (

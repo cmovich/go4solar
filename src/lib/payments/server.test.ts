@@ -270,3 +270,116 @@ describe('refund on decline', () => {
     expect(provider.refund).not.toHaveBeenCalled()
   })
 })
+
+// Pay in full (ready-made plans): one payment, no credit review, no monthly schedule.
+describe('pay in full', () => {
+  const fullQuote = {
+    ...quote,
+    systemPrice: 1_450_770,
+    deposit: 1_450_770,
+    balance: 0,
+    instalments: [] as number[],
+    monthly: 0,
+    costPrice: 1_102_500,
+  }
+  const ADDRESS = {
+    line1: 'No. 5 Ali Akilu Road',
+    city: 'Kaduna',
+    state: 'Kaduna',
+    lga: 'Kaduna North',
+  }
+  function seedFull({ address = ADDRESS }: { address?: typeof ADDRESS | null } = {}) {
+    db = fakeSupabase({
+      payments: [['reference'], ['provider_event_id']],
+      loans: [['application_id']],
+      repayment_schedule: [['loan_id', 'n']],
+    })
+    db.seed('applications', {
+      id: 'app-f',
+      consumer_id: 'u-f',
+      status: 'draft',
+      applicant_type: 'individual',
+      quote_id: 'q-f',
+      personal: { firstName: 'Ada', surname: 'Obi', email: 'ada@x.test', phone: '+2348031234567' },
+      install_address: address,
+      credit_flags: {},
+      steps: {},
+    })
+    db.seed('quotes', {
+      id: 'q-f',
+      tenure: 12,
+      result: fullQuote,
+      builder: {
+        kind: 'ready',
+        plan: { slug: 'oga-boss', name: 'Oga Boss' },
+        fixed: { fullPayment: 1_450_770, fullDiscount: 0.25, extra: null, payment: 'full' },
+        quote: fullQuote,
+      },
+    })
+  }
+
+  it('starts one payment of the pay-in-full price (no ID checks, guarantor or agreement needed)', async () => {
+    seedFull()
+    const r = await pay.startFullPayment('u-f', ORIGIN)
+    expect(r).toMatchObject({ ok: true })
+    expect(db.rows('payments')[0]).toMatchObject({
+      kind: 'full_payment',
+      amount: 1_450_770,
+      application_id: 'app-f',
+      status: 'pending',
+    })
+    expect(provider.initDeposit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 1_450_770,
+        callbackUrl: `${ORIGIN}/app/pay-in-full/return`,
+      }),
+    )
+  })
+
+  it('needs the installation address first; refuses a quote that is not pay in full', async () => {
+    seedFull({ address: null })
+    expect(await pay.startFullPayment('u-f', ORIGIN)).toMatchObject({ ok: false })
+    seed()
+    expect(await pay.startFullPayment('u-1', ORIGIN)).toMatchObject({ ok: false })
+    expect(db.rows('payments')).toEqual([])
+  })
+
+  it('paid: approved at once, nothing drawn, no schedule, profit = price − cost − fee; told; once only', async () => {
+    seedFull()
+    await pay.startFullPayment('u-f', ORIGIN)
+    const ref = String(db.rows('payments')[0]!.reference)
+    expect(await pay.processPaymentEvent(chargeSuccess(ref, 1_450_770))).toBe('applied')
+    expect(await pay.processPaymentEvent(chargeSuccess(ref, 1_450_770))).toBe('duplicate')
+    const loans = db.rows('loans')
+    expect(loans).toHaveLength(1)
+    expect(loans[0]).toMatchObject({
+      payment_type: 'full',
+      status: 'approved',
+      balance: 0,
+      deposit: 1_450_770,
+      system_price: 1_450_770,
+      cost_price: 1_102_500,
+      drawn: 0,
+      funder_id: null,
+    })
+    expect(loans[0]!.profit_snapshot).toMatchObject({
+      stage: 'approved',
+      paidInFull: true,
+      profit: { netProfit: 1_450_770 - 1_102_500 - 2_000, drawn: 0 },
+    })
+    expect(db.rows('repayment_schedule')).toEqual([])
+    expect(db.rows('applications')[0]).toMatchObject({
+      status: 'approved',
+      decision_reason: 'Paid in full',
+    })
+    expect(sent.map((m) => m.template)).toContain('full_payment_received')
+  })
+
+  it('a wrong amount is rejected and nothing is approved', async () => {
+    seedFull()
+    await pay.startFullPayment('u-f', ORIGIN)
+    const ref = String(db.rows('payments')[0]!.reference)
+    expect(await pay.processPaymentEvent(chargeSuccess(ref, 1_000))).toBe('rejected')
+    expect(db.rows('loans')).toEqual([])
+  })
+})

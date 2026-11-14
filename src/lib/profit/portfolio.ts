@@ -35,7 +35,11 @@ export type LoanFacts = {
     paidAt: string | null
   }[]
   /** Successful payments only. */
-  payments: { kind: 'deposit' | 'instalment' | 'refund'; amount: number; paidAt: string }[]
+  payments: {
+    kind: 'deposit' | 'instalment' | 'refund' | 'full_payment'
+    amount: number
+    paidAt: string
+  }[]
 }
 
 export type CustomerProfit = {

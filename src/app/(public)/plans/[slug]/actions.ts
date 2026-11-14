@@ -21,6 +21,8 @@ const choiceSchema = z.object({
   months: z.number().int(),
   state: z.enum(NG_STATE_IDS as [NgStateId, ...NgStateId[]]),
   site: siteAnswersSchema.default({}),
+  /** 'full': pay in full (one payment of the pay-in-full price). */
+  payment: z.enum(['plan', 'full']).default('plan'),
 })
 const NOT_FOUND = {
   ok: false as const,
@@ -33,7 +35,14 @@ async function chosen(input: unknown) {
   if (!p.success) return null
   const plan = await loadReadyPlan(p.data.slug)
   if (!plan || !plan.tenures.includes(p.data.months)) return null
-  return storedReadyPlan(plan, p.data.months, p.data.state, p.data.site, await loadDeliveryRows())
+  return storedReadyPlan(
+    plan,
+    p.data.months,
+    p.data.state,
+    p.data.site,
+    await loadDeliveryRows(),
+    p.data.payment,
+  )
 }
 
 /**

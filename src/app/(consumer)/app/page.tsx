@@ -271,7 +271,11 @@ export default async function DashboardPage({
       {/* 2. Next payment */}
       <section id="payments" className={card} data-testid="next-payment">
         <h2 className="text-brand-dark text-lg font-bold">Next payment</h2>
-        {d.loan?.status === 'active' && d.nextPayment ? (
+        {d.loan?.paidInFull ? (
+          <p className="mt-1 text-sm" data-testid="paid-in-full">
+            Paid in full. Nothing more to pay. Thank you!
+          </p>
+        ) : d.loan?.status === 'active' && d.nextPayment ? (
           <>
             <p className="mt-1 text-2xl font-bold tabular-nums">
               {formatNaira(d.nextPayment.amount)}
@@ -304,44 +308,54 @@ export default async function DashboardPage({
 
       {/* 3. Payments */}
       {/* Plan summary */}
-      <section className="rounded-2xl border p-5" data-testid="plan-summary">
-        <h2 className="text-brand-dark text-lg font-bold">Your payment plan</h2>
-        <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-          {(
-            [
-              ['Monthly payment', formatNaira(d.plan.monthly)],
-              ['Months', String(d.plan.months)],
-              ['Deposit', formatNaira(d.plan.deposit)],
-              ['Total amount payable', formatNaira(d.plan.systemPrice)],
-            ] as const
-          ).map(([k, v]) => (
-            <div key={k} className="bg-brand-mist rounded-lg p-3">
-              <dt className="text-muted-foreground text-xs">{k}</dt>
-              <dd className="text-brand-dark font-bold">{v}</dd>
-            </div>
-          ))}
-        </dl>
-        <p className="mt-2 text-sm">
-          {FIXED_PRICE_LINE} The total amount payable above is everything you pay for the system.
-        </p>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm" data-testid="plan-rules">
-          <li>
-            <strong>Late fee:</strong> {formatPercent(d.rules.lateFeeDaily, 2)} of the overdue
-            amount per day, capped at {formatPercent(d.rules.lateFeeCap)} of that amount.
-          </li>
-          <li>
-            <strong>Remote lock:</strong> if a payment is {d.rules.lockAfterDays} days overdue the
-            system can be locked; it is unlocked once you pay. An approved extension pauses the
-            lock.
-          </li>
-          {d.loan?.extensionUntil && d.loan.extensionUntil >= lagosDate() && (
-            <li data-testid="extension-note">
-              <strong>Extension approved</strong> until {fmtDate(d.loan.extensionUntil)}: your
-              system will not be locked before then.
+      {d.loan?.paidInFull ? (
+        <section className="rounded-2xl border p-5" data-testid="plan-summary">
+          <h2 className="text-brand-dark text-lg font-bold">Your plan</h2>
+          <p className="mt-2 text-sm">
+            Paid in full: <strong>{formatNaira(d.plan.systemPrice)}</strong> in one payment.{' '}
+            {FIXED_PRICE_LINE}
+          </p>
+        </section>
+      ) : (
+        <section className="rounded-2xl border p-5" data-testid="plan-summary">
+          <h2 className="text-brand-dark text-lg font-bold">Your payment plan</h2>
+          <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            {(
+              [
+                ['Monthly payment', formatNaira(d.plan.monthly)],
+                ['Months', String(d.plan.months)],
+                ['Deposit', formatNaira(d.plan.deposit)],
+                ['Total amount payable', formatNaira(d.plan.systemPrice)],
+              ] as const
+            ).map(([k, v]) => (
+              <div key={k} className="bg-brand-mist rounded-lg p-3">
+                <dt className="text-muted-foreground text-xs">{k}</dt>
+                <dd className="text-brand-dark font-bold">{v}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-2 text-sm">
+            {FIXED_PRICE_LINE} The total amount payable above is everything you pay for the system.
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm" data-testid="plan-rules">
+            <li>
+              <strong>Late fee:</strong> {formatPercent(d.rules.lateFeeDaily, 2)} of the overdue
+              amount per day, capped at {formatPercent(d.rules.lateFeeCap)} of that amount.
             </li>
-          )}
-        </ul>
-      </section>
+            <li>
+              <strong>Remote lock:</strong> if a payment is {d.rules.lockAfterDays} days overdue the
+              system can be locked; it is unlocked once you pay. An approved extension pauses the
+              lock.
+            </li>
+            {d.loan?.extensionUntil && d.loan.extensionUntil >= lagosDate() && (
+              <li data-testid="extension-note">
+                <strong>Extension approved</strong> until {fmtDate(d.loan.extensionUntil)}: your
+                system will not be locked before then.
+              </li>
+            )}
+          </ul>
+        </section>
+      )}
 
       {/* Schedule */}
       {d.schedule.length > 0 && (

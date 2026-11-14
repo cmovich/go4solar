@@ -190,32 +190,52 @@ function InvoiceDoc({ d, qr }: { d: InvoiceData; qr: string | null }) {
               <Text style={{ fontWeight: 700 }}>Total amount payable</Text>
               <Text style={s.totalBig}>{formatNaira(d.totals.total)}</Text>
             </View>
-            <View style={s.totalRow}>
-              <Text>Deposit ({formatPercent(d.totals.depositShare)})</Text>
-              <Text style={{ fontWeight: 700 }}>{formatNaira(d.totals.deposit)}</Text>
-            </View>
-            {d.fixed?.extra && (
-              <View style={s.totalRow}>
-                <Text>Delivery to {d.fixed.extra.state} (extra, paid with the deposit)</Text>
-                <Text style={{ fontWeight: 700 }}>{formatNaira(d.fixed.extra.amount)}</Text>
-              </View>
+            {d.fixed?.payment === 'full' ? (
+              <>
+                {d.fixed.extra && (
+                  <View style={s.totalRow}>
+                    <Text>Includes delivery to {d.fixed.extra.state} (extra)</Text>
+                    <Text style={{ fontWeight: 700 }}>{formatNaira(d.fixed.extra.amount)}</Text>
+                  </View>
+                )}
+                <Text style={{ marginTop: 4 }}>
+                  Paid in one payment ({formatPercent(d.fixed.fullDiscount, 0)} off the 12-month
+                  price). No monthly payments.
+                </Text>
+                <Text style={{ color: MUTED, marginTop: 4 }}>
+                  One fixed price. No hidden charges: the total above is everything you pay.
+                </Text>
+              </>
+            ) : (
+              <>
+                <View style={s.totalRow}>
+                  <Text>Deposit ({formatPercent(d.totals.depositShare)})</Text>
+                  <Text style={{ fontWeight: 700 }}>{formatNaira(d.totals.deposit)}</Text>
+                </View>
+                {d.fixed?.extra && (
+                  <View style={s.totalRow}>
+                    <Text>Delivery to {d.fixed.extra.state} (extra, paid with the deposit)</Text>
+                    <Text style={{ fontWeight: 700 }}>{formatNaira(d.fixed.extra.amount)}</Text>
+                  </View>
+                )}
+                <View style={s.totalRow}>
+                  <Text>Monthly payment</Text>
+                  <Text style={{ fontWeight: 700 }}>
+                    {formatNaira(d.totals.monthly)} × {d.totals.months} months
+                  </Text>
+                </View>
+                {d.fixed && (
+                  <View style={s.totalRow}>
+                    <Text>Or pay in full ({formatPercent(d.fixed.fullDiscount, 0)} off)</Text>
+                    <Text style={{ fontWeight: 700 }}>{formatNaira(d.fixed.fullPayment)}</Text>
+                  </View>
+                )}
+                <Text style={{ color: MUTED, marginTop: 4 }}>
+                  One fixed price. No hidden charges: the total above is everything you pay. Late
+                  payments attract 0.75% of the overdue amount per day.
+                </Text>
+              </>
             )}
-            <View style={s.totalRow}>
-              <Text>Monthly payment</Text>
-              <Text style={{ fontWeight: 700 }}>
-                {formatNaira(d.totals.monthly)} × {d.totals.months} months
-              </Text>
-            </View>
-            {d.fixed && (
-              <View style={s.totalRow}>
-                <Text>Or pay in full ({formatPercent(d.fixed.fullDiscount, 0)} off)</Text>
-                <Text style={{ fontWeight: 700 }}>{formatNaira(d.fixed.fullPayment)}</Text>
-              </View>
-            )}
-            <Text style={{ color: MUTED, marginTop: 4 }}>
-              One fixed price. No hidden charges: the total above is everything you pay. Late
-              payments attract 0.75% of the overdue amount per day.
-            </Text>
           </View>
 
           <View style={s.notes} wrap={false}>

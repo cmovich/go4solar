@@ -32,6 +32,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
     state,
     decodeSite(url.searchParams.get('site')),
     await loadDeliveryRows(),
+    url.searchParams.get('pay') === 'full' ? 'full' : 'plan',
   )
   return docResponse(await quotationForReadyPlan(stored))
 }

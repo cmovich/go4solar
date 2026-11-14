@@ -47,6 +47,8 @@ export type DashboardData = {
     balance: number
     /** Last day of an approved extension (pauses the remote lock), or null. */
     extensionUntil: string | null
+    /** A ready-made plan paid in full: no monthly payments. */
+    paidInFull: boolean
   } | null
   /** Late fee and remote-lock rule from settings, shown in the plan summary. */
   rules: { lateFeeDaily: number; lateFeeCap: number; lockAfterDays: number }
@@ -149,11 +151,7 @@ export async function loadDashboard(userId: string): Promise<DashboardData | nul
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
-    admin
-      .from('loans')
-      .select('id, status, balance, start_date, extension_until')
-      .eq('application_id', app.id)
-      .maybeSingle(),
+    admin.from('loans').select('*').eq('application_id', app.id).maybeSingle(),
     lateFeeSettings(),
     admin.from('profiles').select('full_name, phone_e164, email').eq('id', userId).maybeSingle(),
     admin
@@ -271,7 +269,9 @@ export async function loadDashboard(userId: string): Promise<DashboardData | nul
       label:
         p.kind === 'deposit'
           ? 'Deposit'
-          : `Payment ${p.schedule_id ? (monthOf.get(p.schedule_id) ?? '') : ''}`.trim(),
+          : p.kind === 'full_payment'
+            ? 'Full payment'
+            : `Payment ${p.schedule_id ? (monthOf.get(p.schedule_id) ?? '') : ''}`.trim(),
       amount: Number(p.amount),
       paidAt: p.paid_at,
     })),
@@ -320,6 +320,7 @@ export async function loadDashboard(userId: string): Promise<DashboardData | nul
           status: loan.status,
           balance: Number(loan.balance),
           extensionUntil: loan.extension_until,
+          paidInFull: 'payment_type' in loan && loan.payment_type === 'full',
         }
       : null,
     rules: {
