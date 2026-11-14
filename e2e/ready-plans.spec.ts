@@ -32,7 +32,7 @@ test.describe('ready-made plans', () => {
     )
     // Every card starts with its plan picture, and the pictures really load (4:3 WebP).
     const pictures = cards.locator('img')
-    await expect(pictures).toHaveCount(6)
+    await expect(pictures).toHaveCount(PLAN_ORDER.length)
     for (const img of await pictures.all()) {
       await img.scrollIntoViewIfNeeded()
       await expect(img).toHaveAttribute('src', /\/site-media\/plan\/.+\.webp$/)
@@ -43,6 +43,15 @@ test.describe('ready-made plans', () => {
     // The voltage tag on every card; Relax is the 48 V system.
     await expect(page.getByTestId('ready-plan-relax')).toContainText('48 V system')
     await expect(page.getByTestId('ready-plan-no-wahala')).toContainText('24 V system')
+    // Relax Max (7th plan): 48 V, after Relax, Relax's photo for now; no naira while SAMPLE.
+    const max = page.getByTestId('ready-plan-relax-max')
+    await expect(max).toContainText('48 V system')
+    await expect(max.locator('img')).toHaveAttribute(
+      'src',
+      (await page.getByTestId('ready-plan-relax').locator('img').getAttribute('src'))!,
+    )
+    if ((await max.getByTestId('card-price').count()) === 0)
+      await expect(max).not.toContainText('₦')
     // Confirmed prices: deposit and the 12-month payment (I Pass My Neighbour: ₦93,000, then
     // ₦49,600). SAMPLE: no naira at all. Never the word "interest".
     const neighbour = page.getByTestId('ready-plan-i-pass-my-neighbour')

@@ -187,3 +187,35 @@ describe('fullPaymentQuoteResult (pay in full: one payment, no monthly schedule)
     expect(q.noMarkup).toContainEqual({ label: 'Delivery to Lagos (extra)', amount: 45_000 })
   })
 })
+
+describe('Relax Max (the 7th plan, Semako 14 Nov)', () => {
+  const p = () => plan('relax-max')
+  it('price and vendor cost from the lines', () => {
+    expect(planPrice(p())).toBe(6_082_000)
+    expect(vendorTotal(p())).toBe(5_314_000)
+  })
+  it('deposit, monthly for 6/9/12, total payable and pay in full', () => {
+    const p12 = priceReadyPlan(p(), 12)
+    expect(p12.deposit).toBe(1_216_400)
+    expect(p12.monthly).toBe(648_747)
+    expect(p12.totalPayable).toBe(9_001_360)
+    expect(p12.fullPayment).toBe(7_201_088)
+    expect(priceReadyPlan(p(), 9).monthly).toBe(783_902)
+    expect(priceReadyPlan(p(), 6).monthly).toBe(1_054_213)
+  })
+  it('48 V, after Relax, SAMPLE, Kaduna delivery included, only 6/9/12', () => {
+    const relax = plan('relax')
+    expect(p()).toMatchObject({
+      systemVoltage: 48,
+      inverterKva: 12,
+      sample: true,
+      active: true,
+      deliveryState: 'Kaduna',
+      fullDiscount: 0.2,
+      tenures: [6, 9, 12],
+    })
+    expect(p().sortOrder).toBeGreaterThan(relax.sortOrder)
+    expect(planSize(p())).toMatchObject({ inverterKva: 12, batteryKwh: 17.5, panelCount: 18 })
+    expect(() => priceReadyPlan(p(), 18)).toThrow(/not offered/)
+  })
+})

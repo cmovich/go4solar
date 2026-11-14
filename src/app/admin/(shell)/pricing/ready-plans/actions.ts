@@ -89,7 +89,15 @@ export async function saveReadyPlan(input: unknown): Promise<Result> {
 }
 
 async function removeOldPicture(session: SessionInfo, id: string, path: string) {
-  const { error } = await createAdminClient().storage.from('site-media').remove([path])
+  const admin = createAdminClient()
+  // Another plan may share the file (Relax Max started with Relax's photo): keep it then.
+  const { data: users, error: readError } = await admin
+    .from('ready_plans')
+    .select('id')
+    .eq('image', path)
+    .limit(1)
+  if (readError || (users ?? []).length > 0) return
+  const { error } = await admin.storage.from('site-media').remove([path])
   if (error) {
     console.error(`[site-media] could not remove the old plan picture: ${error.message}`)
     return

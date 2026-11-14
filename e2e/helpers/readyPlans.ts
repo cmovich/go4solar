@@ -31,6 +31,7 @@ export const PLAN_ORDER = [
   'no-wahala',
   'no-shaking',
   'relax',
+  'relax-max',
 ]
 
 /** Plan page → Choose this plan → roof questions → "Your quotation" → Accept and apply. */
