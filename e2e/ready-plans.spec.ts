@@ -4,6 +4,7 @@ import { ownConnection } from './helpers/connection'
 import {
   checkSeeMore,
   chooseAndAccept,
+  HOME_SHOWN,
   PLAN_ORDER,
   readyPlansMigrated,
   RELAX_MAX,
@@ -55,14 +56,10 @@ test.describe('ready-made plans', () => {
     await expect(page.getByTestId('ready-plan-relax')).toContainText('48 V system')
     await expect(page.getByTestId('ready-plan-no-wahala')).toContainText('24 V system')
     // Relax Max (7th plan): switched off → no card and its page is not found. Once switched on:
-    // 48 V, after Relax (checked above), Relax's photo for now, and no naira while SAMPLE.
+    // 48 V, after Relax (checked above), its picture loads (above), and no naira while SAMPLE.
     if (maxShown) {
       const max = page.getByTestId(`ready-plan-${RELAX_MAX}`)
       await expect(max).toContainText('48 V system')
-      await expect(max.locator('img')).toHaveAttribute(
-        'src',
-        (await page.getByTestId('ready-plan-relax').locator('img').getAttribute('src'))!,
-      )
       if ((await max.getByTestId('card-price').count()) === 0) {
         await expect(max).not.toContainText('₦')
       }
@@ -214,6 +211,52 @@ test.describe('ready-made plans: staff', () => {
     await expect(preview).toContainText('9 months: deposit ₦1,216,400, then ₦783,902 a month')
     await expect(preview).toContainText('Pay in full: ₦7,201,088 (20% off)')
     await page.getByRole('button', { name: 'Cancel' }).first().click()
+  })
+
+  test('admin: "Show on home page" ticks move a plan up to the home page and back (audited)', async ({
+    page,
+  }) => {
+    test.skip(!process.env.E2E_STAFF_EMAIL, 'needs the e2e staff account')
+    await loginAsStaff(page)
+    await page.goto('/admin/pricing/ready-plans')
+    const rows = page.getByTestId('ready-plan-row')
+    const ticks = page.getByTestId('show-on-home')
+    // Ticked: I Pass My Neighbour, Level Up, Oga Boss; the rest unticked (migration 0037).
+    for (let i = 0; i < 7; i++) {
+      await expect(ticks.nth(i)).toHaveAttribute('data-state', i < 3 ? 'checked' : 'unchecked')
+    }
+    const wahala = rows.filter({ hasText: 'No Wahala' })
+    const tick = wahala.getByTestId('show-on-home')
+    try {
+      await tick.click()
+      await expect(tick).toHaveAttribute('data-state', 'checked')
+      await expect(wahala).toContainText('Shown')
+      await page.goto('/')
+      const list = page.getByTestId('ready-plans-list')
+      await expect
+        .poll(() =>
+          list
+            .locator('article[data-testid^="ready-plan-"]')
+            .evaluateAll((els) =>
+              els.filter((e) => e.checkVisibility()).map((e) => e.getAttribute('data-testid')),
+            ),
+        )
+        .toEqual([...HOME_SHOWN, 'no-wahala'].map((x) => `ready-plan-${x}`))
+      await expect(page.getByTestId('see-more-plans')).toHaveText('See more plans (3)')
+    } finally {
+      // Back as it was, then the home page shows the three again.
+      await page.goto('/admin/pricing/ready-plans')
+      const again = page.getByTestId('ready-plan-row').filter({ hasText: 'No Wahala' })
+      if ((await again.getByTestId('show-on-home').getAttribute('data-state')) === 'checked') {
+        await again.getByTestId('show-on-home').click()
+      }
+      await expect(again.getByTestId('show-on-home')).toHaveAttribute('data-state', 'unchecked')
+    }
+    await page.goto('/admin/audit')
+    await expect(page.getByText('ready_plan.home_off').first()).toBeVisible()
+    await expect(page.getByText('ready_plan.home_on').first()).toBeVisible()
+    await page.goto('/')
+    await expect(page.getByTestId('see-more-plans')).toHaveText('See more plans (4)')
   })
 
   test('staff quotation tool: Start from a ready-made plan', async ({ page }) => {
