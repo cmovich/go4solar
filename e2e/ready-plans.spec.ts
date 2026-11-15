@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 
 import { ownConnection } from './helpers/connection'
 import {
+  checkCarousel,
   checkSeeMore,
   chooseAndAccept,
   HOME_SHOWN,
@@ -31,6 +32,7 @@ test.describe('ready-made plans', () => {
     const section = page.getByTestId('ready-plans')
     await expect(section).toBeVisible()
     const cards = section.locator('article[data-testid^="ready-plan-"]')
+    await checkCarousel(page, test.info().project.name === 'mobile')
     await checkSeeMore(page, test.info().project.name === 'mobile')
     // Open them again for the checks below (every switched-on plan, in order).
     await section.getByTestId('see-more-plans').click()

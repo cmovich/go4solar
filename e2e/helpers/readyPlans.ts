@@ -129,3 +129,79 @@ export async function checkSeeMore(page: Page, mobile: boolean) {
   if (mobile) await expect(card).toBeVisible()
   expect(page.url()).toBe(url)
 }
+
+/**
+ * Phone carousel at 375 px (call after `page.goto('/')`): one full card per screen, starting with
+ * the first ticked plan; "›" moves to card 2 and shows "‹"; dots follow arrows and swipes; the
+ * last card ("See more plans") hides "›"; arrows never cover a price. Desktop: no arrows or dots.
+ */
+export async function checkCarousel(page: Page, mobile: boolean) {
+  const section = page.getByTestId('ready-plans')
+  const list = section.getByTestId('ready-plans-list')
+  const prev = section.getByRole('button', { name: 'Previous plan' })
+  const next = section.getByRole('button', { name: 'Next plan' })
+  const dots = section.getByTestId('carousel-dot')
+  if (!mobile) {
+    await expect(prev).toBeHidden()
+    await expect(next).toBeHidden()
+    await expect(section.getByTestId('carousel-dots')).toBeHidden()
+    return
+  }
+  await page.setViewportSize({ width: 375, height: 812 })
+  await list.scrollIntoViewIfNeeded()
+  // Slides wholly or partly inside the carousel's box (a sliver counts).
+  const inView = () =>
+    list.evaluate((el) => {
+      const box = el.getBoundingClientRect()
+      return Array.from(
+        el.querySelectorAll<HTMLElement>(
+          'article[data-testid^="ready-plan-"], [data-testid="see-more-card"]',
+        ),
+      )
+        .filter((s) => s.offsetWidth > 0)
+        .filter((s) => {
+          const r = s.getBoundingClientRect()
+          return Math.min(r.right, box.right) - Math.max(r.left, box.left) > 1
+        })
+        .map((s) => s.getAttribute('data-testid')!.replace('ready-plan-', ''))
+    })
+  const slides = HOME_SHOWN.length + 1
+  await expect(dots).toHaveCount(slides)
+  await expect.poll(inView).toEqual([HOME_SHOWN[0]])
+  expect(await list.evaluate((el) => el.scrollLeft)).toBe(0)
+  await expect(prev).toHaveCount(0)
+  await expect(next).toBeVisible()
+  await expect(dots.nth(0)).toHaveAttribute('aria-current', 'true')
+  // Arrows: at least 44 px, and never over the price lines.
+  const box = (await next.boundingBox())!
+  expect(box.width).toBeGreaterThanOrEqual(44)
+  expect(box.height).toBeGreaterThanOrEqual(44)
+  const price = section.getByTestId(`ready-plan-${HOME_SHOWN[0]}`).locator('[data-testid="card-price"], [data-testid="card-price-later"]')
+  const p = (await price.boundingBox())!
+  expect(box.y + box.height).toBeLessThan(p.y)
+  // "›" → card 2, "‹" appears, dot 2.
+  await next.click()
+  await expect.poll(inView).toEqual([HOME_SHOWN[1]])
+  await expect(prev).toBeVisible()
+  await expect(dots.nth(1)).toHaveAttribute('aria-current', 'true')
+  // "‹" back to card 1.
+  await prev.click()
+  await expect.poll(inView).toEqual([HOME_SHOWN[0]])
+  await expect(prev).toHaveCount(0)
+  // A swipe (scrolling the row) moves the dots too.
+  await list.evaluate((el) => {
+    const third = el.querySelectorAll<HTMLElement>('article[data-testid^="ready-plan-"]')[2]!
+    el.scrollTo({ left: third.offsetLeft })
+  })
+  await expect.poll(inView).toEqual([HOME_SHOWN[2]])
+  await expect(dots.nth(2)).toHaveAttribute('aria-current', 'true')
+  // Last dot: the See more card, "›" hidden.
+  await dots.nth(slides - 1).click()
+  await expect.poll(inView).toEqual(['see-more-card'])
+  await expect(dots.nth(slides - 1)).toHaveAttribute('aria-current', 'true')
+  await expect(next).toHaveCount(0)
+  await expect(prev).toBeVisible()
+  // Back to the start for the checks that follow.
+  await dots.nth(0).click()
+  await expect.poll(inView).toEqual([HOME_SHOWN[0]])
+}
