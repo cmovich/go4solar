@@ -23,8 +23,13 @@ const storage = {
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => ({ ...db.client, storage }) }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 
-const { confirmReadyPlan, moveReadyPlan, saveReadyPlan, setReadyPlanActive } =
-  await import('./actions')
+const {
+  confirmReadyPlan,
+  moveReadyPlan,
+  saveReadyPlan,
+  setReadyPlanActive,
+  setReadyPlanShowOnHome,
+} = await import('./actions')
 
 const sa: SessionInfo = { user: { id: 'sa', email: 's@x.test' }, role: 'super_admin', aal: 'aal2' }
 const fin: SessionInfo = { user: { id: 'f', email: 'f@x.test' }, role: 'finance', aal: 'aal2' }
@@ -71,6 +76,41 @@ describe('ready-made plan actions (Admin → Pricing → Ready-made plans)', () 
       'ready_plan.update',
       'ready_plan.confirm',
     ])
+  })
+
+  it('"Show on home page": new plans start off; the tick is audited; editing never changes it', async () => {
+    expect(await saveReadyPlan({ ...one, showOnHome: true })).toMatchObject({ ok: true })
+    const id = db.rows('ready_plans')[0]!.id as string
+    expect(db.rows('ready_plans')[0]).toMatchObject({ show_on_home: false })
+    expect(await setReadyPlanShowOnHome({ id, showOnHome: true })).toEqual({ ok: true })
+    expect(db.rows('ready_plans')[0]).toMatchObject({ show_on_home: true })
+    expect(await saveReadyPlan({ ...one, id, name: 'Neighbour', showOnHome: false })).toMatchObject(
+      {
+        ok: true,
+      },
+    )
+    expect(db.rows('ready_plans')[0]).toMatchObject({ name: 'Neighbour', show_on_home: true })
+    expect(await setReadyPlanShowOnHome({ id, showOnHome: false })).toEqual({ ok: true })
+    expect(db.rows('ready_plans')[0]).toMatchObject({ show_on_home: false })
+    expect(db.rows('audit_log').map((a) => a.action)).toEqual([
+      'ready_plan.create',
+      'ready_plan.home_on',
+      'ready_plan.update',
+      'ready_plan.home_off',
+    ])
+    expect(db.rows('audit_log')[1]).toMatchObject({
+      before: { show_on_home: false },
+      after: { show_on_home: true },
+    })
+  })
+  it('"Show on home page" needs a super admin with two-factor', async () => {
+    db.seed('ready_plans', { ...planToRow(one), id: 'p1' })
+    session = fin
+    expect(await setReadyPlanShowOnHome({ id: 'p1', showOnHome: true })).toMatchObject({
+      ok: false,
+    })
+    expect(db.rows('ready_plans')[0]).toMatchObject({ show_on_home: one.showOnHome })
+    expect(db.rows('audit_log')).toEqual([])
   })
 
   it('refuses a plan with problems, in plain words', async () => {

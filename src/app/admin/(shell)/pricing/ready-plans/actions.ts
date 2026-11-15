@@ -54,7 +54,12 @@ export async function saveReadyPlan(input: unknown): Promise<Result> {
     ? (await admin.from('ready_plans').select('*').eq('id', plan.id).maybeSingle()).data
     : null
   if (plan.id && !before) return { ok: false, error: 'This plan no longer exists.' }
-  const row = { ...planToRow(plan), sample: before ? before.sample : true }
+  // SAMPLE and "Show on home page" only change through their own buttons (new plans: off).
+  const row = {
+    ...planToRow(plan),
+    sample: before ? before.sample : true,
+    show_on_home: before ? (before.show_on_home ?? false) : false,
+  }
   // Copies taken before the write (the audit row and the old picture).
   const previous = before ? { ...before } : null
   const oldImage = previous?.image ?? null
@@ -139,6 +144,28 @@ export async function setReadyPlanActive(input: unknown): Promise<Result> {
     p.data.id,
     { active: !p.data.active },
     { active: p.data.active },
+  )
+  refresh()
+  return { ok: true }
+}
+
+/** "Show on home page": shown at once, or under "See more plans" (when switched on). */
+export async function setReadyPlanShowOnHome(input: unknown): Promise<Result> {
+  const session = await superAdmin()
+  if (!session) return DENIED
+  const p = idSchema.extend({ showOnHome: z.boolean() }).safeParse(input)
+  if (!p.success) return { ok: false, error: 'Plan not found.' }
+  const { error } = await createAdminClient()
+    .from('ready_plans')
+    .update({ show_on_home: p.data.showOnHome, updated_at: new Date().toISOString() })
+    .eq('id', p.data.id)
+  if (error) return { ok: false, error: 'Could not change the home page setting.' }
+  await audit(
+    session,
+    p.data.showOnHome ? 'ready_plan.home_on' : 'ready_plan.home_off',
+    p.data.id,
+    { show_on_home: !p.data.showOnHome },
+    { show_on_home: p.data.showOnHome },
   )
   refresh()
   return { ok: true }

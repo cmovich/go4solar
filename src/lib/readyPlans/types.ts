@@ -62,6 +62,8 @@ export type ReadyPlan = {
   adminNote: string | null
   sortOrder: number
   active: boolean
+  /** Shown on the home page at once; other switched-on plans sit under "See more plans". */
+  showOnHome: boolean
   /** SAMPLE until confirmed: no naira shown to customers. */
   sample: boolean
 }

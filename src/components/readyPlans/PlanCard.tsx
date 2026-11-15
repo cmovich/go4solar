@@ -29,7 +29,7 @@ export function PlanCard({ offer, imageUrl }: { offer: ReadyPlanOffer; imageUrl:
   const p = offer.plan
   return (
     <article
-      className="relative flex h-full w-[85vw] max-w-sm shrink-0 snap-start flex-col overflow-hidden rounded-2xl border bg-white shadow-sm sm:w-auto sm:max-w-none"
+      className="relative flex h-full w-full shrink-0 snap-start snap-always flex-col overflow-hidden rounded-2xl border bg-white shadow-sm sm:w-auto"
       data-testid={`ready-plan-${p.slug}`}
     >
       {imageUrl ? (
