@@ -29,26 +29,41 @@ export async function spewaMigrated(): Promise<boolean> {
   return res.ok
 }
 
-type App = { id: string; consumer_id: string; credit_flags: { livenessDeferred?: boolean } | null }
+type App = {
+  id: string
+  consumer_id: string
+  quote_id: string | null
+  credit_flags: { livenessDeferred?: boolean } | null
+}
 
 /**
- * Test applications waiting for a decision (deposit paid, loan pending approval) that are not in
- * any funder queue yet. `ready` = every approval check passes (signed, guarantor signed, KYC).
+ * Test applications waiting for a decision (deposit paid, loan pending approval, quote on file)
+ * that SPEWA has not decided yet (not queued, or queued and still waiting). `ready` = every
+ * approval check passes (signed, guarantor signed, KYC). `skip` = ids already taken.
  */
-export async function freeTestFiles(n: number, ready = false): Promise<string[]> {
+export async function freeTestFiles(
+  n: number,
+  ready = false,
+  skip: string[] = [],
+): Promise<string[]> {
   const [apps, queued, tests] = await Promise.all([
     rest<App[]>(
-      'applications?select=id,consumer_id,credit_flags&status=eq.submitted&order=submitted_at.desc&limit=300',
+      'applications?select=id,consumer_id,quote_id,credit_flags&status=eq.submitted&order=submitted_at.desc&limit=300',
     ),
-    rest<{ application_id: string }[]>('funder_queue?select=application_id'),
+    rest<{ application_id: string }[]>('funder_queue?select=application_id&decision=neq.pending'),
     rest<{ id: string }[]>('profiles?select=id&is_test=eq.true'),
   ])
-  const inQueue = new Set(queued.map((q) => q.application_id))
+  const inQueue = new Set([...queued.map((q) => q.application_id), ...skip])
   const test = new Set(tests.map((t) => t.id))
   const out: string[] = []
   for (const a of apps) {
     if (out.length >= n) break
-    if (inQueue.has(a.id) || !test.has(a.consumer_id)) continue
+    if (inQueue.has(a.id) || !test.has(a.consumer_id) || !a.quote_id) continue
+    // Some old test files have a quote with nothing in it (no instalments): skip them.
+    const quote = await rest<{ n: unknown }[]>(
+      `quotes?select=n:result->instalments&id=eq.${a.quote_id}`,
+    )
+    if (!Array.isArray(quote[0]?.n)) continue
     const [loan] = await rest<{ status: string }[]>(`loans?select=status&application_id=eq.${a.id}`)
     if (loan?.status !== 'pending_approval') continue
     if (ready && !(await approvable(a))) continue
@@ -87,8 +102,9 @@ export async function routeToSpewa(ids: string[]): Promise<void> {
   const [setting] = await rest<{ value: { funderId: string } }[]>(
     'settings?select=value&key=eq.funder_routing',
   )
-  await rest('funder_queue', {
+  await rest('funder_queue?on_conflict=application_id', {
     method: 'POST',
+    headers: { Prefer: 'return=representation,resolution=ignore-duplicates' },
     body: JSON.stringify(
       ids.map((id) => ({
         application_id: id,

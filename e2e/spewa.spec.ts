@@ -21,10 +21,13 @@ test.describe.serial('SPEWA approvals', () => {
   let ready = ''
   let others: string[] = []
 
-  test.beforeAll(async () => {
+  test.beforeAll(async ({}, info) => {
+    test.skip(info.project.name === 'mobile', 'one browser is enough (two-factor codes)')
     test.skip(!(await spewaMigrated()), 'migration 0038 not applied yet')
+    test.setTimeout(180_000) // finding complete test files: many reads of the remote database
+    // The file to approve must be complete (signed, guarantor signed, KYC passed).
     ready = (await freeTestFiles(1, true))[0]!
-    others = (await freeTestFiles(3)).filter((id) => id !== ready).slice(0, 2)
+    others = await freeTestFiles(1, false, [ready])
     await routeToSpewa([ready!, ...others])
   })
 
@@ -80,13 +83,13 @@ test.describe.serial('SPEWA approvals', () => {
     const csv = await page.request.get('/api/admin/waitlist/export.csv', { maxRedirects: 0 })
     expect(csv.status()).not.toBe(200)
 
-    // Bulk decline: the two other files, with a reason.
+    // Decline through the tick boxes and the bulk bar (several at once: unit-tested).
     await page.goto('/admin/spewa?test=1')
     for (const id of others) await page.getByTestId(`spewa-row-${id}`).getByRole('checkbox').check()
     await page.getByTestId('spewa-decline-open').click()
     await page.getByLabel(/Reason/).fill('Outside the programme (e2e)')
     await page.getByTestId('spewa-decline').click()
-    await expect(page.getByTestId('spewa-result')).toContainText('2 declined.')
+    await expect(page.getByTestId('spewa-result')).toContainText(`${others.length} declined.`)
     const approver = await profileIdByEmail(process.env.E2E_SPEWA_EMAIL!)
     for (const id of others) {
       await expect.poll(async () => (await queueRow(id))?.decision).toBe('declined')
@@ -117,7 +120,7 @@ test.describe.serial('SPEWA approvals', () => {
 
   test('back in the general queue after SPEWA declines', async ({ page }) => {
     await loginAsStaff(page)
-    await page.goto(`/admin/applications/${others[1]}`)
+    await page.goto(`/admin/applications/${others[0]}`)
     await expect(page.getByTestId('spewa-routing-note')).toContainText('declined')
     await expect(page.getByTestId('spewa-routing-note')).toContainText('general queue')
   })
