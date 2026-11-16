@@ -36,9 +36,21 @@ export type QueueFlag = keyof typeof QUEUE_FLAGS
 
 /** Ids of test accounts (profiles.is_test): reports leave them out unless asked. */
 export async function testProfileIds(): Promise<Set<string>> {
-  const { data } = await createAdminClient().from('profiles').select('id').eq('is_test', true)
-  return new Set((data ?? []).map((p) => p.id))
+  const admin = createAdminClient()
+  const ids = new Set<string>()
+  // Page through: the database returns at most 1,000 rows per request.
+  for (let from = 0; ; from += PAGE) {
+    const { data } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('is_test', true)
+      .order('id')
+      .range(from, from + PAGE - 1)
+    for (const p of data ?? []) ids.add(p.id)
+    if ((data ?? []).length < PAGE) return ids
+  }
 }
+const PAGE = 1000
 
 export type QueueFilters = {
   /** Include test customers (profiles.is_test). Off by default. */
