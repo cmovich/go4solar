@@ -346,8 +346,9 @@ export function WaitlistFlow({
               leadId={leadId}
               initial={applicantType}
               onBack={() => go(6)}
-              onSaved={(type) => {
+              onSaved={(type, est) => {
                 setApplicantType(type)
+                if (est) setEstimate(est)
                 setQuestionsAtEnd(false)
                 setIsBusiness(type === 'business')
                 go(type === 'business' ? 8 : 13)
@@ -359,8 +360,9 @@ export function WaitlistFlow({
               leadId={leadId}
               initial={business}
               onBack={() => go(7)}
-              onSaved={(b) => {
+              onSaved={(b, est) => {
                 setBusiness(b)
+                if (est) setEstimate(est)
                 go(13)
               }}
             />

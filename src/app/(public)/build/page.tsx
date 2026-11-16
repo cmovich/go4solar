@@ -43,6 +43,7 @@ async function adjustFrom(leadId: string, plan: string): Promise<Partial<Builder
   if (!lead || !est || !lead.state || !isNgStateId(lead.state)) return null
   const lines = est.plans[plan as Plan]?.quote.snapshot.lines ?? []
   return {
+    applicantType: est.offer ? 'business' : 'individual',
     scope: 'complete',
     state: lead.state,
     items: lines.map((l) => ({ sku: l.sku, qty: l.qty })).filter((l) => !l.sku.startsWith('RACK-')),
@@ -106,6 +107,7 @@ export default async function BuildPage({
         ) : (
           <Builder
             items={builderItems(ctx)}
+            businessItems={ctx.settings.businessOffer ? builderItems(ctx, 'business') : []}
             roofTypes={roofTypes}
             wiring={wiring}
             launchMode={launchMode()}
@@ -115,7 +117,12 @@ export default async function BuildPage({
               initial &&
               sp.lead &&
               (sp.plan === 'essential' || sp.plan === 'comfort' || sp.plan === 'independence')
-                ? { leadId: sp.lead, plan: sp.plan, planLabel: PLAN_LABELS[sp.plan] }
+                ? {
+                    leadId: sp.lead,
+                    plan: sp.plan,
+                    planLabel: PLAN_LABELS[sp.plan],
+                    business: initial.applicantType === 'business',
+                  }
                 : null
             }
             done={sp.done === '1'}

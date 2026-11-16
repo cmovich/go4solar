@@ -64,17 +64,25 @@ export function priceVariant(
       tenureMonths,
       depositShare: share,
       minDepositShare: snap.minDepositShare,
+      offer: snap.offer,
     })
   const quote = at(depositShare)
   const atMin = depositShare === snap.minDepositShare ? quote : at(snap.minDepositShare)
   return { ...base, quote, savingVsMin: atMin.systemPrice - quote.systemPrice }
 }
 
-/** Price for a 100% upfront (cash) buyer: cost + base margins + installation, no financing. */
+/**
+ * Price for a 100% upfront (cash) buyer: cost + base margins + installation, no financing.
+ * SPEWA offer: SPEWA items at their selling price (no financing charge).
+ */
 export function cashPrice(snap: QuoteSnapshot): number {
   return roundNaira(
     snap.lines.reduce(
-      (sum, l) => sum + l.unitCost * l.qty * (1 + snap.marginByCategory[l.category]),
+      (sum, l) =>
+        sum +
+        (snap.offer && l.sellUnit !== undefined
+          ? l.sellUnit * l.qty
+          : l.unitCost * l.qty * (1 + snap.marginByCategory[l.category])),
       0,
     ) + snap.installCost,
   )

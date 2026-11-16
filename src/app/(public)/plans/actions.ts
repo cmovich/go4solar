@@ -10,6 +10,7 @@ import type { TenureMonths } from '@/lib/pricing/types'
 import type { Plan } from '@/lib/sizing/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
+import { offerMinDepositText } from '@/lib/spewa/offer'
 import { currentVisitorHash } from '@/lib/waitlist/token'
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string }
@@ -98,6 +99,12 @@ async function insertQuote(
   }
 }
 
+/** The deposit is below this estimate's minimum (30% for the business offer). */
+function belowMinimum(ctx: LeadForPlans, depositShare: number): Result<never> | null {
+  const min = ctx.estimate.plans.comfort.quote.snapshot.minDepositShare
+  return depositShare + 1e-9 < min ? { ok: false, error: `${offerMinDepositText(min)}.` } : null
+}
+
 async function context(leadId: string): Promise<{ ctx: LeadForPlans; hash: string } | null> {
   const [ctx, hash] = await Promise.all([loadLeadForPlans(leadId), currentVisitorHash()])
   return ctx && hash ? { ctx, hash } : null
@@ -110,6 +117,8 @@ export async function chooseQuote(input: unknown): Promise<Result<{ quoteId: str
   const c = await context(parsed.data.leadId)
   if (!c) return EXPIRED
   if (!c.ctx.tenures.includes(parsed.data.tenure)) return NOT_OFFERED
+  const low = belowMinimum(c.ctx, parsed.data.depositShare)
+  if (low) return low
   const q = await insertQuote(
     c.ctx,
     c.hash,
@@ -128,6 +137,8 @@ export async function saveForLater(input: unknown): Promise<Result<{ references:
   const c = await context(parsed.data.leadId)
   if (!c) return EXPIRED
   if (!c.ctx.tenures.includes(parsed.data.tenure)) return NOT_OFFERED
+  const low = belowMinimum(c.ctx, parsed.data.depositShare)
+  if (low) return low
 
   const saved = []
   for (const plan of PLANS) {

@@ -27,6 +27,8 @@ export type FullCatalogue = {
     lengthCm: number | null
     option: PanelOption
   }[]
+  /** SPEWA offer (businesses): lights, priced as their own lines. */
+  lights?: { sku: string; name: string; watts: number | null; unitCost: number }[]
   /** Itemised accessories and the old "pack" tiers (kind 'pack', rating = max kVA). */
   accessories: (Omit<CatalogueItem, 'kind'> & { kind: AccessoryKind | 'pack' })[]
   rules?: AccessoryRule[]
@@ -51,6 +53,8 @@ export type FullCatalogue = {
 }
 
 export type BuildSelection = {
+  /** A business or institution gets the SPEWA offer (when it exists). */
+  applicantType?: 'individual' | 'business'
   scope: 'complete' | 'some'
   existing?: { brand: string; kva: number | null; batteryV: number | null }
   /** "I know my load" (kVA). */
@@ -95,6 +99,7 @@ export function assembleBuild(sel: BuildSelection, cat: FullCatalogue): Assemble
     const bat = cat.batteries.find((b) => b.sku === sku)
     const pnl = cat.panels.find((p) => p.sku === sku)
     const acc = cat.accessories.find((a) => a.sku === sku)
+    const light = cat.lights?.find((l) => l.sku === sku)
     if (inv) {
       inverter = inv
       lines.push({ sku, name: inv.name, category: 'inverter', unitCost: inv.unitCost, qty })
@@ -106,6 +111,8 @@ export function assembleBuild(sel: BuildSelection, cat: FullCatalogue): Assemble
       lines.push({ sku, name: pnl.name, category: 'panels', unitCost: pnl.unitCost, qty })
     } else if (acc) {
       lines.push({ sku, name: acc.name, category: 'accessories', unitCost: acc.unitCost, qty })
+    } else if (light) {
+      lines.push({ sku, name: light.name, category: 'accessories', unitCost: light.unitCost, qty })
     }
   }
 

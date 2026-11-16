@@ -103,7 +103,7 @@ export async function throughDetails(page: Page, p: Person) {
   await page.getByRole('checkbox').check()
   await page.getByRole('button', { name: 'Next' }).click()
   if (p.type === 'business') {
-    await page.getByRole('button', { name: /My business/ }).click({ timeout: 45000 })
+    await page.getByRole('button', { name: /A business or institution/ }).click({ timeout: 45000 })
     await page.getByLabel('Business name').fill('Eze Stores')
     await page.getByLabel('Type of business').selectOption('shop')
     await page.getByLabel('Your role').fill('Owner')

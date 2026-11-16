@@ -1,3 +1,5 @@
+import { SpewaProfit } from '@/components/admin/spewa/SpewaProfit'
+import { offerProfit } from '@/lib/spewa/offer'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -438,6 +440,17 @@ export default async function ApplicationPage({
               ['Tenure', `${d.quote.instalments.length} months`],
             ]}
           />
+          {(() => {
+            const profit = offerProfit(d.quote)
+            const offer = d.quote.snapshot.offer
+            return profit && offer ? (
+              <SpewaProfit
+                p={profit}
+                badDebtShare={offer.badDebtShare}
+                go4solarShare={offer.go4solarShare}
+              />
+            ) : null
+          })()}
         </div>
       )}
 

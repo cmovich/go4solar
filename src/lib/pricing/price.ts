@@ -1,6 +1,6 @@
 import { roundNaira, roundToStep } from '@/lib/money'
 
-import type { QuoteInput, QuoteLine, QuoteResult } from './types'
+import type { QuoteInput, QuoteLine, QuoteOffer, QuoteResult, TenureMonths } from './types'
 
 /** Default lowest deposit (settings.min_deposit_share). */
 export const DEFAULT_MIN_DEPOSIT_SHARE = 0.2
@@ -48,6 +48,8 @@ export function priceQuote(input: QuoteInput): QuoteResult {
     throw new RangeError('The installation and delivery lines must add up to the installation cost')
   }
 
+  if (input.offer) return priceOffer(input, input.offer, minDepositShare, noMarkup)
+
   // E: equipment at cost. C: equipment with base margins, plus installation.
   const equipmentCost = input.lines.reduce((sum, l) => sum + l.unitCost * l.qty, 0)
   const costWithMargins = input.lines.reduce(
@@ -68,31 +70,16 @@ export function priceQuote(input: QuoteInput): QuoteResult {
   const equipmentPrice = systemPrice - installCost
   const markupShare = (equipmentPrice - equipmentCost) / equipmentCost
 
-  const lineTotals = input.lines.map((l) =>
-    roundToStep(l.unitCost * l.qty * (1 + markupShare), LINE_ROUNDING_STEP),
+  const lines = spreadLines(
+    input,
+    input.lines.map((l) => l.unitCost * l.qty * (1 + markupShare)),
+    equipmentPrice,
   )
-  // Rounding remainder goes on the largest line (first if tied) so lines always add up.
-  const remainder = equipmentPrice - lineTotals.reduce((a, b) => a + b, 0)
-  if (remainder !== 0 && lineTotals.length > 0) {
-    let largest = 0
-    for (let i = 1; i < lineTotals.length; i++) {
-      if ((lineTotals[i] ?? 0) > (lineTotals[largest] ?? 0)) largest = i
-    }
-    lineTotals[largest] = (lineTotals[largest] ?? 0) + remainder
-  }
-
-  const lines: QuoteLine[] = input.lines.map((l, i) => {
-    const lineTotal = lineTotals[i] ?? 0
-    return { ...l, lineTotal, unitPrice: roundNaira(lineTotal / l.qty) }
-  })
 
   // Deposit and equal instalments; the last instalment absorbs rounding.
   const deposit = roundNaira(systemPrice * depositShare)
   const balance = systemPrice - deposit
-  const monthly = roundNaira(balance / tenureMonths)
-  const instalments = Array.from({ length: tenureMonths }, (_, i) =>
-    i < tenureMonths - 1 ? monthly : balance - monthly * (tenureMonths - 1),
-  )
+  const { monthly, instalments } = splitMonthly(balance, tenureMonths)
 
   return {
     costPrice: equipmentCost + installCost,
@@ -116,6 +103,96 @@ export function priceQuote(input: QuoteInput): QuoteResult {
       depositShare,
       minDepositShare,
       roundingStep: LINE_ROUNDING_STEP,
+    },
+  }
+}
+
+/** Line totals rounded to ₦100; the rounding remainder goes on the largest line (first if tied). */
+function spreadLines(input: QuoteInput, raw: number[], equipmentPrice: number): QuoteLine[] {
+  const lineTotals = raw.map((v) => roundToStep(v, LINE_ROUNDING_STEP))
+  const remainder = equipmentPrice - lineTotals.reduce((a, b) => a + b, 0)
+  if (remainder !== 0 && lineTotals.length > 0) {
+    let largest = 0
+    for (let i = 1; i < lineTotals.length; i++) {
+      if ((lineTotals[i] ?? 0) > (lineTotals[largest] ?? 0)) largest = i
+    }
+    lineTotals[largest] = (lineTotals[largest] ?? 0) + remainder
+  }
+  return input.lines.map((l, i) => {
+    const lineTotal = lineTotals[i] ?? 0
+    return { ...l, lineTotal, unitPrice: roundNaira(lineTotal / l.qty) }
+  })
+}
+
+/** Equal monthly payments; the last one absorbs rounding. */
+function splitMonthly(balance: number, months: number) {
+  const monthly = roundNaira(balance / months)
+  const instalments = Array.from({ length: months }, (_, i) =>
+    i < months - 1 ? monthly : balance - monthly * (months - 1),
+  )
+  return { monthly, instalments }
+}
+
+/**
+ * A partner offer (SPEWA for businesses and institutions, src/lib/spewa/offer.ts): SPEWA items at
+ * their fixed selling price, other equipment at cost + base margin, installation at cost. The
+ * charge for the length is added to the financed amount only:
+ *   total payable = deposit + (cash price − deposit) × (1 + charge)
+ * and is spread over the equipment lines (one fixed price; it is never shown as a charge).
+ */
+function priceOffer(
+  input: QuoteInput,
+  offer: QuoteOffer,
+  minDepositShare: number,
+  noMarkup: { label: string; amount: number }[],
+): QuoteResult {
+  const { depositShare, tenureMonths, installCost } = input
+  const charge = offer.chargeByTenure[tenureMonths as TenureMonths]
+  if (charge === undefined) {
+    throw new RangeError(`${tenureMonths} months is not offered for this offer`)
+  }
+  const cashOf = (l: QuoteInput['lines'][number]) =>
+    l.sellUnit !== undefined
+      ? l.sellUnit * l.qty
+      : l.unitCost * l.qty * (1 + input.marginByCategory[l.category])
+  const equipmentCash = roundNaira(input.lines.reduce((s, l) => s + cashOf(l), 0))
+  const cash = equipmentCash + installCost
+  const deposit = roundNaira(cash * depositShare)
+  const financed = cash - deposit
+  const balance = roundNaira(financed * (1 + charge))
+  const systemPrice = deposit + balance
+  const equipmentPrice = systemPrice - installCost
+  const equipmentCost = input.lines.reduce((s, l) => s + l.unitCost * l.qty, 0)
+  const factor = equipmentCash > 0 ? equipmentPrice / equipmentCash : 1
+  const lines = spreadLines(
+    input,
+    input.lines.map((l) => cashOf(l) * factor),
+    equipmentPrice,
+  )
+  const { monthly, instalments } = splitMonthly(balance, tenureMonths)
+  return {
+    costPrice: equipmentCost + installCost,
+    systemPrice,
+    markupShare: equipmentCost > 0 ? (equipmentPrice - equipmentCost) / equipmentCost : 0,
+    lines,
+    installCost,
+    noMarkup: noMarkup.map((l) => ({ ...l })),
+    deposit,
+    balance,
+    instalments,
+    monthly,
+    snapshot: {
+      version: 1,
+      lines: input.lines.map((l) => ({ ...l })),
+      installCost,
+      noMarkup: noMarkup.map((l) => ({ ...l })),
+      marginByCategory: { ...input.marginByCategory },
+      pricingRateAnnual: input.pricingRateAnnual,
+      tenureMonths,
+      depositShare,
+      minDepositShare,
+      roundingStep: LINE_ROUNDING_STEP,
+      offer: { ...offer, chargeByTenure: { ...offer.chargeByTenure } },
     },
   }
 }

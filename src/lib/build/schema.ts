@@ -7,6 +7,8 @@ import { siteAnswersSchema } from '@/lib/wizard/questions'
 
 /** Part F: what the builder sends to the server. */
 export const buildSelectionSchema = z.object({
+  /** A business or institution is priced with the SPEWA offer (when it exists). */
+  applicantType: z.enum(['individual', 'business']).optional(),
   scope: z.enum(['complete', 'some']),
   existing: z
     .object({

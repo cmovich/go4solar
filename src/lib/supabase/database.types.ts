@@ -866,6 +866,56 @@ export type Database = {
           },
         ]
       }
+      funder_routing_rules: {
+        Row: {
+          active: boolean
+          applicant_type: string
+          created_at: string
+          funder_id: string
+          id: string
+          is_default: boolean
+          min_deposit_share: number
+          offer: string | null
+          sort_order: number
+          tenures: number[]
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          applicant_type: string
+          created_at?: string
+          funder_id: string
+          id?: string
+          is_default?: boolean
+          min_deposit_share: number
+          offer?: string | null
+          sort_order?: number
+          tenures: number[]
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          applicant_type?: string
+          created_at?: string
+          funder_id?: string
+          id?: string
+          is_default?: boolean
+          min_deposit_share?: number
+          offer?: string | null
+          sort_order?: number
+          tenures?: number[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'funder_routing_rules_funder_id_fkey'
+            columns: ['funder_id']
+            isOneToOne: false
+            referencedRelation: 'funders'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       funders: {
         Row: {
           annual_rate: number
@@ -2167,6 +2217,81 @@ export type Database = {
           phone_e164?: string
           subject_id?: string
           subject_type?: string
+        }
+        Relationships: []
+      }
+      spewa_price_items: {
+        Row: {
+          active: boolean
+          big_dealer: number | null
+          brand: string | null
+          category: string
+          code: string
+          created_at: string
+          high_voltage: boolean
+          id: string
+          installer: number | null
+          item_no: number | null
+          kind: string
+          kwh: number | null
+          level_a: number | null
+          level_b: number | null
+          product: string
+          rating_kw: number | null
+          showroom: number | null
+          sort_order: number
+          updated_at: string
+          voltage: number | null
+          warranty: string | null
+          watts: number | null
+        }
+        Insert: {
+          active?: boolean
+          big_dealer?: number | null
+          brand?: string | null
+          category: string
+          code: string
+          created_at?: string
+          high_voltage?: boolean
+          id?: string
+          installer?: number | null
+          item_no?: number | null
+          kind?: string
+          kwh?: number | null
+          level_a?: number | null
+          level_b?: number | null
+          product: string
+          rating_kw?: number | null
+          showroom?: number | null
+          sort_order?: number
+          updated_at?: string
+          voltage?: number | null
+          warranty?: string | null
+          watts?: number | null
+        }
+        Update: {
+          active?: boolean
+          big_dealer?: number | null
+          brand?: string | null
+          category?: string
+          code?: string
+          created_at?: string
+          high_voltage?: boolean
+          id?: string
+          installer?: number | null
+          item_no?: number | null
+          kind?: string
+          kwh?: number | null
+          level_a?: number | null
+          level_b?: number | null
+          product?: string
+          rating_kw?: number | null
+          showroom?: number | null
+          sort_order?: number
+          updated_at?: string
+          voltage?: number | null
+          warranty?: string | null
+          watts?: number | null
         }
         Relationships: []
       }

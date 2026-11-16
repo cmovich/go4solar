@@ -128,7 +128,8 @@ async function prepare(
     publicCode,
     verifyUrl,
     issuedAt,
-    validityDays,
+    // SPEWA offer quotes: the offer's own validity (SPEWA's price list, 7 days).
+    validityDays: src.result.snapshot?.offer?.validityDays ?? validityDays,
     company,
     customer: src.customer,
     title: src.title,

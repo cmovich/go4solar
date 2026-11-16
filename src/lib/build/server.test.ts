@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_QUOTE_SETTINGS } from '@/lib/settings/schemas'
 import { assumedEquipment } from '@/lib/sizing/defaults'
+import { DEFAULT_OFFER_TERMS, businessOfferFrom } from '@/lib/spewa/offer'
 
-import { priceSelection, suggestForLoad, type BuilderContext } from './server'
+import { builderItems, priceSelection, suggestForLoad, type BuilderContext } from './server'
 
 const eq = assumedEquipment()
 const ctx: BuilderContext = {
@@ -101,5 +102,93 @@ describe('priceSelection', () => {
   })
   it('nothing chosen yet → no price', () => {
     expect(priceSelection(ctx, sel, 0.2, 12).priced!.systemPrice).toBe(0)
+  })
+})
+
+describe('business or institution (SPEWA offer) in the builder', () => {
+  const spewaItem = (
+    code: string,
+    kind: 'inverter' | 'battery' | 'panel' | 'light',
+    size: Record<string, number>,
+    sell: number,
+    partner: number,
+  ) => ({
+    id: code,
+    itemNo: 1,
+    category: 'Other' as const,
+    code,
+    product: `${code} product`,
+    brand: 'SOLIS',
+    warranty: null,
+    prices: { showroom: null, installer: sell, level_b: null, level_a: null, big_dealer: partner },
+    kind,
+    ratingKw: size.kw ?? null,
+    voltage: size.v ?? null,
+    highVoltage: false,
+    kwh: size.kwh ?? null,
+    watts: size.w ?? null,
+    active: true,
+    sortOrder: 1,
+  })
+  const businessOffer = businessOfferFrom({
+    items: [
+      spewaItem('SPW-SLS-0004', 'inverter', { kw: 12, v: 48 }, 2_200_000, 1_750_000),
+      spewaItem('SPW-BAT-15', 'battery', { kwh: 15, v: 48 }, 1_867_500, 1_675_000),
+      spewaItem('SP-0001', 'panel', { w: 550 }, 113_000, 100_000),
+      spewaItem('SPW-LGT-0001', 'light', { w: 100 }, 185_000, 165_000),
+    ],
+    terms: DEFAULT_OFFER_TERMS,
+    rule: { funderId: 'f', minDepositShare: 0.3, tenures: [3, 6, 9, 12] },
+    base: DEFAULT_QUOTE_SETTINGS.priceList,
+  })!
+  const bctx: BuilderContext = { ...ctx, settings: { ...ctx.settings, businessOffer } }
+  const biz = { ...sel, applicantType: 'business' as const }
+
+  it('lists SPEWA inverters, batteries, panels and lights at the selling price; our accessories stay', () => {
+    const items = builderItems(bctx, 'business')
+    expect(items.find((i) => i.sku === 'SPW-SLS-0004')).toMatchObject({
+      group: 'inverter',
+      price: 2_200_000,
+      kva: 12,
+      brand: 'SOLIS',
+    })
+    expect(items.find((i) => i.sku === 'SPW-LGT-0001')).toMatchObject({ group: 'lights' })
+    expect(items.some((i) => i.sku === 'INV-5')).toBe(false)
+    expect(items.some((i) => i.sku === 'ACC-7.5')).toBe(true)
+    // Individuals keep our catalogue.
+    expect(builderItems(bctx, 'individual').some((i) => i.sku === 'SPW-SLS-0004')).toBe(false)
+  })
+
+  it('item 31 alone at 30% over 12 months: 2,662,000 (plus installation and delivery)', () => {
+    const { priced, quote } = priceSelection(
+      bctx,
+      { ...biz, items: [{ sku: 'SPW-SLS-0004', qty: 1 }], installer: 'own' },
+      0.3,
+      12,
+    )
+    expect(quote!.snapshot.offer?.kind).toBe('spewa')
+    // Delivery (50,000, our table) is part of the cash price: 2,250,000.
+    expect(quote!.deposit).toBe(675_000)
+    expect(quote!.balance).toBe(Math.round(1_575_000 * 1.3))
+    expect(priced!.minDepositShare).toBe(0.3)
+    expect(priced!.tenures).toEqual([3, 6, 9, 12])
+    expect(priced!.offer).toBe(true)
+  })
+
+  it('a deposit under 30% is raised to 30%; lights are priced as SPEWA lines', () => {
+    const { quote } = priceSelection(
+      bctx,
+      { ...biz, items: [{ sku: 'SPW-LGT-0001', qty: 2 }], installer: 'own' },
+      0.2,
+      6,
+    )
+    expect(quote!.snapshot.depositShare).toBe(0.3)
+    expect(quote!.snapshot.lines[0]).toMatchObject({ sellUnit: 185_000, unitCost: 165_000 })
+  })
+
+  it('"I know my load" suggests SPEWA equipment for a business', () => {
+    const items = suggestForLoad(bctx, 8, biz)
+    expect(items.some((i) => i.sku === 'SPW-SLS-0004')).toBe(true)
+    expect(items.some((i) => i.sku === 'SP-0001')).toBe(true)
   })
 })

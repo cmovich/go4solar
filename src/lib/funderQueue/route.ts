@@ -4,31 +4,35 @@ import type { QuoteResult } from '@/lib/pricing/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
 
-import {
-  depositShareOf,
-  routeTo,
-  routingFromSetting,
-  type QueueDecision,
-  type Routing,
-} from './rules'
+import { depositShareOf, type QueueDecision } from './rules'
+import { routeByRules, ruleFromSetting, rulesFromRows, type RoutingRule } from './routingRules'
 
-export async function loadRouting(): Promise<Routing> {
-  const { data } = await createAdminClient()
+/**
+ * The routing rules (Admin → Funders → Routing rules). Before migration 0039 the table does not
+ * exist: the PR #44 setting (settings.funder_routing) is used as one rule.
+ */
+export async function loadRoutingRules(): Promise<RoutingRule[]> {
+  const admin = createAdminClient()
+  const { data, error } = await admin.from('funder_routing_rules').select('*')
+  if (!error) return rulesFromRows(data ?? [])
+  const { data: s } = await admin
     .from('settings')
     .select('value')
     .eq('key', 'funder_routing')
     .maybeSingle()
-  return routingFromSetting(data?.value)
+  const r = ruleFromSetting(s?.value)
+  return r ? [r] : []
 }
 
 /** The funder name for page titles ("SPEWA programme funds"), or null when nothing is routed. */
 export async function routedFunderName(): Promise<string | null> {
-  const r = await loadRouting()
-  if (!r.funderId) return null
+  const rules = await loadRoutingRules()
+  const rule = rules.find((r) => r.active && r.offer === 'spewa') ?? rules.find((r) => r.active)
+  if (!rule) return null
   const { data } = await createAdminClient()
     .from('funders')
     .select('name')
-    .eq('id', r.funderId)
+    .eq('id', rule.funderId)
     .maybeSingle()
   return data?.name ?? null
 }
@@ -50,7 +54,7 @@ export async function routeAfterDeposit(applicationId: string): Promise<void> {
     const [{ data: quote }, { data: profile }, routing] = await Promise.all([
       admin.from('quotes').select('result').eq('id', app.quote_id).maybeSingle(),
       admin.from('profiles').select('is_test').eq('id', app.consumer_id).maybeSingle(),
-      loadRouting(),
+      loadRoutingRules(),
     ])
     const result = quote?.result as unknown as QuoteResult | undefined
     if (!result) return
@@ -59,7 +63,11 @@ export async function routeAfterDeposit(applicationId: string): Promise<void> {
       systemPrice: Number(result.systemPrice),
       snapshot: result.snapshot,
     })
-    const funderId = routeTo({ applicantType: app.applicant_type, depositShare }, routing)
+    const funderId = routeByRules(routing, {
+      applicantType: app.applicant_type,
+      depositShare,
+      tenureMonths: result.snapshot?.tenureMonths,
+    })
     if (!funderId) return
     const { data: inserted } = await admin
       .from('funder_queue')

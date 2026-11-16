@@ -3,6 +3,7 @@ import 'server-only'
 import { z } from 'zod'
 
 import { loadCatalogue } from '@/lib/catalogue/server'
+import { loadBusinessOffer } from '@/lib/spewa/server'
 import { priceListFromRows, pricingFromRows } from '@/lib/pricing/tables'
 import { DEFAULT_WIRING, wiringSchema } from '@/lib/wizard/questions'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -112,13 +113,14 @@ export async function getQuoteSettings(): Promise<QuoteSettings> {
     .eq('key', 'wiring')
     .maybeSingle()
 
+  const finalPriceList = full?.sample ? { ...priceList, sample: true } : priceList
   return {
     sizing,
     catalogue,
     wiring: wiringSchema.safeParse(wiringRow?.value).data ?? DEFAULT_WIRING,
     sunHours,
     // SAMPLE delivery or rack prices feed customer prices, so they hide them too (sampleStatus.ts).
-    priceList: full?.sample ? { ...priceList, sample: true } : priceList,
+    priceList: finalPriceList,
     pricing,
     minDepositShare: pick(
       'min_deposit_share',
@@ -127,6 +129,8 @@ export async function getQuoteSettings(): Promise<QuoteSettings> {
       DEFAULT_QUOTE_SETTINGS.minDepositShare,
     ),
     energy: pick('energy', energySettingsSchema, byKey.energy, DEFAULT_QUOTE_SETTINGS.energy),
+    // SPEWA offer for businesses and institutions (null before migration 0039).
+    businessOffer: await loadBusinessOffer(finalPriceList),
   }
 }
 

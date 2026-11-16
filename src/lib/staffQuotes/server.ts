@@ -175,7 +175,11 @@ async function saveStaffQuotation(
       total: quote.systemPrice,
       monthly: quote.monthly,
       sample: stored.sample,
-      valid_until: validUntil(now, await quoteValidityDays()).toISOString(),
+      // SPEWA offer quotations are valid for the offer's own days (SPEWA's price list).
+      valid_until: validUntil(
+        now,
+        quote.snapshot.offer?.validityDays ?? (await quoteValidityDays()),
+      ).toISOString(),
       is_test: isTestQuotation(Boolean(me?.is_test), customer.phone),
     })
     .select('id')

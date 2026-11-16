@@ -11,9 +11,29 @@ export type QuoteLineInput = {
   sku: string
   name: string
   category: ComponentCategory
-  /** Landed cost of one unit, naira. */
+  /** Landed cost of one unit, naira (SPEWA offer: the partner price). */
   unitCost: number
   qty: number
+  /**
+   * SPEWA offer only: the fixed selling price of one unit (the price list's selling column),
+   * before the financing charge. Lines without it are priced at cost + base margin.
+   */
+  sellUnit?: number
+}
+
+/** The terms of a partner offer (SPEWA for businesses and institutions), kept with each quote. */
+export type QuoteOffer = {
+  kind: 'spewa'
+  /** Charge on the financed amount per length (0.075 = 7.5% for 3 months). */
+  chargeByTenure: Partial<Record<TenureMonths, number>>
+  /** Bad-debt provision on the financed amount (staff profit view only). */
+  badDebtShare: number
+  /** Go4Solar's share of the profit; the rest is SPEWA's. */
+  go4solarShare: number
+  partnerColumn: string
+  sellingColumn: string
+  priceListDate: string
+  validityDays: number
 }
 
 /** A cost that is never marked up (installation, delivery), as its own invoice line. */
@@ -34,6 +54,8 @@ export type QuoteInput = {
   depositShare: number
   /** Lowest deposit allowed (settings.min_deposit_share). Defaults to 0.2. */
   minDepositShare?: number
+  /** A partner offer: fixed selling prices + a charge on the financed amount (see priceQuote). */
+  offer?: QuoteOffer
 }
 
 export type QuoteLine = QuoteLineInput & {
@@ -75,4 +97,6 @@ export type QuoteSnapshot = {
   depositShare: number
   minDepositShare: number
   roundingStep: number
+  /** Present on SPEWA offer quotes. */
+  offer?: QuoteOffer
 }

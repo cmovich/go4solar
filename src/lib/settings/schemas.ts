@@ -1,3 +1,4 @@
+import type { BusinessOffer } from '@/lib/spewa/offer'
 import { z } from 'zod'
 
 import { DEFAULT_SIZING_SETTINGS } from '@/lib/sizing/defaults'
@@ -195,6 +196,11 @@ export type QuoteSettings = {
   pricing: PricingSettings
   minDepositShare: number
   energy: EnergySettings
+  /**
+   * The SPEWA offer for businesses and institutions (routing rule + SPEWA price list). Missing
+   * before migration 0039, without an offer rule, or in tests: businesses are priced normally.
+   */
+  businessOffer?: BusinessOffer | null
 }
 
 export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {

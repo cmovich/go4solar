@@ -6,6 +6,7 @@ import { openPdf } from './helpers/invoices'
 import { answerQuoteQuestions } from './helpers/questions'
 import { testEmail, testPhone } from './helpers/test-identity'
 import { loginAsStaff } from './helpers/staff'
+import { cannotGoBelow30, offerReady } from './helpers/spewaOffer'
 
 const hasStaff = () => Boolean(process.env.E2E_STAFF_EMAIL && process.env.E2E_STAFF_TOTP_SECRET)
 
@@ -88,7 +89,7 @@ async function fillEnergy(page: Page, known: boolean) {
   await page.getByRole('button', { name: 'Next' }).click()
 }
 
-async function finishFromPlans(page: Page, expectAdvice: boolean) {
+async function finishFromPlans(page: Page, expectAdvice: boolean, business = false) {
   await expect(page.getByRole('heading', { name: 'Here are your plans, Amaka' })).toBeVisible({
     timeout: 15000,
   })
@@ -105,7 +106,9 @@ async function finishFromPlans(page: Page, expectAdvice: boolean) {
     await expect(page.getByRole('heading', { name: 'How much can you pay upfront?' })).toBeVisible()
     await expect(page.getByTestId('total-price')).toHaveCount(0)
     await page.getByRole('slider').focus()
-    for (let i = 0; i < 30; i++) await page.keyboard.press('ArrowRight')
+    // From the minimum (20%, or 30% for a business with the SPEWA offer) up to 50%.
+    const from = parseInt((await page.getByTestId('deposit-pct').textContent()) ?? '20', 10)
+    for (let i = 0; i < 50 - from; i++) await page.keyboard.press('ArrowRight')
     await expect(page.getByTestId('deposit-pct')).toHaveText('50%')
     await expect(page.locator('main')).not.toContainText('₦')
   } else if (expectAdvice) {
@@ -128,9 +131,13 @@ async function finishFromPlans(page: Page, expectAdvice: boolean) {
   if (!sample) {
     await page.getByTestId('choose-comfort').click()
     await expect(page.getByRole('heading', { name: 'How much can you pay upfront?' })).toBeVisible()
+    // A business or institution gets the SPEWA offer: 30% minimum, never lower.
+    if (business && (await offerReady())) await cannotGoBelow30(page, 'deposit-pct')
     const totalAt20 = await page.getByTestId('total-price').textContent()
     await page.getByRole('slider').focus()
-    for (let i = 0; i < 30; i++) await page.keyboard.press('ArrowRight')
+    // From the minimum (20%, or 30% for a business with the SPEWA offer) up to 50%.
+    const from = parseInt((await page.getByTestId('deposit-pct').textContent()) ?? '20', 10)
+    for (let i = 0; i < 50 - from; i++) await page.keyboard.press('ArrowRight')
     await expect(page.getByTestId('deposit-pct')).toHaveText('50%')
     await expect(page.getByTestId('saving')).toContainText('You save ₦')
     await expect(page.getByTestId('saving')).toContainText('by paying 50%')
@@ -217,7 +224,7 @@ test.describe('solar plan sign-up (waiting list)', () => {
     page,
   }) => {
     await throughNameStep(page, freshPhone(), 'Enugu')
-    await page.getByRole('button', { name: /My business/ }).click()
+    await page.getByRole('button', { name: /A business or institution/ }).click()
     await expect(page.getByRole('heading', { name: 'Tell us about your business' })).toBeVisible()
     await page.getByLabel('Business name').fill('Amaka Stores')
     await page.getByLabel('Type of business').selectOption('shop')
@@ -227,7 +234,7 @@ test.describe('solar plan sign-up (waiting list)', () => {
     await page.getByLabel('Days per week').fill('6')
     await page.getByRole('button', { name: 'Next' }).click()
     await fillEnergy(page, false)
-    await finishFromPlans(page, false)
+    await finishFromPlans(page, false, true)
   })
 
   test('quote questions: some items, no grid, ground mounting → the chosen style is highlighted with its notes', async ({

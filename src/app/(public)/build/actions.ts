@@ -153,10 +153,15 @@ export async function adjustPlanFromBuilder(input: unknown): Promise<Result<{ ne
   const estimate = lead?.estimate as Estimate | null
   if (!lead || !estimate) return { ok: false, error: 'Your session expired. Please start again.' }
   const ctx = await builderContext()
-  const { priced, quote } = priceSelection(ctx, p.data.selection, ctx.settings.minDepositShare, 12)
+  // The plan is priced like the rest of the estimate: a business keeps the SPEWA offer.
+  const selection = {
+    ...p.data.selection,
+    applicantType: estimate.offer ? ('business' as const) : ('individual' as const),
+  }
+  const { priced, quote } = priceSelection(ctx, selection, ctx.settings.minDepositShare, 12)
   if (!priced || !quote) return { ok: false, error: 'Choose at least one item first.' }
   if (priced.blocking.length > 0) return { ok: false, error: priced.blocking[0]! }
-  const { size, panelWatts } = selectionSummary(ctx, p.data.selection)
+  const { size, panelWatts } = selectionSummary(ctx, selection)
   const next = adjustPlan(estimate, p.data.plan, quote, size, panelWatts)
   const { error } = await admin
     .from('waitlist_consumers')

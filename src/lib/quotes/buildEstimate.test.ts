@@ -8,6 +8,7 @@ import { priceQuote } from '@/lib/pricing/price'
 import { DEFAULT_QUOTE_SETTINGS, SAMPLE_PRICE_LIST } from '@/lib/settings/schemas'
 
 import { LoadTooLargeError } from '@/lib/sizing/size'
+import { DEFAULT_OFFER_TERMS, businessOfferFrom } from '@/lib/spewa/offer'
 
 import { PLANS, buildEstimate, monthlyByTenure, repriceEstimate } from './buildEstimate'
 
@@ -413,5 +414,97 @@ describe('buildEstimate with the builder catalogue', () => {
     expect(e.plans.comfort.quote.noMarkup.map((l) => l.label)).toContain(
       'Delivery — Go4Solar logistics (Lagos)',
     )
+  })
+})
+
+describe('buildEstimate — business or institution (SPEWA offer)', () => {
+  const items = [
+    {
+      code: 'SPW-INV-5',
+      kind: 'inverter',
+      ratingKw: 5,
+      voltage: 48,
+      sell: 600_000,
+      partner: 480_000,
+    },
+    {
+      code: 'SPW-INV-12',
+      kind: 'inverter',
+      ratingKw: 12,
+      voltage: 48,
+      sell: 2_200_000,
+      partner: 1_750_000,
+    },
+    { code: 'SPW-BAT-5', kind: 'battery', kwh: 5, voltage: 48, sell: 950_000, partner: 890_000 },
+    { code: 'SPW-PNL-550', kind: 'panel', watts: 550, sell: 113_000, partner: 100_000 },
+  ].map((i, k) => ({
+    id: i.code,
+    itemNo: k + 1,
+    category: 'Other' as const,
+    code: i.code,
+    product: i.code,
+    brand: null,
+    warranty: null,
+    prices: {
+      showroom: null,
+      installer: i.sell,
+      level_b: null,
+      level_a: null,
+      big_dealer: i.partner,
+    },
+    kind: i.kind as 'inverter',
+    ratingKw: i.ratingKw ?? null,
+    voltage: i.voltage ?? null,
+    highVoltage: false,
+    kwh: i.kwh ?? null,
+    watts: i.watts ?? null,
+    active: true,
+    sortOrder: k,
+  }))
+  const businessOffer = businessOfferFrom({
+    items,
+    terms: DEFAULT_OFFER_TERMS,
+    rule: { funderId: 'f', minDepositShare: 0.3, tenures: [3, 6, 9, 12] },
+    base: SAMPLE_PRICE_LIST,
+  })!
+  const sb = { ...s, businessOffer }
+  const est = buildEstimate(totals, 'Lagos', 0.2, sb, null, {}, 'business')
+
+  it('equipment from the SPEWA list at the selling price; deposit raised to the 30% minimum', () => {
+    const c = est.plans.comfort.quote
+    const skus = c.snapshot.lines.map((l) => l.sku)
+    expect(skus).toEqual(expect.arrayContaining(['SPW-PNL-550', 'SPW-BAT-5', 'SPW-INV-5']))
+    expect(c.snapshot.lines.find((l) => l.sku === 'SPW-INV-5')).toMatchObject({
+      unitCost: 480_000,
+      sellUnit: 600_000,
+    })
+    // Our accessories stay (cost + margin, no selling price).
+    expect(c.snapshot.lines.find((l) => l.category === 'accessories')!.sellUnit).toBeUndefined()
+    expect(c.snapshot.depositShare).toBe(0.3)
+    expect(c.snapshot.minDepositShare).toBe(0.3)
+    expect(c.snapshot.offer?.kind).toBe('spewa')
+    expect(est.offer).toBe('spewa')
+    expect(est.depositShare).toBe(0.3)
+  })
+
+  it('offers 3, 6, 9 and 12 months only; repricing cannot go below 30%', () => {
+    expect(Object.keys(est.pricingRateByTenure).map(Number)).toEqual([3, 6, 9, 12])
+    expect(
+      monthlyByTenure(est.plans.comfort, est.pricingRateByTenure).map((m) => m.tenureMonths),
+    ).toEqual([3, 6, 9, 12])
+    expect(() => repriceEstimate(est, 'comfort', 0.2)).toThrow()
+    const at40 = repriceEstimate(est, 'comfort', 0.4)
+    expect(at40.quote.deposit).toBeGreaterThan(est.plans.comfort.quote.deposit)
+  })
+
+  it('individuals keep the normal pricing even when the offer exists', () => {
+    const ind = buildEstimate(totals, 'Lagos', 0.2, sb)
+    expect(ind.offer).toBeUndefined()
+    expect(ind.plans.comfort.quote.snapshot.offer).toBeUndefined()
+    expect(ind).toEqual(buildEstimate(totals, 'Lagos', 0.2, s))
+  })
+
+  it('a business without an offer (no rule) is priced normally', () => {
+    expect(buildEstimate(totals, 'Lagos', 0.2, s, null, {}, 'business').offer).toBeUndefined()
   })
 })

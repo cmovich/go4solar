@@ -202,7 +202,7 @@ export type ItemDetails = {
 export type BuilderItem = {
   sku: string
   name: string
-  group: 'inverter' | 'battery' | 'panels' | 'dc_wire' | 'ac_wire' | 'accessories'
+  group: 'inverter' | 'battery' | 'panels' | 'dc_wire' | 'ac_wire' | 'accessories' | 'lights'
   kind: AccessoryKind | 'pack' | null
   unit: 'each' | 'metre'
   /** e.g. "5 kVA · 48 V", "550 W", "63 A". */
@@ -237,6 +237,9 @@ export function itemSizes(
     }
   }
   for (const p of cat.panels) out[p.sku] = { spec: `${p.watts} W`, unit: 'each', pack: false }
+  for (const l of cat.lights ?? []) {
+    out[l.sku] = { spec: l.watts ? `${l.watts} W` : 'Light', unit: 'each', pack: false }
+  }
   for (const a of cat.accessories) {
     out[a.sku] = {
       spec:
@@ -253,16 +256,24 @@ export function itemSizes(
 /**
  * The browser-safe catalogue: each item's customer price (cost with its category margin, priced
  * like a quote at the lowest deposit over 12 months), and no cost prices.
+ * SPEWA offer (`sell` given): the price paid in full: SPEWA items at their selling price, our
+ * accessories at cost + margin (the financing charge shows in the total).
  */
 export function toBuilderItems(
   cat: Cat,
   pricing: PricingSettings,
   minDepositShare: number,
+  sell?: Record<string, number>,
 ): BuilderItem[] {
   const f = pricing.pricingRateByTenure[12]
-  const factor = 1 / (1 - f * (1 - minDepositShare))
-  const price = (cost: number, category: keyof PricingSettings['marginByCategory']) =>
+  const factor = sell ? 1 : 1 / (1 - f * (1 - minDepositShare))
+  const marked = (cost: number, category: keyof PricingSettings['marginByCategory']) =>
     roundNaira(cost * (1 + pricing.marginByCategory[category]) * factor)
+  const price = (
+    cost: number,
+    category: keyof PricingSettings['marginByCategory'],
+    sku?: string,
+  ) => (sku && sell?.[sku] !== undefined ? sell[sku] : marked(cost, category))
   const d = (sku: string) =>
     cat.details.get(sku) ?? { brand: null, description: null, photoUrl: null }
   const blank = { kva: null, kwh: null, watts: null, voltage: null, rating: null }
@@ -279,7 +290,7 @@ export function toBuilderItems(
       kva: i.kva,
       voltage: i.option.batteryV,
       ...d(i.sku),
-      price: price(i.unitCost, 'inverter'),
+      price: price(i.unitCost, 'inverter', i.sku),
     })),
     ...cat.batteries.map((b) => ({
       ...blank,
@@ -292,7 +303,7 @@ export function toBuilderItems(
       kwh: b.kwh,
       voltage: b.voltage,
       ...d(b.sku),
-      price: price(b.unitCost, 'battery'),
+      price: price(b.unitCost, 'battery', b.sku),
     })),
     ...cat.panels.map((p) => ({
       ...blank,
@@ -304,7 +315,7 @@ export function toBuilderItems(
       size: sizes[p.sku]!.spec,
       watts: p.watts,
       ...d(p.sku),
-      price: price(p.unitCost, 'panels'),
+      price: price(p.unitCost, 'panels', p.sku),
     })),
     ...cat.accessories.map((a) => ({
       ...blank,
@@ -322,6 +333,18 @@ export function toBuilderItems(
       rating: a.rating,
       ...d(a.sku),
       price: price(a.unitCost, 'accessories'),
+    })),
+    ...(cat.lights ?? []).map((l) => ({
+      ...blank,
+      sku: l.sku,
+      name: l.name,
+      group: 'lights' as const,
+      kind: null,
+      unit: 'each' as const,
+      size: sizes[l.sku]!.spec,
+      watts: l.watts,
+      ...d(l.sku),
+      price: price(l.unitCost, 'accessories', l.sku),
     })),
   ]
 }

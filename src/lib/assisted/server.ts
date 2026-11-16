@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { ensureApplication } from '@/lib/applications/server'
 import { contactFromPersonal, notifyCustomer } from '@/lib/notify/customer'
 import { loadLeadForStaff } from '@/lib/quotes/leadForPlans'
+import { offerMinDepositText } from '@/lib/spewa/offer'
 import { priceVariant, validUntil } from '@/lib/quotes/quote'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
@@ -57,6 +58,10 @@ export async function createAssistedApplication(
   const ctx = await loadLeadForStaff(p.data.leadId)
   if (!ctx)
     return { ok: false, error: 'That customer record has no load or plan yet. Complete it first.' }
+  const minShare = ctx.estimate.plans[p.data.plan].quote.snapshot.minDepositShare
+  if (p.data.depositShare + 1e-9 < minShare) {
+    return { ok: false, error: `${offerMinDepositText(minShare)}.` }
+  }
   if (!ctx.tenures.includes(p.data.tenure)) {
     return {
       ok: false,

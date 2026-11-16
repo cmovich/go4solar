@@ -20,7 +20,7 @@ import {
 
 export type { QueueDecision }
 
-export { loadRouting, routedDecisions, routedFunderName } from './route'
+export { loadRoutingRules, routedDecisions, routedFunderName } from './route'
 
 type QueueRow = Database['public']['Tables']['funder_queue']['Row']
 

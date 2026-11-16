@@ -116,6 +116,7 @@ export async function updateLeadItems(
         settings,
         gridFrom(row.grid),
         siteAnswersSchema.safeParse(row.site ?? {}).data ?? {},
+        row.applicant_type,
       ),
       pricedAt: new Date().toISOString(),
     }

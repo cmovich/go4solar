@@ -40,6 +40,7 @@ import { STORAGE_KEY as CALC_KEY, parseStoredItems } from '@/lib/calculator/stor
 import type { BuilderItem } from '@/lib/catalogue/server'
 import { OWN_INSTALLER_WARNING } from '@/lib/catalogue/extras'
 import { formatNaira } from '@/lib/money'
+import { offerMinDepositText } from '@/lib/spewa/offer'
 import { NG_STATE_IDS, stateLabel, type NgStateId } from '@/lib/nigeria/states'
 import type { TenureMonths } from '@/lib/pricing/types'
 import { THANK_YOU_TEXT } from '@/lib/waitlist/schema'
@@ -137,7 +138,8 @@ const TITLES: Partial<Record<BuilderStep, string>> = {
  * advisor → submit (prelaunch) or apply (live). Progress is kept on this device.
  */
 export function Builder({
-  items,
+  items: homeItems,
+  businessItems = [],
   roofTypes,
   wiring,
   launchMode,
@@ -150,6 +152,11 @@ export function Builder({
   startLoadKva = null,
 }: {
   items: BuilderItem[]
+  /**
+   * The SPEWA offer's items for a business or institution (empty: no offer, businesses see the
+   * normal items and prices).
+   */
+  businessItems?: BuilderItem[]
   roofTypes: RoofTypeCard[]
   wiring: WiringSettings
   launchMode: LaunchMode
@@ -173,6 +180,8 @@ export function Builder({
     leadId: string
     plan: 'essential' | 'comfort' | 'independence'
     planLabel: string
+    /** The plans were priced with the SPEWA offer (a business or institution). */
+    business?: boolean
   } | null
   /**
    * Staff quotation tool (/admin/quotations/new): the same steps for a customer. The state comes
@@ -182,6 +191,8 @@ export function Builder({
    */
   staff?: {
     state: NgStateId | null
+    /** From the customer box: a business or institution gets the SPEWA offer. */
+    applicantType: 'individual' | 'business'
     library: LibraryItem[]
     onCreate: (input: {
       selection: BuildSelectionInput
@@ -203,6 +214,17 @@ export function Builder({
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showCalculator, setShowCalculator] = useState(false)
   const touched = useRef(new Set<string>())
+
+  // Who it is for: the staff customer box, the plan being adjusted, or the first screen here.
+  const applicantType: 'individual' | 'business' = staff
+    ? staff.applicantType
+    : adjust
+      ? adjust.business
+        ? 'business'
+        : 'individual'
+      : (s.applicantType ?? 'individual')
+  const business = applicantType === 'business' && businessItems.length > 0
+  const items = business ? businessItems : homeItems
 
   const keyOf = useCallback(
     (sku: string) => {
@@ -229,7 +251,11 @@ export function Builder({
     }
     setCalcKva(calc)
     // Saved progress is checked against today's catalogue (old or broken saves never break the page).
-    const known = new Set(items.map((i) => i.sku))
+    const known = new Set(
+      (initial?.applicantType ?? saved?.applicantType) === 'business' && businessItems.length > 0
+        ? businessItems.map((i) => i.sku)
+        : homeItems.map((i) => i.sku),
+    )
     if (initial) setS(sanitiseBuilderState({ ...FRESH, ...initial, step: 'items' }, known))
     else if (saved) setS(sanitiseBuilderState(saved, known))
     setReady(true)
@@ -247,6 +273,21 @@ export function Builder({
     }
   }, [s, ready, adjust, staff])
 
+  // Switching between home and business changes the catalogue: start the items again.
+  const lastType = useRef<string | null>(null)
+  useEffect(() => {
+    if (!ready) return
+    // The first value (saved progress, the plan being adjusted) is kept as it is.
+    if (lastType.current === null || lastType.current === applicantType) {
+      lastType.current = applicantType
+      return
+    }
+    lastType.current = applicantType
+    touched.current.clear()
+    setS((cur) => ({ ...cur, items: [], loadKva: null }))
+    setPriced(null)
+  }, [applicantType, ready])
+
   // Staff: the state chosen in the customer box above.
   const staffState = staff?.state ?? null
   useEffect(() => {
@@ -259,6 +300,7 @@ export function Builder({
     () =>
       s.state && s.scope
         ? {
+            applicantType,
             scope: s.scope,
             existing: s.existing,
             loadKva: s.loadKva ?? null,
@@ -269,8 +311,14 @@ export function Builder({
             ownDelivery: s.ownDelivery,
           }
         : null,
-    [s],
+    [s, applicantType],
   )
+
+  // The SPEWA offer starts at 30%: the deposit follows the minimum the server priced with.
+  const minPct = Math.round((priced?.minDepositShare ?? 0.2) * 100)
+  useEffect(() => {
+    if (s.depositPct < minPct) setS((cur) => ({ ...cur, depositPct: minPct }))
+  }, [minPct, s.depositPct])
 
   // Live price (server-side: cost prices never reach the browser).
   useEffect(() => {
@@ -438,6 +486,30 @@ export function Builder({
               ))}
             </select>
           </div>
+          {!staff && !adjust && businessItems.length > 0 && (
+            <fieldset className="space-y-2" data-testid="build-who">
+              <legend className="text-sm font-medium">Who is it for?</legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(
+                  [
+                    ['individual', 'For my home'],
+                    ['business', 'For a business or institution'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    variant={applicantType === value ? 'default' : 'outline'}
+                    className="h-12"
+                    aria-pressed={applicantType === value}
+                    onClick={() => setS({ ...s, applicantType: value })}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </fieldset>
+          )}
           <Choice
             selected={s.scope === 'complete'}
             label="A complete system"
@@ -755,6 +827,7 @@ function Summary({
   }) => Promise<string | null>
 }) {
   const prices = showPrices && !priced.sample
+  const minPct = Math.round(priced.minDepositShare * 100)
   const [advice, setAdvice] = useState<string | null>(null)
   const c = contact
   const setC = (next: Omit<ContactDraft, 'consent'>) =>
@@ -888,18 +961,28 @@ function Summary({
             <div className="flex justify-between text-sm">
               <span>Deposit</span>
               <strong>
-                {state.depositPct}% · {formatNaira(priced.deposit)}
+                <span data-testid="build-deposit-pct">{Math.max(state.depositPct, minPct)}%</span> ·{' '}
+                {formatNaira(priced.deposit)}
               </strong>
             </div>
             <Slider
               className="mt-3"
-              min={20}
+              min={minPct}
               max={95}
               step={5}
-              value={[state.depositPct]}
-              onValueChange={([v]) => onDeposit(v ?? 20)}
+              value={[Math.max(state.depositPct, minPct)]}
+              onValueChange={([v]) => onDeposit(Math.max(v ?? minPct, minPct))}
               aria-label="Deposit"
             />
+            {priced.offer && state.depositPct <= minPct && (
+              <p
+                className="text-brand-dark mt-2 text-sm font-medium"
+                role="status"
+                data-testid="min-deposit-note"
+              >
+                {offerMinDepositText(priced.minDepositShare)}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Months">
             {priced.tenures.map((t) => (

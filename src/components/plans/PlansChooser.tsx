@@ -1,5 +1,6 @@
 'use client'
 
+import { offerMinDepositText } from '@/lib/spewa/offer'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
 
@@ -138,6 +139,15 @@ export function PlansChooser({
             onValueChange={(v) => setPct(v[0] ?? minPct)}
             aria-label="Upfront contribution percentage"
           />
+          {estimate.offer && pct <= minPct && (
+            <p
+              className="text-brand-dark mt-2 text-sm font-medium"
+              role="status"
+              data-testid="min-deposit-note"
+            >
+              {offerMinDepositText(minPct / 100)}
+            </p>
+          )}
         </div>
         <div>
           <p className="text-sm font-medium">Spread the rest over</p>
