@@ -16,6 +16,7 @@ import { applicationDetail } from '@/lib/approvals/admin'
 import { slaState } from '@/lib/approvals/rules'
 import { INCOME_RANGES, maskId } from '@/lib/applications/rules'
 import { requireRole } from '@/lib/auth/roles'
+import { queueRowFor } from '@/lib/funderQueue/server'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { MAX_EXTENSION_DAYS, addDaysIso, lagosDate } from '@/lib/payments/lock'
 
@@ -68,7 +69,7 @@ export default async function ApplicationPage({
   const session = await requireRole('super_admin', 'credit_officer')
   const { id } = await params
   const tab = ((await searchParams).tab ?? 'summary') as Tab
-  const d = await applicationDetail(id)
+  const [d, routed] = await Promise.all([applicationDetail(id), queueRowFor(id)])
   if (!d) notFound()
   const { ctx } = d
   const app = ctx.app
@@ -202,9 +203,27 @@ export default async function ApplicationPage({
               )}
             </p>
           )}
+          {routed && (
+            <p
+              className="bg-brand-mist rounded-lg px-3 py-2 text-sm"
+              data-testid="spewa-routing-note"
+            >
+              {routed.decision === 'pending'
+                ? "Routed to SPEWA: waiting for SPEWA's decision. "
+                : routed.decision === 'approved'
+                  ? `Routed to SPEWA: approved on ${when(routed.decided_at)}. `
+                  : `Routed to SPEWA: declined on ${when(routed.decided_at)} (${routed.decision_reason ?? 'no reason'}), so it is back in the general queue. `}
+              <Link
+                href={`/admin/spewa/${app.id}`}
+                className="text-brand-blue font-semibold underline"
+              >
+                Open in SPEWA approvals
+              </Link>
+            </p>
+          )}
           <DecisionPanel
             applicationId={app.id}
-            open={open}
+            open={open && routed?.decision !== 'pending'}
             blockers={ctx.blockers}
             options={options}
             role={session.role}

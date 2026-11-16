@@ -794,6 +794,78 @@ export type Database = {
           },
         ]
       }
+      funder_queue: {
+        Row: {
+          application_id: string
+          cheques_count: number | null
+          cheques_received: boolean | null
+          cheques_received_on: string | null
+          cheques_updated_at: string | null
+          cheques_updated_by: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision: string
+          decision_reason: string | null
+          deposit_share: number
+          funder_id: string
+          is_test: boolean
+          routed_at: string
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          cheques_count?: number | null
+          cheques_received?: boolean | null
+          cheques_received_on?: string | null
+          cheques_updated_at?: string | null
+          cheques_updated_by?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision?: string
+          decision_reason?: string | null
+          deposit_share: number
+          funder_id: string
+          is_test?: boolean
+          routed_at?: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          cheques_count?: number | null
+          cheques_received?: boolean | null
+          cheques_received_on?: string | null
+          cheques_updated_at?: string | null
+          cheques_updated_by?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision?: string
+          decision_reason?: string | null
+          deposit_share?: number
+          funder_id?: string
+          is_test?: boolean
+          routed_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'funder_queue_application_id_fkey'
+            columns: ['application_id']
+            isOneToOne: true
+            referencedRelation: 'applications'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'funder_queue_funder_id_fkey'
+            columns: ['funder_id']
+            isOneToOne: false
+            referencedRelation: 'funders'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       funders: {
         Row: {
           annual_rate: number
@@ -2631,6 +2703,7 @@ export type Database = {
         | 'finance'
         | 'content'
         | 'sales'
+        | 'funder_approver'
       appliance_category:
         | 'lighting'
         | 'tv_electronics'
@@ -2811,6 +2884,7 @@ export const Constants = {
         'finance',
         'content',
         'sales',
+        'funder_approver',
       ],
       appliance_category: [
         'lighting',

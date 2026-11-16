@@ -25,7 +25,14 @@ export function isStaffRole(role: AppRole | null | undefined): role is StaffRole
  */
 export const SALES_ROLE = 'sales' as const satisfies AppRole
 
-/** Anyone who signs in to /admin: back-office staff, or sales. */
+/**
+ * Funder approver (SPEWA): signs in to the back office with two-factor but sees only the SPEWA
+ * approvals queue and the files in it. Not a staff role either (no staff read access in the
+ * database; the server shows it the queue after checking the role).
+ */
+export const FUNDER_APPROVER_ROLE = 'funder_approver' as const satisfies AppRole
+
+/** Anyone who signs in to /admin: back-office staff, sales, or a funder approver. */
 export function isBackOfficeRole(role: AppRole | null | undefined): boolean {
-  return isStaffRole(role) || role === SALES_ROLE
+  return isStaffRole(role) || role === SALES_ROLE || role === FUNDER_APPROVER_ROLE
 }

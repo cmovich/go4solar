@@ -13,6 +13,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database } from '@/lib/supabase/database.types'
 import type { EnergyRecord } from '@/lib/waitlist/schema'
 
+import { routedDecisions } from '@/lib/funderQueue/route'
+
 import { approvalContext, type ApprovalContext } from './server'
 import { slaState } from './rules'
 
@@ -34,9 +36,21 @@ export type QueueFlag = keyof typeof QUEUE_FLAGS
 
 /** Ids of test accounts (profiles.is_test): reports leave them out unless asked. */
 export async function testProfileIds(): Promise<Set<string>> {
-  const { data } = await createAdminClient().from('profiles').select('id').eq('is_test', true)
-  return new Set((data ?? []).map((p) => p.id))
+  const admin = createAdminClient()
+  const ids = new Set<string>()
+  // Page through: the database returns at most 1,000 rows per request.
+  for (let from = 0; ; from += PAGE) {
+    const { data } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('is_test', true)
+      .order('id')
+      .range(from, from + PAGE - 1)
+    for (const p of data ?? []) ids.add(p.id)
+    if ((data ?? []).length < PAGE) return ids
+  }
 }
+const PAGE = 1000
 
 export type QueueFilters = {
   /** Include test customers (profiles.is_test). Off by default. */
@@ -46,6 +60,8 @@ export type QueueFilters = {
   type?: string
   flag?: QueueFlag
   awaiting?: boolean
+  /** Only files routed to the SPEWA queue (any decision). */
+  routed?: boolean
 }
 
 export type QueueRow = {
@@ -61,6 +77,8 @@ export type QueueRow = {
   flags: QueueFlag[]
   awaitingCustomer: boolean
   enteredBy: string | null
+  /** In the SPEWA queue: SPEWA's decision (null: general queue). */
+  funderQueue: 'pending' | 'approved' | 'declined' | null
 }
 
 const flagsOf = (f: Flags): QueueFlag[] => [
@@ -91,11 +109,12 @@ export async function applicationQueue(
   const staffIds = [
     ...new Set(apps.map((a) => a.entered_by).filter((x): x is string => Boolean(x))),
   ]
-  const [quotes, staff] = await Promise.all([
+  const [quotes, staff, routed] = await Promise.all([
     quoteIds.length ? admin.from('quotes').select('id, result').in('id', quoteIds) : { data: [] },
     staffIds.length
       ? admin.from('profiles').select('id, full_name, email').in('id', staffIds)
       : { data: [] },
+    routedDecisions(),
   ])
   const priceOf = new Map(
     (quotes.data ?? []).map((q) => [q.id, (q.result as unknown as QuoteResult).systemPrice]),
@@ -126,6 +145,7 @@ export async function applicationQueue(
         flags: flagsOf((a.credit_flags ?? {}) as Flags),
         awaitingCustomer: Boolean(a.entered_by) && a.status === 'draft',
         enteredBy: a.entered_by ? (staffName.get(a.entered_by) ?? 'Staff') : null,
+        funderQueue: routed.get(a.id) ?? null,
       }
     })
     .filter(
@@ -134,7 +154,8 @@ export async function applicationQueue(
         (!filters.state || r.state === filters.state) &&
         (!filters.type || r.type === filters.type) &&
         (!filters.flag || r.flags.includes(filters.flag)) &&
-        (!filters.awaiting || r.awaitingCustomer),
+        (!filters.awaiting || r.awaitingCustomer) &&
+        (!filters.routed || r.funderQueue !== null),
     )
 }
 

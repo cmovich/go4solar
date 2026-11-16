@@ -43,6 +43,7 @@ export function fakeSupabase(unique: Record<string, string[][]> = {}) {
     let wantCount = false
     let orderBy: { col: string; asc: boolean } | null = null
     let max: number | null = null
+    let skip = 0
     let upsertOpts: { onConflict?: string; ignoreDuplicates?: boolean } = {}
 
     const matched = () => rows(t).filter((r) => filters.every((f) => f(r)))
@@ -81,7 +82,8 @@ export function fakeSupabase(unique: Record<string, string[][]> = {}) {
         const { col, asc } = orderBy
         list = [...list].sort((a, b) => (String(a[col]) < String(b[col]) ? -1 : 1) * (asc ? 1 : -1))
       }
-      if (max !== null) list = list.slice(0, max)
+      // Like PostgREST: at most 1,000 rows per request unless .range() asks for a page.
+      list = list.slice(skip, skip + (max ?? 1000))
       return { data: head ? null : list, error: null, count: wantCount ? list.length : null }
     }
 
@@ -126,6 +128,7 @@ export function fakeSupabase(unique: Record<string, string[][]> = {}) {
         q
       ),
       limit: (n: number) => ((max = n), q),
+      range: (from: number, to: number) => ((skip = from), (max = to - from + 1), q),
       async maybeSingle() {
         const r = run()
         const list = (r.data as Row[] | null) ?? []

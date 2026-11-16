@@ -8,11 +8,16 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { SALES_ROLE, STAFF_ROLES, type StaffRole as BackOfficeRole } from '@/lib/auth/staffRoles'
+import {
+  FUNDER_APPROVER_ROLE,
+  SALES_ROLE,
+  STAFF_ROLES,
+  type StaffRole as BackOfficeRole,
+} from '@/lib/auth/staffRoles'
 
-/** Back-office staff roles, plus Sales (Quotations only). */
-type StaffRole = BackOfficeRole | typeof SALES_ROLE
-const ROLES: readonly StaffRole[] = [...STAFF_ROLES, SALES_ROLE]
+/** Back-office staff roles, plus Sales (Quotations only) and the funder approver (SPEWA only). */
+type StaffRole = BackOfficeRole | typeof SALES_ROLE | typeof FUNDER_APPROVER_ROLE
+const ROLES: readonly StaffRole[] = [...STAFF_ROLES, SALES_ROLE, FUNDER_APPROVER_ROLE]
 
 import {
   inviteStaff,
@@ -43,6 +48,7 @@ const ROLE_LABELS: Record<StaffRole, string> = {
   finance: 'Finance',
   content: 'Content',
   sales: 'Sales (Quotations only)',
+  funder_approver: 'Funder approver (SPEWA)',
 }
 
 function StaffRow({ initial }: { initial: StaffRowView }) {
@@ -118,23 +124,26 @@ function StaffRow({ initial }: { initial: StaffRowView }) {
         </td>
         <td className="px-3 py-2 text-center">
           <Checkbox
-            checked={assisted}
+            checked={role !== 'funder_approver' && assisted}
+            disabled={role === 'funder_approver'}
             onCheckedChange={(v) => setAssisted(v === true)}
             aria-label={`Assisted entry for ${initial.email}`}
           />
         </td>
         <td className="px-3 py-2 text-center">
           <Checkbox
-            checked={role === 'super_admin' || canDelete}
-            disabled={role === 'super_admin'}
+            checked={role === 'super_admin' || (role !== 'funder_approver' && canDelete)}
+            disabled={role === 'super_admin' || role === 'funder_approver'}
             onCheckedChange={(v) => setCanDelete(v === true)}
             aria-label={`Delete waiting-list entries for ${initial.email}`}
           />
         </td>
         <td className="px-3 py-2 text-center">
           <Checkbox
-            checked={role === 'super_admin' || role === 'sales' || canQuote}
-            disabled={role === 'super_admin' || role === 'sales'}
+            checked={
+              role === 'super_admin' || role === 'sales' || (role !== 'funder_approver' && canQuote)
+            }
+            disabled={role === 'super_admin' || role === 'sales' || role === 'funder_approver'}
             onCheckedChange={(v) => setCanQuote(v === true)}
             aria-label={`Create quotations for ${initial.email}`}
           />

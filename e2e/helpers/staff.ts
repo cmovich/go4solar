@@ -31,10 +31,11 @@ async function freshCode(secret: string): Promise<string> {
 /**
  * Signs in as an e2e staff member made by global-setup, with the authenticator:
  * 'staff' = super admin (default), 'ops' = operations role with no extra permissions, 'sales' =
- * the Sales role (Quotations only; from migration 0033).
+ * the Sales role (Quotations only; from migration 0033), 'spewa' = the funder approver (SPEWA
+ * approvals only; from migration 0038).
  */
-export async function loginAsStaff(page: Page, who: 'staff' | 'ops' | 'sales' = 'staff') {
-  const env = who === 'ops' ? 'E2E_OPS' : who === 'sales' ? 'E2E_SALES' : 'E2E_STAFF'
+export async function loginAsStaff(page: Page, who: 'staff' | 'ops' | 'sales' | 'spewa' = 'staff') {
+  const env = { staff: 'E2E_STAFF', ops: 'E2E_OPS', sales: 'E2E_SALES', spewa: 'E2E_SPEWA' }[who]
   test.setTimeout(Math.max(test.info().timeout, 300_000))
   await page.goto('/login')
   await page.getByLabel('Email').fill(process.env[`${env}_EMAIL`]!)
@@ -43,9 +44,15 @@ export async function loginAsStaff(page: Page, who: 'staff' | 'ops' | 'sales' = 
   await page.waitForURL(/\/admin\/mfa/)
   await page.getByLabel('6-digit code').fill(await freshCode(process.env[`${env}_TOTP_SECRET`]!))
   await page.getByRole('button', { name: 'Verify' }).click()
-  // Sales land on Quotations (the only page they may use).
-  await page.waitForURL(who === 'sales' ? /\/admin\/quotations$/ : /\/admin$/)
-  await expect(
-    page.getByRole('heading', { level: 1, name: who === 'sales' ? 'Quotations' : 'Back office' }),
-  ).toBeVisible({ timeout: 30_000 })
+  // Sales land on Quotations, the funder approver on SPEWA approvals (the only page each may use).
+  const landing = {
+    sales: [/\/admin\/quotations$/, 'Quotations'],
+    spewa: [/\/admin\/spewa$/, 'SPEWA approvals'],
+  } as const
+  const [to, heading] =
+    who === 'sales' || who === 'spewa' ? landing[who] : ([/\/admin$/, 'Back office'] as const)
+  await page.waitForURL(to)
+  await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible({
+    timeout: 30_000,
+  })
 }

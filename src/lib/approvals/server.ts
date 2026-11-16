@@ -30,6 +30,21 @@ const NOT_ALLOWED = {
   ok: false,
   error: 'Only a credit officer or super admin can do this.',
 } as const
+/** Files in the SPEWA queue are decided there (Admin → SPEWA approvals), not here. */
+const IN_FUNDER_QUEUE = {
+  ok: false,
+  error: "This file is waiting for SPEWA's decision: decide it on SPEWA approvals.",
+} as const
+
+/** True while the application waits in a funder's queue (no row before migration 0038). */
+async function waitingForFunder(applicationId: string): Promise<boolean> {
+  const { data } = await createAdminClient()
+    .from('funder_queue')
+    .select('decision')
+    .eq('application_id', applicationId)
+    .maybeSingle()
+  return data?.decision === 'pending'
+}
 
 async function audit(
   actor: Actor,
@@ -189,9 +204,20 @@ export async function approveApplication(input: {
   applicationId: string
   funderId: string
   actor: Actor
+  /**
+   * 'funder_queue': the funder's own decision on SPEWA approvals (funder approver or super
+   * admin; the caller has claimed the queue row). Otherwise the general queue.
+   */
+  via?: 'funder_queue'
 }): Promise<Result> {
   const { actor } = input
-  if (!actor.role || !DECIDERS.includes(actor.role)) return NOT_ALLOWED
+  const viaQueue = input.via === 'funder_queue'
+  if (viaQueue) {
+    if (actor.role !== 'funder_approver' && actor.role !== 'super_admin') return NOT_ALLOWED
+  } else {
+    if (!actor.role || !DECIDERS.includes(actor.role)) return NOT_ALLOWED
+    if (await waitingForFunder(input.applicationId)) return IN_FUNDER_QUEUE
+  }
   const ctx = await approvalContext(input.applicationId)
   if (!ctx) return { ok: false, error: 'Application not found.' }
   if (ctx.blockers.length)
@@ -199,8 +225,9 @@ export async function approveApplication(input: {
   const option = ctx.options.find((o) => o.funder.id === input.funderId)
   if (!option || !ctx.loan || !ctx.figures)
     return { ok: false, error: 'That funder is not eligible for this loan.' }
+  // The funder approving its own queue is the lender's decision: no credit officer limit.
   const authority = approvalAuthority({
-    role: actor.role,
+    role: viaQueue ? 'super_admin' : actor.role,
     amount: ctx.figures.balance,
     limit: ctx.limit,
     netShare: option.netShare,
@@ -283,6 +310,7 @@ export async function approveApplication(input: {
       drawn: ctx.drawn,
       netProfit: option.profit.netProfit,
       balanceAfter,
+      ...(viaQueue ? { via: 'funder_queue' } : {}),
     },
   )
   const c = contactFromPersonal(ctx.app.personal)
@@ -310,6 +338,7 @@ export async function declineApplication(input: {
 }): Promise<Result> {
   const { actor } = input
   if (!actor.role || !DECIDERS.includes(actor.role)) return NOT_ALLOWED
+  if (await waitingForFunder(input.applicationId)) return IN_FUNDER_QUEUE
   const reason = reasonSchema.safeParse(input.reason)
   if (!reason.success) return { ok: false, error: reason.error.issues[0]!.message }
   const admin = createAdminClient()

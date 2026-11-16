@@ -16,6 +16,16 @@ describe('navFor', () => {
   it('sales sees Quotations and nothing else', () => {
     expect(hrefs('sales')).toEqual(['/admin/quotations'])
   })
+  it('funder approver sees SPEWA approvals and nothing else, even with a permission', () => {
+    expect(hrefs('funder_approver')).toEqual(['/admin/spewa'])
+    expect(hrefs('funder_approver', ['create_quotations'])).toEqual(['/admin/spewa'])
+  })
+  it('SPEWA approvals: super admin and credit officer, not other staff', () => {
+    expect(hrefs('super_admin')).toContain('/admin/spewa')
+    expect(hrefs('credit_officer')).toContain('/admin/spewa')
+    expect(hrefs('operations')).not.toContain('/admin/spewa')
+    expect(hrefs('sales')).not.toContain('/admin/spewa')
+  })
   it('a permission never opens the back office to a non-staff role', () => {
     expect(hrefs('installer', ['create_quotations'])).toEqual([])
     expect(hrefs(null, ['create_quotations'])).toEqual([])

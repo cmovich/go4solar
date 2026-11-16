@@ -23,6 +23,7 @@ const {
   isStaffRole,
   isBackOfficeRole,
   requireBackOfficeWithMfa,
+  requireFunderQueueViewer,
   requireRole,
   requireStaffWithMfa,
   requireUser,
@@ -159,6 +160,49 @@ describe('the sales role', () => {
     expect(await redirectOf(() => requireBackOfficeWithMfa())).toBe('/')
     getSessionInfo.mockResolvedValue(anon)
     expect(await redirectOf(() => requireBackOfficeWithMfa())).toBe('/login?next=%2Fadmin')
+  })
+})
+
+// Funder approver (SPEWA): only the SPEWA approvals queue. Not a back-office staff role.
+const approverNoMfa: SessionInfo = { ...staffNoMfa, role: 'funder_approver' }
+const approverWithMfa: SessionInfo = { ...approverNoMfa, aal: 'aal2' }
+
+describe('the funder approver role', () => {
+  it('is not a staff role but may sign in to the back office', () => {
+    expect(isStaffRole('funder_approver')).toBe(false)
+    expect(STAFF_ROLES).not.toContain('funder_approver')
+    expect(isBackOfficeRole('funder_approver')).toBe(true)
+  })
+
+  it('every staff-only page sends it to the SPEWA queue (after two-factor)', async () => {
+    getSessionInfo.mockResolvedValue(approverNoMfa)
+    expect(await redirectOf(() => requireStaffWithMfa())).toBe('/admin/mfa')
+    getSessionInfo.mockResolvedValue(approverWithMfa)
+    expect(await redirectOf(() => requireStaffWithMfa())).toBe('/admin/spewa')
+  })
+
+  it('a page for other roles sends it to the SPEWA queue', async () => {
+    getSessionInfo.mockResolvedValue(approverWithMfa)
+    expect(await redirectOf(() => requireRole('super_admin', 'credit_officer'))).toBe(
+      '/admin/spewa',
+    )
+  })
+
+  it('requireFunderQueueViewer: approver, super admin, credit officer with two-factor', async () => {
+    getSessionInfo.mockResolvedValue(approverWithMfa)
+    await expect(requireFunderQueueViewer()).resolves.toEqual(approverWithMfa)
+    getSessionInfo.mockResolvedValue(superAdminWithMfa)
+    await expect(requireFunderQueueViewer()).resolves.toEqual(superAdminWithMfa)
+    getSessionInfo.mockResolvedValue({ ...staffWithMfa, role: 'credit_officer' })
+    await expect(requireFunderQueueViewer()).resolves.toBeTruthy()
+    getSessionInfo.mockResolvedValue(approverNoMfa)
+    expect(await redirectOf(() => requireFunderQueueViewer())).toBe('/admin/mfa')
+    getSessionInfo.mockResolvedValue({ ...staffWithMfa, role: 'operations' })
+    expect(await redirectOf(() => requireFunderQueueViewer())).toBe('/admin')
+    getSessionInfo.mockResolvedValue(salesWithMfa)
+    expect(await redirectOf(() => requireFunderQueueViewer())).toBe('/admin')
+    getSessionInfo.mockResolvedValue({ ...consumer, aal: 'aal2' })
+    expect(await redirectOf(() => requireFunderQueueViewer())).toBe('/')
   })
 })
 

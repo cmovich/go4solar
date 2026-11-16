@@ -6,7 +6,7 @@ import { z } from 'zod'
 
 import { siteOrigin } from '@/lib/auth/emailVerification'
 import { authCallbackUrl, sendPasswordLink } from '@/lib/auth/passwordLinks'
-import { SALES_ROLE, STAFF_ROLES, isBackOfficeRole } from '@/lib/auth/roles'
+import { FUNDER_APPROVER_ROLE, SALES_ROLE, STAFF_ROLES, isBackOfficeRole } from '@/lib/auth/roles'
 import { getSessionInfo, type SessionInfo } from '@/lib/auth/session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
@@ -19,8 +19,8 @@ async function superAdmin(): Promise<SessionInfo | null> {
 }
 const DENIED: Result = { ok: false, error: 'Only a super admin can manage staff.' }
 
-// Back-office staff, or sales (Quotations only).
-const roleSchema = z.enum([...STAFF_ROLES, SALES_ROLE])
+// Back-office staff, sales (Quotations only), or the funder approver (SPEWA queue only).
+const roleSchema = z.enum([...STAFF_ROLES, SALES_ROLE, FUNDER_APPROVER_ROLE])
 const inviteSchema = z.object({
   email: z.email('Enter a valid email address'),
   fullName: z.string().trim().min(2).max(80),

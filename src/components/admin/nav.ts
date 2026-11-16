@@ -8,6 +8,7 @@ import {
   FileSignature,
   Hammer,
   Home,
+  Landmark,
   Handshake,
   LayoutDashboard,
   ListChecks,
@@ -62,6 +63,12 @@ export const NAV: readonly NavItem[] = [
     href: '/admin/applications',
     label: 'Applications',
     icon: ClipboardList,
+    roles: ['super_admin', 'credit_officer'],
+  },
+  {
+    href: '/admin/spewa',
+    label: 'SPEWA approvals',
+    icon: Landmark,
     roles: ['super_admin', 'credit_officer'],
   },
   {
@@ -132,6 +139,8 @@ export const NAV: readonly NavItem[] = [
 export function navFor(role: AppRole | null, permissions: readonly string[] = []): NavItem[] {
   // Sales (installers, marketers): Quotations only.
   if (role === 'sales') return NAV.filter((n) => n.href === '/admin/quotations')
+  // Funder approver (SPEWA): the SPEWA approvals queue only.
+  if (role === 'funder_approver') return NAV.filter((n) => n.href === '/admin/spewa')
   if (!isStaffRole(role)) return []
   return NAV.filter(
     (n) =>
