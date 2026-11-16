@@ -64,6 +64,18 @@ export default async function globalSetup() {
     console.warn('[global-setup] no sales test account (migration 0033 not applied?):', e)
     return null
   })
+  // A funder approver (SPEWA queue only). The role exists from migration 0038; before it, skipped.
+  const spewa = await prepareStaff(
+    url,
+    anon,
+    admin,
+    `e2e-spewa@${TEST_EMAIL_DOMAIN}`,
+    'funder_approver',
+    `E2e-spewa-${service.slice(-12)}!`,
+  ).catch((e: unknown) => {
+    console.warn('[global-setup] no funder approver test account (migration 0038 not applied?):', e)
+    return null
+  })
 
   // 4. hand over to the tests
   process.env.E2E_STAFF_EMAIL = staff.email
@@ -76,6 +88,11 @@ export default async function globalSetup() {
     process.env.E2E_SALES_EMAIL = sales.email
     process.env.E2E_SALES_PASSWORD = sales.password
     process.env.E2E_SALES_TOTP_SECRET = sales.secret
+  }
+  if (spewa) {
+    process.env.E2E_SPEWA_EMAIL = spewa.email
+    process.env.E2E_SPEWA_PASSWORD = spewa.password
+    process.env.E2E_SPEWA_TOTP_SECRET = spewa.secret
   }
 }
 
@@ -92,7 +109,7 @@ async function prepareStaff(
   anon: string,
   admin: Admin,
   email: string,
-  role: 'super_admin' | 'operations' | 'sales',
+  role: 'super_admin' | 'operations' | 'sales' | 'funder_approver',
   password: string,
 ) {
   // 1. user
@@ -114,8 +131,12 @@ async function prepareStaff(
       password,
       email_confirm: true,
       user_metadata: {
-        full_name:
-          role === 'super_admin' ? 'E2E Staff' : role === 'sales' ? 'E2E Sales' : 'E2E Operations',
+        full_name: {
+          super_admin: 'E2E Staff',
+          sales: 'E2E Sales',
+          operations: 'E2E Operations',
+          funder_approver: 'E2E SPEWA Approver',
+        }[role],
       },
     })
     if (error) throw error

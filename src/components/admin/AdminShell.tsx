@@ -23,6 +23,7 @@ const ROLE_LABELS: Record<string, string> = {
   finance: 'Finance',
   content: 'Content',
   sales: 'Sales',
+  funder_approver: 'Funder approver (SPEWA)',
 }
 
 export function AdminShell({

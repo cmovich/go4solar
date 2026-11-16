@@ -11,6 +11,7 @@ import { getMessagingProvider } from '@/lib/providers/messaging'
 import { getPaymentsProvider } from '@/lib/providers/payments'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database, Json } from '@/lib/supabase/database.types'
+import { routeAfterDeposit } from '@/lib/funderQueue/route'
 
 import type { PaymentEvent } from './events'
 import { fromKobo, toKobo } from './kobo'
@@ -435,6 +436,8 @@ async function submitAfterDeposit(payment: Payment) {
     })
     .eq('id', app.id)
     .eq('status', 'draft')
+  // Every onboarding step is done: a business with a 30%+ deposit goes to the SPEWA queue.
+  await routeAfterDeposit(app.id)
 
   const { email, phone, firstName } = contactOf(app)
   const text =

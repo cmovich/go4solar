@@ -27,6 +27,11 @@ const STATUS_LABEL: Record<string, string> = {
   approved: 'Approved',
   declined: 'Declined',
 }
+const FUNDER_QUEUE_LABEL = {
+  pending: 'SPEWA: waiting',
+  approved: 'SPEWA: approved',
+  declined: 'SPEWA: declined',
+} as const
 const select = 'border-input h-10 rounded-md border bg-white px-2 text-sm'
 
 /** The applications queue: filters, 48-hour decision timer, flags. */
@@ -39,6 +44,7 @@ export default async function ApplicationsPage({
     type?: string
     flag?: string
     awaiting?: string
+    routed?: string
     test?: string
   }>
 }) {
@@ -52,6 +58,7 @@ export default async function ApplicationsPage({
     type: sp.type || undefined,
     flag,
     awaiting: sp.awaiting === '1',
+    routed: sp.routed === 'spewa',
     includeTest,
   })
 
@@ -113,6 +120,15 @@ export default async function ApplicationsPage({
         <label className="flex items-center gap-1 text-sm">
           <input type="checkbox" name="awaiting" value="1" defaultChecked={sp.awaiting === '1'} />{' '}
           Awaiting customer
+        </label>
+        <label className="flex items-center gap-1 text-sm">
+          <input
+            type="checkbox"
+            name="routed"
+            value="spewa"
+            defaultChecked={sp.routed === 'spewa'}
+          />{' '}
+          Routed to SPEWA
         </label>
         {includeTest && <input type="hidden" name="test" value="1" />}
         <button
@@ -179,6 +195,14 @@ export default async function ApplicationsPage({
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap gap-1">
+                    {r.funderQueue && (
+                      <span
+                        className="bg-brand-blue rounded-full px-2 py-0.5 text-xs font-semibold text-white"
+                        data-testid="routed-spewa"
+                      >
+                        {FUNDER_QUEUE_LABEL[r.funderQueue]}
+                      </span>
+                    )}
                     {r.flags.map((f) => (
                       <span
                         key={f}

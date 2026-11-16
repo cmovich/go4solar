@@ -2,9 +2,10 @@ import { redirect } from 'next/navigation'
 
 import { getSessionInfo, type AppRole, type SessionInfo } from './session'
 
-import { SALES_ROLE, isBackOfficeRole } from './staffRoles'
+import { FUNDER_APPROVER_ROLE, SALES_ROLE, isBackOfficeRole } from './staffRoles'
 
 export {
+  FUNDER_APPROVER_ROLE,
   SALES_ROLE,
   STAFF_ROLES,
   isBackOfficeRole,
@@ -23,11 +24,15 @@ export async function requireUser(next?: string): Promise<SessionInfo> {
   return info
 }
 
-/** A logged-in user whose role is one of `roles`. Wrong role → home page. */
+/**
+ * A logged-in user whose role is one of `roles`. Wrong role → home page (a funder approver →
+ * the SPEWA approvals queue, the only back-office page it may use).
+ */
 export async function requireRole(...roles: AppRole[]): Promise<SessionInfo> {
   const info = await getSessionInfo()
   if (!info.user) redirect(loginUrl())
-  if (!info.role || !roles.includes(info.role)) redirect('/')
+  if (!info.role || !roles.includes(info.role))
+    redirect(info.role === FUNDER_APPROVER_ROLE ? '/admin/spewa' : '/')
   return info
 }
 
@@ -42,6 +47,26 @@ export async function requireStaffWithMfa(): Promise<SessionInfo> {
   if (info.aal !== 'aal2') redirect('/admin/mfa')
   // Sales may only use Quotations: every other back-office page sends them there.
   if (info.role === SALES_ROLE) redirect('/admin/quotations')
+  // A funder approver may only use the SPEWA approvals queue.
+  if (info.role === FUNDER_APPROVER_ROLE) redirect('/admin/spewa')
+  return info
+}
+
+/**
+ * The SPEWA approvals queue and its files: super admin, credit officer, or the funder approver,
+ * two-factor verified. Everyone else in the back office goes to /admin.
+ */
+export async function requireFunderQueueViewer(): Promise<SessionInfo> {
+  const info = await getSessionInfo()
+  if (!info.user) redirect(loginUrl('/admin/spewa'))
+  if (!isBackOfficeRole(info.role)) redirect('/')
+  if (info.aal !== 'aal2') redirect('/admin/mfa')
+  if (
+    info.role !== 'super_admin' &&
+    info.role !== 'credit_officer' &&
+    info.role !== FUNDER_APPROVER_ROLE
+  )
+    redirect('/admin')
   return info
 }
 
