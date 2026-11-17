@@ -1,5 +1,6 @@
 'use client'
 
+import { offerMinDepositText } from '@/lib/spewa/offer'
 import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -456,7 +457,8 @@ export function WhoForStep({
   /** The earlier answer, shown selected when coming back. */
   initial?: ApplicantType | null
   onBack: () => void
-  onSaved: (type: ApplicantType) => void
+  /** A new estimate when the answer changed how the plans are priced (business offer). */
+  onSaved: (type: ApplicantType, estimate?: Estimate | null) => void
 }) {
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
@@ -466,7 +468,7 @@ export function WhoForStep({
     if (type === 'business') return onSaved(type) // saved together with the business details
     start(async () => {
       const r = await saveApplicantStep({ id: leadId, applicantType: 'individual' })
-      if (r.ok) onSaved(type)
+      if (r.ok) onSaved(type, r.estimate)
       else setError(r.error)
     })
   }
@@ -497,9 +499,9 @@ export function WhoForStep({
           aria-pressed={initial === 'business'}
           className={`${card} ${initial === 'business' ? 'border-brand-green' : ''}`}
         >
-          <span className="text-brand-dark text-xl font-bold">My business</span>
+          <span className="text-brand-dark text-xl font-bold">A business or institution</span>
           <span className="text-muted-foreground mt-1 text-sm">
-            A shop, office, school, clinic, hotel, workshop or other business.
+            A shop, office, school, clinic, hotel, workshop, church, mosque or other organisation.
           </span>
         </button>
       </div>
@@ -519,7 +521,8 @@ export function BusinessStep({
   /** The earlier answers, filled in when coming back. */
   initial?: BusinessInput | null
   onBack: () => void
-  onSaved: (business: BusinessInput) => void
+  /** A new estimate when the plans were priced again (business offer). */
+  onSaved: (business: BusinessInput, estimate?: Estimate | null) => void
 }) {
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
@@ -547,7 +550,7 @@ export function BusinessStep({
         applicantType: 'business',
         business: check.data,
       })
-      if (r.ok) onSaved(check.data)
+      if (r.ok) onSaved(check.data, r.estimate)
       else setError(r.error)
     })
   }
@@ -1052,6 +1055,16 @@ export function ContributionStep({
           <span>{minPct}%</span>
           <span>95%</span>
         </div>
+
+        {estimate.offer && pct <= minPct && (
+          <p
+            className="text-brand-dark mt-2 text-sm font-medium"
+            role="status"
+            data-testid="min-deposit-note"
+          >
+            {offerMinDepositText(minPct / 100)}
+          </p>
+        )}
 
         {!estimate.sample && (
           <>

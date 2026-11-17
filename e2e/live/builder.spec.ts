@@ -5,6 +5,7 @@ import { acceptQuotation } from '../helpers/invoices'
 import {
   buildFromLoad,
   builderToCalculator,
+  checkBreakdown,
   expectCalculatedLoadApplied,
   fillBuildContact,
   OLD_SAVES,
@@ -18,6 +19,10 @@ test('builder → Apply → account step', async ({ page }) => {
   test.setTimeout(180_000)
   await startBuilder(page)
   await buildFromLoad(page)
+  if ((await page.getByTestId('see-breakdown').count()) > 0) {
+    await checkBreakdown(page, false)
+    await page.getByTestId('see-breakdown').click()
+  }
   await expect(page.getByTestId('build-submit')).toHaveText('Apply')
   await fillBuildContact(page)
   await page.getByTestId('build-submit').click()

@@ -1,5 +1,6 @@
 'use server'
 
+import { offerMinDepositText } from '@/lib/spewa/offer'
 import { headers } from 'next/headers'
 
 import { computeLoadTotals } from '@/lib/load/totals'
@@ -194,6 +195,7 @@ export async function saveNameStep(input: unknown): Promise<ActionResult<{ estim
         settings!,
         gridFrom((row as { grid?: unknown }).grid),
         siteAnswersSchema.safeParse((row as { site?: unknown }).site ?? {}).data ?? {},
+        row.applicant_type,
       )
     if (!kept) estimate = { ...estimate, pricedAt: new Date().toISOString() }
   } catch (err) {
@@ -228,22 +230,60 @@ export async function saveNameStep(input: unknown): Promise<ActionResult<{ estim
   return { ok: true, estimate }
 }
 
-/** Steps 7–8: who the solar is for, plus the business details on the business pathway. */
-export async function saveApplicantStep(input: unknown): Promise<ActionResult> {
+/**
+ * Steps 7–8: who the solar is for, plus the business details on the business pathway. A business
+ * or institution is priced with the SPEWA offer (and an individual again without it): when the
+ * answer changes that, the plans are priced again with every other answer.
+ */
+export async function saveApplicantStep(
+  input: unknown,
+): Promise<ActionResult<{ estimate: Estimate | null }>> {
   const parsed = applicantStepSchema.safeParse(input)
   if (!parsed.success) return { ok: false, ...firstIssue(parsed.error) }
   const row = await ownRow(parsed.data.id)
   if (!row) return EXPIRED
 
+  const type = parsed.data.applicantType
+  let estimate: Estimate | null = null
+  const current = row.estimate as Estimate | null
+  if (current && row.state && isNgStateId(row.state)) {
+    const settings = await getQuoteSettings()
+    const wantOffer = type === 'business' && Boolean(settings.businessOffer)
+    if (wantOffer !== (current.offer === 'spewa')) {
+      try {
+        estimate = {
+          ...buildEstimate(
+            computeLoadTotals(row.load_items as LoadItem[], {
+              nightShare: settings.sizing.nightShare,
+            }),
+            row.state,
+            settings.minDepositShare,
+            settings,
+            gridFrom(row.grid),
+            siteAnswersSchema.safeParse(row.site ?? {}).data ?? {},
+            type,
+          ),
+          pricedAt: new Date().toISOString(),
+        }
+      } catch {
+        return {
+          ok: false,
+          error: 'We could not size a system for this load. Please check your appliances.',
+        }
+      }
+    }
+  }
+
   const { error } = await createAdminClient()
     .from('waitlist_consumers')
     .update({
-      applicant_type: parsed.data.applicantType,
-      business: parsed.data.applicantType === 'business' ? parsed.data.business : null,
+      applicant_type: type,
+      business: type === 'business' ? parsed.data.business : null,
+      ...(estimate ? { estimate, chosen_plan: null } : {}),
     })
     .eq('id', row.id)
   if (error) return { ok: false, error: 'Could not save those details. Please try again.' }
-  return { ok: true }
+  return { ok: true, estimate }
 }
 
 /** Step 9: current energy spend (both pathways). Stores the answers and the computed figures. */
@@ -314,6 +354,10 @@ export async function completeWaitlist(
 
   const estimate = row.estimate as unknown as Estimate
   const plan = row.chosen_plan as Plan
+  const minShare = estimate.plans[plan].quote.snapshot.minDepositShare
+  if (parsed.data.depositShare + 1e-9 < minShare) {
+    return { ok: false, error: `${offerMinDepositText(minShare)}.` }
+  }
   const chosen = repriceEstimate(estimate, plan, parsed.data.depositShare)
   // Repayment and carbon advice for the chosen plan, when the energy answers are known.
   const current = (row.energy as EnergyRecord | null)?.current ?? null
@@ -403,6 +447,7 @@ export async function saveSiteAnswers(
           settings,
           grid,
           a,
+          row.applicant_type,
         ),
         pricedAt: new Date().toISOString(),
       }

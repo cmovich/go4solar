@@ -1,5 +1,6 @@
 'use server'
 
+import { offerMinDepositText } from '@/lib/spewa/offer'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -109,9 +110,21 @@ export async function assistedEntry(input: unknown): Promise<StaffActionResult<{
   const settings = await getQuoteSettings()
   let estimate
   try {
-    estimate = buildEstimate(totals, d.state, settings.minDepositShare, settings)
+    estimate = buildEstimate(
+      totals,
+      d.state,
+      settings.minDepositShare,
+      settings,
+      null,
+      {},
+      d.applicantType,
+    )
   } catch {
     return { ok: false, error: 'This load is outside our standard systems.' }
+  }
+  const minShare = estimate.plans[d.plan].quote.snapshot.minDepositShare
+  if (d.depositShare + 1e-9 < minShare) {
+    return { ok: false, error: `${offerMinDepositText(minShare)}.`, field: 'depositShare' }
   }
   const chosen = repriceEstimate(estimate, d.plan, d.depositShare)
   const answers = d.energy

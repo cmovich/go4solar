@@ -71,9 +71,12 @@ async function loadLead(id: string, visitorHash: string | null): Promise<LeadFor
     return null
   }
 
-  const [validityDays, settings] = await Promise.all([quoteValidityDays(), getQuoteSettings()])
+  const [normalDays, settings] = await Promise.all([quoteValidityDays(), getQuoteSettings()])
   let estimate = lead.estimate as unknown as Estimate
-  if (estimateIsStale(estimate.pricedAt ?? lead.created_at, validityDays)) {
+  // SPEWA offer quotes are valid for the offer's own days (7, SPEWA's price list).
+  const daysFor = (e: Estimate) =>
+    e.offer ? (e.plans.comfort.quote.snapshot.offer?.validityDays ?? normalDays) : normalDays
+  if (estimateIsStale(estimate.pricedAt ?? lead.created_at, daysFor(estimate))) {
     estimate = {
       ...buildEstimate(
         computeLoadTotals(lead.load_items as LoadItem[], {
@@ -84,6 +87,7 @@ async function loadLead(id: string, visitorHash: string | null): Promise<LeadFor
         settings,
         gridFrom(lead.grid),
         siteAnswersSchema.safeParse(lead.site ?? {}).data ?? {},
+        lead.applicant_type,
       ),
       pricedAt: new Date().toISOString(),
     }
@@ -95,10 +99,13 @@ async function loadLead(id: string, visitorHash: string | null): Promise<LeadFor
     state: lead.state,
     estimate,
     energy: (lead.energy as EnergyRecord | null) ?? null,
-    validityDays,
-    tenures: offeredTenures(
-      estimate.pricingRateByTenure,
-      offeredTenures(settings.pricing.pricingRateByTenure),
-    ),
+    validityDays: daysFor(estimate),
+    // The offer has its own lengths (3/6/9/12); other estimates: those switched on today.
+    tenures: estimate.offer
+      ? offeredTenures(estimate.pricingRateByTenure)
+      : offeredTenures(
+          estimate.pricingRateByTenure,
+          offeredTenures(settings.pricing.pricingRateByTenure),
+        ),
   }
 }

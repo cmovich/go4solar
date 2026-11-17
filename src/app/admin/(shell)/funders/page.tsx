@@ -3,7 +3,9 @@ import type { Metadata } from 'next'
 import { TestDataToggle } from '@/components/admin/TestDataToggle'
 import { includeTestData } from '@/lib/testmode/server'
 import { FundersTable, type FunderRowView } from '@/components/admin/funders/FundersTable'
+import { RoutingRules } from '@/components/admin/funders/RoutingRules'
 import { requireRole } from '@/lib/auth/roles'
+import { loadRoutingRules } from '@/lib/funderQueue/route'
 import { loadPricingDraft } from '@/lib/pricing/adminData'
 
 export const metadata: Metadata = { title: 'Funders' }
@@ -17,7 +19,7 @@ export default async function FundersPage({
   const session = await requireRole('super_admin', 'finance')
   const sp = await searchParams
   const includeTest = await includeTestData(sp.test)
-  const draft = await loadPricingDraft(includeTest)
+  const [draft, rules] = await Promise.all([loadPricingDraft(includeTest), loadRoutingRules()])
   const rows: FunderRowView[] = draft.funders.map((f) => ({
     ...f,
     book: { drawn: 0, repaid: 0, outstanding: 0, loans: 0 },
@@ -32,6 +34,11 @@ export default async function FundersPage({
         <TestDataToggle path="/admin/funders" params={sp} on={includeTest} />
       </div>
       <FundersTable rows={rows} canEdit={session.role === 'super_admin'} />
+      <RoutingRules
+        rules={rules.filter((r) => r.id !== 'setting')}
+        funders={draft.funders.map((f) => ({ id: f.id, name: f.name }))}
+        canEdit={session.role === 'super_admin'}
+      />
     </main>
   )
 }

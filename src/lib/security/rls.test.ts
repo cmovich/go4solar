@@ -33,6 +33,8 @@ const ACCESS: Record<Table, Access> = {
   staff_quotations: 'staff',
   // SPEWA queue (0038): super admin and credit officer; customers and the funder approver read nothing.
   funder_queue: 'staff',
+  funder_routing_rules: 'staff',
+  spewa_price_items: 'staff',
   // Vendor costs: super admin and finance only (customers and other staff read nothing).
   ready_plans: 'staff',
   agreement_templates: 'staff',

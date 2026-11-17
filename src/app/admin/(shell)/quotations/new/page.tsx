@@ -38,6 +38,7 @@ export default async function NewQuotationPage() {
       </p>
       <StaffQuotationForm
         items={builderItems(ctx)}
+        businessItems={ctx.settings.businessOffer ? builderItems(ctx, 'business') : []}
         roofTypes={roofTypes}
         wiring={wiring}
         library={library}

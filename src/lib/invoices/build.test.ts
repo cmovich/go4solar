@@ -6,6 +6,8 @@ import { priceQuote } from '@/lib/pricing/price'
 import { SEEDED_PLANS } from '@/lib/readyPlans/plans.fixture'
 import { fullPaymentQuoteResult, priceReadyPlan, readyQuoteResult } from '@/lib/readyPlans/price'
 
+import { DEFAULT_OFFER_TERMS, quoteOffer } from '@/lib/spewa/offer'
+
 import { buildInvoice, newPublicCode, type InvoiceInput } from './build'
 import { verifyView } from './verify'
 
@@ -269,5 +271,46 @@ describe('a pay-in-full quotation or invoice', () => {
     })
     expect(doc.fixed?.payment).toBe('full')
     expect(JSON.stringify(doc)).not.toMatch(/interest/i)
+  })
+})
+
+describe('SPEWA offer quotation and invoice (business)', () => {
+  it('item 30 at its selling price, a separate "Payment plan charge" line, then total payable', () => {
+    const q = priceQuote({
+      lines: [
+        {
+          sku: 'SPW-SLS-0003',
+          name: 'Solis 12kW/48V 3Phase S6-EH3P12K02-NV-YD-L On Grid',
+          category: 'inverter',
+          unitCost: 2_375_000,
+          sellUnit: 2_665_000,
+          qty: 1,
+        },
+      ],
+      installCost: 350_000,
+      noMarkup: [
+        { label: 'Installation', amount: 250_000 },
+        { label: 'Delivery — Go4Solar logistics (Kaduna)', amount: 100_000 },
+      ],
+      marginByCategory: { panels: 0.03, battery: 0.03, inverter: 0.03, accessories: 0.03 },
+      pricingRateAnnual: 0.3,
+      tenureMonths: 12,
+      depositShare: 0.3,
+      minDepositShare: 0.3,
+      offer: quoteOffer(DEFAULT_OFFER_TERMS, [3, 6, 9, 12]),
+    })
+    const inv = buildInvoice({ ...base, result: q })
+    expect(inv.lines.map((l) => [l.item, l.amount])).toEqual([
+      ['Solis 12kW/48V 3Phase S6-EH3P12K02-NV-YD-L On Grid', 2_665_000],
+      ['Installation', 250_000],
+      ['Delivery — Go4Solar logistics (Kaduna)', 100_000],
+      ['Payment plan charge (12 months, 30%)', 633_150],
+    ])
+    expect(inv.lines.reduce((s, l) => s + l.amount, 0)).toBe(3_648_150)
+    expect(inv.totals.total).toBe(3_648_150)
+  })
+
+  it('home invoices are unchanged (no charge line)', () => {
+    expect(buildInvoice(base).lines.some((l) => l.kind === 'charge')).toBe(false)
   })
 })

@@ -22,6 +22,7 @@ import { createQuotation, createQuotationFromPlan } from '@/app/admin/(shell)/qu
  */
 export function StaffQuotationForm({
   items,
+  businessItems = [],
   roofTypes,
   wiring,
   library,
@@ -30,6 +31,8 @@ export function StaffQuotationForm({
   plans,
 }: {
   items: BuilderItem[]
+  /** SPEWA offer items for a business or institution (empty: no offer). */
+  businessItems?: BuilderItem[]
   roofTypes: RoofTypeCard[]
   wiring: WiringSettings
   library: LibraryItem[]
@@ -42,6 +45,7 @@ export function StaffQuotationForm({
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [state, setState] = useState<NgStateId | ''>('')
+  const [applicantType, setApplicantType] = useState<'individual' | 'business'>('individual')
   const [planSlug, setPlanSlug] = useState('')
   const [planMonths, setPlanMonths] = useState(12)
   const [planError, setPlanError] = useState<string | null>(null)
@@ -99,10 +103,26 @@ export function StaffQuotationForm({
               ))}
             </select>
           </div>
+          {businessItems.length > 0 && (
+            <div>
+              <Label htmlFor="q-type">Customer type</Label>
+              <select
+                id="q-type"
+                value={applicantType}
+                onChange={(e) => setApplicantType(e.target.value as 'individual' | 'business')}
+                className="border-input mt-1 block h-11 w-full rounded-md border bg-white px-3 text-base"
+              >
+                <option value="individual">Home</option>
+                <option value="business">Business or institution (SPEWA offer)</option>
+              </select>
+            </div>
+          )}
         </div>
         <p className="text-muted-foreground text-xs">
           The state sets the installation and delivery prices and the sun hours. Name and phone are
           only printed on the quotation and used for the WhatsApp message.
+          {businessItems.length > 0 &&
+            ' A business or institution is quoted with the SPEWA offer (30% minimum deposit, 3 to 12 months); ready-made plans keep their own prices.'}
         </p>
       </div>
 
@@ -182,6 +202,7 @@ export function StaffQuotationForm({
 
       <Builder
         items={items}
+        businessItems={businessItems}
         roofTypes={roofTypes}
         wiring={wiring}
         launchMode={launchMode}
@@ -190,6 +211,7 @@ export function StaffQuotationForm({
         done={false}
         staff={{
           state: state || null,
+          applicantType,
           library,
           onCreate: async ({ selection, depositShare, tenure }) => {
             const r = await createQuotation({

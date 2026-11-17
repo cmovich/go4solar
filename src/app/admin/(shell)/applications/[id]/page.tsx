@@ -1,3 +1,5 @@
+import { SpewaProfit } from '@/components/admin/spewa/SpewaProfit'
+import { offerProfit } from '@/lib/spewa/offer'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -427,6 +429,14 @@ export default async function ApplicationPage({
           <Rows
             rows={[
               ['Installation (no markup)', formatNaira(d.quote.installCost)],
+              ...(d.quote.planCharge
+                ? [
+                    [d.quote.planCharge.label, formatNaira(d.quote.planCharge.amount)] as [
+                      string,
+                      string,
+                    ],
+                  ]
+                : []),
               ['Cost price', formatNaira(d.quote.costPrice)],
               ['Markup on equipment', formatPercent(d.quote.markupShare, 1)],
               ['System price', formatNaira(d.quote.systemPrice)],
@@ -438,6 +448,17 @@ export default async function ApplicationPage({
               ['Tenure', `${d.quote.instalments.length} months`],
             ]}
           />
+          {(() => {
+            const profit = offerProfit(d.quote)
+            const offer = d.quote.snapshot.offer
+            return profit && offer ? (
+              <SpewaProfit
+                p={profit}
+                badDebtShare={offer.badDebtShare}
+                go4solarShare={offer.go4solarShare}
+              />
+            ) : null
+          })()}
         </div>
       )}
 

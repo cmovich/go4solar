@@ -11,10 +11,13 @@ import { offeredTenures } from '@/lib/pricing/tenures'
 import type { QuoteResult, TenureMonths } from '@/lib/pricing/types'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 import { DEFAULT_SUN_HOURS, type QuoteSettings } from '@/lib/settings/schemas'
+import { equipmentFrom } from '@/lib/sizing/equipment'
 import { sizeSystem } from '@/lib/sizing/size'
+import { annualisedRates, withSellPrices } from '@/lib/spewa/offer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { DEFAULT_WIRING, wireEstimate } from '@/lib/wizard/questions'
 
+import { quoteBreakdown, type QuoteBreakdown } from './breakdown'
 import type { BuildSelectionInput } from './schema'
 import { systemSummary } from './schema'
 
@@ -36,10 +39,87 @@ export async function builderContext(): Promise<BuilderContext> {
   return { settings, catalogue }
 }
 
+type ApplicantType = 'individual' | 'business'
+
+/** The SPEWA offer applies: a business or institution, and the offer exists. */
+function offerFor(ctx: BuilderContext, applicantType: ApplicantType | null | undefined) {
+  return applicantType === 'business' ? (ctx.settings.businessOffer ?? null) : null
+}
+
+/**
+ * The builder context for this customer: a business or institution (with the SPEWA offer) gets
+ * SPEWA's inverters, batteries, panels and lights (partner price as the cost) in place of ours;
+ * our accessories, racks, installation and delivery stay.
+ */
+export function contextFor(
+  ctx: BuilderContext,
+  applicantType: ApplicantType | null | undefined,
+): BuilderContext {
+  const bo = offerFor(ctx, applicantType)
+  if (!bo || !ctx.catalogue) return ctx
+  const eq = bo.equipment
+  const options = equipmentFrom({
+    inverters: eq.inverters.map((i) => ({
+      sku: i.sku,
+      kva: i.kva,
+      nominalVoltage: i.nominalVoltage,
+      specs: {},
+    })),
+    panel: { sku: 'x', watts: 1, specs: {} },
+    batteries: [],
+  })
+  const panelOption = (sku: string, watts: number) =>
+    equipmentFrom({ inverters: [], panel: { sku, watts, specs: {} }, batteries: [] }).panel
+  const details = new Map(ctx.catalogue.details)
+  for (const list of [eq.inverters, eq.batteries, eq.panels, eq.lights]) {
+    for (const i of list) details.set(i.sku, { brand: i.brand, description: null, photoUrl: null })
+  }
+  return {
+    settings: { ...ctx.settings, priceList: bo.priceList },
+    catalogue: {
+      ...ctx.catalogue,
+      details,
+      inverters: eq.inverters.map((i) => ({
+        sku: i.sku,
+        name: i.name,
+        kva: i.kva,
+        unitCost: i.unitCost,
+        option: options.inverters.find((o) => o.sku === i.sku)!,
+      })),
+      batteries: eq.batteries.map((b) => ({
+        sku: b.sku,
+        name: b.name,
+        kwh: b.kwh,
+        voltage: b.nominalVoltage,
+        unitCost: b.unitCost,
+      })),
+      panels: eq.panels.map((p) => ({
+        sku: p.sku,
+        name: p.name,
+        watts: p.watts,
+        unitCost: p.unitCost,
+        lengthCm: null,
+        option: panelOption(p.sku, p.watts),
+      })),
+      lights: eq.lights.map((l) => ({
+        sku: l.sku,
+        name: l.name,
+        watts: l.watts,
+        unitCost: l.unitCost,
+      })),
+    },
+  }
+}
+
 /** The builder page's items (customer prices only), or [] before migration 0027. */
-export function builderItems(ctx: BuilderContext): BuilderItem[] {
-  return ctx.catalogue
-    ? toBuilderItems(ctx.catalogue, ctx.settings.pricing, ctx.settings.minDepositShare)
+export function builderItems(
+  ctx: BuilderContext,
+  applicantType: ApplicantType = 'individual',
+): BuilderItem[] {
+  const bo = offerFor(ctx, applicantType)
+  const c = contextFor(ctx, applicantType)
+  return c.catalogue
+    ? toBuilderItems(c.catalogue, c.settings.pricing, c.settings.minDepositShare, bo?.sell)
     : []
 }
 
@@ -55,8 +135,16 @@ export type PricedBuild = {
   warnings: string[]
   tenures: TenureMonths[]
   sample: boolean
-  /** Local vendors in this state: the customer may arrange delivery themselves. */
+  /** Lowest deposit allowed (30% for the SPEWA offer). */
+  minDepositShare: number
+  /** Priced with the SPEWA offer (business or institution). */
+  offer: boolean
+  /** This state has a delivery price: the customer may leave it out and arrange it themselves. */
   deliveryRemovable: boolean
+  /** "See breakdown": items, installation, delivery, price, deposit, monthly, total payable. */
+  breakdown: QuoteBreakdown | null
+  /** SPEWA offer: the payment plan charge as its own line (items at their selling price). */
+  planCharge: { label: string; amount: number } | null
 }
 
 /**
@@ -69,9 +157,12 @@ export function priceSelection(
   depositShare: number,
   tenure: TenureMonths,
 ): { priced: PricedBuild | null; quote: QuoteResult | null } {
+  const bo = offerFor(ctx, sel.applicantType)
+  ctx = contextFor(ctx, sel.applicantType)
   if (!ctx.catalogue) return { priced: null, quote: null }
   const built = assembleBuild(sel, ctx.catalogue)
-  const tenures = offeredTenures(ctx.settings.pricing.pricingRateByTenure)
+  const tenures = bo ? [...bo.tenures] : offeredTenures(ctx.settings.pricing.pricingRateByTenure)
+  const minDepositShare = bo ? bo.minDepositShare : ctx.settings.minDepositShare
   const empty: PricedBuild = {
     lines: [],
     noMarkup: built.noMarkup,
@@ -84,9 +175,27 @@ export function priceSelection(
     warnings: built.compat.warnings,
     tenures,
     sample: ctx.settings.priceList.sample || ctx.settings.pricing.sample,
-    deliveryRemovable: logisticsFor(sel.state, 0, ctx.catalogue.logistics)?.removable ?? false,
+    deliveryRemovable: logisticsFor(sel.state, 0, ctx.catalogue.logistics) !== null,
+    breakdown: null,
+    planCharge: null,
+    minDepositShare,
+    offer: Boolean(bo),
   }
   if (built.lines.length === 0) return { priced: empty, quote: null }
+  if (bo) {
+    const quote = priceQuote({
+      lines: withSellPrices(built.lines, bo.sell),
+      installCost: built.installCost,
+      noMarkup: built.noMarkup,
+      marginByCategory: ctx.settings.pricing.marginByCategory,
+      pricingRateAnnual: annualisedRates(bo.offer)[tenure] ?? 0,
+      tenureMonths: bo.tenures.includes(tenure) ? tenure : 12,
+      depositShare: Math.max(depositShare, bo.minDepositShare),
+      minDepositShare: bo.minDepositShare,
+      offer: bo.offer,
+    })
+    return { quote, priced: pricedFrom(empty, quote) }
+  }
   const rate =
     ctx.settings.pricing.pricingRateByTenure[tenure] ?? ctx.settings.pricing.pricingRateByTenure[12]
   const quote = priceQuote({
@@ -99,22 +208,25 @@ export function priceSelection(
     depositShare,
     minDepositShare: ctx.settings.minDepositShare,
   })
+  return { quote, priced: pricedFrom(empty, quote) }
+}
+
+function pricedFrom(empty: PricedBuild, quote: QuoteResult): PricedBuild {
   return {
-    quote,
-    priced: {
-      ...empty,
-      lines: quote.lines.map((l) => ({
-        sku: l.sku,
-        name: l.name,
-        qty: l.qty,
-        lineTotal: l.lineTotal,
-      })),
-      noMarkup: quote.noMarkup,
-      systemPrice: quote.systemPrice,
-      deposit: quote.deposit,
-      monthly: quote.monthly,
-      months: quote.snapshot.tenureMonths,
-    },
+    ...empty,
+    breakdown: quoteBreakdown(quote),
+    planCharge: quote.planCharge ?? null,
+    lines: quote.lines.map((l) => ({
+      sku: l.sku,
+      name: l.name,
+      qty: l.qty,
+      lineTotal: l.lineTotal,
+    })),
+    noMarkup: quote.noMarkup,
+    systemPrice: quote.systemPrice,
+    deposit: quote.deposit,
+    monthly: quote.monthly,
+    months: quote.snapshot.tenureMonths,
   }
 }
 
@@ -123,6 +235,7 @@ export function suggestAccessories(
   ctx: BuilderContext,
   sel: BuildSelectionInput,
 ): { sku: string; qty: number }[] {
+  ctx = contextFor(ctx, sel.applicantType)
   const cat = ctx.catalogue
   if (!cat) return []
   const inv = cat.inverters.find((i) => sel.items.some((s) => s.sku === i.sku))
@@ -167,6 +280,7 @@ export function suggestForLoad(
   kva: number,
   sel: BuildSelectionInput,
 ): { sku: string; qty: number }[] {
+  ctx = contextFor(ctx, sel.applicantType)
   const cat = ctx.catalogue
   if (!cat || cat.inverters.length === 0 || cat.panels.length === 0) return []
   const runningW = Math.round(kva * 1000 * ctx.settings.sizing.powerFactor)
@@ -239,6 +353,7 @@ function fallbackForLoad(
 
 /** The chosen inverter, batteries and panels as a system size (and the panel watts). */
 export function selectionSummary(ctx: BuilderContext, sel: BuildSelectionInput) {
+  ctx = contextFor(ctx, sel.applicantType)
   const cat = ctx.catalogue!
   const inverter = cat.inverters.find((i) => sel.items.some((s) => s.sku === i.sku))
   const panels = sel.items

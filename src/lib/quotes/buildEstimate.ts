@@ -15,6 +15,7 @@ import {
 } from '@/lib/pricing/types'
 import { DEFAULT_SUN_HOURS, type PriceList, type QuoteSettings } from '@/lib/settings/schemas'
 import { equipmentFrom } from '@/lib/sizing/equipment'
+import { annualisedRates, withSellPrices, type BusinessOffer } from '@/lib/spewa/offer'
 import { sizeSystem } from '@/lib/sizing/size'
 import type { Equipment, GridInput, Plan, SunHours, SystemSize } from '@/lib/sizing/types'
 
@@ -56,6 +57,8 @@ export type Estimate = {
   plans: Record<Plan, PlanEstimate>
   /** When the estimate was priced (ISO). Set by the server action that stores it. */
   pricedAt?: string
+  /** A business or institution priced with the SPEWA offer (src/lib/spewa/offer.ts). */
+  offer?: 'spewa'
 }
 
 export type RepricedPlan = PlanEstimate & {
@@ -240,7 +243,23 @@ function priceLines(
   depositShare: number,
   s: QuoteSettings,
   noMarkup?: NoMarkupLine[],
+  bo?: BusinessOffer | null,
 ): QuoteResult {
+  if (bo) {
+    return priceQuote({
+      lines: withSellPrices(lines, bo.sell),
+      installCost: noMarkup
+        ? noMarkup.reduce((sum, l) => sum + l.amount, 0)
+        : installCostFor(state, inverterKva, s.priceList),
+      noMarkup,
+      marginByCategory: s.pricing.marginByCategory,
+      pricingRateAnnual: annualisedRates(bo.offer)[ESTIMATE_TENURE] ?? 0,
+      tenureMonths: ESTIMATE_TENURE,
+      depositShare: Math.max(depositShare, bo.minDepositShare),
+      minDepositShare: bo.minDepositShare,
+      offer: bo.offer,
+    })
+  }
   return priceQuote({
     lines,
     installCost: noMarkup
@@ -259,6 +278,10 @@ function priceLines(
  * The three plans for a load: size each with the sizing engine (the state's sun hours, the grid
  * supply if known, the price list's equipment), build equipment lines from the price list, and
  * price at 12 months. Pure: no database access.
+ *
+ * A business or institution with an offer rule (settings.businessOffer) gets the SPEWA offer:
+ * SPEWA's inverters, batteries and panels at their selling price, our accessories and
+ * installation, a 30% minimum deposit and the offer's lengths and charges.
  */
 export function buildEstimate(
   totals: LoadTotals,
@@ -267,20 +290,30 @@ export function buildEstimate(
   s: QuoteSettings,
   grid: GridInput | null = null,
   site: SiteAnswers = {},
+  applicantType: string | null = 'individual',
 ): Estimate {
+  const bo = applicantType === 'business' ? (s.businessOffer ?? null) : null
+  const settings: QuoteSettings = bo ? { ...s, priceList: bo.priceList } : s
   const sun = s.sunHours?.[state] ?? DEFAULT_SUN_HOURS
-  const equipment = equipmentFromPriceList(s.priceList)
+  const equipment = equipmentFromPriceList(settings.priceList)
   const plans = Object.fromEntries(
     PLANS.map((plan) => {
       const size = sizeSystem(totals, plan, s.sizing, { sun, grid, equipment })
-      const extras = catalogueExtras(size, state, site, s, linesFor(size, s.priceList))
+      const extras = catalogueExtras(
+        size,
+        state,
+        site,
+        settings,
+        linesFor(size, settings.priceList),
+      )
       const quote = priceLines(
         extras.lines,
         state,
         size.inverterKva,
         depositShare,
-        s,
+        settings,
         extras.noMarkup,
+        bo,
       )
       return [plan, { plan, size, quote }]
     }),
@@ -291,11 +324,12 @@ export function buildEstimate(
     grid,
     sun,
     state,
-    depositShare,
+    depositShare: bo ? Math.max(depositShare, bo.minDepositShare) : depositShare,
     tenureMonths: ESTIMATE_TENURE,
     sample: s.priceList.sample || s.pricing.sample,
-    pricingRateByTenure: { ...s.pricing.pricingRateByTenure },
+    pricingRateByTenure: bo ? annualisedRates(bo.offer) : { ...s.pricing.pricingRateByTenure },
     plans,
+    ...(bo ? { offer: 'spewa' as const } : {}),
   }
 }
 
@@ -321,6 +355,7 @@ export function repriceEstimate(
       tenureMonths: snap.tenureMonths,
       depositShare: share,
       minDepositShare: snap.minDepositShare,
+      offer: snap.offer,
     })
   const quote = at(depositShare)
   const atMin = depositShare === snap.minDepositShare ? quote : at(snap.minDepositShare)
@@ -348,6 +383,7 @@ export function monthlyByTenure(
       tenureMonths,
       depositShare: snap.depositShare,
       minDepositShare: snap.minDepositShare,
+      offer: snap.offer,
     }).monthly,
   }))
 }

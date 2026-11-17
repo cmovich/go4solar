@@ -11,7 +11,15 @@ import type { BuilderItem } from '@/lib/catalogue/server'
 import { formatNaira } from '@/lib/money'
 
 /** The bars, in order; accessories hold one choice per kind. */
-const BARS = ['inverter', 'battery', 'panels', 'dc_wire', 'ac_wire', 'accessories'] as const
+const BARS = [
+  'inverter',
+  'battery',
+  'panels',
+  'dc_wire',
+  'ac_wire',
+  'accessories',
+  'lights',
+] as const
 type Bar = (typeof BARS)[number]
 
 const BAR_LABELS: Record<Bar, string> = {
@@ -21,6 +29,7 @@ const BAR_LABELS: Record<Bar, string> = {
   dc_wire: 'DC wire',
   ac_wire: 'AC wire',
   accessories: 'Accessories',
+  lights: 'Lights',
 }
 
 const HELP: Record<Bar | AccessoryKind | 'pack', string> = {
@@ -31,6 +40,7 @@ const HELP: Record<Bar | AccessoryKind | 'pack', string> = {
   dc_wire: 'Carries power from the panels to the inverter. Priced per metre.',
   ac_wire: 'Carries power from the inverter to your distribution board. Priced per metre.',
   accessories: 'Protection and fittings every safe installation needs.',
+  lights: 'Solar street and flood lights. Each one has its own panel and battery.',
   ac_surge: 'Protects your appliances from grid surges.',
   dc_surge: 'Protects the panels and inverter from lightning surges.',
   ac_breaker: 'Cuts the house supply if something goes wrong.',
@@ -334,6 +344,8 @@ export function ItemsStep({
         <div className="space-y-2">
           {BARS.map((bar) => {
             const list = inBar(bar)
+            // Lights are only sold with the business offer: no section when there are none.
+            if (bar === 'lights' && list.length === 0) return null
             const isOpen = open === bar
             const filter = filters[bar] ?? ''
             const shown = filter ? list.filter((i) => matches(i, filter)) : list

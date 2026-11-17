@@ -89,6 +89,8 @@ export async function saveBuiltSystem(input: {
   const { stored, contact } = input
   const { selection: sel, quote, size } = stored
   const depositShare = quote.snapshot.depositShare
+  // SPEWA offer quotes are valid for the offer's own days (SPEWA's price list).
+  const validityDays = quote.snapshot.offer?.validityDays ?? input.validityDays
   const accepted = input.accepted ? new Date().toISOString() : null
   const admin = createAdminClient()
   const { hash } = await getOrCreateVisitorToken()
@@ -124,7 +126,7 @@ export async function saveBuiltSystem(input: {
       lga: contact.lga,
       consent: true,
       consent_at: new Date().toISOString(),
-      applicant_type: 'individual',
+      applicant_type: sel.applicantType ?? 'individual',
       load_items: [],
       load_totals: {},
       deposit_share: depositShare,
@@ -164,7 +166,7 @@ export async function saveBuiltSystem(input: {
         waitlist_id: lead.id,
         anon_token_hash: hash,
         state: sel.state,
-        applicant_type: 'individual',
+        applicant_type: sel.applicantType ?? 'individual',
         load_items: [],
         load_totals: {},
         energy: null,
@@ -174,7 +176,7 @@ export async function saveBuiltSystem(input: {
         tenure: quote.snapshot.tenureMonths,
         deposit_share: depositShare,
         result: quote as unknown as Json,
-        valid_until: validUntil(new Date(), input.validityDays).toISOString(),
+        valid_until: validUntil(new Date(), validityDays).toISOString(),
         status: 'draft',
         site: sel.site as Json,
         grid: gridFromAnswers(sel.site) as Json | null,

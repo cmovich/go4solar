@@ -108,9 +108,15 @@ function seed() {
   })
   // A low credit officer limit: the funder approver is not bound by it.
   db.seed('settings', { key: 'approval_limit_credit_officer', value: 1 })
-  db.seed('settings', {
-    key: 'funder_routing',
-    value: { funderId: SPEWA, minDepositShare: 0.3, applicantTypes: ['business'] },
+  db.seed('funder_routing_rules', {
+    funder_id: SPEWA,
+    applicant_type: 'business',
+    min_deposit_share: 0.3,
+    tenures: [3, 6, 9, 12],
+    offer: 'spewa',
+    is_default: true,
+    active: true,
+    sort_order: 1,
   })
 }
 

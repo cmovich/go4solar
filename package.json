@@ -16,7 +16,8 @@
     "e2e:live": "playwright test -c playwright.live.config.ts",
     "hero:build": "tsx scripts/hero-images.ts",
     "logo:build": "tsx scripts/logo-images.ts",
-    "plans:images": "tsx scripts/plan-images.ts"
+    "plans:images": "tsx scripts/plan-images.ts",
+    "spewa:load": "tsx scripts/load-spewa-price-list.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

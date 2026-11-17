@@ -25,6 +25,8 @@ export type BuilderStep = (typeof BUILDER_STEPS)[number]
 
 export type BuilderState = {
   step: BuilderStep
+  /** A business or institution gets the SPEWA offer (its own items and terms). */
+  applicantType?: 'individual' | 'business'
   scope?: 'complete' | 'some'
   existing?: { brand: string; kva: number | null; batteryV: number | null }
   state?: NgStateId
@@ -41,6 +43,7 @@ const stateSchema = z.object({
   version: z.literal(1),
   state: z.object({
     step: z.enum(BUILDER_STEPS),
+    applicantType: z.enum(['individual', 'business']).optional(),
     scope: z.enum(['complete', 'some']).optional(),
     existing: z
       .object({ brand: z.string(), kva: z.number().nullable(), batteryV: z.number().nullable() })
