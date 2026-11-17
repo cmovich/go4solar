@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test'
 
-import { checkCarousel, checkSeeMore, chooseAndAccept, readyPlansMigrated } from '../helpers/readyPlans'
+import {
+  checkCarousel,
+  checkSeeMore,
+  chooseAndAccept,
+  readyPlansMigrated,
+} from '../helpers/readyPlans'
 
 /** Live: accepting a ready-made plan goes on to the account step (phone code, then ID checks). */
 test('ready-made plan → quotation → Accept and apply → account step', async ({ page }) => {

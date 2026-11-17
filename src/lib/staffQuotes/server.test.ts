@@ -289,11 +289,11 @@ describe('createStaffQuotationFromPlan ("Start from a ready-made plan")', () => 
     })
     expect(r).toMatchObject({ ok: true })
     const row = db.rows('staff_quotations')[0]!
-    expect(row).toMatchObject({ tenure: 12, monthly: 139_413, sample: false, state: 'Kaduna' })
+    expect(row).toMatchObject({ tenure: 12, monthly: 128_957, sample: false, state: 'Kaduna' })
     expect(row.builder).toMatchObject({
       kind: 'ready',
       plan: { slug: 'oga-boss', name: 'Oga Boss' },
-      fixed: { fullPayment: 1_450_770 },
+      fixed: { fullPayment: 1_447_110 },
     })
     expect(db.rows('audit_log')[0]).toMatchObject({
       action: 'staff_quotation.create',

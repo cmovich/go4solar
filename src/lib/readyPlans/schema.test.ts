@@ -62,7 +62,7 @@ describe('planProblems (plain-English checks before saving)', () => {
 describe('database rows', () => {
   it('round trip: plan → row → plan', () => {
     const row = planToRow(base)
-    expect(row).toMatchObject({ slug: base.slug, system_voltage: 12, full_discount: 0.25 })
+    expect(row).toMatchObject({ slug: base.slug, system_voltage: 12, full_discount: 0.2 })
     expect(
       planFromRow({
         ...(row as Required<typeof row>),

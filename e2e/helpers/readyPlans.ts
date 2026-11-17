@@ -176,7 +176,9 @@ export async function checkCarousel(page: Page, mobile: boolean) {
   const box = (await next.boundingBox())!
   expect(box.width).toBeGreaterThanOrEqual(44)
   expect(box.height).toBeGreaterThanOrEqual(44)
-  const price = section.getByTestId(`ready-plan-${HOME_SHOWN[0]}`).locator('[data-testid="card-price"], [data-testid="card-price-later"]')
+  const price = section
+    .getByTestId(`ready-plan-${HOME_SHOWN[0]}`)
+    .locator('[data-testid="card-price"], [data-testid="card-price-later"]')
   const p = (await price.boundingBox())!
   expect(box.y + box.height).toBeLessThan(p.y)
   // "›" → card 2, "‹" appears, dot 2.

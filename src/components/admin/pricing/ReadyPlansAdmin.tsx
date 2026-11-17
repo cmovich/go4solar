@@ -20,6 +20,7 @@ import {
   saveReadyPlan,
   setReadyPlanActive,
   setReadyPlanShowOnHome,
+  saveReadyTerms,
 } from '@/app/admin/(shell)/pricing/ready-plans/actions'
 
 type AdminPlan = ReadyPlan & { imageUrl: string | null }
@@ -45,9 +46,9 @@ const BLANK: AdminPlan = {
   canPower: [],
   backup: [],
   depositShare: 0.2,
-  monthlyRate: 0.05,
+  monthlyRate: 0.04,
   tenures: [6, 9, 12],
-  fullDiscount: 0,
+  fullDiscount: 0.2,
   deliveryState: 'Kaduna',
   adminNote: null,
   sortOrder: 99,
@@ -57,7 +58,16 @@ const BLANK: AdminPlan = {
 }
 
 /** Admin → Pricing → Ready-made plans: list (order, on/off, confirm prices) and the editor. */
-export function ReadyPlansAdmin({ plans, states }: { plans: AdminPlan[]; states: NgStateId[] }) {
+export function ReadyPlansAdmin({
+  plans,
+  states,
+  terms,
+}: {
+  plans: AdminPlan[]
+  states: NgStateId[]
+  /** The terms every plan shares (percent): monthly rate and pay-in-full discount. */
+  terms: { monthlyRatePct: number; fullDiscountPct: number }
+}) {
   const router = useRouter()
   const [editing, setEditing] = useState<AdminPlan | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -73,7 +83,11 @@ export function ReadyPlansAdmin({ plans, states }: { plans: AdminPlan[]; states:
   if (editing) {
     return (
       <PlanEditor
-        initial={editing}
+        initial={{
+          ...editing,
+          monthlyRate: terms.monthlyRatePct / 100,
+          fullDiscount: terms.fullDiscountPct / 100,
+        }}
         states={states}
         onCancel={() => setEditing(null)}
         onSaved={() => {
@@ -107,6 +121,7 @@ export function ReadyPlansAdmin({ plans, states }: { plans: AdminPlan[]; states:
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+      <TermsForm terms={terms} pending={pending} onSave={(t) => run(() => saveReadyTerms(t))} />
       <div className="overflow-x-auto rounded-xl border">
         <table className="w-full text-sm">
           <thead className="bg-brand-green text-left text-white">
@@ -520,26 +535,11 @@ function PlanEditor({
             className="mt-1"
           />
         </label>
-        <label className="text-sm">
-          Monthly rate on the financed amount (%)
-          <Input
-            type="number"
-            step="any"
-            value={Math.round(p.monthlyRate * 10000) / 100}
-            onChange={(e) => set({ monthlyRate: num(e.target.value) / 100 })}
-            className="mt-1"
-          />
-        </label>
-        <label className="text-sm">
-          Pay-in-full discount (%, off the 12-month total payable)
-          <Input
-            type="number"
-            step="any"
-            value={Math.round(p.fullDiscount * 1000) / 10}
-            onChange={(e) => set({ fullDiscount: num(e.target.value) / 100 })}
-            className="mt-1"
-          />
-        </label>
+        <p className="text-muted-foreground text-sm sm:col-span-2" data-testid="plan-terms-note">
+          Monthly rate {formatPercent(p.monthlyRate, 1)} and pay-in-full discount{' '}
+          {formatPercent(p.fullDiscount, 0)}: the same for every plan (&ldquo;Terms for all
+          plans&rdquo; on the list page).
+        </p>
         <label className="text-sm">
           Delivery included to
           <select
@@ -645,5 +645,58 @@ function PlanEditor({
         </p>
       )}
     </div>
+  )
+}
+
+/** "Terms for all plans": the monthly rate and the pay-in-full discount (audited). */
+function TermsForm({
+  terms,
+  pending,
+  onSave,
+}: {
+  terms: { monthlyRatePct: number; fullDiscountPct: number }
+  pending: boolean
+  onSave: (t: { monthlyRatePct: number; fullDiscountPct: number }) => void
+}) {
+  const [rate, setRate] = useState(String(terms.monthlyRatePct))
+  const [discount, setDiscount] = useState(String(terms.fullDiscountPct))
+  return (
+    <form
+      className="bg-brand-mist flex flex-wrap items-end gap-3 rounded-xl p-3 text-sm"
+      data-testid="ready-terms"
+      onSubmit={(e) => {
+        e.preventDefault()
+        onSave({ monthlyRatePct: Number(rate), fullDiscountPct: Number(discount) })
+      }}
+    >
+      <p className="text-brand-dark w-full font-semibold">Terms for all plans</p>
+      <label>
+        Monthly rate %
+        <Input
+          inputMode="decimal"
+          value={rate}
+          onChange={(e) => setRate(e.target.value)}
+          className="mt-1 w-32 bg-white"
+          aria-label="Monthly rate %"
+        />
+      </label>
+      <label>
+        Pay-in-full discount %
+        <Input
+          inputMode="decimal"
+          value={discount}
+          onChange={(e) => setDiscount(e.target.value)}
+          className="mt-1 w-32 bg-white"
+          aria-label="Pay-in-full discount %"
+        />
+      </label>
+      <Button type="submit" disabled={pending}>
+        {pending ? 'Saving…' : 'Save terms'}
+      </Button>
+      <p className="text-muted-foreground w-full text-xs">
+        Total = financed × (1 + monthly rate × months); pay in full = the 12-month total payable
+        less the discount. Quotes and signed agreements keep the figures they were made with.
+      </p>
+    </form>
   )
 }

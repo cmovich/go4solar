@@ -69,12 +69,12 @@ test.describe('ready-made plans', () => {
       expect((await page.request.get(`/plans/${RELAX_MAX}`)).status()).toBe(404)
     }
     // Confirmed prices: deposit and the 12-month payment (I Pass My Neighbour: ₦93,000, then
-    // ₦49,600). SAMPLE: no naira at all. Never the word "interest".
+    // ₦45,880). SAMPLE: no naira at all. Never the word "interest".
     const neighbour = page.getByTestId('ready-plan-i-pass-my-neighbour')
     if ((await neighbour.getByTestId('card-price').count()) > 0) {
       await expect(neighbour.getByTestId('card-price')).toContainText('Deposit ₦93,000')
       await expect(neighbour.getByTestId('card-price')).toContainText(
-        'then ₦49,600/month for 12 months',
+        'then ₦45,880/month for 12 months',
       )
       await expect(page.getByTestId('ready-plan-relax').getByTestId('card-price')).toContainText(
         'Deposit ₦684,000',
@@ -120,10 +120,10 @@ test.describe('ready-made plans', () => {
     if ((await page.getByTestId('plan-figures').count()) > 0) {
       // Confirmed prices (Oga Boss): 12 months by default, then 6; pay in full; Lagos delivery.
       await expect(page.getByTestId('plan-deposit')).toHaveText('₦261,400')
-      await expect(page.getByTestId('plan-monthly')).toHaveText('₦139,413 × 12 months')
-      await expect(page.getByTestId('plan-full')).toHaveText('₦1,450,770 (25% off)')
+      await expect(page.getByTestId('plan-monthly')).toHaveText('₦128,957 × 12 months')
+      await expect(page.getByTestId('plan-full')).toHaveText('₦1,447,110 (20% off)')
       await page.getByRole('button', { name: '6 months' }).click()
-      await expect(page.getByTestId('plan-monthly')).toHaveText('₦226,547 × 6 months')
+      await expect(page.getByTestId('plan-monthly')).toHaveText('₦216,091 × 6 months')
       await expect(page.getByText('One fixed price. No hidden charges.')).toBeVisible()
       await page.getByLabel('Where will it be installed?').selectOption('Lagos')
       await expect(page.getByTestId('plan-extra-delivery')).toContainText(
@@ -151,7 +151,7 @@ test.describe('ready-made plans', () => {
     await page.goto('/plans/oga-boss')
     await page.getByTestId('choose-full').click()
     if ((await page.getByTestId('plan-figures-full').count()) > 0) {
-      await expect(page.getByTestId('plan-full-total')).toHaveText('₦1,450,770')
+      await expect(page.getByTestId('plan-full-total')).toHaveText('₦1,447,110')
       await expect(page.getByTestId('plan-figures-full')).not.toContainText(/a month|deposit/i)
     }
     await chooseAndAccept(page, 'oga-boss', { payInFull: true })
@@ -193,26 +193,29 @@ test.describe('ready-made plans: staff', () => {
     await expect(page.getByTestId('plan-thumb')).toHaveCount(7)
     await expect(rows.first()).toContainText('Charge controller must be ≥30 A.')
     await expect(rows.nth(2)).toContainText('needs ~130 A charging')
-    // I Pass My Neighbour: ₦93,000 deposit, ₦49,600 a month, pay in full ₦516,150.
-    await expect(rows.first()).toContainText('₦93,000 / ₦49,600')
+    // I Pass My Neighbour: ₦93,000 deposit, ₦45,880 a month, pay in full ₦514,848.
+    await expect(rows.first()).toContainText('₦93,000 / ₦45,880')
     await rows.first().getByRole('button', { name: 'Edit' }).click()
     await expect(page.getByText('Picture (saved; choose another to replace)')).toBeVisible()
     const preview = page.getByTestId('plan-preview')
-    await expect(preview).toContainText('6 months: deposit ₦93,000, then ₦80,600 a month')
-    await expect(preview).toContainText('9 months: deposit ₦93,000, then ₦59,933 a month')
-    await expect(preview).toContainText('Pay in full: ₦516,150 (25% off)')
+    await expect(preview).toContainText('6 months: deposit ₦93,000, then ₦76,880 a month')
+    await expect(preview).toContainText('9 months: deposit ₦93,000, then ₦56,213 a month')
+    await expect(preview).toContainText('Pay in full: ₦514,848 (20% off)')
     // Cancel: nothing saved.
     await page.getByRole('button', { name: 'Cancel' }).first().click()
     // Relax Max (added switched off): its staff note and Semako's figures.
     const max = rows.nth(6)
     await expect(max).toContainText('Relax Max')
     await expect(max).toContainText("Check the inverter's max PV input ≥ 11.7 kW.")
-    await expect(max).toContainText('₦1,216,400 / ₦648,747')
+    await expect(max).toContainText('₦1,216,400 / ₦600,091')
     await max.getByRole('button', { name: 'Edit' }).click()
-    await expect(preview).toContainText('6 months: deposit ₦1,216,400, then ₦1,054,213 a month')
-    await expect(preview).toContainText('9 months: deposit ₦1,216,400, then ₦783,902 a month')
-    await expect(preview).toContainText('Pay in full: ₦7,201,088 (20% off)')
+    await expect(preview).toContainText('6 months: deposit ₦1,216,400, then ₦1,005,557 a month')
+    await expect(preview).toContainText('9 months: deposit ₦1,216,400, then ₦735,246 a month')
+    await expect(preview).toContainText('Pay in full: ₦6,733,990 (20% off)')
     await page.getByRole('button', { name: 'Cancel' }).first().click()
+    // One setting for every plan: 4% a month, 20% off for paying in full.
+    await expect(page.getByLabel('Monthly rate %')).toHaveValue('4')
+    await expect(page.getByLabel('Pay-in-full discount %')).toHaveValue('20')
   })
 
   test('admin: "Show on home page" ticks move a plan up to the home page and back (audited)', async ({
