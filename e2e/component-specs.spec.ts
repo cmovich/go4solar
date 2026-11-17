@@ -47,3 +47,23 @@ test('component specs: incomplete badge, filter, partial specs, warnings vs prob
   // Discard: nothing is saved.
   await page.getByRole('button', { name: 'Discard' }).click()
 })
+
+// 17 Nov: ordinary accessories have no size or volts ("—"); packs keep their max kVA. Not saved.
+test('components: accessories show "—" for size and volts; packs keep their max kVA', async ({
+  page,
+}) => {
+  test.skip(!hasStaff(), 'needs the e2e staff account')
+  test.skip(test.info().project.name === 'mobile', 'one browser is enough')
+  await loginAsStaff(page)
+  await page.goto('/admin/pricing/components')
+  const rowOf = (sku: string) =>
+    page.getByTestId('component-row').filter({ has: page.locator(`input[value="${sku}"]`) })
+  const flex = rowOf('FLX-25')
+  await expect(flex).toBeVisible()
+  await expect(flex.getByTestId('size-na')).toHaveText('—')
+  await expect(flex.getByLabel('Size')).toHaveCount(0)
+  const pack = rowOf('ACC-2')
+  await expect(pack.getByLabel('Size')).toHaveValue('2')
+  const inverter = rowOf('INV-1')
+  await expect(inverter.getByLabel('Size')).toHaveValue('1')
+})

@@ -31,8 +31,14 @@ export const componentDraftSchema = z.object({
   name: z.string().trim().min(2, 'Name is required').max(120),
   category: z.enum(COMPONENT_CATEGORIES),
   unitCost: z.number().min(0).max(1_000_000_000),
-  /** watts (panels), kWh (battery), kVA (inverter) or max kVA (accessories tier). */
-  size: z.number().positive('Enter the size'),
+  /**
+   * watts (panels), kWh (battery), kVA (inverter) or max kVA (accessories pack). Ordinary
+   * accessories have none: blank or 0 = not applicable (checked per row in componentRows.ts).
+   */
+  size: z.preprocess(
+    (v) => (v === null || v === undefined || v === '' ? 0 : v),
+    z.number().min(0, 'The size cannot be negative'),
+  ),
   source: z.enum(['oem', 'vendor']),
   active: z.boolean(),
   sample: z.boolean(),

@@ -176,7 +176,8 @@ describe('pricing server actions', () => {
   })
 })
 
-// Bug (17 Oct): adding a component failed with "null value in column id"; Save is all-or-nothing.
+// Bug (17 Oct): adding a component failed with "null value in column id".
+// 17 Nov: rows are checked one by one; valid rows save, a bad row gets its own message.
 describe('saveComponents', () => {
   const EXISTING = '7a1d2c3b-4e5f-4a6b-8c7d-9e0f1a2b3c4d'
   const existing = {
@@ -205,7 +206,7 @@ describe('saveComponents', () => {
   const audits = () => calls.filter((c) => c.table === 'audit_log')
 
   it('a new component gets its id from the database (missing fields use the column default)', async () => {
-    expect(await saveComponents([existing, added])).toEqual({ ok: true })
+    expect(await saveComponents([existing, added])).toMatchObject({ ok: true, saved: 2 })
     const [u] = upserts()
     expect(u?.options).toEqual({ onConflict: 'id', defaultToNull: false })
     const rows = u?.payload as Record<string, unknown>[]
@@ -218,7 +219,7 @@ describe('saveComponents', () => {
   })
 
   it('editing an existing component keeps its id, and the change goes to the audit log', async () => {
-    expect(await saveComponents([{ ...existing, unitCost: 115000 }])).toEqual({ ok: true })
+    expect(await saveComponents([{ ...existing, unitCost: 115000 }])).toMatchObject({ ok: true })
     const rows = upserts()[0]?.payload as Record<string, unknown>[]
     expect(rows[0]).toMatchObject({ id: EXISTING, sku: 'PNL-500', unit_cost: 115000 })
     expect(audits()[0]?.payload).toMatchObject({
@@ -228,14 +229,16 @@ describe('saveComponents', () => {
     })
   })
 
-  it('the same SKU twice: a clear message, nothing sent to the database', async () => {
+  it('the same SKU twice: the first row is saved, the second gets its own message', async () => {
     const r = await saveComponents([existing, { ...added, sku: 'pnl-500' }])
-    expect(r).toEqual({
+    expect(r).toMatchObject({
       ok: false,
-      error: 'PNL-500 already exists (rows 1 and 2). Use a different SKU. Nothing was saved.',
-      field: 'sku',
+      error:
+        'Row 2 (PNL-500): PNL-500 is already used on row 1. Use a different SKU. 1 other row was saved.',
+      saved: 1,
+      rowErrors: [{ index: 1, sku: 'PNL-500' }],
     })
-    expect(calls).toEqual([])
+    expect((upserts()[0]?.payload as unknown[]).length).toBe(1)
   })
 
   it('a SKU the database already has: a clear message, no audit row', async () => {
@@ -251,13 +254,37 @@ describe('saveComponents', () => {
     expect(audits()).toEqual([])
   })
 
-  it('one bad row: the row is named and nothing is written', async () => {
+  it('one bad row never blocks the rest: valid rows saved, the bad row named', async () => {
     const r = await saveComponents([existing, { ...added, size: 0 }])
     expect(r).toMatchObject({
       ok: false,
-      error: 'Row 2 (PNL-550), size: Enter the size. Nothing was saved.',
+      error: 'Row 2 (PNL-550): Enter the size (W). 1 other row was saved.',
+      saved: 1,
+      rowErrors: [{ index: 1, sku: 'PNL-550', message: 'Enter the size (W).' }],
     })
-    expect(calls).toEqual([])
+    expect((upserts()[0]?.payload as Record<string, unknown>[]).map((x) => x.sku)).toEqual([
+      'PNL-500',
+    ])
+    expect(audits()).toHaveLength(1)
+  })
+
+  it('an accessory with a blank or 0 size saves (not applicable): stored with no size', async () => {
+    const flex = {
+      ...existing,
+      id: undefined,
+      sku: 'FLX-25',
+      name: 'Flex pipe 25 mm',
+      category: 'accessories',
+      unitCost: 600,
+      size: '',
+      kind: 'flex_pipe',
+      unit: 'metre',
+    }
+    expect(await saveComponents([flex])).toMatchObject({ ok: true, saved: 1 })
+    expect((upserts()[0]?.payload as Record<string, unknown>[])[0]).toMatchObject({
+      sku: 'FLX-25',
+      stock_sizes: {},
+    })
   })
 
   it('the database refuses the save: one message, no audit row (one request = all or nothing)', async () => {
@@ -403,7 +430,7 @@ describe('saveComponents: specs', () => {
   }
 
   it('saves the nominal voltage and the specs (empty values dropped)', async () => {
-    expect(await saveComponents([panel])).toEqual({ ok: true })
+    expect(await saveComponents([panel])).toMatchObject({ ok: true })
     const rows = calls.find((c) => c.table === 'components' && c.op === 'upsert')
       ?.payload as Record<string, unknown>[]
     expect(rows[0]).toMatchObject({
@@ -412,25 +439,25 @@ describe('saveComponents: specs', () => {
     })
   })
 
-  it('an out-of-range spec is refused in plain words, naming the row; nothing saved', async () => {
+  it('an out-of-range spec is refused in plain words, naming the row; that row not saved', async () => {
     const r = await saveComponents([{ ...panel, specs: { ...panel.specs, voc: 400 } }])
     expect(r).toMatchObject({
       ok: false,
-      error: 'Row 1 (PNL-550): Voc must be between 5 and 120 V. Nothing was saved.',
+      error: 'Row 1 (PNL-550): Voc must be between 5 and 120 V. 0 other rows were saved.',
     })
     expect(calls.filter((c) => c.op === 'upsert')).toEqual([])
   })
 
   it('partial specs and no nominal voltage are saved', async () => {
     const partial = { ...panel, nominalVoltage: null, specs: { voc: 49.6, vmp: null } }
-    expect(await saveComponents([partial])).toEqual({ ok: true })
+    expect(await saveComponents([partial])).toMatchObject({ ok: true })
     const rows = calls.find((c) => c.table === 'components' && c.op === 'upsert')
       ?.payload as Record<string, unknown>[]
     expect(rows[0]).toMatchObject({ nominal_voltage: null, specs: { voc: 49.6 } })
   })
 
   it('a pair that does not match (Vmp above Voc) is only a warning: it is saved', async () => {
-    expect(await saveComponents([{ ...panel, specs: { ...panel.specs, vmp: 52 } }])).toEqual({
+    expect(await saveComponents([{ ...panel, specs: { ...panel.specs, vmp: 52 } }])).toMatchObject({
       ok: true,
     })
   })

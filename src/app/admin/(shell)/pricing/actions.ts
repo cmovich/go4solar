@@ -5,8 +5,6 @@ import { z } from 'zod'
 
 import { getSessionInfo, type SessionInfo } from '@/lib/auth/session'
 import {
-  SIZE_KEY,
-  componentsSchema,
   energySizingSchema,
   installationSchema,
   lateFeeSchema,
@@ -16,12 +14,9 @@ import {
   type ComponentDraft,
   type SunHoursRow,
 } from '@/lib/pricing/adminSchemas'
-import {
-  componentDbErrorMessage,
-  componentIssueMessage,
-  duplicateSkuMessage,
-} from '@/lib/pricing/componentErrors'
-import { SPEC_FIELDS, specProblems } from '@/lib/components/specs'
+import { componentDbErrorMessage } from '@/lib/pricing/componentErrors'
+import { checkComponentRows, stockSizesFor, type RowError } from '@/lib/pricing/componentRows'
+import { SPEC_FIELDS } from '@/lib/components/specs'
 import { DEFAULT_MIN_DEPOSIT_SHARE } from '@/lib/pricing/price'
 import { tenureListProblem, tenureRateProblem } from '@/lib/pricing/tenures'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -107,49 +102,58 @@ export async function saveMargins(input: unknown): Promise<Result> {
  * is saved or none is. Rows are matched on id; new rows have no id and get one from the
  * database default (`defaultToNull: false`; otherwise the missing id is sent as null).
  */
-export async function saveComponents(input: unknown): Promise<Result> {
+/** Components save: the valid rows are saved; each bad row comes back with its own message. */
+export type ComponentsResult =
+  | { ok: true; saved: number; warnings: RowError[] }
+  | {
+      ok: false
+      error: string
+      field?: string
+      saved?: number
+      rowErrors?: RowError[]
+      warnings?: RowError[]
+    }
+
+export async function saveComponents(input: unknown): Promise<ComponentsResult> {
   const session = await superAdmin()
-  if (!session) return DENIED
-  const drafts = (Array.isArray(input) ? input : []) as ComponentDraft[]
-  const parsed = componentsSchema.safeParse(input)
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0]
-    return issue
-      ? { ok: false, error: componentIssueMessage(issue, drafts), field: issue.path.join('.') }
-      : { ok: false, error: 'Check the values' }
-  }
-  const duplicate = duplicateSkuMessage(parsed.data)
-  if (duplicate) return { ok: false, error: duplicate, field: 'sku' }
-  // Filled-in specs must be numbers in a sensible range; empty ones are fine ("Incomplete").
-  // Pairs that do not match (e.g. Vmp ≥ Voc) are only warnings on screen and never block.
-  const cleaned = parsed.data.map((c) => cleanSpecs(c.category, c.specs))
-  for (const [i, c] of parsed.data.entries()) {
-    const problem = specProblems({ ...c, specs: cleaned[i] })[0]
-    if (problem) {
-      return {
-        ok: false,
-        error: `Row ${i + 1} (${c.sku}): ${problem}. Nothing was saved.`,
-        field: `${i}.specs`,
-      }
+  if (!session) return { ok: false, error: 'Only a super admin can change pricing.' }
+  if (!Array.isArray(input) || input.length === 0) return { ok: false, error: 'Check the values' }
+  const drafts = input as ComponentDraft[]
+  // Row by row: one bad row never blocks the others.
+  const { valid, errors, warnings } = checkComponentRows(input)
+  const rowsFailed = (saved: number) => {
+    const first = errors[0]!
+    const rowName = first.sku ? `Row ${first.index + 1} (${first.sku})` : `Row ${first.index + 1}`
+    return {
+      ok: false as const,
+      error:
+        errors.length === 1
+          ? `${rowName}: ${first.message} ${saved} other row${saved === 1 ? ' was' : 's were'} saved.`
+          : `${errors.length} rows need a fix (marked below). ${saved} other row${saved === 1 ? ' was' : 's were'} saved.`,
+      field: `${first.index}`,
+      saved,
+      rowErrors: errors,
+      warnings,
     }
   }
+  if (valid.length === 0) return rowsFailed(0)
 
   const supabase = await createClient()
   const { data: current } = await supabase
     .from('components')
     .select('id, sku, unit_cost, active, stock_sizes')
-  const rows = parsed.data.map((c, i) => ({
+  const rows = valid.map(({ draft: c }) => ({
     ...(c.id ? { id: c.id } : {}),
     sku: c.sku.toUpperCase(),
     name: c.name,
     category: c.category,
     unit_cost: c.unitCost,
-    stock_sizes: { [SIZE_KEY[c.category]]: c.size },
+    stock_sizes: stockSizesFor(c),
     source: c.source,
     active: c.active,
     sample: c.sample,
     nominal_voltage: c.nominalVoltage,
-    specs: cleaned[i]!,
+    specs: cleanSpecs(c.category, c.specs),
     // Builder details exist from migration 0027; before it they are not sent.
     ...(c.kind !== undefined
       ? {
@@ -167,7 +171,7 @@ export async function saveComponents(input: unknown): Promise<Result> {
     .upsert(rows, { onConflict: 'id', defaultToNull: false })
   if (error) {
     console.error(`[pricing] components not saved: ${error.code} ${error.message}`)
-    return { ok: false, error: componentDbErrorMessage(error, parsed.data) }
+    return { ok: false, error: componentDbErrorMessage(error, drafts) }
   }
   await audit(
     session,
@@ -176,7 +180,10 @@ export async function saveComponents(input: unknown): Promise<Result> {
     (current ?? []) as unknown as Json,
     rows as unknown as Json,
   )
-  return done()
+  revalidatePath('/admin/pricing')
+  revalidatePath('/')
+  if (errors.length > 0) return rowsFailed(rows.length)
+  return { ok: true, saved: rows.length, warnings }
 }
 
 export async function saveRates(input: unknown): Promise<Result> {
