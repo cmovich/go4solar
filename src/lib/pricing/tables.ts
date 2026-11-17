@@ -1,3 +1,4 @@
+import { isPackRow } from './componentRows'
 import { type Specs } from '@/lib/components/specs'
 import type { PriceList, PricingSettings, SizeBand } from '@/lib/settings/schemas'
 
@@ -91,12 +92,8 @@ export function priceListFromRows(input: {
     .filter((c) => c.category === 'inverter' && sizeOf(c, 'kva') !== null)
     .sort((a, b) => sizeOf(a, 'kva')! - sizeOf(b, 'kva')!)
   const accessories = active
-    .filter(
-      (c) =>
-        c.category === 'accessories' &&
-        (c.kind ?? 'pack') === 'pack' &&
-        sizeOf(c, 'maxKva') !== null,
-    )
+    // Only packs (with a max kVA above 0) are picked by size; ordinary accessories never are.
+    .filter((c) => isPackRow({ category: c.category, kind: c.kind, maxKva: sizeOf(c, 'maxKva') }))
     .sort((a, b) => sizeOf(a, 'maxKva')! - sizeOf(b, 'maxKva')!)
 
   if (!panel) throw new Error('No active panels component in the price list')

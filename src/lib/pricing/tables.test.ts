@@ -449,3 +449,30 @@ describe('priceListFromRows — itemised accessories', () => {
     expect(list.accessoriesByKva).toEqual(SAMPLE_PRICE_LIST.accessoriesByKva)
   })
 })
+
+describe('priceListFromRows — ordinary accessories are never packs (17 Nov)', () => {
+  it('a flex pipe or breaker with a size is not a pack; a pack needs a max kVA above 0', () => {
+    const extra = (sku: string, kind: string | null, maxKva: number | undefined) => ({
+      sku,
+      name: sku,
+      category: 'accessories' as const,
+      unit_cost: 1000,
+      stock_sizes: maxKva === undefined ? {} : { maxKva },
+      active: true,
+      sample: false,
+      kind,
+    })
+    const list = priceListFromRows({
+      components: [
+        ...components,
+        extra('FLX-25', 'flex_pipe', 1),
+        extra('DCB-63', 'dc_breaker', 2),
+        extra('ACC-0', 'pack', 0),
+        extra('ODD', null, undefined),
+      ],
+      installs,
+      panelWatts: 550,
+    })
+    expect(list.accessoriesByKva).toEqual(SAMPLE_PRICE_LIST.accessoriesByKva)
+  })
+})

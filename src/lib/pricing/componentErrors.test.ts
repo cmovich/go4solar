@@ -35,11 +35,11 @@ describe('duplicateSkuMessage', () => {
 
 describe('componentIssueMessage (a form check that failed)', () => {
   it('names the row by number and SKU, and the field', () => {
-    const drafts = [row('PNL-500'), row('PNL-550', { size: 0 })]
+    const drafts = [row('PNL-500'), row('PNL-550', { size: -1 })]
     const parsed = componentsSchema.safeParse(drafts)
     expect(parsed.success).toBe(false)
     expect(componentIssueMessage(parsed.error!.issues[0]!, drafts)).toBe(
-      'Row 2 (PNL-550), size: Enter the size. Nothing was saved.',
+      'Row 2 (PNL-550), size: The size cannot be negative. Nothing was saved.',
     )
   })
 
