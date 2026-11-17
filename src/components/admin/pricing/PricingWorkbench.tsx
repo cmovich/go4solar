@@ -1,5 +1,6 @@
 'use client'
 
+import type { RowError } from '@/lib/pricing/componentRows'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { Fragment, useEffect, useMemo, useState, useTransition } from 'react'
@@ -96,6 +97,9 @@ export function PricingWorkbench({
   const [draft, setDraft] = useState<PricingDraft>(initial)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  // Components: errors and warnings per row (one bad row never blocks the others).
+  const [rowErrors, setRowErrors] = useState<RowError[]>([])
+  const [rowWarnings, setRowWarnings] = useState<RowError[]>([])
   const [pending, start] = useTransition()
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(initial), [draft, initial])
 
@@ -108,6 +112,7 @@ export function PricingWorkbench({
   function save() {
     setError(null)
     setSaved(false)
+    setRowErrors([])
     start(async () => {
       const r =
         section === 'components'
@@ -128,17 +133,40 @@ export function PricingWorkbench({
                         sunHours: draft.sunHours,
                         wiring: draft.wiring,
                       })
+      // Components only: per-row results (other sections never send these).
+      const rows = r as { rowErrors?: RowError[]; warnings?: RowError[]; saved?: number }
+      setRowWarnings(rows.warnings ?? [])
       if (r.ok) {
         setSaved(true)
         router.refresh()
-      } else setError(r.error)
+        return
+      }
+      setError(r.error)
+      const bad = rows.rowErrors ?? []
+      setRowErrors(bad)
+      if ((rows.saved ?? 0) > 0) router.refresh()
+      if (bad[0]) {
+        // Show the first bad row.
+        requestAnimationFrame(() =>
+          document
+            .querySelector(`[data-row-index="${bad[0]!.index}"]`)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+        )
+      }
     })
   }
 
   return (
     <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_420px]">
       <section>
-        {section === 'components' && <ComponentsForm draft={draft} onChange={setDraft} />}
+        {section === 'components' && (
+          <ComponentsForm
+            draft={draft}
+            onChange={setDraft}
+            rowErrors={rowErrors}
+            rowWarnings={rowWarnings}
+          />
+        )}
         {section === 'margins' && <MarginsForm draft={draft} onChange={setDraft} />}
         {section === 'rates' && <RatesForm draft={draft} onChange={setDraft} />}
         {section === 'installation' && <InstallationForm draft={draft} onChange={setDraft} />}
@@ -592,7 +620,17 @@ function SampleBadge({ show }: { show: boolean }) {
   )
 }
 
-function ComponentsForm({ draft, onChange }: FormProps) {
+function ComponentsForm({
+  draft,
+  onChange,
+  rowErrors = [],
+  rowWarnings = [],
+}: FormProps & { rowErrors?: RowError[]; rowWarnings?: RowError[] }) {
+  const errorOf = (i: number) => rowErrors.find((e) => e.index === i)?.message ?? null
+  const warningOf = (i: number) => rowWarnings.find((e) => e.index === i)?.message ?? null
+  // Ordinary accessories have no size or volts ("—"); a pack is picked by its max kVA.
+  const sizeApplies = (c: ComponentDraft) =>
+    c.category !== 'accessories' || c.kind === 'pack' || c.kind == null
   // A price edit confirms the row (clears SAMPLE); voltage and spec edits do not.
   const update = (i: number, patch: Partial<ComponentDraft>, clearsSample = true) =>
     onChange({
@@ -679,7 +717,18 @@ function ComponentsForm({ draft, onChange }: FormProps) {
             {draft.components.map((c, i) =>
               onlyMissing && missingSpecs(c).length === 0 ? null : (
                 <Fragment key={c.id ?? `new-${i}`}>
-                  <tr className={i % 2 ? 'bg-brand-mist/60' : ''} data-testid="component-row">
+                  <tr
+                    className={
+                      errorOf(i)
+                        ? 'bg-red-50 outline-2 -outline-offset-2 outline-red-600'
+                        : i % 2
+                          ? 'bg-brand-mist/60'
+                          : ''
+                    }
+                    data-testid="component-row"
+                    data-row-index={i}
+                    aria-invalid={errorOf(i) ? true : undefined}
+                  >
                     <td className="px-2 py-1">
                       <Input
                         value={c.sku}
@@ -713,28 +762,45 @@ function ComponentsForm({ draft, onChange }: FormProps) {
                       </select>
                     </td>
                     <td className="px-2 py-1">
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          min={0}
-                          step="any"
-                          value={c.size}
-                          onChange={(e) => update(i, { size: parseFloat(e.target.value) || 0 })}
-                          className="h-9 w-20 text-sm"
-                          aria-label="Size"
-                        />
-                        <span className="text-muted-foreground text-xs">
-                          {sizeLabel[c.category]}
+                      {sizeApplies(c) ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            min={0}
+                            step="any"
+                            value={c.size || ''}
+                            placeholder="—"
+                            onChange={(e) => update(i, { size: parseFloat(e.target.value) || 0 })}
+                            className="h-9 w-20 text-sm"
+                            aria-label="Size"
+                          />
+                          <span className="text-muted-foreground text-xs">
+                            {sizeLabel[c.category]}
+                          </span>
+                        </div>
+                      ) : (
+                        <span
+                          className="text-muted-foreground"
+                          title="Not applicable"
+                          data-testid="size-na"
+                        >
+                          —
                         </span>
-                      </div>
+                      )}
                     </td>
                     <td className="px-2 py-1">
-                      <VoltageField
-                        value={c.nominalVoltage}
-                        onChange={(v) => update(i, { nominalVoltage: v }, false)}
-                        label={`Nominal voltage ${c.sku}`}
-                      />
+                      {c.category === 'accessories' ? (
+                        <span className="text-muted-foreground" title="Not applicable">
+                          —
+                        </span>
+                      ) : (
+                        <VoltageField
+                          value={c.nominalVoltage}
+                          onChange={(v) => update(i, { nominalVoltage: v }, false)}
+                          label={`Nominal voltage ${c.sku}`}
+                        />
+                      )}
                     </td>
                     <td className="px-2 py-1">
                       <NairaField
@@ -783,6 +849,27 @@ function ComponentsForm({ draft, onChange }: FormProps) {
                       <SampleBadge show={c.sample} />
                     </td>
                   </tr>
+                  {(errorOf(i) || warningOf(i)) && (
+                    <tr className={errorOf(i) ? 'bg-red-50' : ''}>
+                      <td colSpan={10} className="px-2 pb-2 text-sm">
+                        {errorOf(i) && (
+                          <p
+                            className="font-semibold text-red-700"
+                            role="alert"
+                            data-testid="component-row-error"
+                          >
+                            Row {i + 1}
+                            {c.sku ? ` (${c.sku.toUpperCase()})` : ''}: {errorOf(i)} Not saved.
+                          </p>
+                        )}
+                        {warningOf(i) && (
+                          <p className="text-amber-800" data-testid="component-row-warning">
+                            {warningOf(i)}
+                          </p>
+                        )}
+                      </td>
+                    </tr>
+                  )}
                   {open.has(i) && (
                     <tr className={i % 2 ? 'bg-brand-mist/60' : ''}>
                       <td colSpan={10} className="px-2 pb-3">

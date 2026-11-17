@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { isPackRow } from '@/lib/pricing/componentRows'
 import { z } from 'zod'
 
 import { siteMediaUrl } from '@/lib/content/server'
@@ -139,6 +140,13 @@ export async function loadCatalogue(
     accessories: rows
       .filter((r) => r.category === 'accessories')
       .flatMap((r) => {
+        // A pack (picked by its max kVA) only with a max kVA above 0; ordinary accessories never.
+        const pack = isPackRow({
+          category: r.category,
+          kind: r.kind,
+          maxKva: size(r, 'maxKva'),
+        })
+        if ((r.kind === 'pack' || r.kind == null) && !pack) return []
         const kind = r.kind ?? 'pack'
         if (kind !== 'pack' && !(ACCESSORY_KINDS as readonly string[]).includes(kind)) return []
         const rating = kind === 'pack' ? (size(r, 'maxKva') ?? 0) : n(r.rating)
