@@ -138,7 +138,7 @@ function splitMonthly(balance: number, months: number) {
  * their fixed selling price, other equipment at cost + base margin, installation at cost. The
  * charge for the length is added to the financed amount only:
  *   total payable = deposit + (cash price − deposit) × (1 + charge)
- * and is spread over the equipment lines (one fixed price; it is never shown as a charge).
+ * Items stay at their selling price; the charge is one separate line (`planCharge`).
  */
 function priceOffer(
   input: QuoteInput,
@@ -161,19 +161,19 @@ function priceOffer(
   const financed = cash - deposit
   const balance = roundNaira(financed * (1 + charge))
   const systemPrice = deposit + balance
-  const equipmentPrice = systemPrice - installCost
   const equipmentCost = input.lines.reduce((s, l) => s + l.unitCost * l.qty, 0)
-  const factor = equipmentCash > 0 ? equipmentPrice / equipmentCash : 1
-  const lines = spreadLines(
-    input,
-    input.lines.map((l) => cashOf(l) * factor),
-    equipmentPrice,
-  )
+  // Items at their selling price (our accessories at cost + margin); the charge is its own line.
+  const lines = spreadLines(input, input.lines.map(cashOf), equipmentCash)
   const { monthly, instalments } = splitMonthly(balance, tenureMonths)
+  const pct = Math.round(charge * 1000) / 10
   return {
+    planCharge: {
+      label: `Payment plan charge (${tenureMonths} months, ${pct}%)`,
+      amount: balance - financed,
+    },
     costPrice: equipmentCost + installCost,
     systemPrice,
-    markupShare: equipmentCost > 0 ? (equipmentPrice - equipmentCost) / equipmentCost : 0,
+    markupShare: equipmentCost > 0 ? (equipmentCash - equipmentCost) / equipmentCost : 0,
     lines,
     installCost,
     noMarkup: noMarkup.map((l) => ({ ...l })),

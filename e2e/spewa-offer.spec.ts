@@ -28,6 +28,9 @@ test.describe('SPEWA offer', () => {
       const months = summary.getByRole('group', { name: 'Months' }).getByRole('button')
       await expect(months).toHaveText(['3 months', '6 months', '9 months', '12 months'])
       await expect(page.getByTestId('build-total')).toContainText('One fixed price')
+      await expect(page.getByTestId('plan-charge')).toContainText(
+        'Payment plan charge (12 months, 30%)',
+      )
       await expect(summary).not.toContainText(/interest/i)
       await checkBreakdown(page, true)
     }

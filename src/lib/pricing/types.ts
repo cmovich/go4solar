@@ -83,6 +83,11 @@ export type QuoteResult = {
   monthly: number
   /** Everything used to price this quote, so later setting changes never alter it. */
   snapshot: QuoteSnapshot
+  /**
+   * SPEWA offer only: the payment plan charge as its own line ("Payment plan charge (12 months,
+   * 30%)"). Items are then at their selling price: lines + installCost + this = systemPrice.
+   */
+  planCharge?: { label: string; amount: number }
 }
 
 export type QuoteSnapshot = {

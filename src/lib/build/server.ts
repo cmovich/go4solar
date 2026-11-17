@@ -143,6 +143,8 @@ export type PricedBuild = {
   deliveryRemovable: boolean
   /** "See breakdown": items, installation, delivery, price, deposit, monthly, total payable. */
   breakdown: QuoteBreakdown | null
+  /** SPEWA offer: the payment plan charge as its own line (items at their selling price). */
+  planCharge: { label: string; amount: number } | null
 }
 
 /**
@@ -175,6 +177,7 @@ export function priceSelection(
     sample: ctx.settings.priceList.sample || ctx.settings.pricing.sample,
     deliveryRemovable: logisticsFor(sel.state, 0, ctx.catalogue.logistics) !== null,
     breakdown: null,
+    planCharge: null,
     minDepositShare,
     offer: Boolean(bo),
   }
@@ -212,6 +215,7 @@ function pricedFrom(empty: PricedBuild, quote: QuoteResult): PricedBuild {
   return {
     ...empty,
     breakdown: quoteBreakdown(quote),
+    planCharge: quote.planCharge ?? null,
     lines: quote.lines.map((l) => ({
       sku: l.sku,
       name: l.name,

@@ -26,6 +26,10 @@ test('live: business builder → SPEWA offer → Apply → quotation', async ({ 
   const quotation = page.getByTestId('quotation')
   await expect(quotation).toContainText('Total amount payable', { timeout: 30_000 })
   await expect(quotation).toContainText('No hidden charges')
+  // Items at their SPEWA selling price; the payment plan charge is its own line.
+  await expect(page.getByTestId('quotation-lines')).toContainText(
+    'Payment plan charge (12 months, 30%)',
+  )
   await expect(quotation).not.toContainText(/interest/i)
   // SPEWA's price list: quotes valid for 7 days.
   const until = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', {

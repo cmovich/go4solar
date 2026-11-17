@@ -25,7 +25,7 @@ export type InvoiceLine = {
   /** "2", or "20 m" for wire and pipe. */
   qty: string
   amount: number
-  kind: 'equipment' | 'rack' | 'installation' | 'delivery'
+  kind: 'equipment' | 'rack' | 'installation' | 'delivery' | 'charge'
   /** Ready-made plans: the line is listed without its price. */
   hideAmount?: true
 }
@@ -79,6 +79,8 @@ type PricedQuote = {
   installCost: number
   lines: Pick<QuoteLine, 'sku' | 'name' | 'qty' | 'lineTotal'>[]
   noMarkup?: NoMarkupLine[]
+  /** SPEWA offer: the payment plan charge as its own line. */
+  planCharge?: { label: string; amount: number }
   snapshot: { tenureMonths: number; depositShare: number }
 }
 
@@ -139,6 +141,17 @@ export function buildInvoice(i: InvoiceInput): InvoiceData {
       amount: x.amount,
       kind: x.label.startsWith('Delivery') ? ('delivery' as const) : ('installation' as const),
     })),
+    ...(i.result.planCharge
+      ? [
+          {
+            item: i.result.planCharge.label,
+            spec: '',
+            qty: '1',
+            amount: i.result.planCharge.amount,
+            kind: 'charge' as const,
+          },
+        ]
+      : []),
   ]
   // A ready-made plan has one fixed price: items are listed without prices, and the extra
   // delivery is shown with the totals (paid with the deposit).

@@ -88,9 +88,55 @@ describe('SPEWA offer price (item 31 example)', () => {
     expect(q.systemPrice).toBe(2_662_000)
   })
 
-  it('lines add up to the total payable (the charge is part of the equipment price)', () => {
-    expect(q.lines.reduce((s, l) => s + l.lineTotal, 0) + q.installCost).toBe(q.systemPrice)
+  it('items at the selling price; the charge is its own line; all add up to the total payable', () => {
+    expect(q.lines[0]!.lineTotal).toBe(2_200_000)
+    expect(q.planCharge).toEqual({
+      label: 'Payment plan charge (12 months, 30%)',
+      amount: 462_000,
+    })
+    expect(
+      q.lines.reduce((s, l) => s + l.lineTotal, 0) + q.installCost + q.planCharge!.amount,
+    ).toBe(q.systemPrice)
     expect(q.costPrice).toBe(1_750_000)
+  })
+
+  it('Solis 12kW item 30: item ₦2,665,000, charge line ₦633,150, total payable ₦3,648,150', () => {
+    const r = priceQuote(
+      input({
+        lines: [
+          {
+            sku: 'SPW-SLS-0003',
+            name: 'Solis 12kW/48V 3Phase S6-EH3P12K02-NV-YD-L On Grid',
+            category: 'inverter',
+            unitCost: 2_375_000,
+            sellUnit: 2_665_000,
+            qty: 1,
+          },
+        ],
+        installCost: 350_000,
+        noMarkup: [
+          { label: 'Installation', amount: 250_000 },
+          { label: 'Delivery — Go4Solar logistics (Kaduna)', amount: 100_000 },
+        ],
+      }),
+    )
+    expect(r.lines[0]!.lineTotal).toBe(2_665_000)
+    expect(r.planCharge).toEqual({
+      label: 'Payment plan charge (12 months, 30%)',
+      amount: 633_150,
+    })
+    expect(r.systemPrice).toBe(3_648_150)
+    expect(r.deposit).toBe(904_500)
+    expect(r.monthly).toBe(228_638)
+  })
+
+  it('the charge line names the real months and band', () => {
+    expect(priceQuote(input({ tenureMonths: 3 })).planCharge?.label).toBe(
+      'Payment plan charge (3 months, 7.5%)',
+    )
+    expect(priceQuote(input({ tenureMonths: 9 })).planCharge?.label).toBe(
+      'Payment plan charge (9 months, 22.5%)',
+    )
   })
 
   it('keeps the offer and the selling prices in the snapshot', () => {
@@ -124,7 +170,9 @@ describe('SPEWA offer price (item 31 example)', () => {
     expect(r.systemPrice).toBe(741_000 + 2_247_700)
     expect(cashPrice(r.snapshot)).toBe(2_470_000)
     expect(r.noMarkup).toEqual([{ label: 'Installation and logistics', amount: 150_000 }])
-    expect(r.lines.reduce((s, l) => s + l.lineTotal, 0) + 150_000).toBe(r.systemPrice)
+    expect(r.lines.map((l) => l.lineTotal)).toEqual([2_200_000, 120_000])
+    expect(r.planCharge!.amount).toBe(518_700)
+    expect(r.lines.reduce((s, l) => s + l.lineTotal, 0) + 150_000 + 518_700).toBe(r.systemPrice)
   })
 })
 
@@ -164,6 +212,10 @@ describe('offerProfit (staff only)', () => {
     expect(p.financingCharge).toBe(518_700)
     expect(p.badDebt).toBe(34_580)
     expect(p.profit).toBe(450_000 + 518_700 + 20_000 - 34_580)
+  })
+
+  it('home quotes have no separate charge line', () => {
+    expect(priceQuote(input({ offer: undefined, minDepositShare: 0.2 })).planCharge).toBeUndefined()
   })
 
   it('null for a normal quote', () => {

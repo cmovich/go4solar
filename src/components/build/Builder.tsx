@@ -919,6 +919,16 @@ function Summary({
             {prices && <td className="py-2 text-right tabular-nums">{formatNaira(l.amount)}</td>}
           </tr>
         ))}
+        {priced.planCharge && (
+          <tr className="border-b" data-testid="plan-charge">
+            <td className="py-2">{priced.planCharge.label}</td>
+            {prices && (
+              <td className="py-2 text-right tabular-nums">
+                {formatNaira(priced.planCharge.amount)}
+              </td>
+            )}
+          </tr>
+        )}
       </tbody>
     </table>
   )
@@ -986,6 +996,16 @@ function Summary({
               {prices && <td className="py-2 text-right tabular-nums">{formatNaira(l.amount)}</td>}
             </tr>
           ))}
+          {priced.planCharge && (
+            <tr className="border-b" data-testid="plan-charge">
+              <td className="py-2">{priced.planCharge.label}</td>
+              {prices && (
+                <td className="py-2 text-right tabular-nums">
+                  {formatNaira(priced.planCharge.amount)}
+                </td>
+              )}
+            </tr>
+          )}
         </tbody>
       </table>
 

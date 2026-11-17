@@ -429,6 +429,14 @@ export default async function ApplicationPage({
           <Rows
             rows={[
               ['Installation (no markup)', formatNaira(d.quote.installCost)],
+              ...(d.quote.planCharge
+                ? [
+                    [d.quote.planCharge.label, formatNaira(d.quote.planCharge.amount)] as [
+                      string,
+                      string,
+                    ],
+                  ]
+                : []),
               ['Cost price', formatNaira(d.quote.costPrice)],
               ['Markup on equipment', formatPercent(d.quote.markupShare, 1)],
               ['System price', formatNaira(d.quote.systemPrice)],

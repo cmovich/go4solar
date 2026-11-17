@@ -4,7 +4,13 @@ import { DEFAULT_QUOTE_SETTINGS } from '@/lib/settings/schemas'
 import { assumedEquipment } from '@/lib/sizing/defaults'
 import { DEFAULT_OFFER_TERMS, businessOfferFrom } from '@/lib/spewa/offer'
 
-import { builderItems, priceSelection, suggestForLoad, type BuilderContext } from './server'
+import {
+  builderItems,
+  priceSelection,
+  suggestAccessories,
+  suggestForLoad,
+  type BuilderContext,
+} from './server'
 
 const eq = assumedEquipment()
 const ctx: BuilderContext = {
@@ -190,5 +196,36 @@ describe('business or institution (SPEWA offer) in the builder', () => {
     const items = suggestForLoad(bctx, 8, biz)
     expect(items.some((i) => i.sku === 'SPW-SLS-0004')).toBe(true)
     expect(items.some((i) => i.sku === 'SP-0001')).toBe(true)
+  })
+})
+
+describe('accessories pack "up to 2 kVA"', () => {
+  const withSmall: BuilderContext = {
+    ...ctx,
+    catalogue: {
+      ...ctx.catalogue!,
+      inverters: [
+        ...ctx.catalogue!.inverters,
+        {
+          sku: 'INV-1',
+          name: '1 kVA inverter',
+          kva: 1,
+          unitCost: 170000,
+          option: eq.inverters.find((i) => i.kva === 1) ?? eq.inverters[0]!,
+        },
+      ],
+      accessories: [
+        { sku: 'ACC-2', name: 'Pack', kind: 'pack', rating: 2, unitCost: 120000, unit: 'each' },
+        ...ctx.catalogue!.accessories,
+      ],
+    },
+  }
+  it('inverters up to 2 kVA get the small pack; bigger ones keep the current pack', () => {
+    expect(suggestAccessories(withSmall, { ...sel, items: [{ sku: 'INV-1', qty: 1 }] })).toEqual([
+      { sku: 'ACC-2', qty: 1 },
+    ])
+    expect(suggestAccessories(withSmall, { ...sel, items: [{ sku: 'INV-2.5', qty: 1 }] })).toEqual([
+      { sku: 'ACC-7.5', qty: 1 },
+    ])
   })
 })

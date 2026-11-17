@@ -10,7 +10,7 @@ import { DEFAULT_QUOTE_SETTINGS, SAMPLE_PRICE_LIST } from '@/lib/settings/schema
 import { LoadTooLargeError } from '@/lib/sizing/size'
 import { DEFAULT_OFFER_TERMS, businessOfferFrom } from '@/lib/spewa/offer'
 
-import { PLANS, buildEstimate, monthlyByTenure, repriceEstimate } from './buildEstimate'
+import { PLANS, buildEstimate, linesFor, monthlyByTenure, repriceEstimate } from './buildEstimate'
 
 const totals = computeLoadTotals(sampleHomeItems) // 480 W, 780 W surge, 3.72 kWh/day
 const s = DEFAULT_QUOTE_SETTINGS
@@ -506,5 +506,23 @@ describe('buildEstimate — business or institution (SPEWA offer)', () => {
 
   it('a business without an offer (no rule) is priced normally', () => {
     expect(buildEstimate(totals, 'Lagos', 0.2, s, null, {}, 'business').offer).toBeUndefined()
+  })
+})
+
+describe('accessories pack "up to 2 kVA" in plans', () => {
+  it('a system with a 2 kVA inverter or smaller uses the small pack', () => {
+    const list = {
+      ...SAMPLE_PRICE_LIST,
+      accessoriesByKva: [{ maxKva: 2, unitCost: 120000 }, ...SAMPLE_PRICE_LIST.accessoriesByKva],
+    }
+    const size = buildEstimate(totals, 'Lagos', 0.2, s).plans.essential.size
+    const small = linesFor({ ...size, inverterKva: 2 }, list).find(
+      (l) => l.category === 'accessories',
+    )!
+    expect(small).toMatchObject({ sku: 'ACC-2', unitCost: 120000 })
+    const big = linesFor({ ...size, inverterKva: 2.5 }, list).find(
+      (l) => l.category === 'accessories',
+    )!
+    expect(big.sku).not.toBe('ACC-2')
   })
 })
