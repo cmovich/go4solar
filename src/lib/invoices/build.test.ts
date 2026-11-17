@@ -199,7 +199,7 @@ describe('a ready-made plan quotation', () => {
     items: {},
     fixed: {
       fullPayment: pricedOga.fullPayment,
-      fullDiscount: 0.25,
+      fullDiscount: 0.2,
       extra: { state: 'Lagos', amount: 45_000 },
     },
   })
@@ -212,12 +212,12 @@ describe('a ready-made plan quotation', () => {
     expect(doc.totals).toMatchObject({
       total: pricedOga.totalPayable,
       deposit: 261_400,
-      monthly: 139_413,
+      monthly: 128_957,
       months: 12,
     })
     expect(doc.fixed).toEqual({
-      fullPayment: 1_450_770 + 45_000,
-      fullDiscount: 0.25,
+      fullPayment: 1_447_110 + 45_000,
+      fullDiscount: 0.2,
       extra: { state: 'Lagos', amount: 45_000 },
     })
   })
@@ -256,15 +256,15 @@ describe('a pay-in-full quotation or invoice', () => {
     items: {},
     fixed: {
       fullPayment: priced.fullPayment,
-      fullDiscount: 0.25,
+      fullDiscount: 0.2,
       extra: { state: 'Lagos', amount: 45_000 },
       payment: 'full',
     },
   })
   it('one payment: total = everything paid now; no monthly payments', () => {
     expect(doc.totals).toMatchObject({
-      total: 1_450_770 + 45_000,
-      deposit: 1_450_770 + 45_000,
+      total: 1_447_110 + 45_000,
+      deposit: 1_447_110 + 45_000,
       balance: 0,
       monthly: 0,
       months: 0,

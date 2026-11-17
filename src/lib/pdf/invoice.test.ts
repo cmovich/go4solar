@@ -138,7 +138,7 @@ describe('ready-made plan quotation PDF', () => {
       items: {},
       fixed: {
         fullPayment: priced.fullPayment,
-        fullDiscount: 0.25,
+        fullDiscount: 0.2,
         extra: { state: 'Lagos', amount: 45_000 },
       },
     })
@@ -150,10 +150,10 @@ describe('ready-made plan quotation PDF', () => {
       formatNaira(261_400),
       'Delivery to Lagos (extra, paid with the deposit)',
       formatNaira(45_000),
-      formatNaira(139_413),
+      formatNaira(128_957),
       'Or pay in full',
-      '25% off',
-      formatNaira(1_450_770 + 45_000),
+      '20% off',
+      formatNaira(1_447_110 + 45_000),
       'One fixed price. No hidden charges',
       'Late payments',
     ]) {

@@ -20,7 +20,7 @@ test('pay in full → account → address → one payment → Paid in full', asy
   // The wizard sends a pay-in-full order straight to the payment page.
   await page.waitForURL(/\/app\/pay-in-full/, { timeout: 45_000 })
   await expect(page.getByTestId('pif-summary')).toContainText('Oga Boss')
-  await expect(page.getByTestId('pif-total')).toHaveText('₦1,450,770')
+  await expect(page.getByTestId('pif-total')).toHaveText('₦1,447,110')
   await expect(page.locator('main')).not.toContainText(/interest|NIN|guarantor is needed/i)
   await page.getByLabel('Street address').fill('No. 5 Ali Akilu Road')
   await page.getByLabel('Town or city').fill('Kaduna')
@@ -30,5 +30,5 @@ test('pay in full → account → address → one payment → Paid in full', asy
   await page.getByRole('button', { name: /^Pay ₦/ }).click()
   await page.waitForURL(/\/app(\?paid=full)?$/, { timeout: 45_000 })
   await expect(page.getByTestId('paid-in-full')).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByTestId('plan-summary')).toContainText('Paid in full: ₦1,450,770')
+  await expect(page.getByTestId('plan-summary')).toContainText('Paid in full: ₦1,447,110')
 })

@@ -42,7 +42,7 @@ describe('extraFor (delivery outside the included state)', () => {
 
 describe('offerFor (what pages may show)', () => {
   it('figures for a confirmed plan; none for a SAMPLE plan', () => {
-    expect(offerFor(oga, rows).card).toEqual({ deposit: 261_400, monthly: 139_413, months: 12 })
+    expect(offerFor(oga, rows).card).toEqual({ deposit: 261_400, monthly: 128_957, months: 12 })
     const sample = offerFor({ ...oga, sample: true }, rows)
     expect(sample.card).toBeNull()
     expect(sample.tenures).toBeNull()
@@ -61,8 +61,8 @@ describe('storedReadyPlan (what a chosen plan saves)', () => {
       kind: 'ready',
       plan: { slug: 'oga-boss', name: 'Oga Boss' },
       fixed: {
-        fullPayment: 1_450_770 + 50_000,
-        fullDiscount: 0.25,
+        fullPayment: 1_447_110 + 50_000,
+        fullDiscount: 0.2,
         extra: { state: 'Lagos', amount: 50_000 },
       },
       sample: false,
@@ -88,10 +88,10 @@ describe('loadReadyPlans', () => {
 describe('storedReadyPlan: pay in full', () => {
   it('one payment of the pay-in-full price, marked full; the months are ignored', () => {
     const s = storedReadyPlan(oga, 6, 'Lagos', {}, rows, 'full')
-    expect(s.fixed).toMatchObject({ payment: 'full', fullPayment: 1_450_770 + 50_000 })
+    expect(s.fixed).toMatchObject({ payment: 'full', fullPayment: 1_447_110 + 50_000 })
     expect(s.quote).toMatchObject({
-      systemPrice: 1_500_770,
-      deposit: 1_500_770,
+      systemPrice: 1_497_110,
+      deposit: 1_497_110,
       balance: 0,
       monthly: 0,
     })

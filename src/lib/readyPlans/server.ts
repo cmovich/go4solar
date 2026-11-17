@@ -18,6 +18,7 @@ import {
   type TenureFigures,
 } from './price'
 import { planFromRow } from './schema'
+import { READY_TERMS_KEY, readyTermsFrom, withTerms, type ReadyTerms } from './terms'
 import type { ReadyPlan } from './types'
 
 /**
@@ -25,24 +26,34 @@ import type { ReadyPlan } from './types'
  * table: it holds vendor costs) and handed to pages only as customer figures.
  */
 
+/** The terms all plans share (monthly rate, pay-in-full discount): settings.ready_plan_terms. */
+export async function loadReadyTerms(): Promise<ReadyTerms> {
+  const { data } = await createAdminClient()
+    .from('settings')
+    .select('value')
+    .eq('key', READY_TERMS_KEY)
+    .maybeSingle()
+  return readyTermsFrom(data?.value)
+}
+
 /** Every plan (admin), or the switched-on ones in order (customers). [] before migration 0034. */
 export async function loadReadyPlans(opts: { activeOnly: boolean }): Promise<ReadyPlan[]> {
   let q = createAdminClient().from('ready_plans').select('*').order('sort_order').order('name')
   if (opts.activeOnly) q = q.eq('active', true)
-  const { data, error } = await q
+  const [{ data, error }, terms] = await Promise.all([q, loadReadyTerms()])
   if (error) {
     console.error('[ready-plans] not available:', error.message)
     return []
   }
-  return data.map(planFromRow)
+  return data.map((r) => withTerms(planFromRow(r), terms))
 }
 
 export async function loadReadyPlan(slug: string, activeOnly = true): Promise<ReadyPlan | null> {
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) return null
   let q = createAdminClient().from('ready_plans').select('*').eq('slug', slug)
   if (activeOnly) q = q.eq('active', true)
-  const { data } = await q.maybeSingle()
-  return data ? planFromRow(data) : null
+  const [{ data }, terms] = await Promise.all([q.maybeSingle(), loadReadyTerms()])
+  return data ? withTerms(planFromRow(data), terms) : null
 }
 
 /** Admin → Pricing → Builder delivery table (state rows + "Other"); SAMPLE rows are not used. */

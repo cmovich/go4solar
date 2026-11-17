@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { getSessionInfo, type SessionInfo } from '@/lib/auth/session'
 import { planProblems, planToRow, readyPlanSchema } from '@/lib/readyPlans/schema'
+import { READY_TERMS_KEY, readyTermsForm } from '@/lib/readyPlans/terms'
 import type { ReadyPlan } from '@/lib/readyPlans/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
@@ -203,6 +204,30 @@ export async function moveReadyPlan(input: unknown): Promise<Result> {
     list.map((r) => r.id) as Json,
     next.map((r) => r.id) as Json,
   )
+  refresh()
+  return { ok: true }
+}
+
+/** The terms every plan shares (monthly rate, pay-in-full discount); audited. */
+export async function saveReadyTerms(input: unknown): Promise<Result> {
+  const session = await superAdmin()
+  if (!session) return DENIED
+  const p = readyTermsForm.safeParse(input)
+  if (!p.success) return { ok: false, error: p.error.issues[0]?.message ?? 'Check the terms.' }
+  const admin = createAdminClient()
+  const { data: before } = await admin
+    .from('settings')
+    .select('value')
+    .eq('key', READY_TERMS_KEY)
+    .maybeSingle()
+  const { error } = await admin.from('settings').upsert({
+    key: READY_TERMS_KEY,
+    value: p.data as unknown as Json,
+    updated_by: session.user!.id,
+    updated_at: new Date().toISOString(),
+  })
+  if (error) return { ok: false, error: 'Could not save the terms. Please try again.' }
+  await audit(session, 'ready_plan.terms', null, (before?.value ?? null) as Json, p.data as Json)
   refresh()
   return { ok: true }
 }

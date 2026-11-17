@@ -18,24 +18,24 @@ import {
 const plan = (slug: string) => SEEDED_PLANS.find((p) => p.slug === slug)!
 const ORDER = ['i-pass-my-neighbour', 'level-up', 'oga-boss', 'no-wahala', 'no-shaking', 'relax']
 
-describe('priceReadyPlan: the figures Semako gave (Kaduna, no extra delivery)', () => {
+describe('priceReadyPlan: 4% a month, 20% off in full (Kaduna, no extra delivery)', () => {
   // deposit / 12-month monthly / full payment
   const twelve: [number, number, number][] = [
-    [93_000, 49_600, 516_150],
-    [169_400, 90_347, 940_170],
-    [261_400, 139_413, 1_450_770],
-    [285_400, 152_213, 1_583_970],
-    [387_000, 206_400, 2_147_850],
-    [684_000, 364_800, 4_049_280],
+    [93_000, 45_880, 514_848],
+    [169_400, 83_571, 937_798],
+    [261_400, 128_957, 1_447_110],
+    [285_400, 140_797, 1_579_974],
+    [387_000, 190_920, 2_142_432],
+    [684_000, 337_440, 3_786_624],
   ]
   // 6- and 9-month monthly
   const shorter: [number, number][] = [
-    [80_600, 59_933],
-    [146_813, 109_169],
-    [226_547, 168_458],
-    [247_347, 183_924],
-    [335_400, 249_400],
-    [592_800, 440_800],
+    [76_880, 56_213],
+    [140_037, 102_393],
+    [216_091, 158_002],
+    [235_931, 172_508],
+    [319_920, 233_920],
+    [565_440, 413_440],
   ]
   ORDER.forEach((slug, i) => {
     it(`${plan(slug).name}`, () => {
@@ -55,8 +55,8 @@ describe('priceReadyPlan: how the numbers fit together', () => {
       planPrice: 465_000,
       deposit: 93_000,
       financed: 372_000,
-      total: 595_200,
-      totalPayable: 688_200,
+      total: 550_560,
+      totalPayable: 643_560,
       upfront: 93_000,
       extra: 0,
       months: 12,
@@ -65,15 +65,15 @@ describe('priceReadyPlan: how the numbers fit together', () => {
   it('payments add up exactly: the last one adjusts for rounding', () => {
     const p = priceReadyPlan(plan('level-up'), 12)
     expect(p.instalments).toHaveLength(12)
-    expect(p.instalments.slice(0, 11).every((m) => m === 90_347)).toBe(true)
+    expect(p.instalments.slice(0, 11).every((m) => m === 83_571)).toBe(true)
     expect(p.instalments.reduce((a, b) => a + b, 0)).toBe(p.total)
-    expect(p.instalments[11]).toBe(p.total - 90_347 * 11)
+    expect(p.instalments[11]).toBe(p.total - 83_571 * 11)
   })
   it('a tenure the plan does not offer is refused', () => {
     expect(() => priceReadyPlan(plan('relax'), 24)).toThrow(/not offered/)
   })
   it('full payment is always off the 12-month total payable', () => {
-    expect(priceReadyPlan(plan('relax'), 6).fullPayment).toBe(4_049_280)
+    expect(priceReadyPlan(plan('relax'), 6).fullPayment).toBe(3_786_624)
   })
 })
 
@@ -154,13 +154,13 @@ describe('planSize (the system as stored with the quote)', () => {
 describe('cardFigures (landing cards and the plan page)', () => {
   it('deposit and the 12-month monthly; per tenure: deposit, monthly, total payable', () => {
     const c = cardFigures(plan('i-pass-my-neighbour'))
-    expect(c.card).toEqual({ deposit: 93_000, monthly: 49_600, months: 12 })
+    expect(c.card).toEqual({ deposit: 93_000, monthly: 45_880, months: 12 })
     expect(c.tenures).toEqual([
-      { months: 6, deposit: 93_000, monthly: 80_600, totalPayable: 93_000 + 483_600 },
-      { months: 9, deposit: 93_000, monthly: 59_933, totalPayable: 93_000 + 539_400 },
-      { months: 12, deposit: 93_000, monthly: 49_600, totalPayable: 688_200 },
+      { months: 6, deposit: 93_000, monthly: 76_880, totalPayable: 554_280 },
+      { months: 9, deposit: 93_000, monthly: 56_213, totalPayable: 598_920 },
+      { months: 12, deposit: 93_000, monthly: 45_880, totalPayable: 643_560 },
     ])
-    expect(c.fullPayment).toBe(516_150)
+    expect(c.fullPayment).toBe(514_848)
   })
 })
 
@@ -169,8 +169,8 @@ describe('fullPaymentQuoteResult (pay in full: one payment, no monthly schedule)
     const p = plan('oga-boss')
     const q = fullPaymentQuoteResult(p, priceReadyPlan(p, 12), 'Kaduna')
     expect(q).toMatchObject({
-      systemPrice: 1_450_770,
-      deposit: 1_450_770,
+      systemPrice: 1_447_110,
+      deposit: 1_447_110,
       balance: 0,
       instalments: [],
       monthly: 0,
@@ -183,8 +183,8 @@ describe('fullPaymentQuoteResult (pay in full: one payment, no monthly schedule)
   it('extra delivery is part of the one payment (never discounted)', () => {
     const p = plan('oga-boss')
     const q = fullPaymentQuoteResult(p, priceReadyPlan(p, 12, 45_000), 'Lagos')
-    expect(q.systemPrice).toBe(1_450_770 + 45_000)
-    expect(q.deposit).toBe(1_450_770 + 45_000)
+    expect(q.systemPrice).toBe(1_447_110 + 45_000)
+    expect(q.deposit).toBe(1_447_110 + 45_000)
     expect(q.costPrice).toBe(1_102_500 + 45_000)
     expect(q.noMarkup).toContainEqual({ label: 'Delivery to Lagos (extra)', amount: 45_000 })
   })
@@ -199,11 +199,11 @@ describe('Relax Max (the 7th plan, Semako 14 Nov)', () => {
   it('deposit, monthly for 6/9/12, total payable and pay in full', () => {
     const p12 = priceReadyPlan(p(), 12)
     expect(p12.deposit).toBe(1_216_400)
-    expect(p12.monthly).toBe(648_747)
-    expect(p12.totalPayable).toBe(9_001_360)
-    expect(p12.fullPayment).toBe(7_201_088)
-    expect(priceReadyPlan(p(), 9).monthly).toBe(783_902)
-    expect(priceReadyPlan(p(), 6).monthly).toBe(1_054_213)
+    expect(p12.monthly).toBe(600_091)
+    expect(p12.totalPayable).toBe(8_417_488)
+    expect(p12.fullPayment).toBe(6_733_990)
+    expect(priceReadyPlan(p(), 9).monthly).toBe(735_246)
+    expect(priceReadyPlan(p(), 6).monthly).toBe(1_005_557)
   })
   it('48 V, after Relax, SAMPLE, Kaduna delivery included, only 6/9/12', () => {
     const relax = plan('relax')
