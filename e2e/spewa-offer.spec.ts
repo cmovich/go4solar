@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { buildFromLoad, skipWithoutCatalogue } from './helpers/builder'
+import { buildFromLoad, checkBreakdown, skipWithoutCatalogue } from './helpers/builder'
 import { ownConnection } from './helpers/connection'
 import { cannotGoBelow30, offerReady, startBusinessBuilder } from './helpers/spewaOffer'
 import { loginAsStaff } from './helpers/staff'
@@ -29,6 +29,7 @@ test.describe('SPEWA offer', () => {
       await expect(months).toHaveText(['3 months', '6 months', '9 months', '12 months'])
       await expect(page.getByTestId('build-total')).toContainText('One fixed price')
       await expect(summary).not.toContainText(/interest/i)
+      await checkBreakdown(page, true)
     }
   })
 

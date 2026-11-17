@@ -64,7 +64,7 @@ export type BuildSelection = {
   items: { sku: string; qty: number }[]
   site: SiteAnswers
   installer: 'go4solar' | 'own'
-  /** The customer arranges delivery (only where local vendors exist). */
+  /** The customer arranges delivery themselves (any state). */
   ownDelivery?: boolean
 }
 
@@ -152,10 +152,10 @@ export function assembleBuild(sel: BuildSelection, cat: FullCatalogue): Assemble
   }
 
   const delivery = logisticsFor(sel.state, panels?.count ?? 0, cat.logistics)
-  if (delivery && !(delivery.removable && sel.ownDelivery)) {
+  if (delivery && !sel.ownDelivery) {
     noMarkup.push({ label: delivery.label, amount: delivery.amount })
   } else if (delivery) {
-    notes.push('Customer arranges delivery with a local vendor.')
+    notes.push('Customer arranges delivery (not charged).')
   }
 
   notes.unshift(...quoteNotes(sel.site, roof ? { needsRack: roof.needsRack } : null))

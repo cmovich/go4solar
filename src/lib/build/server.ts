@@ -17,6 +17,7 @@ import { annualisedRates, withSellPrices } from '@/lib/spewa/offer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { DEFAULT_WIRING, wireEstimate } from '@/lib/wizard/questions'
 
+import { quoteBreakdown, type QuoteBreakdown } from './breakdown'
 import type { BuildSelectionInput } from './schema'
 import { systemSummary } from './schema'
 
@@ -138,8 +139,10 @@ export type PricedBuild = {
   minDepositShare: number
   /** Priced with the SPEWA offer (business or institution). */
   offer: boolean
-  /** Local vendors in this state: the customer may arrange delivery themselves. */
+  /** This state has a delivery price: the customer may leave it out and arrange it themselves. */
   deliveryRemovable: boolean
+  /** "See breakdown": items, installation, delivery, price, deposit, monthly, total payable. */
+  breakdown: QuoteBreakdown | null
 }
 
 /**
@@ -170,7 +173,8 @@ export function priceSelection(
     warnings: built.compat.warnings,
     tenures,
     sample: ctx.settings.priceList.sample || ctx.settings.pricing.sample,
-    deliveryRemovable: logisticsFor(sel.state, 0, ctx.catalogue.logistics)?.removable ?? false,
+    deliveryRemovable: logisticsFor(sel.state, 0, ctx.catalogue.logistics) !== null,
+    breakdown: null,
     minDepositShare,
     offer: Boolean(bo),
   }
@@ -207,6 +211,7 @@ export function priceSelection(
 function pricedFrom(empty: PricedBuild, quote: QuoteResult): PricedBuild {
   return {
     ...empty,
+    breakdown: quoteBreakdown(quote),
     lines: quote.lines.map((l) => ({
       sku: l.sku,
       name: l.name,

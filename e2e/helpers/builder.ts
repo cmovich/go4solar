@@ -208,3 +208,44 @@ export async function useCalculatedLoadAfterChanges(page: Page) {
   await page.getByTestId('use-calculated-load').click()
   await expectCalculatedLoadApplied(page, '0.2')
 }
+
+const naira = (s: string | null) => Number((s ?? '').replace(/[^0-9]/g, ''))
+
+/**
+ * "See breakdown" under the price bar: items + installation + delivery = price; the deposit is
+ * the minimum share of the price (home: the price is the total payable); delivery can be left out.
+ */
+export async function checkBreakdown(page: Page, business: boolean) {
+  const bar = page.getByTestId('price-bar')
+  await expect(bar).toContainText('Total payable')
+  await page.getByTestId('see-breakdown').click()
+  const bd = page.getByTestId('price-breakdown')
+  await expect(bd).toBeVisible()
+  const v = async (id: string) => naira(await page.getByTestId(id).textContent())
+  const items = await v('bd-items')
+  const installation = await v('bd-installation')
+  const delivery = await v('bd-delivery')
+  const price = await v('bd-price')
+  const deposit = await v('bd-deposit')
+  const financed = await v('bd-financed')
+  const total = await v('bd-total')
+  expect(items + installation + delivery).toBe(price)
+  expect(installation).toBeGreaterThan(0)
+  expect(delivery).toBeGreaterThan(0)
+  expect(Math.abs(deposit - price * (business ? 0.3 : 0.2))).toBeLessThanOrEqual(1)
+  expect(financed).toBe(price - deposit)
+  if (business) {
+    expect(total).toBeGreaterThan(price)
+    await expect(page.getByTestId('bd-min-deposit-note')).toHaveText(
+      'The minimum deposit for this offer is 30%',
+    )
+  } else {
+    expect(total).toBe(price)
+  }
+  await expect(page.getByTestId('bd-deposit-pct')).toHaveText(business ? '30%' : '20%')
+  // Delivery can be left out (the customer arranges it).
+  await page.getByTestId('bd-include-delivery').click()
+  await expect(page.getByTestId('bd-delivery')).toHaveText('Not included', { timeout: 15_000 })
+  await page.getByTestId('bd-include-delivery').click()
+  await expect(page.getByTestId('bd-delivery')).not.toHaveText('Not included', { timeout: 15_000 })
+}

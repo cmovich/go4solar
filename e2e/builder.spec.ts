@@ -5,6 +5,7 @@ import { ownConnection } from './helpers/connection'
 import {
   buildFromLoad,
   builderToCalculator,
+  checkBreakdown,
   expectCalculatedLoadApplied,
   fillBuildContact,
   OLD_SAVES,
@@ -55,6 +56,15 @@ test.describe('system builder', () => {
     }
     await expect(page.getByTestId('build-done')).toBeVisible({ timeout: 45_000 })
     await expect(page.getByTestId('build-done')).toContainText('Thank you!')
+  })
+
+  test('price bar: "Total payable" and "See breakdown" (home: deposit 20% of the price)', async ({
+    page,
+  }) => {
+    await startBuilder(page)
+    await buildFromLoad(page)
+    test.skip((await page.getByTestId('see-breakdown').count()) === 0, 'prices are SAMPLE')
+    await checkBreakdown(page, false)
   })
 
   test('just some items asks what they already have', async ({ page }) => {

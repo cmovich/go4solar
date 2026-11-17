@@ -103,19 +103,11 @@ describe('assembleBuild (the builder selection → invoice lines)', () => {
     expect(b.notes).toContain('Go4Solar is not liable for any installation errors brought to us.')
   })
 
-  it('delivery can only be left out where local vendors exist', () => {
-    expect(
-      assembleBuild({ ...sel, ownDelivery: true }, CAT).noMarkup.some((l) =>
-        /Delivery/.test(l.label),
-      ),
-    ).toBe(true)
-    const local = {
-      ...CAT,
-      logistics: [{ state: 'Other', amount: 50000, extraPerPanel: 0, localVendorsAvailable: true }],
-    }
-    const b = assembleBuild({ ...sel, ownDelivery: true }, local)
+  it('the customer may leave out delivery in any state (Semako, 2026-11-17)', () => {
+    const b = assembleBuild({ ...sel, ownDelivery: true }, CAT)
     expect(b.noMarkup.some((l) => /Delivery/.test(l.label))).toBe(false)
-    expect(b.notes).toContain('Customer arranges delivery with a local vendor.')
+    expect(b.notes).toContain('Customer arranges delivery (not charged).')
+    expect(assembleBuild(sel, CAT).noMarkup.some((l) => /Delivery/.test(l.label))).toBe(true)
   })
 
   it('compatibility problems block; unknown items are ignored', () => {

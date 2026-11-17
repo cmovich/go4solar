@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { buildFromLoad, fillBuildContact } from '../helpers/builder'
+import { buildFromLoad, checkBreakdown, fillBuildContact } from '../helpers/builder'
 import { cannotGoBelow30, offerReady, startBusinessBuilder } from '../helpers/spewaOffer'
 
 /**
@@ -18,6 +18,8 @@ test('live: business builder → SPEWA offer → Apply → quotation', async ({ 
     'prices are SAMPLE: no deposit shown',
   )
   await cannotGoBelow30(page, 'build-deposit-pct')
+  await checkBreakdown(page, true)
+  await page.getByTestId('see-breakdown').click()
   await fillBuildContact(page)
   await page.getByTestId('build-submit').click()
   await page.waitForURL(/\/quotation\/[0-9a-f-]{36}$/, { timeout: 45_000 })

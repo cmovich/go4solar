@@ -24,6 +24,7 @@ import type { LaunchMode } from '@/config/site'
 import type { LibraryItem } from '@/lib/calculator/store'
 import { adviceFacts } from '@/lib/build/advice'
 import type { BuildSelectionInput } from '@/lib/build/schema'
+import type { QuoteBreakdown } from '@/lib/build/breakdown'
 import type { PricedBuild } from '@/lib/build/server'
 import {
   BUILDER_STORAGE_KEY,
@@ -213,6 +214,7 @@ export function Builder({
   const [loadNote, setLoadNote] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [showCalculator, setShowCalculator] = useState(false)
+  const [showBreakdown, setShowBreakdown] = useState(false)
   const touched = useRef(new Set<string>())
 
   // Who it is for: the staff customer box, the plan being adjusted, or the first screen here.
@@ -432,21 +434,53 @@ export function Builder({
     : null
   const priceBar = priced && s.step !== 'start' && s.step !== 'existing' && (
     <div
-      className="bg-brand-dark fixed inset-x-0 bottom-0 z-20 px-4 py-3 text-white shadow-lg sm:sticky sm:rounded-xl"
+      className="bg-brand-dark fixed inset-x-0 bottom-0 z-20 max-h-[85vh] overflow-y-auto px-4 py-3 text-white shadow-lg sm:sticky sm:rounded-xl"
       data-testid="price-bar"
     >
       {!showPrices || priced.sample ? (
         <p className="text-sm">Your exact price will be confirmed when we contact you.</p>
       ) : (
-        <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm tabular-nums">
-          <span>
-            Total <strong className="text-base">{formatNaira(priced.systemPrice)}</strong>
-          </span>
-          <span>Deposit {formatNaira(priced.deposit)}</span>
-          <span>
-            {formatNaira(priced.monthly)} × {priced.months} months
-          </span>
-        </p>
+        <>
+          <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm tabular-nums">
+            <span>
+              Total payable{' '}
+              <strong className="text-base" data-testid="bar-total">
+                {formatNaira(priced.systemPrice)}
+              </strong>
+            </span>
+            <span>Deposit {formatNaira(priced.deposit)}</span>
+            <span>
+              {formatNaira(priced.monthly)} × {priced.months} months
+            </span>
+            {priced.breakdown && (
+              <button
+                type="button"
+                className="text-brand-gold min-h-11 text-sm font-semibold underline"
+                aria-expanded={showBreakdown}
+                aria-controls="price-breakdown"
+                data-testid="see-breakdown"
+                onClick={() => setShowBreakdown((v) => !v)}
+              >
+                {showBreakdown ? 'Hide breakdown' : 'See breakdown'}
+              </button>
+            )}
+          </p>
+          {showBreakdown && priced.breakdown && (
+            <PriceBreakdown
+              b={priced.breakdown}
+              minPct={minPct}
+              depositPct={s.depositPct}
+              installer={s.installer ?? 'go4solar'}
+              ownDelivery={Boolean(s.ownDelivery)}
+              deliveryRemovable={priced.deliveryRemovable}
+              onDeposit={(pct) => setS((cur) => ({ ...cur, depositPct: Math.max(pct, minPct) }))}
+              onInstallation={(on) =>
+                setS((cur) => ({ ...cur, installer: on ? 'go4solar' : 'own' }))
+              }
+              onDelivery={(on) => setS((cur) => ({ ...cur, ownDelivery: !on }))}
+            />
+          )}
+        </>
       )}
     </div>
   )
@@ -667,7 +701,7 @@ export function Builder({
                 checked={Boolean(s.ownDelivery)}
                 onCheckedChange={(v) => setS({ ...s, ownDelivery: v === true })}
               />
-              I will arrange delivery with a local vendor
+              I will arrange delivery myself
             </label>
           )}
           <Button
@@ -1101,6 +1135,126 @@ function Summary({
           </Button>
         </section>
       )}
+    </div>
+  )
+}
+
+/**
+ * "See breakdown" under the price bar: what the total is made of, the deposit (from any step) and
+ * whether installation and delivery are included.
+ */
+function PriceBreakdown({
+  b,
+  minPct,
+  depositPct,
+  installer,
+  ownDelivery,
+  deliveryRemovable,
+  onDeposit,
+  onInstallation,
+  onDelivery,
+}: {
+  b: QuoteBreakdown
+  minPct: number
+  depositPct: number
+  installer: 'go4solar' | 'own'
+  ownDelivery: boolean
+  deliveryRemovable: boolean
+  onDeposit: (pct: number) => void
+  onInstallation: (on: boolean) => void
+  onDelivery: (on: boolean) => void
+}) {
+  const pct = Math.max(depositPct, minPct)
+  const rows: [string, string, string][] = [
+    ['Items', formatNaira(b.items), 'bd-items'],
+    [
+      'Installation',
+      b.installation > 0 ? formatNaira(b.installation) : 'Not included',
+      'bd-installation',
+    ],
+    ['Delivery', b.delivery > 0 ? formatNaira(b.delivery) : 'Not included', 'bd-delivery'],
+    ['Price', formatNaira(b.price), 'bd-price'],
+    [`Deposit (${Math.round(b.depositShare * 100)}%)`, formatNaira(b.deposit), 'bd-deposit'],
+    ['Amount financed', formatNaira(b.financed), 'bd-financed'],
+    ['Monthly payment', `${formatNaira(b.monthly)} × ${b.months} months`, 'bd-monthly'],
+  ]
+  return (
+    <div
+      id="price-breakdown"
+      className="text-brand-dark mt-3 space-y-4 rounded-xl bg-white p-4 text-sm"
+      data-testid="price-breakdown"
+    >
+      <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 tabular-nums">
+        {rows.map(([k, v, id]) => (
+          <div key={k} className="contents">
+            <dt className={k === 'Price' ? 'border-t pt-1 font-semibold' : 'text-muted-foreground'}>
+              {k}
+            </dt>
+            <dd
+              className={`text-right ${k === 'Price' ? 'border-t pt-1 font-semibold' : ''}`}
+              data-testid={id}
+            >
+              {v}
+            </dd>
+          </div>
+        ))}
+        <dt className="border-t pt-1 font-bold">Total payable</dt>
+        <dd className="border-t pt-1 text-right font-bold" data-testid="bd-total">
+          {formatNaira(b.totalPayable)}
+        </dd>
+      </dl>
+      <p className="text-muted-foreground text-xs">
+        {b.offer
+          ? 'The deposit is a share of the price. One fixed total. No hidden charges.'
+          : 'One fixed price: the payment plan is included, and the deposit is a share of it. No hidden charges.'}
+      </p>
+
+      <div>
+        <div className="flex justify-between">
+          <span className="font-medium">Deposit</span>
+          <strong data-testid="bd-deposit-pct">{pct}%</strong>
+        </div>
+        <Slider
+          className="mt-3"
+          min={minPct}
+          max={95}
+          step={5}
+          value={[pct]}
+          onValueChange={([v]) => onDeposit(v ?? minPct)}
+          aria-label="Deposit (breakdown)"
+        />
+        {b.offer && pct <= minPct && (
+          <p className="mt-2 font-medium" role="status" data-testid="bd-min-deposit-note">
+            {offerMinDepositText(minPct / 100)}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <label className="flex min-h-11 items-center gap-2">
+          <Checkbox
+            checked={installer === 'go4solar'}
+            onCheckedChange={(v) => onInstallation(v === true)}
+            data-testid="bd-include-installation"
+          />
+          Include installation by a Go4Solar recognised installer
+        </label>
+        {installer === 'own' && (
+          <p className="border-brand-orange bg-brand-orange/10 rounded-lg border-2 p-2 text-xs font-semibold">
+            {OWN_INSTALLER_WARNING}
+          </p>
+        )}
+        {deliveryRemovable && (
+          <label className="flex min-h-11 items-center gap-2">
+            <Checkbox
+              checked={!ownDelivery}
+              onCheckedChange={(v) => onDelivery(v === true)}
+              data-testid="bd-include-delivery"
+            />
+            Include delivery (or I arrange it myself)
+          </label>
+        )}
+      </div>
     </div>
   )
 }
