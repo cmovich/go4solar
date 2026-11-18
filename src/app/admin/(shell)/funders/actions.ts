@@ -40,6 +40,8 @@ export async function saveFunder(input: unknown): Promise<Result> {
     max_tenure: d.maxTenure,
     balance_available: d.balanceAvailable,
     status: d.status,
+    lending_types: d.lendingTypes,
+    default_lending_type: d.defaultLendingType,
     sample: false,
   }
   const { data, error } = await supabase.from('funders').upsert(row).select('id').single()

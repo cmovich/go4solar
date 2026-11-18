@@ -13,7 +13,8 @@ import {
   type LendingFigures,
   type LendingType,
 } from '@/lib/tradeLenda/figures'
-import { EMPLOYMENT_LABELS, EMPLOYMENT_TYPES, INCOME_RANGES } from '@/lib/tradeLenda/profile'
+import { INCOME_RANGES } from '@/lib/applications/rules'
+import { EMPLOYMENT_LABELS, EMPLOYMENT_TYPES } from '@/lib/tradeLenda/profile'
 import type { PlanChoice } from '@/lib/tradeLenda/server'
 
 import { saveLeadProfile, setLeadTick } from '@/app/admin/(shell)/waitlist/profiles/actions'
@@ -225,7 +226,9 @@ export function ProfileEditor(props: {
             >
               <option value="">Choose</option>
               {INCOME_RANGES.map((r) => (
-                <option key={r}>{r}</option>
+                <option key={r.id} value={r.id}>
+                  {r.label}
+                </option>
               ))}
             </select>
           </div>

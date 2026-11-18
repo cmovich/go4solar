@@ -131,8 +131,11 @@ export async function inviteStaff(input: unknown): Promise<Result> {
     .update({ role: d.role, full_name: d.fullName })
     .eq('id', id)
   if (roleError) return { ok: false, error: roleError.message }
-  const linkError = await linkFunder(id, d.role, session.user!.id)
-  if (linkError) return { ok: false, error: linkError }
+  // A new account has no funder link yet: only a Trade Lenda account needs one.
+  if (d.role === FUNDER_PARTNER_ROLE) {
+    const linkError = await linkFunder(id, d.role, session.user!.id)
+    if (linkError) return { ok: false, error: linkError }
+  }
   await setPermission(id, 'assisted_entry', false, d.assistedEntry, session.user!.id)
   await setPermission(id, 'waitlist_delete', false, d.waitlistDelete, session.user!.id)
   await setPermission(id, 'create_quotations', false, d.createQuotations, session.user!.id)
@@ -173,7 +176,8 @@ export async function updateStaff(input: unknown): Promise<Result> {
   const hadQuote = (perms ?? []).some((p) => p.permission === 'create_quotations')
 
   const { error } = await admin.from('profiles').update({ role: d.role }).eq('id', d.profileId)
-  if (!error) {
+  // Into or out of the Trade Lenda role: add or remove the funder link.
+  if (!error && (d.role === FUNDER_PARTNER_ROLE || before?.role === FUNDER_PARTNER_ROLE)) {
     const linkError = await linkFunder(d.profileId, d.role, session.user!.id)
     if (linkError) return { ok: false, error: linkError }
   }

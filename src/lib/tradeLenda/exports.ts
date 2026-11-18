@@ -5,7 +5,7 @@ import { formatNaira, formatPercent } from '@/lib/money'
 
 import { batchLabel, type BatchTotals } from './batch'
 import { LENDING_TYPE_LABELS, type LendingType } from './figures'
-import { EMPLOYMENT_LABELS } from './profile'
+import { EMPLOYMENT_LABELS, incomeLabel } from './profile'
 import type { FunderCustomer } from './snapshot'
 
 /**
@@ -45,7 +45,7 @@ const COLUMNS: [string, (c: FunderCustomer, b: ExportBatch) => string | number][
         : '',
   ],
   ['Employer', (c) => c.work.employer ?? ''],
-  ['Monthly income', (c) => c.work.incomeRange ?? ''],
+  ['Monthly income', (c) => incomeLabel(c.work.incomeRange) ?? ''],
   ['NIN (last 4)', (c) => c.ninLast4 ?? ''],
   ['BVN (last 4)', (c) => c.bvnLast4 ?? ''],
   ['Guarantor', (c) => c.guarantor.name ?? ''],
@@ -146,7 +146,7 @@ export function customerRows(c: FunderCustomer): [string, string][] {
       'Work',
       [c.work.employmentType, c.work.employer, c.work.jobTitle].filter(Boolean).join(' · ') || '—',
     ],
-    ['Monthly income', c.work.incomeRange ?? '—'],
+    ['Monthly income', incomeLabel(c.work.incomeRange) ?? '—'],
     ['NIN / BVN (last 4)', `${c.ninLast4 ?? '—'} / ${c.bvnLast4 ?? '—'}`],
     [
       'Guarantor',

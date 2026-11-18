@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { INCOME_RANGES, type IncomeRangeId } from '@/lib/applications/rules'
 import { phoneSchema } from '@/lib/waitlist/schema'
 
 import type { LendingFigures, LendingType } from './figures'
@@ -9,12 +10,12 @@ import type { LendingFigures, LendingType } from './figures'
  * and whether the entry may be sent to Trade Lenda. NIN/BVN: only the last 4 digits are kept.
  */
 
+/** The same work types and income ranges as the application wizard (carried over as they are). */
 export const EMPLOYMENT_TYPES = [
   'employed',
   'self_employed',
   'business_owner',
   'retired',
-  'student',
   'other',
 ] as const
 export const EMPLOYMENT_LABELS: Record<(typeof EMPLOYMENT_TYPES)[number], string> = {
@@ -22,16 +23,14 @@ export const EMPLOYMENT_LABELS: Record<(typeof EMPLOYMENT_TYPES)[number], string
   self_employed: 'Self-employed',
   business_owner: 'Business owner',
   retired: 'Retired',
-  student: 'Student',
   other: 'Other',
 }
-export const INCOME_RANGES = [
-  'Under ₦100,000',
-  '₦100,000 – ₦250,000',
-  '₦250,000 – ₦500,000',
-  '₦500,000 – ₦1,000,000',
-  'Over ₦1,000,000',
-] as const
+export const INCOME_RANGE_IDS = INCOME_RANGES.map((r) => r.id) as [
+  IncomeRangeId,
+  ...IncomeRangeId[],
+]
+export const incomeLabel = (id: string | null) =>
+  INCOME_RANGES.find((r) => r.id === id)?.label ?? id ?? null
 export const PROFILE_MONTHS = [6, 9, 12] as const
 
 /** The last 4 digits of an 11-digit NIN/BVN, or the 4 digits typed. The full number is dropped. */
@@ -88,7 +87,7 @@ export const profileFormSchema = z.object({
   employmentType: z.union([z.literal(''), z.enum(EMPLOYMENT_TYPES)]).transform((v) => v || null),
   employer: text(120),
   jobTitle: text(80),
-  incomeRange: z.union([z.literal(''), z.enum(INCOME_RANGES)]).transform((v) => v || null),
+  incomeRange: z.union([z.literal(''), z.enum(INCOME_RANGE_IDS)]).transform((v) => v || null),
   nin: idLast4,
   bvn: idLast4,
   guarantorName: text(120),

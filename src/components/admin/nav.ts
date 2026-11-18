@@ -144,12 +144,19 @@ export const NAV: readonly NavItem[] = [
 ]
 
 /** Trade Lenda's own menu: its batches only. */
-const FUNDER_NAV: NavItem = { href: '/admin/funder', label: 'Batches', icon: FolderCheck, roles: [] }
+const FUNDER_NAV: NavItem = {
+  href: '/admin/funder',
+  label: 'Batches',
+  icon: FolderCheck,
+  roles: [],
+}
 
 export function navFor(role: AppRole | null, permissions: readonly string[] = []): NavItem[] {
   // Sales (installers, marketers): Quotations, and the Trade Lenda profiles (edit only).
   if (role === 'sales') {
-    return NAV.filter((n) => n.href === '/admin/quotations' || n.href === '/admin/waitlist/profiles')
+    return NAV.filter(
+      (n) => n.href === '/admin/quotations' || n.href === '/admin/waitlist/profiles',
+    )
   }
   // Funder (Trade Lenda): its batches only.
   if (role === 'funder_partner') return [FUNDER_NAV]

@@ -178,6 +178,11 @@ export async function loadPricingDraft(includeTestFunders = false): Promise<Pric
       balanceAvailable: num(f.balance_available),
       status: f.status,
       sample: f.sample,
+      lendingTypes: ((f.lending_types as string[] | undefined) ?? ['go4solar']).filter(
+        (t): t is 'customer' | 'go4solar' => t === 'customer' || t === 'go4solar',
+      ),
+      defaultLendingType: (f.default_lending_type === 'customer' ? 'customer' : 'go4solar') as
+        'customer' | 'go4solar',
     })),
   }
 }

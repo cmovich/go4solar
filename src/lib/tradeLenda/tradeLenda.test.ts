@@ -112,7 +112,7 @@ const values: ProfileValues = {
   street: '1 Ahmadu Bello Way',
   landmark: 'Near the market',
   employmentType: 'employed',
-  incomeRange: '₦250,000 – ₦500,000',
+  incomeRange: '250k_500k',
   ninLast4: '4521',
   bvnLast4: '7788',
   guarantorName: 'Bayo Obi',

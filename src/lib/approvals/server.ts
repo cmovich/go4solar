@@ -6,6 +6,7 @@ import type { CheckSummary } from '@/lib/applications/rules'
 import { contactFromPersonal, notifyCustomer } from '@/lib/notify/customer'
 import { refundDeposit } from '@/lib/payments/server'
 import type { TenureMonths } from '@/lib/pricing/types'
+import { priceInFullOf } from '@/lib/profit/priceInFull'
 import type { UnitCosts } from '@/lib/profit/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database, Json } from '@/lib/supabase/database.types'
@@ -16,6 +17,7 @@ import {
   drawnFor,
   eligibleFunders,
   funderOptions,
+  optionKey,
   type FunderOption,
   type FunderRow,
   type LoanFigures,
@@ -145,6 +147,10 @@ export async function approvalContext(applicationId: string): Promise<ApprovalCo
   const paid = (payments.data ?? []).filter((p) => p.status === 'success')
   const depositPaid = paid.some((p) => p.kind === 'deposit')
   const recordedFees = paid.reduce((s, p) => s + Number(p.fee ?? 0), 0)
+  // The price paid in full (no payment-plan cost), for a funder that lends to the customer.
+  const { data: quoteRow } = loan?.quote_id
+    ? await admin.from('quotes').select('result, builder').eq('id', loan.quote_id).maybeSingle()
+    : { data: null }
   const figures: LoanFigures | null = loan
     ? {
         systemPrice: Number(loan.system_price),
@@ -152,6 +158,7 @@ export async function approvalContext(applicationId: string): Promise<ApprovalCo
         deposit: Number(loan.deposit),
         balance: Number(loan.balance),
         tenure: loan.tenure as TenureMonths,
+        priceInFull: priceInFullOf(quoteRow?.result, quoteRow?.builder) ?? undefined,
       }
     : null
   // Test customers (profiles.is_test) only ever draw on test funders, real customers never do.
@@ -167,6 +174,9 @@ export async function approvalContext(applicationId: string): Promise<ApprovalCo
       maxTenure: f.max_tenure,
       balanceAvailable: Number(f.balance_available),
       status: f.status,
+      lendingTypes: ((f.lending_types as string[] | null) ?? ['go4solar']).filter(
+        (t): t is 'customer' | 'go4solar' => t === 'customer' || t === 'go4solar',
+      ),
     }))
   const blockers = approvalBlockers({
     status: app.status,
@@ -202,6 +212,7 @@ export async function approvalContext(applicationId: string): Promise<ApprovalCo
 // ------------------------------------------------------------ approve
 export async function approveApplication(input: {
   applicationId: string
+  /** The funder id, or "<id>:customer" / "<id>:go4solar" for a lending-type funder (optionKey). */
   funderId: string
   actor: Actor
   /**
@@ -222,7 +233,9 @@ export async function approveApplication(input: {
   if (!ctx) return { ok: false, error: 'Application not found.' }
   if (ctx.blockers.length)
     return { ok: false, error: 'Not ready to approve.', blockers: ctx.blockers }
-  const option = ctx.options.find((o) => o.funder.id === input.funderId)
+  const option =
+    ctx.options.find((o) => optionKey(o) === input.funderId) ??
+    ctx.options.find((o) => o.funder.id === input.funderId)
   if (!option || !ctx.loan || !ctx.figures)
     return { ok: false, error: 'That funder is not eligible for this loan.' }
   // The funder approving its own queue is the lender's decision: no credit officer limit.
@@ -243,10 +256,14 @@ export async function approveApplication(input: {
     funderId: option.funder.id,
     funderName: option.funder.name,
     funderAnnualRate: option.funder.annualRate,
+    lendingType: option.lendingType ?? null,
     recordedFees: ctx.recordedFees,
     netShare: option.netShare,
     profit: option.profit,
   }
+  // Lending-type funders: what is drawn follows the type (never a cost-based figure for
+  // "lends to Go4Solar"; nothing for "lends to the customer"). Others: cost − deposit.
+  const drawn = option.lendingType ? option.profit.drawn : ctx.drawn
   // Claim the loan first (only one approval can win), then draw on the funder.
   const { data: claimed } = await admin
     .from('loans')
@@ -256,7 +273,8 @@ export async function approveApplication(input: {
       profit_snapshot: snapshot as unknown as Json,
       approved_by: actor.id,
       approved_at: now,
-      drawn: ctx.drawn,
+      drawn,
+      lending_type: option.lendingType ?? null,
     })
     .eq('id', ctx.loan.id)
     .eq('status', 'pending_approval')
@@ -265,7 +283,7 @@ export async function approveApplication(input: {
 
   const { data: balanceAfter, error: drawError } = await admin.rpc('draw_from_funder', {
     p_funder: option.funder.id,
-    p_amount: ctx.drawn,
+    p_amount: drawn,
   })
   if (drawError || balanceAfter === null) {
     // Undo the claim: the funder could not cover the draw (balance changed since the page loaded).
@@ -278,6 +296,7 @@ export async function approveApplication(input: {
         approved_by: null,
         approved_at: null,
         drawn: null,
+        lending_type: null,
       })
       .eq('id', ctx.loan.id)
     return { ok: false, error: 'That funder no longer has enough balance. Pick another.' }
@@ -285,7 +304,7 @@ export async function approveApplication(input: {
   await admin.from('funder_draws').insert({
     funder_id: option.funder.id,
     loan_id: ctx.loan.id,
-    amount: ctx.drawn,
+    amount: drawn,
     balance_after: Number(balanceAfter),
     created_by: actor.id,
   })
@@ -307,7 +326,8 @@ export async function approveApplication(input: {
     {
       status: 'approved',
       funderId: option.funder.id,
-      drawn: ctx.drawn,
+      lendingType: option.lendingType ?? null,
+      drawn,
       netProfit: option.profit.netProfit,
       balanceAfter,
       ...(viaQueue ? { via: 'funder_queue' } : {}),

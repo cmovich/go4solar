@@ -36,6 +36,9 @@ export type Personal = {
   dob?: string
   ninLast4?: string
   bvnLast4?: string
+  /** From the staff-completed waiting-list profile: the NIN/BVN it ends with (not verified). */
+  ninHint?: string
+  bvnHint?: string
 }
 export type BusinessDetails = Partial<BusinessInput> & {
   rcNumber?: string
@@ -56,6 +59,8 @@ export type WizardState = {
   guarantor: Record<string, unknown> | null
   /** The guarantor of an earlier application (asked "use again?"), when none is chosen yet. */
   previousGuarantor: { name: string; phone: string; email: string; relationship: string } | null
+  /** The guarantor from the staff-completed waiting-list profile (pre-fills the form). */
+  suggestedGuarantor: { name: string; phone: string; relationship: string } | null
   installAddress: Record<string, unknown> | null
   incomeRange: string | null
   consentGiven: boolean
@@ -197,6 +202,14 @@ export async function ensureApplication(userId: string): Promise<ApplicationRow 
 
   const type: ApplicantType =
     (lead?.applicant_type ?? quote.applicant_type) === 'business' ? 'business' : 'individual'
+  // A waiting-list profile completed by staff on the phone (Trade Lenda) pre-fills the rest.
+  const { data: lp } = quote.waitlist_id
+    ? await admin
+        .from('lead_profiles')
+        .select('*')
+        .eq('waitlist_id', quote.waitlist_id)
+        .maybeSingle()
+    : { data: null }
   const personal: Personal = {
     firstName: lead?.first_name ?? undefined,
     surname: lead?.surname ?? undefined,
@@ -204,6 +217,10 @@ export async function ensureApplication(userId: string): Promise<ApplicationRow 
     email: lead?.email ?? undefined,
     state: lead?.state ?? quote.state,
     lga: lead?.lga ?? undefined,
+    ...(lp?.date_of_birth ? { dob: lp.date_of_birth } : {}),
+    // Only the last 4 digits were kept: the customer types the full numbers for the ID checks.
+    ...(lp?.nin_last4 ? { ninHint: lp.nin_last4 } : {}),
+    ...(lp?.bvn_last4 ? { bvnHint: lp.bvn_last4 } : {}),
   }
   const { data: created, error } = await admin
     .from('applications')
@@ -213,6 +230,26 @@ export async function ensureApplication(userId: string): Promise<ApplicationRow 
       applicant_type: type,
       personal,
       business: type === 'business' ? ((lead?.business as BusinessDetails | null) ?? {}) : null,
+      ...(lp?.employment_type
+        ? {
+            employment: {
+              status: lp.employment_type,
+              employer: lp.employer,
+              jobTitle: lp.job_title,
+            },
+          }
+        : {}),
+      ...(lp?.income_range ? { income_range: lp.income_range } : {}),
+      ...(lp?.street && lead?.state
+        ? {
+            install_address: {
+              line1: [lp.street, lp.landmark].filter(Boolean).join(', '),
+              city: '',
+              state: lead.state,
+              lga: lead.lga ?? '',
+            },
+          }
+        : {}),
     })
     .select('*')
     .single()
@@ -235,6 +272,32 @@ export async function documentKinds(applicationId: string): Promise<string[]> {
     .select('kind')
     .eq('application_id', applicationId)
   return [...new Set((data ?? []).map((d) => d.kind))]
+}
+
+/** The guarantor from the waiting-list profile behind this quote (staff-completed), if any. */
+async function profileGuarantor(
+  quoteId: string | null,
+): Promise<WizardState['suggestedGuarantor']> {
+  if (!quoteId) return null
+  const admin = createAdminClient()
+  const { data: q } = await admin
+    .from('quotes')
+    .select('waitlist_id')
+    .eq('id', quoteId)
+    .maybeSingle()
+  if (!q?.waitlist_id) return null
+  const { data: p } = await admin
+    .from('lead_profiles')
+    .select('guarantor_name, guarantor_phone_e164, guarantor_relationship')
+    .eq('waitlist_id', q.waitlist_id)
+    .maybeSingle()
+  return p?.guarantor_name && p.guarantor_phone_e164
+    ? {
+        name: p.guarantor_name,
+        phone: p.guarantor_phone_e164,
+        relationship: p.guarantor_relationship ?? '',
+      }
+    : null
 }
 
 /** The most recent guarantor this customer invited before (not one who declined). */
@@ -293,6 +356,7 @@ export async function wizardState(app: ApplicationRow): Promise<WizardState> {
     nextOfKin: (app.next_of_kin ?? null) as Record<string, unknown> | null,
     guarantor: (app.guarantor ?? null) as Record<string, unknown> | null,
     previousGuarantor: app.guarantor ? null : await previousGuarantor(app.consumer_id),
+    suggestedGuarantor: app.guarantor ? null : await profileGuarantor(app.quote_id),
     installAddress: (app.install_address ?? null) as Record<string, unknown> | null,
     incomeRange: app.income_range,
     consentGiven: Boolean(app.biometric_consent_at),
