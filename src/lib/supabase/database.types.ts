@@ -751,7 +751,7 @@ export type Database = {
           decision: string
           decision_note: string | null
           id: string
-          snapshot: NonNullable<Json>
+          snapshot: Json
           updated_at: string
           waitlist_id: string
         }
@@ -764,7 +764,7 @@ export type Database = {
           decision?: string
           decision_note?: string | null
           id?: string
-          snapshot: NonNullable<Json>
+          snapshot: Json
           updated_at?: string
           waitlist_id: string
         }
@@ -776,7 +776,7 @@ export type Database = {
           decision?: string
           decision_note?: string | null
           id?: string
-          snapshot?: NonNullable<Json>
+          snapshot?: Json
           updated_at?: string
           waitlist_id?: string
         }
@@ -807,7 +807,7 @@ export type Database = {
           lending_type: string
           number: string
           replaced_by: string | null
-          totals: NonNullable<Json>
+          totals: Json
           version: number
         }
         ComputedFields: never
@@ -820,7 +820,7 @@ export type Database = {
           lending_type: string
           number: string
           replaced_by?: string | null
-          totals: NonNullable<Json>
+          totals: Json
           version?: number
         }
         Update: {
@@ -832,7 +832,7 @@ export type Database = {
           lending_type?: string
           number?: string
           replaced_by?: string | null
-          totals?: NonNullable<Json>
+          totals?: Json
           version?: number
         }
         Relationships: [

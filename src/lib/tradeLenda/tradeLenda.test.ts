@@ -8,7 +8,8 @@ import { batchLabel, batchTotals, nextBatchNumber } from './batch'
 import { customerFigures, go4solarFigures, monthlyRateOf } from './figures'
 import { quoteBasis, readyPlanBasis } from './planBasis'
 import { completeness, lastFour, sendProblems, type ProfileValues } from './profile'
-import { funderSafetyProblems, funderSnapshot } from './snapshot'
+import { makeSnapshot } from './fixture'
+import { funderSafetyProblems } from './snapshot'
 
 const r = monthlyRateOf(0.48)
 const oga = withTerms(
@@ -152,32 +153,7 @@ describe('profile', () => {
   })
 })
 
-const rec = { by: 'Staff A', at: '2026-11-18', note: null }
-const snap = (type: 'customer' | 'go4solar') => {
-  const basis = readyPlanBasis(oga, 12)
-  const figures =
-    type === 'customer'
-      ? customerFigures({ price: basis.priceInFull, depositShare: 0.2, months: 12, monthlyRate: r })
-      : go4solarFigures({ quoted: basis.quoted, months: 12, monthlyRate: r })
-  return funderSnapshot({
-    reference: 'G4S-1234ABCD',
-    name: 'Ada Obi',
-    phone: '+2348031234567',
-    whatsapp: null,
-    email: null,
-    dateOfBirth: '1990-01-01',
-    address: { street: '1 Way', landmark: 'Market', lga: 'Kaduna North', state: 'Kaduna' },
-    work: { employmentType: 'employed', employer: 'X', jobTitle: 'Y', incomeRange: 'Z' },
-    ninLast4: '4521',
-    bvnLast4: '7788',
-    applicantType: 'individual',
-    guarantor: { name: 'B', phone: null, relationship: 'Brother', address: null },
-    planLabel: basis.label,
-    items: basis.items,
-    figures,
-    records: { verifiedByPhone: rec, consent: rec, figuresAgreed: rec },
-  })
-}
+const snap = makeSnapshot
 
 describe('funder snapshot (never our cost, margins, profit or item prices)', () => {
   it('both lending types: nothing forbidden; lends to Go4Solar: no cost figure either', () => {

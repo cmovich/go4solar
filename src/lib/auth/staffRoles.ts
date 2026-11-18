@@ -32,7 +32,26 @@ export const SALES_ROLE = 'sales' as const satisfies AppRole
  */
 export const FUNDER_APPROVER_ROLE = 'funder_approver' as const satisfies AppRole
 
-/** Anyone who signs in to /admin: back-office staff, sales, or a funder approver. */
+/**
+ * Funder (Trade Lenda): signs in with two-factor and sees only the batches sent to its own funder
+ * (/admin/funder). Not a staff role: no staff read access in the database; batches are limited to
+ * its funder by the database (funder_users, my_funder_id()).
+ */
+export const FUNDER_PARTNER_ROLE = 'funder_partner' as const satisfies AppRole
+
+/** Anyone who signs in to /admin: back-office staff, sales, or a funder. */
 export function isBackOfficeRole(role: AppRole | null | undefined): boolean {
-  return isStaffRole(role) || role === SALES_ROLE || role === FUNDER_APPROVER_ROLE
+  return (
+    isStaffRole(role) ||
+    role === SALES_ROLE ||
+    role === FUNDER_APPROVER_ROLE ||
+    role === FUNDER_PARTNER_ROLE
+  )
 }
+
+/** Edit waiting-list profiles: super admin, Operations, Sales. */
+export const canEditLeadProfile = (role: AppRole | null | undefined) =>
+  role === 'super_admin' || role === 'operations' || role === SALES_ROLE
+
+/** Send entries to Trade Lenda (create batches): super admin only. */
+export const canSendToFunder = (role: AppRole | null | undefined) => role === 'super_admin'
