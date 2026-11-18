@@ -10,19 +10,27 @@ import type { LoanProfit, LoanProfitInput } from './types'
 export function loanProfit(input: LoanProfitInput): LoanProfit {
   const { systemPrice, costPrice, deposit, tenureMonths, funderAnnualRate, unitCosts } = input
   const years = tenureMonths / 12
+  const toCustomer = input.lendingType === 'customer'
 
-  // A deposit above the cost price means nothing is borrowed; never go negative.
-  const drawn = Math.max(0, costPrice - deposit)
+  // A deposit above the cost price means nothing is borrowed; never go negative. Lending to
+  // Go4Solar under a lending type: the customer's amount financed (never based on our cost).
+  const drawn = toCustomer
+    ? 0
+    : input.lendingType === 'go4solar'
+      ? Math.max(0, input.customerFinanced ?? systemPrice - deposit)
+      : Math.max(0, costPrice - deposit)
   // Only 'flat' is supported in Phase 1 (interest on the full drawn amount for the whole term).
   const funderInterest = roundNaira(drawn * funderAnnualRate * years)
 
   const grossProfit = systemPrice - costPrice - funderInterest
 
   const financedBalance = systemPrice - deposit
-  const directCosts =
-    unitCosts.kycPerLoan +
-    unitCosts.feePerInstalment * tenureMonths +
-    roundNaira(unitCosts.lossProvisionShare * financedBalance)
+  // Lent to the customer: the funder collects the payments and carries the loss.
+  const directCosts = toCustomer
+    ? unitCosts.kycPerLoan
+    : unitCosts.kycPerLoan +
+      unitCosts.feePerInstalment * tenureMonths +
+      roundNaira(unitCosts.lossProvisionShare * financedBalance)
 
   const netProfit = grossProfit - directCosts
 

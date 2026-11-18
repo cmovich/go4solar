@@ -1,0 +1,124 @@
+import { roundNaira } from '@/lib/money'
+
+/**
+ * Trade Lenda figures (pure). Every batch has ONE lending type:
+ *
+ *  'customer'  Trade Lenda lends to the customer and pays Go4Solar the price upfront.
+ *              price    = the price paid in full (ready-made plan: the plan price; builder or
+ *                         calculator plan: items + installation + delivery, without our
+ *                         payment-plan cost)
+ *              deposit  = price × deposit share; financed = price − deposit
+ *              total    = financed × (1 + monthly rate × months); repayment = deposit + total
+ *
+ *  'go4solar'  Trade Lenda lends to Go4Solar; the customer keeps the figures we quoted.
+ *              drawn    = the customer's amount financed (quoted price − deposit), NEVER a figure
+ *                         based on our cost, so Trade Lenda cannot work out our margin
+ *              interest = drawn × monthly rate × months; repayment = drawn + interest
+ */
+export type LendingType = 'customer' | 'go4solar'
+export const LENDING_TYPES = ['customer', 'go4solar'] as const
+
+export const LENDING_TYPE_LABELS: Record<LendingType, string> = {
+  customer: 'Trade Lenda lends to the customers',
+  go4solar: 'Trade Lenda lends to Go4Solar',
+}
+export const LENDING_TYPE_SHORT: Record<LendingType, string> = {
+  customer: 'Lends to customers',
+  go4solar: 'Lends to Go4Solar',
+}
+
+/** 0.48 a year → 0.04 a month (flat). */
+export const monthlyRateOf = (annualRate: number) => Math.round((annualRate / 12) * 1e6) / 1e6
+
+/** What the customer pays (or, for 'go4solar', what Go4Solar repays Trade Lenda). */
+export type LendingFigures = {
+  lendingType: LendingType
+  /** The price the 4% is worked on (customer) / the price we quoted (go4solar). */
+  price: number
+  depositShare: number
+  deposit: number
+  /** Customer: amount financed by Trade Lenda. Go4Solar: amount drawn from Trade Lenda. */
+  financed: number
+  monthlyRate: number
+  months: number
+  /** financed × monthly rate × months. */
+  charge: number
+  /** Customer: what the customer pays monthly. Go4Solar: what Go4Solar repays monthly. */
+  monthly: number
+  instalments: number[]
+  /** Customer: deposit + financed + charge. Go4Solar: financed + charge (repaid by Go4Solar). */
+  totalRepayment: number
+  /** 'go4solar' only: what the customer pays us in all, on our quoted terms. */
+  customerTotalPayable: number | null
+  customerMonthly: number | null
+}
+
+function split(total: number, months: number) {
+  const monthly = roundNaira(total / months)
+  return {
+    monthly,
+    instalments: Array.from({ length: months }, (_, i) =>
+      i === months - 1 ? total - monthly * (months - 1) : monthly,
+    ),
+  }
+}
+
+/** Trade Lenda lends to the customer. */
+export function customerFigures(i: {
+  price: number
+  depositShare: number
+  months: number
+  monthlyRate: number
+}): LendingFigures {
+  const deposit = roundNaira(i.price * i.depositShare)
+  const financed = i.price - deposit
+  const total = roundNaira(financed * (1 + i.monthlyRate * i.months))
+  return {
+    lendingType: 'customer',
+    price: i.price,
+    depositShare: i.depositShare,
+    deposit,
+    financed,
+    monthlyRate: i.monthlyRate,
+    months: i.months,
+    charge: total - financed,
+    ...split(total, i.months),
+    totalRepayment: deposit + total,
+    customerTotalPayable: null,
+    customerMonthly: null,
+  }
+}
+
+/**
+ * Trade Lenda lends to Go4Solar. `quoted`: the customer's figures on our own terms (the price we
+ * quoted, its deposit, what they pay in all and monthly). Drawn = quoted price − deposit.
+ */
+export function go4solarFigures(i: {
+  quoted: {
+    price: number
+    depositShare: number
+    deposit: number
+    totalPayable: number
+    monthly: number
+  }
+  months: number
+  monthlyRate: number
+}): LendingFigures {
+  const financed = Math.max(0, i.quoted.price - i.quoted.deposit)
+  const charge = roundNaira(financed * i.monthlyRate * i.months)
+  const total = financed + charge
+  return {
+    lendingType: 'go4solar',
+    price: i.quoted.price,
+    depositShare: i.quoted.depositShare,
+    deposit: i.quoted.deposit,
+    financed,
+    monthlyRate: i.monthlyRate,
+    months: i.months,
+    charge,
+    ...split(total, i.months),
+    totalRepayment: total,
+    customerTotalPayable: i.quoted.totalPayable,
+    customerMonthly: i.quoted.monthly,
+  }
+}

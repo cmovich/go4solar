@@ -21,6 +21,16 @@ export type LoanProfitInput = {
   funderAnnualRate: number
   funderMethod: FunderMethod
   unitCosts: UnitCosts
+  /**
+   * How the funder lends (Trade Lenda, 0041). Missing: the old way (drawn = cost − deposit).
+   * 'go4solar': the funder lends to Go4Solar; drawn = the customer's amount financed
+   * (`customerFinanced`), never a figure based on our cost. 'customer': the funder lends to the
+   * customer and pays Go4Solar the price upfront (`systemPrice` = that price): no funder interest,
+   * and the funder collects the payments (no instalment fees or loss provision for us).
+   */
+  lendingType?: 'customer' | 'go4solar'
+  /** 'go4solar' only: the customer's amount financed (price − deposit). */
+  customerFinanced?: number
 }
 
 export type LoanProfit = {
