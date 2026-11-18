@@ -742,6 +742,116 @@ export type Database = {
           },
         ]
       }
+      funder_batch_items: {
+        Row: {
+          batch_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision: string
+          decision_note: string | null
+          id: string
+          snapshot: NonNullable<Json>
+          updated_at: string
+          waitlist_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          batch_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision?: string
+          decision_note?: string | null
+          id?: string
+          snapshot: NonNullable<Json>
+          updated_at?: string
+          waitlist_id: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision?: string
+          decision_note?: string | null
+          id?: string
+          snapshot?: NonNullable<Json>
+          updated_at?: string
+          waitlist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'funder_batch_items_batch_id_fkey'
+            columns: ['batch_id']
+            isOneToOne: false
+            referencedRelation: 'funder_batches'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'funder_batch_items_waitlist_id_fkey'
+            columns: ['waitlist_id']
+            isOneToOne: false
+            referencedRelation: 'waitlist_consumers'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      funder_batches: {
+        Row: {
+          created_at: string
+          created_by: string
+          funder_id: string
+          id: string
+          is_test: boolean
+          lending_type: string
+          number: string
+          replaced_by: string | null
+          totals: NonNullable<Json>
+          version: number
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by: string
+          funder_id: string
+          id?: string
+          is_test?: boolean
+          lending_type: string
+          number: string
+          replaced_by?: string | null
+          totals: NonNullable<Json>
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          funder_id?: string
+          id?: string
+          is_test?: boolean
+          lending_type?: string
+          number?: string
+          replaced_by?: string | null
+          totals?: NonNullable<Json>
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'funder_batches_funder_id_fkey'
+            columns: ['funder_id']
+            isOneToOne: false
+            referencedRelation: 'funders'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'funder_batches_replaced_by_fkey'
+            columns: ['replaced_by']
+            isOneToOne: false
+            referencedRelation: 'funder_batches'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       funder_draws: {
         Row: {
           amount: number
@@ -916,14 +1026,53 @@ export type Database = {
           },
         ]
       }
+      funder_users: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          funder_id: string
+          profile_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          funder_id: string
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          funder_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'funder_users_funder_id_fkey'
+            columns: ['funder_id']
+            isOneToOne: false
+            referencedRelation: 'funders'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'funder_users_profile_id_fkey'
+            columns: ['profile_id']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       funders: {
         Row: {
           annual_rate: number
           balance_available: number
           created_at: string
+          default_lending_type: string
           id: string
           is_test: boolean
           kind: Database['public']['Enums']['funder_kind']
+          lending_types: string[]
           max_amount: number | null
           max_tenure: number
           method: Database['public']['Enums']['funder_method']
@@ -934,13 +1083,16 @@ export type Database = {
           updated_at: string
           upfront_fee_share: number
         }
+        ComputedFields: never
         Insert: {
           annual_rate: number
           balance_available?: number
           created_at?: string
+          default_lending_type?: string
           id?: string
           is_test?: boolean
           kind?: Database['public']['Enums']['funder_kind']
+          lending_types?: string[]
           max_amount?: number | null
           max_tenure?: number
           method?: Database['public']['Enums']['funder_method']
@@ -955,9 +1107,11 @@ export type Database = {
           annual_rate?: number
           balance_available?: number
           created_at?: string
+          default_lending_type?: string
           id?: string
           is_test?: boolean
           kind?: Database['public']['Enums']['funder_kind']
+          lending_types?: string[]
           max_amount?: number | null
           max_tenure?: number
           method?: Database['public']['Enums']['funder_method']
@@ -1211,6 +1365,123 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_profiles: {
+        Row: {
+          bvn_last4: string | null
+          consent_tl_at: string | null
+          consent_tl_by: string | null
+          consent_tl_note: string | null
+          created_at: string
+          date_of_birth: string | null
+          deposit_share: number | null
+          employer: string | null
+          employment_type: string | null
+          figures_agreed: Json | null
+          figures_agreed_at: string | null
+          figures_agreed_by: string | null
+          figures_agreed_note: string | null
+          guarantor_address: string | null
+          guarantor_name: string | null
+          guarantor_phone_e164: string | null
+          guarantor_relationship: string | null
+          income_range: string | null
+          is_test: boolean
+          job_title: string | null
+          landmark: string | null
+          months: number | null
+          nin_last4: string | null
+          other_names: string | null
+          phone_verified_at: string | null
+          phone_verified_by: string | null
+          phone_verified_note: string | null
+          plan_kind: string | null
+          plan_ref: string | null
+          street: string | null
+          updated_at: string
+          updated_by: string | null
+          waitlist_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          bvn_last4?: string | null
+          consent_tl_at?: string | null
+          consent_tl_by?: string | null
+          consent_tl_note?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          deposit_share?: number | null
+          employer?: string | null
+          employment_type?: string | null
+          figures_agreed?: Json | null
+          figures_agreed_at?: string | null
+          figures_agreed_by?: string | null
+          figures_agreed_note?: string | null
+          guarantor_address?: string | null
+          guarantor_name?: string | null
+          guarantor_phone_e164?: string | null
+          guarantor_relationship?: string | null
+          income_range?: string | null
+          is_test?: boolean
+          job_title?: string | null
+          landmark?: string | null
+          months?: number | null
+          nin_last4?: string | null
+          other_names?: string | null
+          phone_verified_at?: string | null
+          phone_verified_by?: string | null
+          phone_verified_note?: string | null
+          plan_kind?: string | null
+          plan_ref?: string | null
+          street?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          waitlist_id: string
+        }
+        Update: {
+          bvn_last4?: string | null
+          consent_tl_at?: string | null
+          consent_tl_by?: string | null
+          consent_tl_note?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          deposit_share?: number | null
+          employer?: string | null
+          employment_type?: string | null
+          figures_agreed?: Json | null
+          figures_agreed_at?: string | null
+          figures_agreed_by?: string | null
+          figures_agreed_note?: string | null
+          guarantor_address?: string | null
+          guarantor_name?: string | null
+          guarantor_phone_e164?: string | null
+          guarantor_relationship?: string | null
+          income_range?: string | null
+          is_test?: boolean
+          job_title?: string | null
+          landmark?: string | null
+          months?: number | null
+          nin_last4?: string | null
+          other_names?: string | null
+          phone_verified_at?: string | null
+          phone_verified_by?: string | null
+          phone_verified_note?: string | null
+          plan_kind?: string | null
+          plan_ref?: string | null
+          street?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          waitlist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'lead_profiles_waitlist_id_fkey'
+            columns: ['waitlist_id']
+            isOneToOne: true
+            referencedRelation: 'waitlist_consumers'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       loan_profit_snapshots: {
         Row: {
           created_at: string
@@ -1263,6 +1534,7 @@ export type Database = {
           extension_until: string | null
           funder_id: string | null
           id: string
+          lending_type: string | null
           payment_type: string
           profit_snapshot: Json | null
           quote_id: string | null
@@ -1272,6 +1544,7 @@ export type Database = {
           tenure: number
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           application_id: string
           approved_at?: string | null
@@ -1288,6 +1561,7 @@ export type Database = {
           extension_until?: string | null
           funder_id?: string | null
           id?: string
+          lending_type?: string | null
           payment_type?: string
           profit_snapshot?: Json | null
           quote_id?: string | null
@@ -1313,6 +1587,7 @@ export type Database = {
           extension_until?: string | null
           funder_id?: string | null
           id?: string
+          lending_type?: string | null
           payment_type?: string
           profit_snapshot?: Json | null
           quote_id?: string | null
@@ -2811,6 +3086,7 @@ export type Database = {
         Args: { p_email: string; p_phone: string }
         Returns: boolean
       }
+      my_funder_id: { Args: never; Returns: string }
       my_role: { Args: never; Returns: Database['public']['Enums']['app_role'] }
       next_invoice_number: { Args: { p_test?: boolean }; Returns: string }
     }
@@ -2829,6 +3105,7 @@ export type Database = {
         | 'content'
         | 'sales'
         | 'funder_approver'
+        | 'funder_partner'
       appliance_category:
         | 'lighting'
         | 'tv_electronics'
@@ -3010,6 +3287,7 @@ export const Constants = {
         'content',
         'sales',
         'funder_approver',
+        'funder_partner',
       ],
       appliance_category: [
         'lighting',

@@ -35,6 +35,10 @@ const ACCESS: Record<Table, Access> = {
   funder_queue: 'staff',
   funder_routing_rules: 'staff',
   spewa_price_items: 'staff',
+  funder_batches: 'staff',
+  funder_batch_items: 'staff',
+  funder_users: 'staff',
+  lead_profiles: 'staff',
   // Vendor costs: super admin and finance only (customers and other staff read nothing).
   ready_plans: 'staff',
   agreement_templates: 'staff',
