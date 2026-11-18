@@ -24,6 +24,7 @@ const ROLE_LABELS: Record<string, string> = {
   content: 'Content',
   sales: 'Sales',
   funder_approver: 'Funder approver (SPEWA)',
+  funder_partner: 'Funder (Trade Lenda)',
 }
 
 export function AdminShell({

@@ -807,3 +807,87 @@ export async function decideItem(
   )
   return { ok: true }
 }
+
+export type ProfileListRow = {
+  id: string
+  reference: string
+  name: string
+  phone: string
+  state: string | null
+  createdAt: string
+  done: number
+  total: number
+  missing: string[]
+  verified: boolean
+  consent: boolean
+  /** The lending type the customer agreed figures for (null: not yet). */
+  agreedType: LendingType | null
+  batches: string[]
+  isTest: boolean
+}
+
+/** Waiting-list entries (complete sign-ups) with their profile status (super admin / Operations / Sales). */
+export async function profileList(includeTest: boolean): Promise<ProfileListRow[]> {
+  const admin = createAdminClient()
+  let q = admin
+    .from('waitlist_consumers')
+    .select('*')
+    .eq('status', 'complete')
+    .is('cleared_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1000)
+  if (!includeTest) q = q.eq('is_test', false)
+  const { data: leads } = await q
+  const ids = (leads ?? []).map((l) => l.id)
+  const [{ data: profiles }, { data: items }] = await Promise.all([
+    ids.length
+      ? admin.from('lead_profiles').select('*').in('waitlist_id', ids)
+      : Promise.resolve({ data: [] }),
+    ids.length
+      ? admin
+          .from('funder_batch_items')
+          .select('waitlist_id, decision, funder_batches(number, version, replaced_by)')
+          .in('waitlist_id', ids)
+      : Promise.resolve({ data: [] }),
+  ])
+  const byId = new Map((profiles ?? []).map((p) => [p.waitlist_id, p]))
+  return (leads ?? []).map((l) => {
+    const p = byId.get(l.id) ?? null
+    const c = completeness(valuesOf(l, p))
+    const agreed = (p?.figures_agreed as LendingFigures | null) ?? null
+    return {
+      id: l.id,
+      reference: quoteReference(l.id),
+      name: [l.first_name, l.surname].filter(Boolean).join(' ') || '—',
+      phone: l.phone_e164,
+      state: l.state,
+      createdAt: l.created_at,
+      done: c.done,
+      total: c.total,
+      missing: c.missing,
+      verified: Boolean(p?.phone_verified_at),
+      consent: Boolean(p?.consent_tl_at),
+      agreedType: p?.figures_agreed_at && agreed ? agreed.lendingType : null,
+      batches: (items ?? [])
+        .filter((i) => i.waitlist_id === l.id)
+        .flatMap((i) => {
+          const b = i.funder_batches as {
+            number: string
+            version: number
+            replaced_by: string | null
+          } | null
+          return b && !b.replaced_by
+            ? [`${b.number}${b.version > 1 ? ` v${b.version}` : ''} (${i.decision})`]
+            : []
+        }),
+      isTest: l.is_test,
+    }
+  })
+}
+
+/** Every batch for the super admin's list (all versions, newest first). */
+export async function adminBatchList(includeTest: boolean) {
+  const funder = await tradeLendaFunder()
+  if (!funder) return []
+  return funderBatchList({ id: 'super', role: 'super_admin' }, includeTest)
+}
