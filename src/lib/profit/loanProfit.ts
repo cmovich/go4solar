@@ -17,7 +17,7 @@ export function loanProfit(input: LoanProfitInput): LoanProfit {
   const drawn = toCustomer
     ? 0
     : input.lendingType === 'go4solar'
-      ? Math.max(0, input.customerFinanced ?? systemPrice - deposit)
+      ? Math.max(0, input.drawnAmount ?? systemPrice - deposit)
       : Math.max(0, costPrice - deposit)
   // Only 'flat' is supported in Phase 1 (interest on the full drawn amount for the whole term).
   const funderInterest = roundNaira(drawn * funderAnnualRate * years)

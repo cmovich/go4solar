@@ -11,8 +11,8 @@ import { roundNaira } from '@/lib/money'
  *              total    = financed × (1 + monthly rate × months); repayment = deposit + total
  *
  *  'go4solar'  Trade Lenda lends to Go4Solar; the customer keeps the figures we quoted.
- *              drawn    = the customer's amount financed (quoted price − deposit), NEVER a figure
- *                         based on our cost, so Trade Lenda cannot work out our margin
+ *              drawn    = price paid in full − deposit (tradeLendaDrawn), NEVER a figure based on
+ *                         our cost, so Trade Lenda cannot work out our margin
  *              interest = drawn × monthly rate × months; repayment = drawn + interest
  */
 export type LendingType = 'customer' | 'go4solar'
@@ -26,6 +26,14 @@ export const LENDING_TYPE_SHORT: Record<LendingType, string> = {
   customer: 'Lends to customers',
   go4solar: 'Lends to Go4Solar',
 }
+
+/**
+ * What Trade Lenda hands over, for BOTH lending types: the price paid in full (items +
+ * installation + delivery, without our payment-plan cost) − the deposit. The one figure for the
+ * balance taken at approval, the "drawn" amount, the interest and the "amount financed".
+ */
+export const tradeLendaDrawn = (i: { priceInFull: number; deposit: number }) =>
+  Math.max(0, i.priceInFull - i.deposit)
 
 /** 0.48 a year → 0.04 a month (flat). */
 export const monthlyRateOf = (annualRate: number) => Math.round((annualRate / 12) * 1e6) / 1e6
@@ -71,7 +79,7 @@ export function customerFigures(i: {
   monthlyRate: number
 }): LendingFigures {
   const deposit = roundNaira(i.price * i.depositShare)
-  const financed = i.price - deposit
+  const financed = tradeLendaDrawn({ priceInFull: i.price, deposit })
   const total = roundNaira(financed * (1 + i.monthlyRate * i.months))
   return {
     lendingType: 'customer',
@@ -91,9 +99,10 @@ export function customerFigures(i: {
 
 /**
  * Trade Lenda lends to Go4Solar. `quoted`: the customer's figures on our own terms (the price we
- * quoted, its deposit, what they pay in all and monthly). Drawn = quoted price − deposit.
+ * quoted, its deposit, what they pay in all and monthly). Drawn = price paid in full − deposit.
  */
 export function go4solarFigures(i: {
+  priceInFull: number
   quoted: {
     price: number
     depositShare: number
@@ -104,7 +113,7 @@ export function go4solarFigures(i: {
   months: number
   monthlyRate: number
 }): LendingFigures {
-  const financed = Math.max(0, i.quoted.price - i.quoted.deposit)
+  const financed = tradeLendaDrawn({ priceInFull: i.priceInFull, deposit: i.quoted.deposit })
   const charge = roundNaira(financed * i.monthlyRate * i.months)
   const total = financed + charge
   return {

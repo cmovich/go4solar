@@ -43,11 +43,11 @@ describe('approval options by lending type', () => {
     expect(o.profit).toMatchObject({ drawn: 0, funderInterest: 0, grossProfit: 204_500 })
   })
 
-  it('lends to Go4Solar: drawn = the customer’s amount financed; interest at 4% a month', () => {
+  it('lends to Go4Solar: drawn = price paid in full − deposit; interest at 4% a month', () => {
     const o = opts.find((x) => optionKey(x) === 'tl:go4solar')!
-    // Customer financed = 1,808,888 − 261,400 = 1,547,488 (the customer's amount financed).
-    expect(o.profit.drawn).toBe(1_547_488)
-    expect(o.profit.funderInterest).toBe(Math.round(1_547_488 * 0.48))
+    // 1,307,000 − 261,400 = 1,045,600 drawn; 1,045,600 × 4% × 12 = 501,888.
+    expect(o.profit.drawn).toBe(1_045_600)
+    expect(o.profit.funderInterest).toBe(501_888)
   })
 
   it('SPEWA (no lending type): drawn = cost − deposit, as before', () => {
@@ -55,7 +55,7 @@ describe('approval options by lending type', () => {
   })
 })
 
-describe('Trade Lenda balance: the customer’s amount financed, for both lending types', () => {
+describe('Trade Lenda balance: price paid in full − deposit (the drawn amount), both types', () => {
   const opts = funderOptions([tradeLenda, spewa], loan, noCosts, {
     recordedFees: 0,
     minNetMarginShare: 0,
@@ -68,13 +68,9 @@ describe('Trade Lenda balance: the customer’s amount financed, for both lendin
       ),
     ).toBe(1_045_600)
   })
-  it('lends to Go4Solar: our price − deposit (never cost − deposit)', () => {
-    expect(
-      balanceDrawFor(
-        opts.find((o) => optionKey(o) === 'tl:go4solar')!,
-        loan,
-      ),
-    ).toBe(1_547_488)
+  it('lends to Go4Solar: the same drawn amount (never what Go4Solar repays, never cost-based)', () => {
+    const o = opts.find((x) => optionKey(x) === 'tl:go4solar')!
+    expect(balanceDrawFor(o, loan)).toBe(1_045_600)
   })
   it('other funders: cost − deposit, as before', () => {
     expect(
@@ -84,8 +80,8 @@ describe('Trade Lenda balance: the customer’s amount financed, for both lendin
       ),
     ).toBe(841_100)
   })
-  it('a lending-type funder needs the larger of the two in its balance', () => {
-    expect(eligibleFunders([{ ...tradeLenda, balanceAvailable: 1_100_000 }], loan)).toEqual([])
-    expect(eligibleFunders([{ ...tradeLenda, balanceAvailable: 1_600_000 }], loan)).toHaveLength(1)
+  it('a lending-type funder needs the drawn amount in its balance', () => {
+    expect(eligibleFunders([{ ...tradeLenda, balanceAvailable: 1_000_000 }], loan)).toEqual([])
+    expect(eligibleFunders([{ ...tradeLenda, balanceAvailable: 1_045_600 }], loan)).toHaveLength(1)
   })
 })

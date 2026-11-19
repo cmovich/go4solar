@@ -154,7 +154,7 @@ export function figuresFor(
 ): LendingFigures {
   return type === 'customer'
     ? customerFigures({ price: basis.priceInFull, depositShare, months, monthlyRate })
-    : go4solarFigures({ quoted: basis.quoted, months, monthlyRate })
+    : go4solarFigures({ priceInFull: basis.priceInFull, quoted: basis.quoted, months, monthlyRate })
 }
 
 function valuesOf(lead: Lead, p: ProfileRow | null): ProfileValues {

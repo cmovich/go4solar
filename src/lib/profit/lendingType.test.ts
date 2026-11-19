@@ -17,7 +17,7 @@ describe('loanProfit by lending type (Trade Lenda)', () => {
       funderMethod: 'flat',
       unitCosts: noCosts,
       lendingType: 'go4solar',
-      customerFinanced: 1_045_600,
+      drawnAmount: 1_045_600,
     })
     expect(p.drawn).toBe(1_045_600)
     expect(p.funderInterest).toBe(501_888) // 1,045,600 × 4% × 12

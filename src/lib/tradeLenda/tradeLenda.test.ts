@@ -70,7 +70,12 @@ describe('Oga Boss, 12 months, 20% deposit', () => {
     })
   })
   it('lends to Go4Solar: drawn = the customer’s amount financed (price − deposit), not cost', () => {
-    const f = go4solarFigures({ quoted: basis.quoted, months: 12, monthlyRate: r })
+    const f = go4solarFigures({
+      priceInFull: basis.priceInFull,
+      quoted: basis.quoted,
+      months: 12,
+      monthlyRate: r,
+    })
     expect(f).toMatchObject({
       financed: 1_045_600,
       charge: 501_888,
@@ -94,10 +99,15 @@ describe('a builder system, 12 months, 20% deposit', () => {
       totalRepayment: 169_480 + 1_003_322,
     })
   })
-  it('lends to Go4Solar: the customer keeps our quoted figures; drawn = our price − deposit', () => {
-    const f = go4solarFigures({ quoted: builder.quoted, months: 12, monthlyRate: r })
+  it('lends to Go4Solar: the customer keeps our quoted figures; drawn = price paid in full − deposit', () => {
+    const f = go4solarFigures({
+      priceInFull: builder.priceInFull,
+      quoted: builder.quoted,
+      months: 12,
+      monthlyRate: r,
+    })
     expect(builder.quoted.price).toBe(builderQuote.systemPrice)
-    expect(f.financed).toBe(builderQuote.systemPrice - builderQuote.deposit)
+    expect(f.financed).toBe(847_400 - builderQuote.deposit)
     expect(f.customerTotalPayable).toBe(builderQuote.systemPrice)
   })
 })

@@ -26,7 +26,12 @@ export function makeSnapshot(type: LendingType) {
   const figures =
     type === 'customer'
       ? customerFigures({ price: basis.priceInFull, depositShare: 0.2, months: 12, monthlyRate: r })
-      : go4solarFigures({ quoted: basis.quoted, months: 12, monthlyRate: r })
+      : go4solarFigures({
+          priceInFull: basis.priceInFull,
+          quoted: basis.quoted,
+          months: 12,
+          monthlyRate: r,
+        })
   return funderSnapshot({
     reference: 'G4S-1234ABCD',
     name: 'Ada Obi',

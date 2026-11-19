@@ -4,6 +4,7 @@ import type { LoadTotals } from '@/lib/load/types'
 import type { NgStateId } from '@/lib/nigeria/states'
 import { loanProfit } from '@/lib/profit/loanProfit'
 import { cashPrice } from '@/lib/quotes/quote'
+import { tradeLendaDrawn } from '@/lib/tradeLenda/figures'
 import type { LoanProfit, UnitCosts } from '@/lib/profit/types'
 import { equipmentFromPriceList, installCostFor, linesFor } from '@/lib/quotes/buildEstimate'
 import { DEFAULT_SUN_HOURS, type QuoteSettings } from '@/lib/settings/schemas'
@@ -193,7 +194,10 @@ function sideWith(input: PreviewInput, quote: QuoteResult, tenureMonths: TenureM
         funderMethod: 'flat',
         unitCosts: input.unitCosts,
         lendingType: t,
-        customerFinanced: t === 'go4solar' ? quote.systemPrice - quote.deposit : undefined,
+        drawnAmount:
+          t === 'go4solar'
+            ? tradeLendaDrawn({ priceInFull: cashPrice(quote.snapshot), deposit: quote.deposit })
+            : undefined,
       }),
     }))
 }
