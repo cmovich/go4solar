@@ -195,3 +195,10 @@ describe('batches', () => {
     expect(Object.keys(t.byPlan)).toEqual(['Oga Boss (ready-made plan)'])
   })
 })
+
+describe('test batches never use real numbers', () => {
+  it('test series TLT-…, real series TL-…, each counted on its own', () => {
+    expect(nextBatchNumber('TLT', ['TLT-Batch-006'])).toBe('TLT-Batch-007')
+    expect(nextBatchNumber('TL', [])).toBe('TL-Batch-001')
+  })
+})

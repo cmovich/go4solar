@@ -2,6 +2,8 @@ import 'server-only'
 
 import { randomBytes } from 'node:crypto'
 
+import { restoreFunderBalance } from '@/lib/funders/balance'
+
 import type { CheckSummary } from '@/lib/applications/rules'
 import { storedBuild } from '@/lib/build/stored'
 import { formatNaira } from '@/lib/money'
@@ -743,6 +745,8 @@ export async function refundDeposit(applicationId: string): Promise<RefundResult
     await admin.from('payments').update({ status: 'failed' }).eq('id', refundRow.id)
     return { ok: false, error: 'The payment provider refused the refund.' }
   }
+  // Trade Lenda's balance gets back the customer's amount financed (approved loans only).
+  await restoreFunderBalance(applicationId, null)
   await admin.from('loans').update({ status: 'cancelled' }).eq('application_id', applicationId)
 
   const { data: app } = await admin

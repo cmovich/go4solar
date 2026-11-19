@@ -40,6 +40,8 @@ type ProfileRow = Database['public']['Tables']['lead_profiles']['Row']
 export type Actor = { id: string; role: AppRole | null }
 
 export const TL_PREFIX = 'TL'
+/** Test batches: their own numbers, so real batches start at TL-Batch-001. */
+export const TL_TEST_PREFIX = 'TLT'
 const RESULT_ERROR = { ok: false as const, error: 'Something went wrong. Please try again.' }
 
 export type TradeLendaFunder = {
@@ -50,13 +52,14 @@ export type TradeLendaFunder = {
   lendingTypes: LendingType[]
   defaultLendingType: LendingType
   sample: boolean
+  balanceAvailable: number
 }
 
 /** The Trade Lenda funder row (test data uses the same funder, marked test). */
 export async function tradeLendaFunder(): Promise<TradeLendaFunder | null> {
   const { data } = await createAdminClient()
     .from('funders')
-    .select('id, name, annual_rate, lending_types, default_lending_type, sample')
+    .select('id, name, annual_rate, lending_types, default_lending_type, sample, balance_available')
     .eq('name', 'Trade Lenda')
     .eq('is_test', false)
     .maybeSingle()
@@ -72,6 +75,7 @@ export async function tradeLendaFunder(): Promise<TradeLendaFunder | null> {
     lendingTypes: types,
     defaultLendingType: data.default_lending_type === 'go4solar' ? 'go4solar' : 'customer',
     sample: data.sample,
+    balanceAvailable: Number(data.balance_available),
   }
 }
 
@@ -548,13 +552,19 @@ export async function createBatch(
       })
   }
   if (refused.length > 0) return { ok: false, error: `Not sent. ${refused.join(' ')}` }
+  // Test data never mixes with real data, and never uses up real batch numbers: test batches
+  // have their own series (TLT-Batch-001…); real batches start at TL-Batch-001.
   const isTest = snaps.every((s) => s.isTest)
+  if (!isTest && snaps.some((s) => s.isTest)) {
+    return { ok: false, error: 'Not sent: test entries cannot go in a batch with real customers.' }
+  }
   const { data: existing } = await admin
     .from('funder_batches')
     .select('number')
     .eq('funder_id', funder.id)
+    .eq('is_test', isTest)
   const number = nextBatchNumber(
-    TL_PREFIX,
+    isTest ? TL_TEST_PREFIX : TL_PREFIX,
     (existing ?? []).map((b) => b.number),
   )
   const totals = batchTotals(
@@ -822,6 +832,8 @@ export type ProfileListRow = {
   consent: boolean
   /** The lending type the customer agreed figures for (null: not yet). */
   agreedType: LendingType | null
+  /** The amount Trade Lenda finances for this customer, from the agreed figures. */
+  agreedFinanced: number | null
   batches: string[]
   isTest: boolean
 }
@@ -868,6 +880,7 @@ export async function profileList(includeTest: boolean): Promise<ProfileListRow[
       verified: Boolean(p?.phone_verified_at),
       consent: Boolean(p?.consent_tl_at),
       agreedType: p?.figures_agreed_at && agreed ? agreed.lendingType : null,
+      agreedFinanced: p?.figures_agreed_at && agreed ? agreed.financed : null,
       batches: (items ?? [])
         .filter((i) => i.waitlist_id === l.id)
         .flatMap((i) => {

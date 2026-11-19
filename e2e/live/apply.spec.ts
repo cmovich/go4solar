@@ -438,3 +438,74 @@ async function changeRequestsMigrated(): Promise<boolean> {
   })
   return res.ok
 }
+
+test.describe('live mode: a waiting-list person with a completed (Trade Lenda) profile', () => {
+  test.skip(!hasDb, 'needs Supabase env')
+
+  test('the application is pre-filled: details, work and income, guarantor, "NIN ending ####"', async ({
+    page,
+  }) => {
+    test.setTimeout(480_000)
+    const p = newPerson('individual', { firstName: 'Prefill', surname: 'Eze' })
+    await throughDetails(page, p)
+    // Staff completed this person's profile on the phone (test data, written directly).
+    const leadId = new URL(page.url()).searchParams.get('estimate')!
+    const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/lead_profiles`, {
+      method: 'POST',
+      headers: {
+        apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        'content-type': 'application/json',
+        Prefer: 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify({
+        waitlist_id: leadId,
+        date_of_birth: '1988-03-21',
+        street: '7 Prefill Close',
+        landmark: 'Opposite the test church',
+        employment_type: 'employed',
+        employer: 'Prefill Ltd',
+        job_title: 'Engineer',
+        income_range: '500k_1m',
+        nin_last4: p.nin.slice(-4),
+        bvn_last4: '2222',
+        guarantor_name: 'Bayo Prefill',
+        guarantor_phone_e164: '+2348000009999',
+        guarantor_relationship: 'Brother',
+        is_test: true,
+      }),
+    })
+    expect(res.ok).toBe(true)
+    await throughAccount(page, p)
+
+    // Details: the date of birth is already there.
+    await step(page, 'details')
+    await expect(page.getByLabel('First name')).toHaveValue('Prefill')
+    await expect(page.getByLabel('Date of birth')).toHaveValue('1988-03-21')
+    await page.getByRole('button', { name: 'These are correct' }).click()
+
+    // NIN: only the last 4 digits were kept, so the customer types the full number.
+    await step(page, 'nin')
+    await expect(page.getByTestId('nin-hint')).toHaveText(
+      `We have your NIN ending ${p.nin.slice(-4)}. Type the full 11 digits to check it.`,
+    )
+    await identityAndAddress(page, p.nin)
+
+    // Work and income carried over.
+    await step(page, 'income')
+    await expect(page.getByLabel('How do you earn your income?')).toHaveValue('employed')
+    await expect(page.getByLabel('Your monthly income')).toHaveValue('500k_1m')
+    await page.getByRole('button', { name: 'Save' }).click()
+
+    await step(page, 'nextOfKin')
+    await page.getByLabel('Full name').fill('Emeka Eze')
+    await page.getByLabel('Phone').fill(freshPhone())
+    await page.getByLabel('Relationship to you').fill('Brother')
+    await page.getByRole('button', { name: 'Save' }).click()
+
+    // The guarantor from the profile is suggested (the customer adds the email and confirms).
+    await step(page, 'guarantor')
+    await expect(page.getByLabel('Full name')).toHaveValue('Bayo Prefill')
+    await expect(page.getByLabel('Phone')).toHaveValue('+2348000009999')
+  })
+})

@@ -38,16 +38,34 @@ export type FunderRow = {
 /** Money drawn from a funder: cost price − deposit, never below 0. */
 export const drawnFor = (l: LoanFigures) => Math.max(0, l.costPrice - l.deposit)
 
+/** What a lending-type funder (Trade Lenda) gives out: the customer's amount financed. */
+const customerFinancedFor = (l: LoanFigures, type: 'customer' | 'go4solar') =>
+  Math.max(0, (type === 'customer' ? (l.priceInFull ?? l.systemPrice) : l.systemPrice) - l.deposit)
+
 /** Funders that can carry this loan: active, ticket size, tenure and balance all fit. */
 export function eligibleFunders(funders: FunderRow[], l: LoanFigures): FunderRow[] {
-  const drawn = drawnFor(l)
-  return funders.filter(
-    (f) =>
+  return funders.filter((f) => {
+    // A lending-type funder's balance is reduced by the customer's amount financed (the larger
+    // of its two types); every other funder by cost − deposit.
+    const drawn = f.lendingTypes?.includes('customer')
+      ? Math.max(...f.lendingTypes.map((t) => customerFinancedFor(l, t)))
+      : drawnFor(l)
+    return (
       f.status === 'active' &&
       l.tenure <= f.maxTenure &&
       f.balanceAvailable >= drawn &&
-      (drawn === 0 || (drawn >= f.minAmount && (f.maxAmount === null || drawn <= f.maxAmount))),
-  )
+      (drawn === 0 || (drawn >= f.minAmount && (f.maxAmount === null || drawn <= f.maxAmount)))
+    )
+  })
+}
+
+/**
+ * What comes off the funder's available balance at approval (and goes back if the loan is
+ * cancelled). Trade Lenda, either lending type: the customer's amount financed. Others: cost −
+ * deposit, as before.
+ */
+export function balanceDrawFor(o: Pick<FunderOption, 'lendingType'>, l: LoanFigures): number {
+  return o.lendingType ? customerFinancedFor(l, o.lendingType) : drawnFor(l)
 }
 
 export type FunderOption = {

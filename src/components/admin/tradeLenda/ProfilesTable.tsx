@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { formatNaira } from '@/lib/money'
 import { LENDING_TYPE_LABELS, type LendingType } from '@/lib/tradeLenda/figures'
 import type { ProfileListRow } from '@/lib/tradeLenda/server'
 
@@ -16,11 +17,14 @@ export function ProfilesTable({
   canSend,
   lendingTypes,
   defaultLendingType,
+  balanceAvailable,
 }: {
   rows: ProfileListRow[]
   canSend: boolean
   lendingTypes: LendingType[]
   defaultLendingType: LendingType
+  /** Trade Lenda's available balance (Admin → Funders). */
+  balanceAvailable: number
 }) {
   const router = useRouter()
   const [type, setType] = useState<LendingType>(defaultLendingType)
@@ -31,6 +35,11 @@ export function ProfilesTable({
   const ready = (r: ProfileListRow) =>
     r.missing.length === 0 && r.verified && r.consent && r.agreedType === type
   const shown = useMemo(() => (onlyReady ? rows.filter(ready) : rows), [rows, onlyReady, type]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pickedFinanced = rows
+    .filter((r) => picked.has(r.id))
+    .reduce((t, r) => t + (r.agreedFinanced ?? 0), 0)
+  const overBalance = pickedFinanced > balanceAvailable
 
   function send() {
     start(async () => {
@@ -87,6 +96,27 @@ export function ProfilesTable({
           </>
         )}
       </div>
+      {canSend && (
+        <p className="text-sm" data-testid="tl-balance">
+          Trade Lenda available balance: <strong>{formatNaira(balanceAvailable)}</strong>
+          {picked.size > 0 && (
+            <>
+              {' '}
+              · selected to finance: <strong>{formatNaira(pickedFinanced)}</strong>
+            </>
+          )}
+        </p>
+      )}
+      {canSend && overBalance && (
+        <p
+          className="rounded-md bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900"
+          role="alert"
+          data-testid="tl-balance-warning"
+        >
+          This batch ({formatNaira(pickedFinanced)}) is more than Trade Lenda&rsquo;s available
+          balance ({formatNaira(balanceAvailable)}). Check with Trade Lenda or send fewer customers.
+        </p>
+      )}
       {notice && (
         <p
           role={notice.ok ? 'status' : 'alert'}

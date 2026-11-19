@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { funderOptions, optionKey, type FunderRow } from './rules'
+import { balanceDrawFor, eligibleFunders, funderOptions, optionKey, type FunderRow } from './rules'
 
 const noCosts = { kycPerLoan: 0, feePerInstalment: 0, lossProvisionShare: 0 }
 const base: Omit<FunderRow, 'id' | 'name' | 'annualRate'> = {
@@ -52,5 +52,40 @@ describe('approval options by lending type', () => {
 
   it('SPEWA (no lending type): drawn = cost − deposit, as before', () => {
     expect(opts.find((x) => optionKey(x) === 'sp')!.profit.drawn).toBe(841_100)
+  })
+})
+
+describe('Trade Lenda balance: the customer’s amount financed, for both lending types', () => {
+  const opts = funderOptions([tradeLenda, spewa], loan, noCosts, {
+    recordedFees: 0,
+    minNetMarginShare: 0,
+  })
+  it('lends to the customer: price paid in full − deposit', () => {
+    expect(
+      balanceDrawFor(
+        opts.find((o) => optionKey(o) === 'tl:customer')!,
+        loan,
+      ),
+    ).toBe(1_045_600)
+  })
+  it('lends to Go4Solar: our price − deposit (never cost − deposit)', () => {
+    expect(
+      balanceDrawFor(
+        opts.find((o) => optionKey(o) === 'tl:go4solar')!,
+        loan,
+      ),
+    ).toBe(1_547_488)
+  })
+  it('other funders: cost − deposit, as before', () => {
+    expect(
+      balanceDrawFor(
+        opts.find((o) => optionKey(o) === 'sp')!,
+        loan,
+      ),
+    ).toBe(841_100)
+  })
+  it('a lending-type funder needs the larger of the two in its balance', () => {
+    expect(eligibleFunders([{ ...tradeLenda, balanceAvailable: 1_100_000 }], loan)).toEqual([])
+    expect(eligibleFunders([{ ...tradeLenda, balanceAvailable: 1_600_000 }], loan)).toHaveLength(1)
   })
 })

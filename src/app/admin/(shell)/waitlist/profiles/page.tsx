@@ -54,6 +54,7 @@ export default async function ProfilesPage({
         canSend={isSuperAdmin}
         lendingTypes={funder?.lendingTypes ?? []}
         defaultLendingType={funder?.defaultLendingType ?? 'customer'}
+        balanceAvailable={funder?.balanceAvailable ?? 0}
       />
     </main>
   )

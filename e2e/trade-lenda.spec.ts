@@ -148,12 +148,13 @@ test.describe('Trade Lenda batches', () => {
 
       await page.goto('/admin/waitlist/profiles?test=1')
       await page.getByLabel('Trade Lenda lends to').selectOption(type)
+      await expect(page.getByTestId('tl-balance')).toContainText('Trade Lenda available balance')
       await page
         .getByRole('checkbox', { name: /Send Ada Testcustomer/ })
         .first()
         .check()
       await page.getByTestId('send-to-tl').click()
-      await expect(page.getByTestId('send-notice')).toContainText(/Sent as TL-Batch-\d{3}/, {
+      await expect(page.getByTestId('send-notice')).toContainText(/Sent as TLT-Batch-\d{3}/, {
         timeout: 60_000,
       })
 
@@ -161,6 +162,8 @@ test.describe('Trade Lenda batches', () => {
       await page.goto('/admin/funder?test=1')
       await expect(page.getByTestId('view-as')).toBeVisible()
       await page.getByTestId('funder-batches').getByRole('link').first().click()
+      // Test batches have their own numbers (real batches start at TL-Batch-001).
+      await expect(page.getByTestId('batch-title')).toContainText('TLT-Batch-')
       await expect(page.getByTestId('batch-title')).toContainText(
         type === 'customer' ? 'Lends to customers' : 'Lends to Go4Solar',
       )

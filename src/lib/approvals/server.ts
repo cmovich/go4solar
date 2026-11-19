@@ -14,6 +14,7 @@ import type { Database, Json } from '@/lib/supabase/database.types'
 import {
   approvalAuthority,
   approvalBlockers,
+  balanceDrawFor,
   drawnFor,
   eligibleFunders,
   funderOptions,
@@ -261,9 +262,8 @@ export async function approveApplication(input: {
     netShare: option.netShare,
     profit: option.profit,
   }
-  // Lending-type funders: what is drawn follows the type (never a cost-based figure for
-  // "lends to Go4Solar"; nothing for "lends to the customer"). Others: cost − deposit.
-  const drawn = option.lendingType ? option.profit.drawn : ctx.drawn
+  // Trade Lenda (either lending type): the customer's amount financed comes off its balance.
+  const drawn = balanceDrawFor(option, ctx.figures)
   // Claim the loan first (only one approval can win), then draw on the funder.
   const { data: claimed } = await admin
     .from('loans')
