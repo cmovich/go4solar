@@ -456,11 +456,6 @@ function NinStep(props: StepProps) {
         <p className="text-muted-foreground mt-1 text-xs">
           On file: {maskId(state.personal.ninLast4)} <Status status={state.checks.nin?.status} />
         </p>
-        {!state.personal.ninLast4 && state.personal.ninHint && (
-          <p className="text-muted-foreground mt-1 text-xs" data-testid="nin-hint">
-            We have your NIN ending {state.personal.ninHint}. Type the full 11 digits to check it.
-          </p>
-        )}
       </div>
       <Button
         type="button"
@@ -497,11 +492,6 @@ function BvnStep({ state, act, pending }: StepProps) {
         <p className="text-muted-foreground mt-1 text-xs">
           On file: {maskId(state.personal.bvnLast4)} <Status status={state.checks.bvn?.status} />
         </p>
-        {!state.personal.bvnLast4 && state.personal.bvnHint && (
-          <p className="text-muted-foreground mt-1 text-xs" data-testid="bvn-hint">
-            We have your BVN ending {state.personal.bvnHint}. Type the full 11 digits to check it.
-          </p>
-        )}
       </div>
       <Button
         type="button"

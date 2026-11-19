@@ -11,6 +11,10 @@ import { loginAsStaff } from './helpers/staff'
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 const FORBIDDEN = [
+  'nin (',
+  'nin:',
+  'bvn',
+  '(last 4)',
   'cost price',
   'vendor',
   'unitcost',
@@ -72,21 +76,16 @@ async function download(request: APIRequestContext, href: string): Promise<strin
 async function completeProfile(page: Page, id: string) {
   await page.goto(`/admin/waitlist/${id}/profile`)
   const f = page.getByTestId('profile-form')
+  await f.getByLabel('Customer type').selectOption('individual')
   await f.getByLabel('First name').fill('Ada')
   await f.getByLabel('Surname').fill('Testcustomer')
-  await f.getByLabel('Date of birth').fill('1990-01-01')
+  await f.getByLabel('Email').fill('e2e-tl-ada@go4solar.test')
+  await f.getByLabel('WhatsApp number').fill('08000004321')
   await f.getByLabel('State').selectOption('Kaduna')
   await f.getByLabel('LGA').fill('Kaduna North')
   await f.getByLabel('Street address').fill('1 Test Street')
   await f.getByLabel('Landmark').fill('Near the test market')
-  await f.getByLabel('Work').selectOption('employed')
-  await f.getByLabel('Employer or business').fill('Test Ltd')
-  await f.getByLabel('Monthly income').selectOption('above_3m')
-  await f.getByLabel('NIN').fill('12345678901')
-  await f.getByLabel('BVN').fill('22233344455')
-  await f.getByLabel('Name', { exact: true }).fill('Bayo Testguarantor')
-  await f.getByLabel('Phone', { exact: true }).fill('08000001234')
-  await f.getByLabel('Relationship').fill('Brother')
+  // Optional details (work, income, guarantor, date of birth) are left empty: they never block.
   await f.getByLabel('Plan or system').selectOption('ready:oga-boss')
   await f.getByLabel('Deposit %').fill('20')
   await f.getByLabel('Months').selectOption('12')
@@ -94,8 +93,9 @@ async function completeProfile(page: Page, id: string) {
   await expect(page.getByText('Profile saved.')).toBeVisible({ timeout: 30_000 })
   await page.reload()
   await expect(page.getByTestId('profile-missing')).toHaveCount(0)
-  // Only the last 4 digits are kept.
-  await expect(f.getByLabel('NIN')).toHaveAttribute('placeholder', 'Kept: ending 8901')
+  // We never collect NIN/BVN for Trade Lenda.
+  await expect(f.getByLabel('NIN')).toHaveCount(0)
+  await expect(page.getByTestId('tick-phone')).toContainText('Details confirmed by phone')
 }
 
 async function tickAll(page: Page, type: 'customer' | 'go4solar') {

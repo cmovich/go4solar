@@ -157,8 +157,23 @@ export function figuresFor(
     : go4solarFigures({ priceInFull: basis.priceInFull, quoted: basis.quoted, months, monthlyRate })
 }
 
+/** The business details saved with a waiting-list entry (name and the contact's role). */
+function businessOf(lead: Lead): { name: string | null; role: string | null } {
+  const b = (lead.business ?? {}) as { businessName?: string; role?: string }
+  return { name: b.businessName?.trim() || null, role: b.role?.trim() || null }
+}
+
 function valuesOf(lead: Lead, p: ProfileRow | null): ProfileValues {
+  const b = businessOf(lead)
   return {
+    customerType:
+      lead.applicant_type === 'business' || lead.applicant_type === 'individual'
+        ? lead.applicant_type
+        : null,
+    businessName: b.name,
+    contactRole: b.role,
+    whatsapp: lead.whatsapp_e164,
+    email: lead.email,
     firstName: lead.first_name,
     surname: lead.surname,
     phone: lead.phone_e164,
@@ -169,8 +184,6 @@ function valuesOf(lead: Lead, p: ProfileRow | null): ProfileValues {
     landmark: p?.landmark ?? null,
     employmentType: p?.employment_type ?? null,
     incomeRange: p?.income_range ?? null,
-    ninLast4: p?.nin_last4 ?? null,
-    bvnLast4: p?.bvn_last4 ?? null,
     guarantorName: p?.guarantor_name ?? null,
     guarantorPhone: p?.guarantor_phone_e164 ?? null,
     guarantorRelationship: p?.guarantor_relationship ?? null,
@@ -332,7 +345,15 @@ export async function saveProfile(
     admin.from('lead_profiles').select('*').eq('waitlist_id', waitlistId).maybeSingle(),
   ])
   if (!lead) return { ok: false, error: 'This entry no longer exists.' }
+  // Customer type and the business details live on the waiting-list entry (merged, so the
+  // business screen's other answers stay).
+  const businessPatch =
+    f.customerType === 'business'
+      ? { ...((lead.business ?? {}) as object), businessName: f.businessName, role: f.contactRole }
+      : (lead.business ?? null)
   const leadPatch = {
+    ...(f.customerType ? { applicant_type: f.customerType } : {}),
+    business: businessPatch as Json,
     first_name: f.firstName,
     surname: f.surname,
     email: f.email,
@@ -350,9 +371,6 @@ export async function saveProfile(
     employer: f.employer,
     job_title: f.jobTitle,
     income_range: f.incomeRange,
-    // Only the last 4 digits ever reach the database; an empty box keeps what is stored.
-    nin_last4: f.nin ?? before?.nin_last4 ?? null,
-    bvn_last4: f.bvn ?? before?.bvn_last4 ?? null,
     guarantor_name: f.guarantorName,
     guarantor_phone_e164: f.guarantorPhone,
     guarantor_relationship: f.guarantorRelationship,
@@ -490,9 +508,11 @@ async function snapshotFor(
         jobTitle: p.job_title,
         incomeRange: p.income_range,
       },
-      ninLast4: p.nin_last4,
-      bvnLast4: p.bvn_last4,
       applicantType: view.lead.applicant_type === 'business' ? 'business' : 'individual',
+      business:
+        view.lead.applicant_type === 'business' && view.values.businessName
+          ? { name: view.values.businessName, contactRole: view.values.contactRole }
+          : null,
       guarantor: {
         name: p.guarantor_name,
         phone: p.guarantor_phone_e164,

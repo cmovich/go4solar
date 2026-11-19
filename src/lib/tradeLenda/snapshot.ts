@@ -26,9 +26,9 @@ export type FunderCustomer = {
     jobTitle: string | null
     incomeRange: string | null
   }
-  ninLast4: string | null
-  bvnLast4: string | null
   applicantType: 'individual' | 'business'
+  /** Business only: its name and the contact person's role (the contact is `name`). */
+  business: { name: string; contactRole: string | null } | null
   guarantor: {
     name: string | null
     phone: string | null
@@ -85,9 +85,8 @@ export function funderSnapshot(i: SnapshotInput): FunderCustomer {
       jobTitle: i.work.jobTitle,
       incomeRange: i.work.incomeRange,
     },
-    ninLast4: i.ninLast4,
-    bvnLast4: i.bvnLast4,
     applicantType: i.applicantType,
+    business: i.business ? { name: i.business.name, contactRole: i.business.contactRole } : null,
     guarantor: {
       name: i.guarantor.name,
       phone: i.guarantor.phone,
@@ -121,6 +120,11 @@ export function funderSnapshot(i: SnapshotInput): FunderCustomer {
 
 /** Words (keys or labels) that must never reach a funder, in data or in any export. */
 export const FORBIDDEN = [
+  // We never collect NIN/BVN for Trade Lenda (it collects them itself).
+  'ninlast4',
+  'bvnlast4',
+  '(last 4)',
+  'bvn',
   'cost price',
   'costprice',
   'vendorcost',

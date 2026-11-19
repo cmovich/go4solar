@@ -6,7 +6,7 @@ import { renderFunderBatchPdf } from '@/lib/pdf/FunderBatchPdf'
 import { pdfPageTexts } from '@/test/pdfText'
 
 import { batchTotals } from './batch'
-import { batchCsv, batchXlsx, oneCustomer, type ExportBatch } from './exports'
+import { batchCsv, batchXlsx, customerRows, oneCustomer, type ExportBatch } from './exports'
 import type { LendingType } from './figures'
 import { makeSnapshot, ogaCostFigures } from './fixture'
 import { funderSafetyProblems } from './snapshot'
@@ -46,6 +46,8 @@ describe.each(['customer', 'go4solar'] as const)('Trade Lenda files (%s)', (type
     expect(csv).toContain(type === 'customer' ? 'Lends to customers' : 'Lends to Go4Solar')
     expect(csv).toContain('Total repayment')
     expect(funderSafetyProblems(csv, costs)).toEqual([])
+    // We never collect NIN/BVN for Trade Lenda.
+    expect(csv).not.toMatch(/NIN|BVN/)
   })
 
   it('Excel: summary sheet first, then customers; nothing internal', async () => {
@@ -68,5 +70,33 @@ describe.each(['customer', 'go4solar'] as const)('Trade Lenda files (%s)', (type
   it('one customer: the same formats', () => {
     expect(oneCustomer(b, 'G4S-1234ABCD')?.customers).toHaveLength(1)
     expect(oneCustomer(b, 'nope')).toBeNull()
+  })
+})
+
+describe('optional details: in the files only when filled in', () => {
+  it('date of birth, work, income and guarantor are left out when empty', () => {
+    const c = makeSnapshot('customer')
+    const empty = {
+      ...c,
+      dateOfBirth: null,
+      work: { employmentType: null, employer: null, jobTitle: null, incomeRange: null },
+      guarantor: { name: null, phone: null, relationship: null, address: null },
+    }
+    const labels = customerRows(empty).map(([k]) => k)
+    for (const l of ['Date of birth', 'Work', 'Monthly income', 'Guarantor']) {
+      expect(labels).not.toContain(l)
+    }
+    expect(customerRows(c).map(([k]) => k)).toContain('Date of birth')
+    expect(labels).toContain('Details confirmed by phone')
+  })
+  it('a business shows its name and the contact person', () => {
+    const c = {
+      ...makeSnapshot('customer'),
+      applicantType: 'business' as const,
+      business: { name: 'Ada Stores', contactRole: 'Owner' },
+    }
+    const rows = Object.fromEntries(customerRows(c))
+    expect(rows.Business).toBe('Ada Stores')
+    expect(rows['Contact person']).toBe('Ada Obi, Owner')
   })
 })

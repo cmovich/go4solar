@@ -7,7 +7,7 @@ import { DEFAULT_READY_TERMS, withTerms } from '@/lib/readyPlans/terms'
 import { batchLabel, batchTotals, nextBatchNumber } from './batch'
 import { customerFigures, go4solarFigures, monthlyRateOf } from './figures'
 import { quoteBasis, readyPlanBasis } from './planBasis'
-import { completeness, lastFour, sendProblems, type ProfileValues } from './profile'
+import { completeness, sendProblems, type ProfileValues } from './profile'
 import { makeSnapshot } from './fixture'
 import { funderSafetyProblems } from './snapshot'
 
@@ -113,6 +113,11 @@ describe('a builder system, 12 months, 20% deposit', () => {
 })
 
 const values: ProfileValues = {
+  customerType: 'individual',
+  businessName: null,
+  contactRole: null,
+  whatsapp: '+2348031234567',
+  email: 'ada@example.test',
   firstName: 'Ada',
   surname: 'Obi',
   phone: '+2348031234567',
@@ -123,8 +128,6 @@ const values: ProfileValues = {
   landmark: 'Near the market',
   employmentType: 'employed',
   incomeRange: '250k_500k',
-  ninLast4: '4521',
-  bvnLast4: '7788',
   guarantorName: 'Bayo Obi',
   guarantorPhone: '+2348039876543',
   guarantorRelationship: 'Brother',
@@ -135,17 +138,38 @@ const values: ProfileValues = {
 }
 
 describe('profile', () => {
-  it('NIN/BVN: only the last 4 digits are kept', () => {
-    expect(lastFour('12345678901')).toBe('8901')
-    expect(lastFour('4521')).toBe('4521')
-    expect(lastFour('123')).toBeNull()
-  })
-  it('completeness lists what is missing', () => {
-    expect(completeness(values)).toMatchObject({ done: 18, total: 18, missing: [] })
-    expect(completeness({ ...values, landmark: null, bvnLast4: null }).missing).toEqual([
+  it('required: type, name, phone, WhatsApp, email, address, quote; optional fields never block', () => {
+    expect(completeness(values)).toMatchObject({ done: 13, total: 13, missing: [] })
+    expect(completeness({ ...values, landmark: null, whatsapp: null }).missing).toEqual([
+      'WhatsApp',
       'landmark',
-      'BVN (last 4)',
     ])
+    // Date of birth, work and income and the guarantor are optional.
+    expect(
+      completeness({
+        ...values,
+        dateOfBirth: null,
+        employmentType: null,
+        incomeRange: null,
+        guarantorName: null,
+        guarantorPhone: null,
+        guarantorRelationship: null,
+      }).missing,
+    ).toEqual([])
+  })
+  it('a business also needs its name and the contact person’s role', () => {
+    expect(completeness({ ...values, customerType: 'business' }).missing).toEqual([
+      'business name',
+      'contact person’s role',
+    ])
+    expect(
+      completeness({
+        ...values,
+        customerType: 'business',
+        businessName: 'Ada Stores',
+        contactRole: 'Owner',
+      }).missing,
+    ).toEqual([])
   })
   it('sending needs complete + verified + consent + agreed figures of the same type, unchanged', () => {
     const f = customerFigures({ price: 1_307_000, depositShare: 0.2, months: 12, monthlyRate: r })

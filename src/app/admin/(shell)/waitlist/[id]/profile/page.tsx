@@ -39,6 +39,9 @@ export default async function LeadProfilePage({ params }: { params: Promise<{ id
         role={session.role ?? ''}
         states={[...NG_STATE_IDS]}
         initial={{
+          customerType: values.customerType ?? '',
+          businessName: values.businessName ?? '',
+          contactRole: values.contactRole ?? '',
           firstName: lead.first_name ?? '',
           surname: lead.surname ?? '',
           otherNames: profile?.other_names ?? '',
@@ -53,8 +56,6 @@ export default async function LeadProfilePage({ params }: { params: Promise<{ id
           employer: profile?.employer ?? '',
           jobTitle: profile?.job_title ?? '',
           incomeRange: profile?.income_range ?? '',
-          ninLast4: profile?.nin_last4 ?? null,
-          bvnLast4: profile?.bvn_last4 ?? null,
           guarantorName: profile?.guarantor_name ?? '',
           guarantorPhone: profile?.guarantor_phone_e164 ?? '',
           guarantorRelationship: profile?.guarantor_relationship ?? '',

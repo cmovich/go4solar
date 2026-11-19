@@ -36,9 +36,6 @@ export type Personal = {
   dob?: string
   ninLast4?: string
   bvnLast4?: string
-  /** From the staff-completed waiting-list profile: the NIN/BVN it ends with (not verified). */
-  ninHint?: string
-  bvnHint?: string
 }
 export type BusinessDetails = Partial<BusinessInput> & {
   rcNumber?: string
@@ -218,9 +215,6 @@ export async function ensureApplication(userId: string): Promise<ApplicationRow 
     state: lead?.state ?? quote.state,
     lga: lead?.lga ?? undefined,
     ...(lp?.date_of_birth ? { dob: lp.date_of_birth } : {}),
-    // Only the last 4 digits were kept: the customer types the full numbers for the ID checks.
-    ...(lp?.nin_last4 ? { ninHint: lp.nin_last4 } : {}),
-    ...(lp?.bvn_last4 ? { bvnHint: lp.bvn_last4 } : {}),
   }
   const { data: created, error } = await admin
     .from('applications')

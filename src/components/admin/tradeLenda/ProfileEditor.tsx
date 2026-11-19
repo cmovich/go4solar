@@ -20,6 +20,9 @@ import type { PlanChoice } from '@/lib/tradeLenda/server'
 import { saveLeadProfile, setLeadTick } from '@/app/admin/(shell)/waitlist/profiles/actions'
 
 type Initial = {
+  customerType: string
+  businessName: string
+  contactRole: string
   firstName: string
   surname: string
   otherNames: string
@@ -34,8 +37,6 @@ type Initial = {
   employer: string
   jobTitle: string
   incomeRange: string
-  ninLast4: string | null
-  bvnLast4: string | null
   guarantorName: string
   guarantorPhone: string
   guarantorRelationship: string
@@ -99,6 +100,9 @@ export function ProfileEditor(props: {
     const s = (k: string) => String(f.get(k) ?? '')
     const [planKind, planRef] = s('plan').split(':')
     const input = {
+      customerType: s('customerType'),
+      businessName: s('businessName'),
+      contactRole: s('contactRole'),
       firstName: s('firstName'),
       surname: s('surname'),
       otherNames: s('otherNames'),
@@ -113,8 +117,6 @@ export function ProfileEditor(props: {
       employer: s('employer'),
       jobTitle: s('jobTitle'),
       incomeRange: s('incomeRange'),
-      nin: s('nin'),
-      bvn: s('bvn'),
       guarantorName: s('guarantorName'),
       guarantorPhone: s('guarantorPhone'),
       guarantorRelationship: s('guarantorRelationship'),
@@ -173,13 +175,30 @@ export function ProfileEditor(props: {
       </section>
 
       <form onSubmit={save} className="space-y-6" data-testid="profile-form">
-        <Section title="Personal details">
+        <Section title="Customer type">
+          <div>
+            <Label htmlFor="p-customerType">Customer type</Label>
+            <select
+              id="p-customerType"
+              name="customerType"
+              defaultValue={v.customerType}
+              className={select}
+            >
+              <option value="">Choose</option>
+              <option value="individual">Individual</option>
+              <option value="business">Business or institution</option>
+            </select>
+          </div>
+          {field('businessName', 'Business name (business only)')}
+          {field('contactRole', 'Contact person’s role (business only)')}
+        </Section>
+        <Section title="Contact details">
           {field('firstName', 'First name')}
           {field('surname', 'Surname')}
           {field('otherNames', 'Other names')}
-          {field('dateOfBirth', 'Date of birth', 'date')}
           {field('email', 'Email', 'email')}
           {field('whatsapp', 'WhatsApp number', 'tel')}
+          {field('dateOfBirth', 'Date of birth (optional)', 'date')}
         </Section>
         <Section title="Address">
           <div>
@@ -197,7 +216,7 @@ export function ProfileEditor(props: {
           {field('street', 'Street address')}
           {field('landmark', 'Landmark')}
         </Section>
-        <Section title="Work and income">
+        <Section title="Work and income (optional)">
           <div>
             <Label htmlFor="p-employmentType">Work</Label>
             <select
@@ -233,37 +252,13 @@ export function ProfileEditor(props: {
             </select>
           </div>
         </Section>
-        <Section title="ID (only the last 4 digits are kept)">
-          <div>
-            <Label htmlFor="p-nin">NIN</Label>
-            <Input
-              id="p-nin"
-              name="nin"
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder={v.ninLast4 ? `Kept: ending ${v.ninLast4}` : '11 digits or last 4'}
-              className="mt-1 h-10 bg-white"
-            />
-          </div>
-          <div>
-            <Label htmlFor="p-bvn">BVN</Label>
-            <Input
-              id="p-bvn"
-              name="bvn"
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder={v.bvnLast4 ? `Kept: ending ${v.bvnLast4}` : '11 digits or last 4'}
-              className="mt-1 h-10 bg-white"
-            />
-          </div>
-        </Section>
-        <Section title="Guarantor">
+        <Section title="Guarantor (optional)">
           {field('guarantorName', 'Name')}
           {field('guarantorPhone', 'Phone', 'tel')}
           {field('guarantorRelationship', 'Relationship')}
           {field('guarantorAddress', 'Address')}
         </Section>
-        <Section title="Plan">
+        <Section title="The quote">
           <div className="sm:col-span-2">
             <Label htmlFor="p-plan">Plan or system</Label>
             <select id="p-plan" name="plan" defaultValue={v.plan} className={select}>
@@ -434,7 +429,7 @@ function FiguresAndTicks(props: Parameters<typeof ProfileEditor>[0]) {
       )}
       <TickRow
         id="phone"
-        label="Verified by phone"
+        label="Details confirmed by phone"
         at={t.phoneVerifiedAt}
         by={t.phoneVerifiedBy}
         note={t.phoneVerifiedNote}

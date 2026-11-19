@@ -442,7 +442,7 @@ async function changeRequestsMigrated(): Promise<boolean> {
 test.describe('live mode: a waiting-list person with a completed (Trade Lenda) profile', () => {
   test.skip(!hasDb, 'needs Supabase env')
 
-  test('the application is pre-filled: details, work and income, guarantor, "NIN ending ####"', async ({
+  test('the application is pre-filled: details, work and income, guarantor (no NIN/BVN from us)', async ({
     page,
   }) => {
     test.setTimeout(480_000)
@@ -467,8 +467,6 @@ test.describe('live mode: a waiting-list person with a completed (Trade Lenda) p
         employer: 'Prefill Ltd',
         job_title: 'Engineer',
         income_range: '500k_1m',
-        nin_last4: p.nin.slice(-4),
-        bvn_last4: '2222',
         guarantor_name: 'Bayo Prefill',
         guarantor_phone_e164: '+2348000009999',
         guarantor_relationship: 'Brother',
@@ -484,11 +482,9 @@ test.describe('live mode: a waiting-list person with a completed (Trade Lenda) p
     await expect(page.getByLabel('Date of birth')).toHaveValue('1988-03-21')
     await page.getByRole('button', { name: 'These are correct' }).click()
 
-    // NIN: only the last 4 digits were kept, so the customer types the full number.
+    // Our own ID checks are unchanged: nothing about the NIN comes from the profile.
     await step(page, 'nin')
-    await expect(page.getByTestId('nin-hint')).toHaveText(
-      `We have your NIN ending ${p.nin.slice(-4)}. Type the full 11 digits to check it.`,
-    )
+    await expect(page.getByTestId('nin-hint')).toHaveCount(0)
     await identityAndAddress(page, p.nin)
 
     // Work and income carried over.

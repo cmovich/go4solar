@@ -29,6 +29,8 @@ const COLUMNS: [string, (c: FunderCustomer, b: ExportBatch) => string | number][
   ['Reference', (c) => c.reference],
   ['Customer', (c) => c.name],
   ['Type', (c) => (c.applicantType === 'business' ? 'Business' : 'Individual')],
+  ['Business name', (c) => c.business?.name ?? ''],
+  ['Contact role', (c) => c.business?.contactRole ?? ''],
   ['Phone', (c) => c.phone],
   ['Email', (c) => c.email ?? ''],
   ['Date of birth', (c) => c.dateOfBirth ?? ''],
@@ -46,8 +48,6 @@ const COLUMNS: [string, (c: FunderCustomer, b: ExportBatch) => string | number][
   ],
   ['Employer', (c) => c.work.employer ?? ''],
   ['Monthly income', (c) => incomeLabel(c.work.incomeRange) ?? ''],
-  ['NIN (last 4)', (c) => c.ninLast4 ?? ''],
-  ['BVN (last 4)', (c) => c.bvnLast4 ?? ''],
   ['Guarantor', (c) => c.guarantor.name ?? ''],
   ['Guarantor phone', (c) => c.guarantor.phone ?? ''],
   ['Guarantor relationship', (c) => c.guarantor.relationship ?? ''],
@@ -64,7 +64,10 @@ const COLUMNS: [string, (c: FunderCustomer, b: ExportBatch) => string | number][
   ['Months', (c) => c.figures.months],
   ['Monthly repayment', (c) => c.figures.monthly],
   ['Total repayment', (c) => c.figures.totalRepayment],
-  ['Verified by phone', (c) => `${c.records.verifiedByPhone.by}, ${c.records.verifiedByPhone.at}`],
+  [
+    'Details confirmed by phone',
+    (c) => `${c.records.verifiedByPhone.by}, ${c.records.verifiedByPhone.at}`,
+  ],
   ['Consent to share', (c) => `${c.records.consent.by}, ${c.records.consent.at}`],
   ['Figures agreed', (c) => `${c.records.figuresAgreed.by}, ${c.records.figuresAgreed.at}`],
   ['Decision', (c, b) => b.decisions[c.reference]?.decision ?? 'pending'],
@@ -130,29 +133,44 @@ export async function batchXlsx(b: ExportBatch, company: Company): Promise<Buffe
 /** One customer's details as label/value rows (the PDF's customer pages). */
 export function customerRows(c: FunderCustomer): [string, string][] {
   const f = c.figures
+  const optional = (label: string, value: string | null | undefined): [string, string][] =>
+    value ? [[label, value]] : []
+  const work = [
+    c.work.employmentType
+      ? (EMPLOYMENT_LABELS[c.work.employmentType as keyof typeof EMPLOYMENT_LABELS] ??
+        c.work.employmentType)
+      : null,
+    c.work.employer,
+    c.work.jobTitle,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const guarantor = [c.guarantor.name, c.guarantor.relationship, c.guarantor.phone]
+    .filter(Boolean)
+    .join(' · ')
   return [
     ['Reference', c.reference],
-    ['Customer', `${c.name} (${c.applicantType === 'business' ? 'business' : 'individual'})`],
-    ['Phone', [c.phone, c.whatsapp ? `WhatsApp ${c.whatsapp}` : ''].filter(Boolean).join(' · ')],
+    ['Customer type', c.applicantType === 'business' ? 'Business' : 'Individual'],
+    ...(c.business
+      ? ([
+          ['Business', c.business.name],
+          ['Contact person', [c.name, c.business.contactRole].filter(Boolean).join(', ')],
+        ] as [string, string][])
+      : ([['Customer', c.name]] as [string, string][])),
+    ['Phone', c.phone],
+    ['WhatsApp', c.whatsapp ?? '—'],
     ['Email', c.email ?? '—'],
-    ['Date of birth', c.dateOfBirth ?? '—'],
     [
       'Address',
       [c.address.street, c.address.landmark, c.address.lga, c.address.state]
         .filter(Boolean)
         .join(', '),
     ],
-    [
-      'Work',
-      [c.work.employmentType, c.work.employer, c.work.jobTitle].filter(Boolean).join(' · ') || '—',
-    ],
-    ['Monthly income', incomeLabel(c.work.incomeRange) ?? '—'],
-    ['NIN / BVN (last 4)', `${c.ninLast4 ?? '—'} / ${c.bvnLast4 ?? '—'}`],
-    [
-      'Guarantor',
-      [c.guarantor.name, c.guarantor.relationship, c.guarantor.phone].filter(Boolean).join(' · ') ||
-        '—',
-    ],
+    // Optional details: only when filled in.
+    ...optional('Date of birth', c.dateOfBirth),
+    ...optional('Work', work),
+    ...optional('Monthly income', incomeLabel(c.work.incomeRange)),
+    ...optional('Guarantor', guarantor),
     ['Plan', c.plan.label],
     [
       'Items',
@@ -171,7 +189,10 @@ export function customerRows(c: FunderCustomer): [string, string][] {
           string,
         ][])
       : []),
-    ['Verified by phone', `${c.records.verifiedByPhone.by}, ${c.records.verifiedByPhone.at}`],
+    [
+      'Details confirmed by phone',
+      `${c.records.verifiedByPhone.by}, ${c.records.verifiedByPhone.at}`,
+    ],
     ['Consent to share', `${c.records.consent.by}, ${c.records.consent.at}`],
     ['Figures agreed', `${c.records.figuresAgreed.by}, ${c.records.figuresAgreed.at}`],
   ]

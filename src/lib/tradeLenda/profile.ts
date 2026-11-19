@@ -7,7 +7,8 @@ import type { LendingFigures, LendingType } from './figures'
 
 /**
  * A waiting-list profile completed by staff on the phone (pure): the form, what is still missing,
- * and whether the entry may be sent to Trade Lenda. NIN/BVN: only the last 4 digits are kept.
+ * and whether the entry may be sent to Trade Lenda. We confirm basic details and the quote only:
+ * Trade Lenda collects NIN, BVN, proof of address, CAC etc. on its own platform (Semako, 19 Nov).
  */
 
 /** The same work types and income ranges as the application wizard (carried over as they are). */
@@ -33,13 +34,6 @@ export const incomeLabel = (id: string | null) =>
   INCOME_RANGES.find((r) => r.id === id)?.label ?? id ?? null
 export const PROFILE_MONTHS = [6, 9, 12] as const
 
-/** The last 4 digits of an 11-digit NIN/BVN, or the 4 digits typed. The full number is dropped. */
-export function lastFour(input: string): string | null {
-  const digits = input.replace(/\D/g, '')
-  if (digits.length === 11 || digits.length === 4) return digits.slice(-4)
-  return null
-}
-
 const text = (max: number) =>
   z
     .string()
@@ -51,21 +45,14 @@ const optionalPhone = z
   .trim()
   .transform((v) => v || null)
   .pipe(z.union([z.null(), phoneSchema]))
-const idLast4 = z
-  .string()
-  .trim()
-  .transform((v, ctx) => {
-    if (!v) return null
-    const l4 = lastFour(v)
-    if (!l4) {
-      ctx.addIssue({ code: 'custom', message: 'Enter the 11-digit number or its last 4 digits.' })
-      return z.NEVER
-    }
-    return l4
-  })
-
 /** The profile form (every field optional here; completeness says what is still missing). */
 export const profileFormSchema = z.object({
+  customerType: z
+    .union([z.literal(''), z.enum(['individual', 'business'])])
+    .transform((v) => v || null),
+  /** Business only: the business name and the contact person's role. */
+  businessName: text(120),
+  contactRole: text(60),
   firstName: text(60),
   surname: text(60),
   otherNames: text(80),
@@ -88,8 +75,6 @@ export const profileFormSchema = z.object({
   employer: text(120),
   jobTitle: text(80),
   incomeRange: z.union([z.literal(''), z.enum(INCOME_RANGE_IDS)]).transform((v) => v || null),
-  nin: idLast4,
-  bvn: idLast4,
   guarantorName: text(120),
   guarantorPhone: optionalPhone,
   guarantorRelationship: text(60),
@@ -109,9 +94,14 @@ export type ProfileForm = z.output<typeof profileFormSchema>
 
 /** What a complete profile needs (label shown in "Missing: …"). */
 export type ProfileValues = {
+  customerType: string | null
+  businessName: string | null
+  contactRole: string | null
   firstName: string | null
   surname: string | null
   phone: string | null
+  whatsapp: string | null
+  email: string | null
   dateOfBirth: string | null
   state: string | null
   lga: string | null
@@ -119,8 +109,6 @@ export type ProfileValues = {
   landmark: string | null
   employmentType: string | null
   incomeRange: string | null
-  ninLast4: string | null
-  bvnLast4: string | null
   guarantorName: string | null
   guarantorPhone: string | null
   guarantorRelationship: string | null
@@ -130,32 +118,37 @@ export type ProfileValues = {
   months: number | null
 }
 
+/**
+ * Required to send to Trade Lenda: customer type (a business also needs its name and the contact
+ * person's role), name, phone, WhatsApp, email, address and the quote. Date of birth, work and
+ * income and the guarantor are optional: they never block sending.
+ */
 const REQUIRED: [keyof ProfileValues, string][] = [
+  ['customerType', 'customer type'],
   ['firstName', 'first name'],
   ['surname', 'surname'],
   ['phone', 'phone'],
-  ['dateOfBirth', 'date of birth'],
+  ['whatsapp', 'WhatsApp'],
+  ['email', 'email'],
   ['state', 'state'],
   ['lga', 'LGA'],
   ['street', 'street address'],
   ['landmark', 'landmark'],
-  ['employmentType', 'work'],
-  ['incomeRange', 'monthly income'],
-  ['ninLast4', 'NIN (last 4)'],
-  ['bvnLast4', 'BVN (last 4)'],
-  ['guarantorName', 'guarantor name'],
-  ['guarantorPhone', 'guarantor phone'],
-  ['guarantorRelationship', 'guarantor relationship'],
   ['planRef', 'plan'],
   ['depositShare', 'deposit'],
   ['months', 'months'],
 ]
+const BUSINESS_REQUIRED: [keyof ProfileValues, string][] = [
+  ['businessName', 'business name'],
+  ['contactRole', 'contact person’s role'],
+]
 
 export function completeness(v: ProfileValues): { done: number; total: number; missing: string[] } {
-  const missing = REQUIRED.filter(([k]) => v[k] === null || v[k] === '' || v[k] === undefined).map(
-    ([, label]) => label,
-  )
-  return { done: REQUIRED.length - missing.length, total: REQUIRED.length, missing }
+  const required = v.customerType === 'business' ? [...REQUIRED, ...BUSINESS_REQUIRED] : REQUIRED
+  const missing = required
+    .filter(([k]) => v[k] === null || v[k] === '' || v[k] === undefined)
+    .map(([, label]) => label)
+  return { done: required.length - missing.length, total: required.length, missing }
 }
 
 export type Ticks = {
