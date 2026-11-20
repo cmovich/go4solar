@@ -114,5 +114,6 @@ export function draftFunders(d: PricingDraft): PreviewFunder[] {
     annualRate: f.annualRate,
     maxTenure: f.maxTenure,
     status: f.status,
+    lendingTypes: f.lendingTypes,
   }))
 }

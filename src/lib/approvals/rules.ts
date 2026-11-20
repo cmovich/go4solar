@@ -3,6 +3,7 @@ import { formatNaira } from '@/lib/money'
 import { buildSchedule } from '@/lib/payments/schedule'
 import type { TenureMonths } from '@/lib/pricing/types'
 import { loanProfit } from '@/lib/profit/loanProfit'
+import { tradeLendaDrawn } from '@/lib/tradeLenda/figures'
 import type { LoanProfit, UnitCosts } from '@/lib/profit/types'
 
 export type LoanFigures = {
@@ -12,6 +13,11 @@ export type LoanFigures = {
   /** What the customer still owes after the deposit (the amount financed). */
   balance: number
   tenure: TenureMonths
+  /**
+   * The price paid in full (no payment-plan cost): what a funder that lends to the customer pays
+   * Go4Solar upfront. Missing: the system price is used.
+   */
+  priceInFull?: number
 }
 
 export type FunderRow = {
@@ -23,25 +29,48 @@ export type FunderRow = {
   maxTenure: number
   balanceAvailable: number
   status: 'active' | 'paused'
+  /**
+   * Who the funder lends to (0041). Only a funder that can lend to CUSTOMERS uses the lending-type
+   * rules (one option per type); every other funder keeps the old way (drawn = cost − deposit).
+   */
+  lendingTypes?: ('customer' | 'go4solar')[]
 }
 
 /** Money drawn from a funder: cost price − deposit, never below 0. */
 export const drawnFor = (l: LoanFigures) => Math.max(0, l.costPrice - l.deposit)
 
+/** What a lending-type funder (Trade Lenda) hands over, either type: price paid in full − deposit. */
+const drawnByLender = (l: LoanFigures) =>
+  tradeLendaDrawn({ priceInFull: l.priceInFull ?? l.systemPrice, deposit: l.deposit })
+
 /** Funders that can carry this loan: active, ticket size, tenure and balance all fit. */
 export function eligibleFunders(funders: FunderRow[], l: LoanFigures): FunderRow[] {
-  const drawn = drawnFor(l)
-  return funders.filter(
-    (f) =>
+  return funders.filter((f) => {
+    // A lending-type funder's balance is reduced by price paid in full − deposit; every other
+    // funder by cost − deposit.
+    const drawn = f.lendingTypes?.includes('customer') ? drawnByLender(l) : drawnFor(l)
+    return (
       f.status === 'active' &&
       l.tenure <= f.maxTenure &&
       f.balanceAvailable >= drawn &&
-      (drawn === 0 || (drawn >= f.minAmount && (f.maxAmount === null || drawn <= f.maxAmount))),
-  )
+      (drawn === 0 || (drawn >= f.minAmount && (f.maxAmount === null || drawn <= f.maxAmount)))
+    )
+  })
+}
+
+/**
+ * What comes off the funder's available balance at approval (and goes back if the loan is
+ * cancelled). Trade Lenda, either lending type: price paid in full − deposit (the drawn amount).
+ * Others: cost − deposit, as before.
+ */
+export function balanceDrawFor(o: Pick<FunderOption, 'lendingType'>, l: LoanFigures): number {
+  return o.lendingType ? drawnByLender(l) : drawnFor(l)
 }
 
 export type FunderOption = {
   funder: FunderRow
+  /** Set for funders that use lending types (Trade Lenda). */
+  lendingType?: 'customer' | 'go4solar'
   profit: LoanProfit
   /** Net profit ÷ system price. */
   netShare: number
@@ -59,15 +88,24 @@ export function funderOptions(
   unitCosts: UnitCosts,
   opts: { recordedFees: number; minNetMarginShare: number },
 ): FunderOption[] {
-  return funders.map((funder) => {
+  type Variant = { funder: FunderRow; lendingType: 'customer' | 'go4solar' | undefined }
+  const variants = funders.flatMap((funder): Variant[] =>
+    funder.lendingTypes?.includes('customer')
+      ? funder.lendingTypes.map((lendingType) => ({ funder, lendingType }))
+      : [{ funder, lendingType: undefined }],
+  )
+  return variants.map(({ funder, lendingType }) => {
     const p = loanProfit({
-      systemPrice: l.systemPrice,
+      // Lent to the customer: Go4Solar receives the price paid in full upfront.
+      systemPrice: lendingType === 'customer' ? (l.priceInFull ?? l.systemPrice) : l.systemPrice,
       costPrice: l.costPrice,
       deposit: l.deposit,
       tenureMonths: l.tenure,
       funderAnnualRate: funder.annualRate,
       funderMethod: 'flat',
       unitCosts,
+      lendingType,
+      drawnAmount: lendingType === 'go4solar' ? drawnByLender(l) : undefined,
     })
     const netProfit = p.netProfit - opts.recordedFees
     const profit: LoanProfit = {
@@ -77,9 +115,11 @@ export function funderOptions(
       netPerMonth: Math.round(netProfit / l.tenure),
       annualReturnOnDrawn: p.drawn > 0 ? (netProfit / p.drawn) * (12 / l.tenure) : null,
     }
-    const netShare = l.systemPrice > 0 ? netProfit / l.systemPrice : 0
+    const revenue = lendingType === 'customer' ? (l.priceInFull ?? l.systemPrice) : l.systemPrice
+    const netShare = revenue > 0 ? netProfit / revenue : 0
     return {
       funder,
+      ...(lendingType ? { lendingType } : {}),
       profit,
       netShare,
       loss: netProfit < 0,
@@ -87,6 +127,10 @@ export function funderOptions(
     }
   })
 }
+
+/** One option's key: the funder id, plus ":customer" / ":go4solar" for a lending-type funder. */
+export const optionKey = (o: Pick<FunderOption, 'funder' | 'lendingType'>) =>
+  o.lendingType ? `${o.funder.id}:${o.lendingType}` : o.funder.id
 
 type RequiredKind = 'cac' | 'nin' | 'bvn' | 'liveness'
 const CHECK_LABEL: Record<RequiredKind, string> = {

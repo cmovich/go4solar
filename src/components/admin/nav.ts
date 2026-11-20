@@ -5,6 +5,7 @@ import {
   BookOpenText,
   ChartLine,
   ClipboardList,
+  FolderCheck,
   FileSignature,
   Hammer,
   Home,
@@ -52,6 +53,12 @@ export const NAV: readonly NavItem[] = [
     label: 'Waiting list',
     icon: ListChecks,
     roles: ['super_admin', 'credit_officer', 'operations', 'content'],
+  },
+  {
+    href: '/admin/waitlist/profiles',
+    label: 'Trade Lenda profiles',
+    icon: FolderCheck,
+    roles: ['super_admin', 'operations'],
   },
   {
     href: '/admin/grid-insights',
@@ -136,9 +143,23 @@ export const NAV: readonly NavItem[] = [
   { href: '/admin/audit', label: 'Audit log', icon: BookOpenText, roles: ['super_admin'] },
 ]
 
+/** Trade Lenda's own menu: its batches only. */
+const FUNDER_NAV: NavItem = {
+  href: '/admin/funder',
+  label: 'Batches',
+  icon: FolderCheck,
+  roles: [],
+}
+
 export function navFor(role: AppRole | null, permissions: readonly string[] = []): NavItem[] {
-  // Sales (installers, marketers): Quotations only.
-  if (role === 'sales') return NAV.filter((n) => n.href === '/admin/quotations')
+  // Sales (installers, marketers): Quotations, and the Trade Lenda profiles (edit only).
+  if (role === 'sales') {
+    return NAV.filter(
+      (n) => n.href === '/admin/quotations' || n.href === '/admin/waitlist/profiles',
+    )
+  }
+  // Funder (Trade Lenda): its batches only.
+  if (role === 'funder_partner') return [FUNDER_NAV]
   // Funder approver (SPEWA): the SPEWA approvals queue only.
   if (role === 'funder_approver') return NAV.filter((n) => n.href === '/admin/spewa')
   if (!isStaffRole(role)) return []

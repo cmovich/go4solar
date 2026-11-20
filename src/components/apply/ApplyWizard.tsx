@@ -891,10 +891,10 @@ function PersonStep({
   act,
   pending,
 }: StepProps & { kind: 'nextOfKin' | 'guarantor' }) {
-  const saved = ((kind === 'guarantor' ? state.guarantor : state.nextOfKin) ?? {}) as Record<
-    string,
-    string
-  >
+  // A guarantor from the staff-completed waiting-list profile pre-fills the form.
+  const saved = ((kind === 'guarantor'
+    ? (state.guarantor ?? state.suggestedGuarantor)
+    : state.nextOfKin) ?? {}) as Record<string, string>
   const [v, setV] = useState({
     name: saved.name ?? '',
     phone: saved.phone ?? '',

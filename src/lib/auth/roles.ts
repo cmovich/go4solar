@@ -2,10 +2,17 @@ import { redirect } from 'next/navigation'
 
 import { getSessionInfo, type AppRole, type SessionInfo } from './session'
 
-import { FUNDER_APPROVER_ROLE, SALES_ROLE, isBackOfficeRole } from './staffRoles'
+import {
+  FUNDER_APPROVER_ROLE,
+  FUNDER_PARTNER_ROLE,
+  SALES_ROLE,
+  canEditLeadProfile,
+  isBackOfficeRole,
+} from './staffRoles'
 
 export {
   FUNDER_APPROVER_ROLE,
+  FUNDER_PARTNER_ROLE,
   SALES_ROLE,
   STAFF_ROLES,
   isBackOfficeRole,
@@ -32,7 +39,13 @@ export async function requireRole(...roles: AppRole[]): Promise<SessionInfo> {
   const info = await getSessionInfo()
   if (!info.user) redirect(loginUrl())
   if (!info.role || !roles.includes(info.role))
-    redirect(info.role === FUNDER_APPROVER_ROLE ? '/admin/spewa' : '/')
+    redirect(
+      info.role === FUNDER_APPROVER_ROLE
+        ? '/admin/spewa'
+        : info.role === FUNDER_PARTNER_ROLE
+          ? '/admin/funder'
+          : '/',
+    )
   return info
 }
 
@@ -49,6 +62,28 @@ export async function requireStaffWithMfa(): Promise<SessionInfo> {
   if (info.role === SALES_ROLE) redirect('/admin/quotations')
   // A funder approver may only use the SPEWA approvals queue.
   if (info.role === FUNDER_APPROVER_ROLE) redirect('/admin/spewa')
+  // A funder (Trade Lenda) may only see its own batches.
+  if (info.role === FUNDER_PARTNER_ROLE) redirect('/admin/funder')
+  return info
+}
+
+/** Trade Lenda's pages (/admin/funder): the funder, or a super admin ("View as Trade Lenda"). */
+export async function requireFunderViewer(): Promise<SessionInfo> {
+  const info = await getSessionInfo()
+  if (!info.user) redirect(loginUrl('/admin/funder'))
+  if (!isBackOfficeRole(info.role)) redirect('/')
+  if (info.aal !== 'aal2') redirect('/admin/mfa')
+  if (info.role !== 'super_admin' && info.role !== FUNDER_PARTNER_ROLE) redirect('/admin')
+  return info
+}
+
+/** Waiting-list profiles: super admin and Operations edit and send; Sales edits only. */
+export async function requireLeadProfileEditor(): Promise<SessionInfo> {
+  const info = await getSessionInfo()
+  if (!info.user) redirect(loginUrl('/admin/waitlist'))
+  if (!isBackOfficeRole(info.role)) redirect('/')
+  if (info.aal !== 'aal2') redirect('/admin/mfa')
+  if (!canEditLeadProfile(info.role)) redirect('/admin')
   return info
 }
 

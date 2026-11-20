@@ -6,7 +6,14 @@ import { z } from 'zod'
 
 import { siteOrigin } from '@/lib/auth/emailVerification'
 import { authCallbackUrl, sendPasswordLink } from '@/lib/auth/passwordLinks'
-import { FUNDER_APPROVER_ROLE, SALES_ROLE, STAFF_ROLES, isBackOfficeRole } from '@/lib/auth/roles'
+import {
+  FUNDER_APPROVER_ROLE,
+  FUNDER_PARTNER_ROLE,
+  SALES_ROLE,
+  STAFF_ROLES,
+  isBackOfficeRole,
+} from '@/lib/auth/roles'
+import { tradeLendaFunder } from '@/lib/tradeLenda/server'
 import { getSessionInfo, type SessionInfo } from '@/lib/auth/session'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
@@ -20,7 +27,7 @@ async function superAdmin(): Promise<SessionInfo | null> {
 const DENIED: Result = { ok: false, error: 'Only a super admin can manage staff.' }
 
 // Back-office staff, sales (Quotations only), or the funder approver (SPEWA queue only).
-const roleSchema = z.enum([...STAFF_ROLES, SALES_ROLE, FUNDER_APPROVER_ROLE])
+const roleSchema = z.enum([...STAFF_ROLES, SALES_ROLE, FUNDER_APPROVER_ROLE, FUNDER_PARTNER_ROLE])
 const inviteSchema = z.object({
   email: z.email('Enter a valid email address'),
   fullName: z.string().trim().min(2).max(80),
@@ -38,6 +45,24 @@ const updateSchema = z.object({
 })
 
 type Permission = 'assisted_entry' | 'waitlist_delete' | 'create_quotations'
+
+/**
+ * A "Funder (Trade Lenda)" account belongs to the Trade Lenda funder (funder_users); any other
+ * role has no funder link. Returns an error message when Trade Lenda is not set up.
+ */
+async function linkFunder(profileId: string, role: string, by: string): Promise<string | null> {
+  const admin = createAdminClient()
+  if (role !== FUNDER_PARTNER_ROLE) {
+    await admin.from('funder_users').delete().eq('profile_id', profileId)
+    return null
+  }
+  const funder = await tradeLendaFunder()
+  if (!funder) return 'Trade Lenda is not set up in Funders.'
+  const { error } = await admin
+    .from('funder_users')
+    .upsert({ profile_id: profileId, funder_id: funder.id, created_by: by })
+  return error ? 'Could not link the account to Trade Lenda.' : null
+}
 
 /** Give or take away one extra permission (only writes when it changes). */
 async function setPermission(
@@ -106,6 +131,11 @@ export async function inviteStaff(input: unknown): Promise<Result> {
     .update({ role: d.role, full_name: d.fullName })
     .eq('id', id)
   if (roleError) return { ok: false, error: roleError.message }
+  // A new account has no funder link yet: only a Trade Lenda account needs one.
+  if (d.role === FUNDER_PARTNER_ROLE) {
+    const linkError = await linkFunder(id, d.role, session.user!.id)
+    if (linkError) return { ok: false, error: linkError }
+  }
   await setPermission(id, 'assisted_entry', false, d.assistedEntry, session.user!.id)
   await setPermission(id, 'waitlist_delete', false, d.waitlistDelete, session.user!.id)
   await setPermission(id, 'create_quotations', false, d.createQuotations, session.user!.id)
@@ -146,6 +176,11 @@ export async function updateStaff(input: unknown): Promise<Result> {
   const hadQuote = (perms ?? []).some((p) => p.permission === 'create_quotations')
 
   const { error } = await admin.from('profiles').update({ role: d.role }).eq('id', d.profileId)
+  // Into or out of the Trade Lenda role: add or remove the funder link.
+  if (!error && (d.role === FUNDER_PARTNER_ROLE || before?.role === FUNDER_PARTNER_ROLE)) {
+    const linkError = await linkFunder(d.profileId, d.role, session.user!.id)
+    if (linkError) return { ok: false, error: linkError }
+  }
   if (error) return { ok: false, error: error.message }
   await setPermission(d.profileId, 'assisted_entry', hadAssisted, d.assistedEntry, session.user!.id)
   await setPermission(d.profileId, 'waitlist_delete', hadDelete, d.waitlistDelete, session.user!.id)

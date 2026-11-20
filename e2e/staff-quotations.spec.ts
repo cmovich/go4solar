@@ -180,7 +180,8 @@ test.describe('sales role', () => {
     test.skip(test.info().project.name === 'mobile', 'one browser is enough')
     await loginAsStaff(page, 'sales')
     const nav = page.getByRole('navigation', { name: 'Back office' })
-    await expect(nav.getByRole('link')).toHaveText(['Quotations'])
+    // Sales also edits the Trade Lenda profiles (18 Nov); nothing else.
+    await expect(nav.getByRole('link')).toHaveText(['Trade Lenda profiles', 'Quotations'])
     for (const path of [
       '/admin',
       '/admin/waitlist',

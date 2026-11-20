@@ -141,19 +141,30 @@ export const energySizingSchema = z.object({
 })
 export type EnergySizingDraft = z.infer<typeof energySizingSchema>
 
-export const funderSchema = z.object({
-  id: z.uuid().optional(),
-  name: z.string().trim().min(2).max(120),
-  kind: z.enum(['external', 'own_fund']),
-  annualRate: share,
-  method: z.enum(['flat', 'reducing']),
-  upfrontFeeShare: share,
-  minAmount: z.number().min(0),
-  maxAmount: z.number().min(0).nullable(),
-  maxTenure: tenureSchema,
-  balanceAvailable: z.number().min(0),
-  status: z.enum(['active', 'paused']),
-})
+export const funderSchema = z
+  .object({
+    id: z.uuid().optional(),
+    name: z.string().trim().min(2).max(120),
+    kind: z.enum(['external', 'own_fund']),
+    annualRate: share,
+    method: z.enum(['flat', 'reducing']),
+    upfrontFeeShare: share,
+    minAmount: z.number().min(0),
+    maxAmount: z.number().min(0).nullable(),
+    maxTenure: tenureSchema,
+    balanceAvailable: z.number().min(0),
+    status: z.enum(['active', 'paused']),
+    /** Who the funder lends to (0041): the customers, Go4Solar, or both. */
+    lendingTypes: z
+      .array(z.enum(['customer', 'go4solar']))
+      .min(1, 'Choose at least one lending type.')
+      .default(['go4solar']),
+    defaultLendingType: z.enum(['customer', 'go4solar']).default('go4solar'),
+  })
+  .refine((f) => f.lendingTypes.includes(f.defaultLendingType), {
+    message: 'The default lending type must be one of the allowed types.',
+    path: ['defaultLendingType'],
+  })
 export type FunderDraft = z.infer<typeof funderSchema>
 
 /** Everything the pricing workbench edits, as one draft object. */

@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { StaffTable, type StaffRowView } from '@/components/admin/staff/StaffTable'
 import {
   FUNDER_APPROVER_ROLE,
+  FUNDER_PARTNER_ROLE,
   SALES_ROLE,
   STAFF_ROLES,
   isBackOfficeRole,
@@ -20,7 +21,7 @@ export default async function StaffPage() {
   const { data: profiles, error } = await supabase
     .from('profiles')
     .select('id, email, full_name, role')
-    .in('role', [...STAFF_ROLES, SALES_ROLE, FUNDER_APPROVER_ROLE])
+    .in('role', [...STAFF_ROLES, SALES_ROLE, FUNDER_APPROVER_ROLE, FUNDER_PARTNER_ROLE])
     .order('created_at')
   if (error) throw new Error(error.message)
   const { data: perms } = await supabase.from('staff_permissions').select('profile_id, permission')

@@ -22,7 +22,11 @@ export async function defaultInputs(): Promise<ScenarioInputs> {
     await Promise.all([
       unitCostsRow(),
       admin.from('unit_costs').select('sample').eq('id', 1).maybeSingle(),
-      admin.from('funders').select('kind, annual_rate, balance_available, status, sample, is_test'),
+      admin
+        .from('funders')
+        .select(
+          'kind, annual_rate, balance_available, status, sample, is_test, default_lending_type',
+        ),
       admin
         .from('overheads')
         .select('*')
@@ -46,8 +50,12 @@ export async function defaultInputs(): Promise<ScenarioInputs> {
   const totalBalance = funders.reduce((s, f) => s + Number(f.balance_available), 0)
   const external = funders.filter((f) => f.kind === 'external')
   const externalBalance = external.reduce((s, f) => s + Number(f.balance_available), 0)
+  // A funder that lends to the customer by default (Trade Lenda) charges Go4Solar nothing: it
+  // pays the price upfront and collects from the customer. Its forecast rate is 0.
+  const effectiveRate = (f: { annual_rate: unknown; default_lending_type?: string | null }) =>
+    f.default_lending_type === 'customer' ? 0 : Number(f.annual_rate)
   const funderRate = externalBalance
-    ? external.reduce((s, f) => s + Number(f.annual_rate) * Number(f.balance_available), 0) /
+    ? external.reduce((s, f) => s + effectiveRate(f) * Number(f.balance_available), 0) /
       externalBalance
     : 0.16
   if (!externalBalance || external.some((f) => f.sample))

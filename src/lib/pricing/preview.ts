@@ -3,6 +3,8 @@ import { computeLoadTotals } from '@/lib/load/totals'
 import type { LoadTotals } from '@/lib/load/types'
 import type { NgStateId } from '@/lib/nigeria/states'
 import { loanProfit } from '@/lib/profit/loanProfit'
+import { cashPrice } from '@/lib/quotes/quote'
+import { tradeLendaDrawn } from '@/lib/tradeLenda/figures'
 import type { LoanProfit, UnitCosts } from '@/lib/profit/types'
 import { equipmentFromPriceList, installCostFor, linesFor } from '@/lib/quotes/buildEstimate'
 import { DEFAULT_SUN_HOURS, type QuoteSettings } from '@/lib/settings/schemas'
@@ -20,6 +22,8 @@ export type PreviewFunder = {
   /** Longest tenure this funder lends for; longer plans cannot use it. */
   maxTenure: TenureMonths
   status: 'active' | 'paused'
+  /** Who the funder lends to (0041). A funder that lends to customers shows once per type. */
+  lendingTypes?: ('customer' | 'go4solar')[]
 }
 
 /** One switched-on tenure in the preview, with the most profitable funder that lends for it. */
@@ -169,18 +173,31 @@ function priceAt(
 function sideWith(input: PreviewInput, quote: QuoteResult, tenureMonths: TenureMonths) {
   return input.funders
     .filter((f) => f.status === 'active' && f.maxTenure >= tenureMonths)
-    .map((f) => ({
-      id: f.id,
-      name: f.name,
+    .flatMap((f) =>
+      f.lendingTypes?.includes('customer')
+        ? f.lendingTypes.map((t) => ({ f, t }))
+        : [{ f, t: undefined as 'customer' | 'go4solar' | undefined }],
+    )
+    .map(({ f, t }) => ({
+      id: t ? `${f.id}:${t}` : f.id,
+      name: t
+        ? `${f.name} (${t === 'customer' ? 'lends to customer' : 'lends to Go4Solar'})`
+        : f.name,
       annualRate: f.annualRate,
       profit: loanProfit({
-        systemPrice: quote.systemPrice,
+        // Lent to the customer: Go4Solar receives the price paid in full upfront.
+        systemPrice: t === 'customer' ? cashPrice(quote.snapshot) : quote.systemPrice,
         costPrice: quote.costPrice,
         deposit: quote.deposit,
         tenureMonths,
         funderAnnualRate: f.annualRate,
         funderMethod: 'flat',
         unitCosts: input.unitCosts,
+        lendingType: t,
+        drawnAmount:
+          t === 'go4solar'
+            ? tradeLendaDrawn({ priceInFull: cashPrice(quote.snapshot), deposit: quote.deposit })
+            : undefined,
       }),
     }))
 }

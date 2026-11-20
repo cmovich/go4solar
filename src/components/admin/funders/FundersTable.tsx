@@ -41,6 +41,8 @@ const EMPTY: FunderDraft = {
   maxTenure: 12,
   balanceAvailable: 0,
   status: 'active',
+  lendingTypes: ['go4solar'],
+  defaultLendingType: 'go4solar',
 }
 
 export function FundersTable({ rows, canEdit }: { rows: FunderRowView[]; canEdit: boolean }) {
@@ -118,7 +120,17 @@ export function FundersTable({ rows, canEdit }: { rows: FunderRowView[]; canEdit
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2 tabular-nums">{formatPercent(f.annualRate, 1)}/yr</td>
+                <td className="px-3 py-2 tabular-nums" data-testid={`funder-rate-${f.name}`}>
+                  {formatPercent(f.annualRate / 12, 1)}/month ({formatPercent(f.annualRate, 1)}/yr)
+                  <span className="text-muted-foreground block text-xs">
+                    Lends to:{' '}
+                    {f.lendingTypes
+                      .map((t) => (t === 'customer' ? 'customers' : 'Go4Solar'))
+                      .join(' and ')}
+                    {f.lendingTypes.length > 1 &&
+                      ` · default ${f.defaultLendingType === 'customer' ? 'customers' : 'Go4Solar'}`}
+                  </span>
+                </td>
                 <td className="px-3 py-2">{f.method}</td>
                 <td className="px-3 py-2 whitespace-nowrap tabular-nums">
                   {formatNaira(f.minAmount)} –{' '}
@@ -276,6 +288,56 @@ export function FundersTable({ rows, canEdit }: { rows: FunderRowView[]; canEdit
                     onChange={(v) => set({ balanceAvailable: v })}
                   />
                 </div>
+                <fieldset className="text-sm sm:col-span-2">
+                  <legend className="font-medium">Lending types allowed</legend>
+                  <div className="mt-1 flex flex-wrap gap-4">
+                    {(['customer', 'go4solar'] as const).map((t) => (
+                      <label key={t} className="flex min-h-10 items-center gap-2">
+                        <Checkbox
+                          checked={editing.lendingTypes.includes(t)}
+                          onCheckedChange={(v) => {
+                            const next =
+                              v === true
+                                ? [...new Set([...editing.lendingTypes, t])]
+                                : editing.lendingTypes.filter((x) => x !== t)
+                            set({
+                              lendingTypes: next,
+                              defaultLendingType: next.includes(editing.defaultLendingType)
+                                ? editing.defaultLendingType
+                                : (next[0] ?? 'go4solar'),
+                            })
+                          }}
+                        />
+                        {t === 'customer'
+                          ? 'Lends to customers (pays Go4Solar upfront)'
+                          : 'Lends to Go4Solar'}
+                      </label>
+                    ))}
+                  </div>
+                  <Label htmlFor="f-default-type" className="mt-2 block">
+                    Default lending type
+                  </Label>
+                  <select
+                    id="f-default-type"
+                    value={editing.defaultLendingType}
+                    onChange={(e) =>
+                      set({
+                        defaultLendingType: e.target.value as FunderDraft['defaultLendingType'],
+                      })
+                    }
+                    className="border-input mt-1 h-10 w-full rounded-md border bg-white px-2 text-sm"
+                  >
+                    {editing.lendingTypes.map((t) => (
+                      <option key={t} value={t}>
+                        {t === 'customer' ? 'Lends to customers' : 'Lends to Go4Solar'}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Rate per month: {formatPercent(editing.annualRate / 12, 2)} (the yearly rate ÷
+                    12, flat).
+                  </p>
+                </fieldset>
                 <label className="flex items-center gap-2 text-sm sm:col-span-2">
                   <Checkbox
                     checked={editing.status === 'active'}

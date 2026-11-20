@@ -1,5 +1,6 @@
 import { SpewaProfit } from '@/components/admin/spewa/SpewaProfit'
 import { offerProfit } from '@/lib/spewa/offer'
+import { optionKey } from '@/lib/approvals/rules'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -81,8 +82,10 @@ export default async function ApplicationPage({
   const sla =
     app.status === 'submitted' || app.status === 'under_review' ? slaState(app.submitted_at) : null
   const options: FunderChoice[] = ctx.options.map((o) => ({
-    id: o.funder.id,
-    name: o.funder.name,
+    id: optionKey(o),
+    name: o.lendingType
+      ? `${o.funder.name} — ${o.lendingType === 'customer' ? 'lends to the customer' : 'lends to Go4Solar'}`
+      : o.funder.name,
     annualRate: o.funder.annualRate,
     balanceAvailable: o.funder.balanceAvailable,
     drawn: o.profit.drawn,
