@@ -13,6 +13,14 @@ export const metadata: Metadata = { title: 'Complete profile' }
 export const dynamic = 'force-dynamic'
 
 /** Admin → Waiting list → Edit / Complete profile (super admin, Operations, Sales). */
+/** What the waiting list already has: the plan or system the person chose ("" when none). */
+function ownPlan(lead: { builder: unknown; chosen_plan: string | null }): string {
+  const b = lead.builder as { kind?: string; plan?: { slug?: string } } | null
+  if (b?.kind === 'ready' && b.plan?.slug) return `ready:${b.plan.slug}`
+  if (b && (b.kind === 'builder' || !b.kind)) return 'builder:builder'
+  return lead.chosen_plan ? `estimate:${lead.chosen_plan}` : ''
+}
+
 export default async function LeadProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireLeadProfileEditor()
   const { id } = await params
@@ -60,7 +68,10 @@ export default async function LeadProfilePage({ params }: { params: Promise<{ id
           guarantorPhone: profile?.guarantor_phone_e164 ?? '',
           guarantorRelationship: profile?.guarantor_relationship ?? '',
           guarantorAddress: profile?.guarantor_address ?? '',
-          plan: values.planKind && values.planRef ? `${values.planKind}:${values.planRef}` : '',
+          plan:
+            values.planKind && values.planRef
+              ? `${values.planKind}:${values.planRef}`
+              : ownPlan(lead),
           depositPct: values.depositShare === null ? 20 : Math.round(values.depositShare * 100),
           months: values.months ?? 12,
         }}

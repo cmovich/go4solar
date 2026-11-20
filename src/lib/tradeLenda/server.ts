@@ -7,11 +7,13 @@ import type { Estimate } from '@/lib/quotes/buildEstimate'
 import { PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import { quoteReference } from '@/lib/quotes/quote'
 import { loadReadyPlan, loadReadyPlans } from '@/lib/readyPlans/server'
+import { systemTitle } from '@/lib/build/stored'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database, Json } from '@/lib/supabase/database.types'
 import type { Plan } from '@/lib/sizing/types'
 
 import { batchTotals, nextBatchNumber } from './batch'
+import { statusOf, type ListStatus } from './list'
 import {
   customerFigures,
   go4solarFigures,
@@ -97,12 +99,38 @@ export async function planChoices(lead: Lead): Promise<PlanChoice[]> {
         out.push({ kind: 'estimate', ref: p, label: `${PLAN_LABELS[p]} (calculator)` })
     }
   }
+  // Staff quotations made for this phone number (attach one during the call).
+  const { data: sq } = await createAdminClient()
+    .from('staff_quotations')
+    .select('public_code, total, created_at, customer_phone')
+    .eq('customer_phone', lead.phone_e164)
+    .order('created_at', { ascending: false })
+    .limit(10)
+  for (const q of sq ?? []) {
+    out.push({
+      kind: 'builder',
+      ref: `sq:${q.public_code}`,
+      label: `Staff quotation ${q.public_code} (${q.created_at.slice(0, 10)})`,
+    })
+  }
   for (const p of await loadReadyPlans({ activeOnly: true })) {
     if (!out.some((c) => c.kind === 'ready' && c.ref === p.slug)) {
       out.push({ kind: 'ready', ref: p.slug, label: `${p.name} (ready-made plan)` })
     }
   }
   return out
+}
+
+/** A staff quotation by its code (or its /q/<code> link), or null. */
+export async function staffQuotationByCode(input: string) {
+  const code = /\/q\/([A-Za-z0-9_-]+)/.exec(input)?.[1] ?? input.trim()
+  if (!/^[A-Za-z0-9_-]{4,40}$/.test(code)) return null
+  const { data } = await createAdminClient()
+    .from('staff_quotations')
+    .select('public_code, builder')
+    .eq('public_code', code)
+    .maybeSingle()
+  return data
 }
 
 /** The chosen plan priced for Trade Lenda (null when it cannot be priced). */
@@ -119,6 +147,23 @@ export async function basisFor(
     if (kind === 'ready') {
       const p = await loadReadyPlan(ref)
       return p && p.tenures.includes(m) ? readyPlanBasis(p, m) : null
+    }
+    if (kind === 'builder' && ref.startsWith('sq:')) {
+      // A staff quotation attached during the call: its ready-made plan or its built system.
+      const sq = await staffQuotationByCode(ref.slice(3))
+      const b = sq?.builder as {
+        kind?: string
+        plan?: { slug?: string }
+        quote?: QuoteResult
+      } | null
+      if (b?.kind === 'ready' && b.plan?.slug) {
+        const p = await loadReadyPlan(b.plan.slug, false)
+        return p && p.tenures.includes(m) ? readyPlanBasis(p, m) : null
+      }
+      if (!b?.quote?.snapshot) return null
+      return quoteBasis(`Staff quotation ${ref.slice(3)}`, b.quote, depositShare, m, {
+        [b.quote.snapshot.tenureMonths]: b.quote.snapshot.pricingRateAnnual,
+      })
     }
     if (kind === 'builder') {
       const q = (lead.builder as { quote?: QuoteResult } | null)?.quote
@@ -339,6 +384,19 @@ export async function saveProfile(
     return { ok: false, error: issue?.message ?? 'Check the form.', field: issue?.path.join('.') }
   }
   const f = p.data
+  // A staff quotation pasted during the call (its link or code) becomes the plan.
+  const attach = (input as { attachQuotation?: unknown })?.attachQuotation
+  if (typeof attach === 'string' && attach.trim()) {
+    const sq = await staffQuotationByCode(attach)
+    if (!sq)
+      return {
+        ok: false,
+        error: 'No staff quotation with that code or link.',
+        field: 'attachQuotation',
+      }
+    f.planKind = 'builder'
+    f.planRef = `sq:${sq.public_code}`
+  }
   const admin = createAdminClient()
   const [{ data: lead }, { data: before }] = await Promise.all([
     admin.from('waitlist_consumers').select('*').eq('id', waitlistId).maybeSingle(),
@@ -843,77 +901,126 @@ export type ProfileListRow = {
   reference: string
   name: string
   phone: string
+  email: string | null
   state: string | null
   createdAt: string
+  /** The sign-up was finished (false: they stopped part-way, e.g. after the phone number). */
+  signUpComplete: boolean
+  /** The plan or quote (from the profile, else what the waiting list has), or null. */
+  plan: string | null
   done: number
   total: number
   missing: string[]
+  hasProfile: boolean
   verified: boolean
   consent: boolean
   /** The lending type the customer agreed figures for (null: not yet). */
   agreedType: LendingType | null
-  /** The amount Trade Lenda finances for this customer, from the agreed figures. */
+  /** The amount Trade Lenda hands over for this customer, from the agreed figures. */
   agreedFinanced: number | null
+  /** Current batches ("TL-Batch-001 v2"). */
   batches: string[]
+  /** Trade Lenda's latest decision in a current batch (null: none yet). */
+  decision: string | null
+  status: ListStatus
   isTest: boolean
 }
 
-/** Waiting-list entries (complete sign-ups) with their profile status (super admin / Operations / Sales). */
+/** What a stored plan reference reads as in the list. */
+function planLabel(kind: string | null, ref: string | null, readyNames: Map<string, string>) {
+  if (!kind || !ref) return null
+  if (kind === 'ready') return `${readyNames.get(ref) ?? ref} (ready-made plan)`
+  if (kind === 'builder')
+    return ref.startsWith('sq:') ? `Staff quotation ${ref.slice(3)}` : 'Own system'
+  if (kind === 'estimate') return `${PLAN_LABELS[ref as Plan] ?? ref} (calculator)`
+  return null
+}
+
+/**
+ * EVERY real waiting-list entry (finished sign-up or not; cleared ones left out), with its profile
+ * status (super admin / Operations / Sales). Test entries only with `includeTest`.
+ */
 export async function profileList(includeTest: boolean): Promise<ProfileListRow[]> {
   const admin = createAdminClient()
-  let q = admin
-    .from('waitlist_consumers')
-    .select('*')
-    .eq('status', 'complete')
-    .is('cleared_at', null)
-    .order('created_at', { ascending: false })
-    .limit(1000)
-  if (!includeTest) q = q.eq('is_test', false)
-  const { data: leads } = await q
-  const ids = (leads ?? []).map((l) => l.id)
-  const [{ data: profiles }, { data: items }] = await Promise.all([
+  const leads: Lead[] = []
+  // Paged past the 1,000-row limit.
+  for (let from = 0; ; from += 1000) {
+    let q = admin
+      .from('waitlist_consumers')
+      .select('*')
+      .is('cleared_at', null)
+      .order('created_at', { ascending: false })
+      .range(from, from + 999)
+    if (!includeTest) q = q.eq('is_test', false)
+    const { data } = await q
+    leads.push(...(data ?? []))
+    if (!data || data.length < 1000) break
+  }
+  const ids = leads.map((l) => l.id)
+  const [{ data: profiles }, { data: items }, ready] = await Promise.all([
     ids.length
       ? admin.from('lead_profiles').select('*').in('waitlist_id', ids)
-      : Promise.resolve({ data: [] }),
+      : Promise.resolve({ data: [] as ProfileRow[] }),
     ids.length
       ? admin
           .from('funder_batch_items')
-          .select('waitlist_id, decision, funder_batches(number, version, replaced_by)')
+          .select('waitlist_id, decision, decided_at, funder_batches(number, version, replaced_by)')
           .in('waitlist_id', ids)
       : Promise.resolve({ data: [] }),
+    loadReadyPlans({ activeOnly: false }),
   ])
+  const readyNames = new Map(ready.map((p) => [p.slug, p.name]))
   const byId = new Map((profiles ?? []).map((p) => [p.waitlist_id, p]))
-  return (leads ?? []).map((l) => {
+  return leads.map((l) => {
     const p = byId.get(l.id) ?? null
     const c = completeness(valuesOf(l, p))
     const agreed = (p?.figures_agreed as LendingFigures | null) ?? null
-    return {
+    const current = (items ?? []).filter((i) => {
+      const b = i.funder_batches as { replaced_by: string | null } | null
+      return i.waitlist_id === l.id && b && !b.replaced_by
+    })
+    const decided = current.filter((i) => i.decision !== 'pending')
+    const own =
+      systemTitle(l.builder) ??
+      (l.chosen_plan ? `${PLAN_LABELS[l.chosen_plan as Plan] ?? l.chosen_plan} (calculator)` : null)
+    const row = {
       id: l.id,
       reference: quoteReference(l.id),
       name: [l.first_name, l.surname].filter(Boolean).join(' ') || '—',
       phone: l.phone_e164,
+      email: l.email,
       state: l.state,
       createdAt: l.created_at,
+      signUpComplete: l.status === 'complete',
+      plan: planLabel(p?.plan_kind ?? null, p?.plan_ref ?? null, readyNames) ?? own,
       done: c.done,
       total: c.total,
       missing: c.missing,
+      hasProfile: Boolean(p),
       verified: Boolean(p?.phone_verified_at),
       consent: Boolean(p?.consent_tl_at),
       agreedType: p?.figures_agreed_at && agreed ? agreed.lendingType : null,
       agreedFinanced: p?.figures_agreed_at && agreed ? agreed.financed : null,
-      batches: (items ?? [])
-        .filter((i) => i.waitlist_id === l.id)
-        .flatMap((i) => {
-          const b = i.funder_batches as {
-            number: string
-            version: number
-            replaced_by: string | null
-          } | null
-          return b && !b.replaced_by
-            ? [`${b.number}${b.version > 1 ? ` v${b.version}` : ''} (${i.decision})`]
-            : []
-        }),
+      batches: current.flatMap((i) => {
+        const b = i.funder_batches as { number: string; version: number } | null
+        return b ? [`${b.number}${b.version > 1 ? ` v${b.version}` : ''}`] : []
+      }),
+      decision:
+        [...decided].sort((a, b) => (b.decided_at ?? '').localeCompare(a.decided_at ?? ''))[0]
+          ?.decision ?? null,
       isTest: l.is_test,
+    }
+    return {
+      ...row,
+      status: statusOf({
+        hasProfile: row.hasProfile,
+        missing: row.missing.length,
+        verified: row.verified,
+        consent: row.consent,
+        agreed: Boolean(row.agreedType),
+        sent: current.length > 0,
+        decided: decided.length > 0,
+      }),
     }
   })
 }

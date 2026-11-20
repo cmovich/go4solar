@@ -5,13 +5,32 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState, useTransition } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { formatNaira } from '@/lib/money'
 import { LENDING_TYPE_LABELS, type LendingType } from '@/lib/tradeLenda/figures'
+import {
+  FILTER_LABELS,
+  LIST_FILTERS,
+  STATUS_LABELS,
+  filterCounts,
+  listRows,
+  type ListFilter,
+  type ListSort,
+} from '@/lib/tradeLenda/list'
 import type { ProfileListRow } from '@/lib/tradeLenda/server'
 
 import { sendToTradeLenda } from '@/app/admin/(shell)/waitlist/profiles/actions'
 
-/** The profiles list; super admin ticks ready entries and sends them to Trade Lenda. */
+const DECISIONS: Record<string, string> = {
+  approved: 'Approved',
+  declined: 'Declined',
+  needs_info: 'Needs info',
+}
+
+/**
+ * Every waiting-list person, complete or not: filters (with counts), search and sort. Super admin
+ * ticks "Ready to send" entries and sends them to Trade Lenda.
+ */
 export function ProfilesTable({
   rows,
   canSend,
@@ -28,14 +47,17 @@ export function ProfilesTable({
 }) {
   const router = useRouter()
   const [type, setType] = useState<LendingType>(defaultLendingType)
-  const [onlyReady, setOnlyReady] = useState(false)
+  const [filter, setFilter] = useState<ListFilter>('all')
+  const [q, setQ] = useState('')
+  const [sort, setSort] = useState<ListSort>('newest')
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const [pending, start] = useTransition()
+  const counts = useMemo(() => filterCounts(rows), [rows])
+  const shown = useMemo(() => listRows(rows, { filter, q, sort }), [rows, filter, q, sort])
+  // Can go in a batch (unchanged rule): complete, the three ticks, figures agreed for this type.
   const ready = (r: ProfileListRow) =>
     r.missing.length === 0 && r.verified && r.consent && r.agreedType === type
-  const shown = useMemo(() => (onlyReady ? rows.filter(ready) : rows), [rows, onlyReady, type]) // eslint-disable-line react-hooks/exhaustive-deps
-
   const pickedFinanced = rows
     .filter((r) => picked.has(r.id))
     .reduce((t, r) => t + (r.agreedFinanced ?? 0), 0)
@@ -55,57 +77,88 @@ export function ProfilesTable({
 
   return (
     <div className="mt-6 space-y-3">
-      <div className="flex flex-wrap items-center gap-3 text-sm">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={onlyReady}
-            onChange={(e) => setOnlyReady(e.target.checked)}
-          />
-          Ready to send only
-        </label>
-        {canSend && lendingTypes.length > 0 && (
-          <>
-            <label className="flex items-center gap-2">
-              Trade Lenda lends to:
-              <select
-                value={type}
-                onChange={(e) => {
-                  setType(e.target.value as LendingType)
-                  setPicked(new Set())
-                }}
-                className="border-input h-9 rounded-md border bg-white px-2"
-                aria-label="Trade Lenda lends to"
-              >
-                {lendingTypes.map((t) => (
-                  <option key={t} value={t}>
-                    {t === 'customer' ? 'the customers' : 'Go4Solar'}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button
-              type="button"
-              size="sm"
-              disabled={pending || picked.size === 0}
-              onClick={send}
-              data-testid="send-to-tl"
-            >
-              {pending ? 'Sending…' : `Send to Trade Lenda (${picked.size})`}
-            </Button>
-          </>
-        )}
+      <div
+        className="flex flex-wrap gap-2"
+        role="group"
+        aria-label="Show"
+        data-testid="list-filters"
+      >
+        {LIST_FILTERS.map((f) => (
+          <Button
+            key={f}
+            type="button"
+            size="sm"
+            variant={filter === f ? 'default' : 'outline'}
+            aria-pressed={filter === f}
+            onClick={() => setFilter(f)}
+            data-testid={`filter-${f}`}
+          >
+            {FILTER_LABELS[f]} ({counts[f]})
+          </Button>
+        ))}
       </div>
-      {canSend && (
-        <p className="text-sm" data-testid="tl-balance">
-          Trade Lenda available balance: <strong>{formatNaira(balanceAvailable)}</strong>
-          {picked.size > 0 && (
-            <>
-              {' '}
-              · selected to finance: <strong>{formatNaira(pickedFinanced)}</strong>
-            </>
-          )}
-        </p>
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search name, phone or email"
+          aria-label="Search name, phone or email"
+          className="h-10 w-72 bg-white"
+        />
+        <label className="flex items-center gap-2">
+          Sort
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as ListSort)}
+            className="border-input h-10 rounded-md border bg-white px-2"
+            aria-label="Sort"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="complete">Most complete first</option>
+          </select>
+        </label>
+      </div>
+
+      {canSend && lendingTypes.length > 0 && (
+        <div className="bg-brand-mist flex flex-wrap items-center gap-3 rounded-xl p-3 text-sm">
+          <label className="flex items-center gap-2">
+            Trade Lenda lends to:
+            <select
+              value={type}
+              onChange={(e) => {
+                setType(e.target.value as LendingType)
+                setPicked(new Set())
+              }}
+              className="border-input h-9 rounded-md border bg-white px-2"
+              aria-label="Trade Lenda lends to"
+            >
+              {lendingTypes.map((t) => (
+                <option key={t} value={t}>
+                  {t === 'customer' ? 'the customers' : 'Go4Solar'}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button
+            type="button"
+            size="sm"
+            disabled={pending || picked.size === 0}
+            onClick={send}
+            data-testid="send-to-tl"
+          >
+            {pending ? 'Sending…' : `Send to Trade Lenda (${picked.size})`}
+          </Button>
+          <span data-testid="tl-balance">
+            Trade Lenda available balance: <strong>{formatNaira(balanceAvailable)}</strong>
+            {picked.size > 0 && (
+              <>
+                {' '}
+                · selected to finance: <strong>{formatNaira(pickedFinanced)}</strong>
+              </>
+            )}
+          </span>
+        </div>
       )}
       {canSend && overBalance && (
         <p
@@ -126,21 +179,33 @@ export function ProfilesTable({
           {notice.text}
         </p>
       )}
+
       <div className="overflow-x-auto rounded-xl border">
-        <table className="w-full min-w-[860px] text-sm" data-testid="profiles-table">
+        <table className="w-full min-w-[980px] text-sm" data-testid="profiles-table">
           <thead className="bg-brand-green text-left text-white">
             <tr>
               {canSend && <th className="px-2 py-2">Send</th>}
-              <th className="px-2 py-2">Customer</th>
+              <th className="px-2 py-2">Name</th>
+              <th className="px-2 py-2">Phone</th>
+              <th className="px-2 py-2">State</th>
+              <th className="px-2 py-2">Plan / quote</th>
               <th className="px-2 py-2">Profile</th>
-              <th className="px-2 py-2">Verified</th>
+              <th className="px-2 py-2">Details confirmed</th>
               <th className="px-2 py-2">Consent</th>
               <th className="px-2 py-2">Figures agreed</th>
-              <th className="px-2 py-2">Batches</th>
+              <th className="px-2 py-2">Batch</th>
+              <th className="px-2 py-2">Trade Lenda</th>
               <th className="px-2 py-2" />
             </tr>
           </thead>
           <tbody>
+            {shown.length === 0 && (
+              <tr>
+                <td colSpan={12} className="text-muted-foreground px-2 py-4">
+                  Nobody matches.
+                </td>
+              </tr>
+            )}
             {shown.map((r) => (
               <tr key={r.id} className="border-t align-top" data-testid={`profile-row-${r.id}`}>
                 {canSend && (
@@ -163,14 +228,23 @@ export function ProfilesTable({
                   <span className="font-medium">{r.name}</span>
                   {r.isTest && <span className="text-muted-foreground"> (test)</span>}
                   <span className="text-muted-foreground block text-xs">
-                    {r.reference} · {r.phone} · {r.state ?? '—'}
+                    {r.reference}
+                    {r.signUpComplete ? '' : ' · stopped part-way through sign-up'}
                   </span>
                 </td>
+                <td className="px-2 py-2 whitespace-nowrap">
+                  <a href={`tel:${r.phone}`} className="text-brand-blue underline">
+                    {r.phone}
+                  </a>
+                </td>
+                <td className="px-2 py-2">{r.state ?? '—'}</td>
+                <td className="px-2 py-2">{r.plan ?? '—'}</td>
                 <td
-                  className="px-2 py-2"
+                  className="px-2 py-2 whitespace-nowrap"
                   title={r.missing.length ? `Missing: ${r.missing.join(', ')}` : 'Complete'}
+                  data-testid={`profile-status-${r.id}`}
                 >
-                  {r.done}/{r.total}
+                  {STATUS_LABELS[r.status]} · {r.done} of {r.total}
                 </td>
                 <td className="px-2 py-2">{r.verified ? '✓' : '—'}</td>
                 <td className="px-2 py-2">{r.consent ? '✓' : '—'}</td>
@@ -183,9 +257,12 @@ export function ProfilesTable({
                 </td>
                 <td className="px-2 py-2 text-xs">{r.batches.join(', ') || '—'}</td>
                 <td className="px-2 py-2">
+                  {r.decision ? (DECISIONS[r.decision] ?? r.decision) : '—'}
+                </td>
+                <td className="px-2 py-2">
                   <Link
                     href={`/admin/waitlist/${r.id}/profile`}
-                    className="text-brand-blue underline"
+                    className="text-brand-blue whitespace-nowrap underline"
                   >
                     Edit / Complete profile
                   </Link>

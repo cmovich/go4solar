@@ -123,6 +123,7 @@ export function ProfileEditor(props: {
       guarantorAddress: s('guarantorAddress'),
       planKind: planKind ?? '',
       planRef: planRef ?? '',
+      attachQuotation: s('attachQuotation'),
       depositPct: s('depositPct') === '' ? null : Number(s('depositPct')),
       months: s('months') === '' ? null : Number(s('months')),
     }
@@ -269,6 +270,21 @@ export function ProfileEditor(props: {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor="p-attachQuotation">
+              Or attach a staff quotation (paste its link or code)
+            </Label>
+            <Input
+              id="p-attachQuotation"
+              name="attachQuotation"
+              placeholder="https://go4solar.app/q/… or the code"
+              className="mt-1 h-10 bg-white"
+            />
+            <p className="text-muted-foreground mt-1 text-xs">
+              No plan yet? Choose a ready-made plan above, or make a quotation in Admin → Quotations
+              during the call and paste its link here.
+            </p>
           </div>
           <div>
             <Label htmlFor="p-depositPct">Deposit %</Label>
