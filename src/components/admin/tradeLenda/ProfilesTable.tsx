@@ -208,7 +208,12 @@ export function ProfilesTable({
             )}
             {shown.map((r) => (
               <tr key={r.id} className="border-t align-top" data-testid={`profile-row-${r.id}`}>
-                {canSend && (
+                {canSend && r.batches.length > 0 && (
+                  <td className="px-2 py-2 text-xs" data-testid={`sent-in-${r.id}`}>
+                    Sent in {r.batches.join(', ')}
+                  </td>
+                )}
+                {canSend && r.batches.length === 0 && (
                   <td className="px-2 py-2">
                     <input
                       type="checkbox"

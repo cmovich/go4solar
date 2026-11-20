@@ -73,6 +73,36 @@ async function download(request: APIRequestContext, href: string): Promise<strin
   return body.toString('latin1')
 }
 
+/** A fresh TEST waiting-list person (a +234800000 phone marks it test). */
+async function newTestLead(): Promise<{ id: string; phone: string }> {
+  const phone = `+234800000${String(Math.floor(Math.random() * 1e4)).padStart(4, '0')}`
+  const res = await fetch(`${url}/rest/v1/waitlist_consumers`, {
+    method: 'POST',
+    headers: {
+      apikey: key!,
+      Authorization: `Bearer ${key}`,
+      'content-type': 'application/json',
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify({
+      phone_e164: phone,
+      visitor_token_hash: `e2e-tl-${Date.now()}`,
+      status: 'complete',
+      applicant_type: 'individual',
+      state: 'Kaduna',
+      lga: 'Kaduna North',
+      consent: true,
+      consent_at: new Date().toISOString(),
+      load_items: [],
+      load_totals: {},
+    }),
+  })
+  expect(res.ok).toBe(true)
+  const [row] = (await res.json()) as { id: string; is_test: boolean }[]
+  expect(row!.is_test).toBe(true)
+  return { id: row!.id, phone }
+}
+
 async function completeProfile(page: Page, id: string) {
   await page.goto(`/admin/waitlist/${id}/profile`)
   const f = page.getByTestId('profile-form')
@@ -124,16 +154,14 @@ test.describe('Trade Lenda batches', () => {
     test.skip(test.info().project.name !== 'desktop', 'staff login runs once, on desktop')
     test.skip(!(await ready()), 'migration 0041 not applied')
     test.setTimeout(600_000)
-    const [lead] = await rest<{ id: string }[]>(
-      'waitlist_consumers?is_test=eq.true&status=eq.complete&cleared_at=is.null&select=id&order=created_at.desc&limit=1',
-    )
-    test.skip(!lead, 'no complete test entry to use')
     const costs = await ogaCosts()
     await loginAsStaff(page)
-    await completeProfile(page, lead!.id)
-
     for (const type of ['customer', 'go4solar'] as const) {
-      await page.goto(`/admin/waitlist/${lead!.id}/profile`)
+      // A fresh test person per lending type: someone already in an active batch cannot go in a
+      // new one.
+      const lead = await newTestLead()
+      await completeProfile(page, lead.id)
+      await page.goto(`/admin/waitlist/${lead.id}/profile`)
       await tickAll(page, type)
       const figures = page.getByTestId(`figures-${type}`)
       if (type === 'customer') {
@@ -149,14 +177,17 @@ test.describe('Trade Lenda batches', () => {
       await page.goto('/admin/waitlist/profiles?test=1')
       await page.getByLabel('Trade Lenda lends to').selectOption(type)
       await expect(page.getByTestId('tl-balance')).toContainText('Trade Lenda available balance')
-      await page
-        .getByRole('checkbox', { name: /Send Ada Testcustomer/ })
-        .first()
-        .check()
+      await page.getByLabel('Search name, phone or email').fill(lead.phone.slice(-7))
+      await page.getByRole('checkbox', { name: /Send Ada Testcustomer/ }).check()
       await page.getByTestId('send-to-tl').click()
       await expect(page.getByTestId('send-notice')).toContainText(/Sent as TLT-Batch-\d{3}/, {
         timeout: 60_000,
       })
+      // Now in an active batch: no tick box for a NEW batch, "Sent in …" instead.
+      await page.reload()
+      await page.getByLabel('Search name, phone or email').fill(lead.phone.slice(-7))
+      await expect(page.getByTestId(`sent-in-${lead.id}`)).toContainText(/^Sent in TLT-Batch-\d{3}/)
+      await expect(page.getByTestId(`profile-row-${lead.id}`).getByRole('checkbox')).toHaveCount(0)
 
       // View as Trade Lenda: the newest batch.
       await page.goto('/admin/funder?test=1')
@@ -189,5 +220,15 @@ test.describe('Trade Lenda batches', () => {
       expect(detail).toContain('4.0% per month, flat')
       expect(problems(detail, type === 'go4solar' ? costs : [])).toEqual([])
     }
+
+    // To change a sent person's details: "Send updated version" (same number, new version).
+    await page.goto('/admin/waitlist/batches?test=1')
+    const newest = page.getByTestId('admin-batches').locator('li').first()
+    const title = (await newest.getByRole('link').first().innerText()).split(' · ')[0]!
+    await newest.getByRole('button', { name: 'Send updated version' }).click()
+    await expect(page.getByTestId('admin-batches').locator('li').first()).toContainText(
+      `${title} v2`,
+      { timeout: 60_000 },
+    )
   })
 })

@@ -601,6 +601,25 @@ async function snapshotFor(
   }
 }
 
+/** For each entry already in an active (not replaced) batch: that batch's number. */
+async function activeBatchOf(ids: string[]): Promise<Map<string, string>> {
+  const { data } = await createAdminClient()
+    .from('funder_batch_items')
+    .select('waitlist_id, funder_batches(number, version, replaced_by)')
+    .in('waitlist_id', ids)
+  const out = new Map<string, string>()
+  for (const i of data ?? []) {
+    const b = i.funder_batches as {
+      number: string
+      version: number
+      replaced_by: string | null
+    } | null
+    if (b && !b.replaced_by)
+      out.set(i.waitlist_id, `${b.number}${b.version > 1 ? ` v${b.version}` : ''}`)
+  }
+  return out
+}
+
 /** Send entries to Trade Lenda as a new numbered batch (super admin). */
 export async function createBatch(
   input: { ids: string[]; lendingType: LendingType },
@@ -615,6 +634,15 @@ export async function createBatch(
   }
   const ids = [...new Set(input.ids)].slice(0, 200)
   if (ids.length === 0) return { ok: false, error: 'Choose at least one entry.' }
+  // Someone already in an active (not replaced) batch cannot go in a new one: change their
+  // details with "Send updated version" (same batch number, new version).
+  const already = await activeBatchOf(ids)
+  if (already.size > 0) {
+    return {
+      ok: false,
+      error: `Not sent. ${[...already].map(([id, n]) => `${quoteReference(id)} was sent in ${n}`).join('; ')}: use "Send updated version" for that batch.`,
+    }
+  }
   const snaps: { id: string; snapshot: FunderCustomer; isTest: boolean }[] = []
   const refused: string[] = []
   const admin = createAdminClient()
