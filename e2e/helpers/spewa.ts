@@ -46,15 +46,24 @@ export async function freeTestFiles(
   ready = false,
   skip: string[] = [],
 ): Promise<string[]> {
-  const [apps, queued, tests] = await Promise.all([
+  const [apps, queued] = await Promise.all([
     rest<App[]>(
       'applications?select=id,consumer_id,quote_id,credit_flags&status=eq.submitted&order=submitted_at.desc&limit=300',
     ),
     rest<{ application_id: string }[]>('funder_queue?select=application_id&decision=neq.pending'),
-    rest<{ id: string }[]>('profiles?select=id&is_test=eq.true'),
   ])
   const inQueue = new Set([...queued.map((q) => q.application_id), ...skip])
-  const test = new Set(tests.map((t) => t.id))
+  // Only these applicants' test flags (there are more than 1,000 test accounts: one request
+  // returns at most 1,000 rows).
+  const owners = [...new Set(apps.map((a) => a.consumer_id))]
+  const test = new Set<string>()
+  for (let i = 0; i < owners.length; i += 100) {
+    const ids = owners.slice(i, i + 100).join(',')
+    for (const t of await rest<{ id: string }[]>(
+      `profiles?select=id&is_test=eq.true&id=in.(${ids})`,
+    ))
+      test.add(t.id)
+  }
   const out: string[] = []
   for (const a of apps) {
     if (out.length >= n) break
