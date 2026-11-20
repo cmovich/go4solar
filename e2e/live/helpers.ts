@@ -5,7 +5,7 @@ import { expect, type Page } from '@playwright/test'
 import { acceptQuotation } from '../helpers/invoices'
 import { answerQuoteQuestions } from '../helpers/questions'
 import { testEmail, testNin, testPhone, toE164 } from '../helpers/test-identity'
-import { totp } from '../helpers/totp'
+import { loginAsStaff as sharedLoginAsStaff } from '../helpers/staff'
 
 config({ path: '.env.local', quiet: true })
 export const hasDb = Boolean(
@@ -154,16 +154,9 @@ export const PDF = {
   buffer: Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF'),
 }
 
-/** The staff user from global-setup (super admin with an authenticator). */
+/** The staff user from global-setup (super admin): the shared sign-in (session reuse, window locks). */
 export async function loginAsStaff(page: Page) {
-  await page.goto('/login')
-  await page.getByLabel('Email').fill(process.env.E2E_STAFF_EMAIL!)
-  await page.getByLabel('Password').fill(process.env.E2E_STAFF_PASSWORD!)
-  await page.getByRole('button', { name: 'Sign in' }).click()
-  await page.waitForURL(/\/admin\/mfa/)
-  await page.getByLabel('6-digit code').fill(totp(process.env.E2E_STAFF_TOTP_SECRET!))
-  await page.getByRole('button', { name: 'Verify' }).click()
-  await page.waitForURL(/\/admin$/)
+  await sharedLoginAsStaff(page, 'staff')
 }
 
 /** The newest application of the customer with this email. */

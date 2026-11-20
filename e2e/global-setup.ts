@@ -1,4 +1,4 @@
-import { closeSync, openSync } from 'node:fs'
+import { closeSync, openSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -16,6 +16,11 @@ import { totp } from './helpers/totp'
  */
 export default async function globalSetup() {
   config({ path: '.env.local' })
+  // Each run starts with no saved staff sessions (the authenticators are made again below).
+  for (const f of readdirSync(tmpdir())) {
+    if (f.startsWith('g4s-e2e-session-') || f.startsWith('g4s-e2e-login-'))
+      rmSync(path.join(tmpdir(), f), { force: true })
+  }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -168,7 +173,13 @@ async function prepareStaff(
   // That code's 30 s window is now used: tests signing in must wait for the next one.
   try {
     closeSync(
-      openSync(path.join(tmpdir(), `g4s-e2e-totp-${Math.floor(Date.now() / 30_000)}`), 'wx'),
+      openSync(
+        path.join(
+          tmpdir(),
+          `g4s-e2e-totp-${enrol.totp.secret.slice(0, 8)}-${Math.floor(Date.now() / 30_000)}`,
+        ),
+        'wx',
+      ),
     )
   } catch {
     // Already reserved.
