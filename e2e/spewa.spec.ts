@@ -109,7 +109,8 @@ test.describe.serial('SPEWA approvals', () => {
     // Approve the ready file: final approval (test customers draw on the test funder).
     await page.goto(`/admin/spewa/${ready}`)
     await page.getByTestId('spewa-approve').click()
-    await expect(page.getByTestId('spewa-result')).toContainText('1 approved.')
+    // Approval writes several rows on the remote database: allow it time.
+    await expect(page.getByTestId('spewa-result')).toContainText('1 approved.', { timeout: 30_000 })
     await expect(page.getByTestId('spewa-file-decision')).toHaveText('Approved')
     const loan = await loanOf(ready)
     expect(loan?.status).toBe('approved')
