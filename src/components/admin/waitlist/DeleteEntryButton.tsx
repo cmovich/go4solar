@@ -19,6 +19,8 @@ import { Label } from '@/components/ui/label'
 import { DELETE_REASONS, DELETE_REASON_LABELS, type DeleteReason } from '@/lib/waitlist/duplicates'
 
 import { deleteWaitlistEntry } from '@/app/admin/(shell)/waitlist/actions'
+import { DIALOG_FOOTER_PINNED, DIALOG_SCROLL } from '@/components/dialogLayout'
+import { cn } from '@/lib/utils'
 
 /** Bin icon on a waiting-list row: confirm with a reason (Duplicate / Test user / Other). */
 export function DeleteEntryButton({
@@ -71,7 +73,7 @@ export function DeleteEntryButton({
         <Trash2 className="size-4" aria-hidden />
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className={cn(DIALOG_SCROLL, 'sm:max-w-md')}>
           <DialogHeader>
             <DialogTitle className="text-destructive">Delete this entry?</DialogTitle>
             <DialogDescription>
@@ -114,7 +116,7 @@ export function DeleteEntryButton({
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          <DialogFooter>
+          <DialogFooter className={DIALOG_FOOTER_PINNED}>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>

@@ -14,6 +14,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { visionResultSchema, type VisionResult } from '@/lib/providers/vision/schema'
+import { DIALOG_FOOTER_PINNED, DIALOG_SCROLL } from '@/components/dialogLayout'
+import { cn } from '@/lib/utils'
 
 const MAX_BYTES = 5 * 1024 * 1024
 
@@ -106,7 +108,7 @@ export function WattsLookupDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className={cn(DIALOG_SCROLL, 'sm:max-w-md')}>
         <DialogHeader>
           <DialogTitle className="text-brand-dark">Find the watts: {itemName}</DialogTitle>
           <DialogDescription>
@@ -260,7 +262,7 @@ export function WattsLookupDialog({
           </div>
         )}
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className={cn(DIALOG_FOOTER_PINNED, 'gap-2')}>
           {state.step !== 'idle' && state.step !== 'choose' && (
             <Button
               type="button"

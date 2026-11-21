@@ -18,6 +18,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 import { clearWaitlist } from '@/app/admin/(shell)/waitlist/actions'
+import { DIALOG_FOOTER_PINNED, DIALOG_SCROLL } from '@/components/dialogLayout'
+import { cn } from '@/lib/utils'
 
 /** Super admin only. Disabled until an export was downloaded in the last 24 h; then type CLEAR. */
 export function ClearWaitlistButton({
@@ -56,7 +58,7 @@ export function ClearWaitlistButton({
           Clear waiting list
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className={cn(DIALOG_SCROLL, 'sm:max-w-md')}>
         <DialogHeader>
           <DialogTitle className="text-destructive">Clear the whole waiting list?</DialogTitle>
           <DialogDescription>
@@ -79,7 +81,7 @@ export function ClearWaitlistButton({
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        <DialogFooter>
+        <DialogFooter className={DIALOG_FOOTER_PINNED}>
           <Button type="button" variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>

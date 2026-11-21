@@ -17,6 +17,8 @@ import { Label } from '@/components/ui/label'
 import { CATEGORY_LABELS } from '@/lib/load/categories'
 import { LIMITS } from '@/lib/load/totals'
 import { CATEGORY_IDS, type CategoryId } from '@/lib/load/types'
+import { DIALOG_FOOTER_PINNED, DIALOG_SCROLL } from '@/components/dialogLayout'
+import { cn } from '@/lib/utils'
 
 const schema = z.object({
   name: z.string().trim().min(1, 'Give it a name').max(80, 'Keep the name short'),
@@ -74,7 +76,7 @@ export function AddCustomDialog({
 
   return (
     <Dialog open={category !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className={cn(DIALOG_SCROLL, 'sm:max-w-md')}>
         <form onSubmit={submit} noValidate>
           <DialogHeader>
             <DialogTitle className="text-brand-dark">Add your own appliance</DialogTitle>
@@ -128,7 +130,7 @@ export function AddCustomDialog({
             </div>
           </div>
 
-          <DialogFooter className="mt-6">
+          <DialogFooter className={cn(DIALOG_FOOTER_PINNED, 'mt-6')}>
             <Button type="button" variant="outline" className="h-11" onClick={onClose}>
               Cancel
             </Button>

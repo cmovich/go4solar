@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/dialog'
 
 import { deleteAllTestEntries } from '@/app/admin/(shell)/waitlist/actions'
+import { DIALOG_FOOTER_PINNED, DIALOG_SCROLL } from '@/components/dialogLayout'
+import { cn } from '@/lib/utils'
 
 /** Deletes every entry marked as test data (is_test) — never a real person. */
 export function DeleteTestEntriesButton({ count }: { count: number }) {
@@ -42,7 +44,7 @@ export function DeleteTestEntriesButton({ count }: { count: number }) {
           Delete all test entries ({count})
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className={cn(DIALOG_SCROLL, 'sm:max-w-md')}>
         <DialogHeader>
           <DialogTitle>Delete {count} test entries?</DialogTitle>
           <DialogDescription>
@@ -55,7 +57,7 @@ export function DeleteTestEntriesButton({ count }: { count: number }) {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        <DialogFooter>
+        <DialogFooter className={DIALOG_FOOTER_PINNED}>
           <Button type="button" variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
