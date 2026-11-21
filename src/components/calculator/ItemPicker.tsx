@@ -14,6 +14,8 @@ import {
 import type { LibraryItem } from '@/lib/calculator/store'
 import { CATEGORY_LABELS } from '@/lib/load/categories'
 import type { CategoryId } from '@/lib/load/types'
+import { DIALOG_FOOTER_PINNED, DIALOG_SCROLL } from '@/components/dialogLayout'
+import { cn } from '@/lib/utils'
 
 export function ItemPicker({
   category,
@@ -32,7 +34,7 @@ export function ItemPicker({
 
   return (
     <Dialog open={category !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
+      <DialogContent className={cn(DIALOG_SCROLL, 'sm:max-w-md')}>
         <DialogHeader>
           <DialogTitle className="text-brand-dark">
             {category ? CATEGORY_LABELS[category] : ''}
@@ -63,7 +65,7 @@ export function ItemPicker({
           </ul>
         )}
 
-        <DialogFooter>
+        <DialogFooter className={DIALOG_FOOTER_PINNED}>
           {category && (
             <Button
               type="button"

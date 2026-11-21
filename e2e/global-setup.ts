@@ -122,8 +122,15 @@ async function prepareStaff(
   // Look through every page: the shared project has more than one page of accounts.
   let existing: { id: string } | undefined
   for (let page = 1; !existing; page++) {
-    const { data: list } = await admin.auth.admin.listUsers({ page, perPage: 1000 })
-    const users = list?.users ?? []
+    // A failed page (slow remote database) must not read as "no more accounts": retry, then stop.
+    let users: { id: string; email?: string }[] | undefined
+    for (let attempt = 1; !users; attempt++) {
+      const { data: list, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 })
+      if (!error) users = list.users
+      else if (attempt >= 3)
+        throw new Error(`could not list accounts (page ${page}): ${error.message}`)
+      else await new Promise((r) => setTimeout(r, 3_000))
+    }
     existing = users.find((u) => u.email === email)
     if (users.length < 1000) break
   }

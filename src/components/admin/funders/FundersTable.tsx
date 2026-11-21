@@ -22,6 +22,8 @@ import type { FunderDraft } from '@/lib/pricing/adminSchemas'
 import { TENURES, type TenureMonths } from '@/lib/pricing/types'
 
 import { saveFunder } from '@/app/admin/(shell)/funders/actions'
+import { DIALOG_FOOTER_PINNED, DIALOG_SCROLL } from '@/components/dialogLayout'
+import { cn } from '@/lib/utils'
 
 export type FunderRowView = FunderDraft & {
   id: string
@@ -186,7 +188,7 @@ export function FundersTable({ rows, canEdit }: { rows: FunderRowView[]; canEdit
       </div>
 
       <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className={cn(DIALOG_SCROLL, 'sm:max-w-lg')}>
           {editing && (
             <>
               <DialogHeader>
@@ -346,7 +348,7 @@ export function FundersTable({ rows, canEdit }: { rows: FunderRowView[]; canEdit
                   Active (eligible at approval)
                 </label>
               </div>
-              <DialogFooter>
+              <DialogFooter className={DIALOG_FOOTER_PINNED}>
                 <Button type="button" variant="outline" onClick={() => setEditing(null)}>
                   Cancel
                 </Button>
