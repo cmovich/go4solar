@@ -247,6 +247,20 @@ export async function ensureApplication(userId: string): Promise<ApplicationRow 
     })
     .select('*')
     .single()
+  if (error?.code === '23505') {
+    // Started twice at the same moment (slow connection): the database keeps one live
+    // application per quote (migration 0042), so use the one the other start made.
+    const { data: first } = await admin
+      .from('applications')
+      .select('*')
+      .eq('consumer_id', userId)
+      .eq('quote_id', quote.id)
+      .neq('status', 'declined')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    if (first) return first
+  }
   if (error) throw new Error(`could not create application: ${error.message}`)
   return created
 }
