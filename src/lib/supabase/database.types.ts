@@ -707,6 +707,91 @@ export type Database = {
         }
         Relationships: []
       }
+      export_queue_items: {
+        Row: {
+          added_at: string
+          added_by: string
+          level: string
+          queue_id: string
+          waitlist_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          added_at?: string
+          added_by: string
+          level: string
+          queue_id: string
+          waitlist_id: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string
+          level?: string
+          queue_id?: string
+          waitlist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'export_queue_items_queue_id_fkey'
+            columns: ['queue_id']
+            isOneToOne: false
+            referencedRelation: 'export_queues'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'export_queue_items_waitlist_id_fkey'
+            columns: ['waitlist_id']
+            isOneToOne: false
+            referencedRelation: 'waitlist_consumers'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      export_queues: {
+        Row: {
+          batch_id: string | null
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          created_by: string
+          id: string
+          is_test: boolean
+          number: string
+          status: string
+        }
+        ComputedFields: never
+        Insert: {
+          batch_id?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          is_test?: boolean
+          number: string
+          status?: string
+        }
+        Update: {
+          batch_id?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_test?: boolean
+          number?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'export_queues_batch_fk'
+            columns: ['batch_id']
+            isOneToOne: false
+            referencedRelation: 'funder_batches'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       forecast_scenarios: {
         Row: {
           created_at: string
@@ -745,12 +830,17 @@ export type Database = {
       funder_batch_items: {
         Row: {
           batch_id: string
+          consent_withdrawn_at: string | null
           created_at: string
           decided_at: string | null
           decided_by: string | null
           decision: string
           decision_note: string | null
           id: string
+          level: string
+          onboarding_set_at: string | null
+          onboarding_set_by: string | null
+          onboarding_url: string | null
           snapshot: Json
           updated_at: string
           waitlist_id: string
@@ -758,24 +848,34 @@ export type Database = {
         ComputedFields: never
         Insert: {
           batch_id: string
+          consent_withdrawn_at?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
           decision?: string
           decision_note?: string | null
           id?: string
+          level?: string
+          onboarding_set_at?: string | null
+          onboarding_set_by?: string | null
+          onboarding_url?: string | null
           snapshot: Json
           updated_at?: string
           waitlist_id: string
         }
         Update: {
           batch_id?: string
+          consent_withdrawn_at?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
           decision?: string
           decision_note?: string | null
           id?: string
+          level?: string
+          onboarding_set_at?: string | null
+          onboarding_set_by?: string | null
+          onboarding_url?: string | null
           snapshot?: Json
           updated_at?: string
           waitlist_id?: string
@@ -801,11 +901,13 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          export_queue_id: string | null
           funder_id: string
           id: string
           is_test: boolean
           lending_type: string
           number: string
+          onboarding_url: string | null
           replaced_by: string | null
           totals: Json
           version: number
@@ -814,11 +916,13 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          export_queue_id?: string | null
           funder_id: string
           id?: string
           is_test?: boolean
           lending_type: string
           number: string
+          onboarding_url?: string | null
           replaced_by?: string | null
           totals: Json
           version?: number
@@ -826,16 +930,25 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          export_queue_id?: string | null
           funder_id?: string
           id?: string
           is_test?: boolean
           lending_type?: string
           number?: string
+          onboarding_url?: string | null
           replaced_by?: string | null
           totals?: Json
           version?: number
         }
         Relationships: [
+          {
+            foreignKeyName: 'funder_batches_export_queue_id_fkey'
+            columns: ['export_queue_id']
+            isOneToOne: false
+            referencedRelation: 'export_queues'
+            referencedColumns: ['id']
+          },
           {
             foreignKeyName: 'funder_batches_funder_id_fkey'
             columns: ['funder_id']
@@ -1067,6 +1180,8 @@ export type Database = {
         Row: {
           annual_rate: number
           balance_available: number
+          batch_prefix: string | null
+          contact_email: string | null
           created_at: string
           default_lending_type: string
           id: string
@@ -1078,6 +1193,7 @@ export type Database = {
           method: Database['public']['Enums']['funder_method']
           min_amount: number
           name: string
+          onboarding_domains: string[]
           sample: boolean
           status: Database['public']['Enums']['funder_status']
           updated_at: string
@@ -1087,6 +1203,8 @@ export type Database = {
         Insert: {
           annual_rate: number
           balance_available?: number
+          batch_prefix?: string | null
+          contact_email?: string | null
           created_at?: string
           default_lending_type?: string
           id?: string
@@ -1098,6 +1216,7 @@ export type Database = {
           method?: Database['public']['Enums']['funder_method']
           min_amount?: number
           name: string
+          onboarding_domains?: string[]
           sample?: boolean
           status?: Database['public']['Enums']['funder_status']
           updated_at?: string
@@ -1106,6 +1225,8 @@ export type Database = {
         Update: {
           annual_rate?: number
           balance_available?: number
+          batch_prefix?: string | null
+          contact_email?: string | null
           created_at?: string
           default_lending_type?: string
           id?: string
@@ -1117,6 +1238,7 @@ export type Database = {
           method?: Database['public']['Enums']['funder_method']
           min_amount?: number
           name?: string
+          onboarding_domains?: string[]
           sample?: boolean
           status?: Database['public']['Enums']['funder_status']
           updated_at?: string
@@ -1364,6 +1486,64 @@ export type Database = {
           subject_type?: Database['public']['Enums']['kyc_subject']
         }
         Relationships: []
+      }
+      lead_funder_consents: {
+        Row: {
+          consent_note: string | null
+          consented_at: string
+          consented_by: string
+          funder_id: string
+          funder_told_at: string | null
+          is_test: boolean
+          updated_at: string
+          waitlist_id: string
+          withdrawn_at: string | null
+          withdrawn_by: string | null
+          withdrawn_note: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          consent_note?: string | null
+          consented_at: string
+          consented_by: string
+          funder_id: string
+          funder_told_at?: string | null
+          is_test?: boolean
+          updated_at?: string
+          waitlist_id: string
+          withdrawn_at?: string | null
+          withdrawn_by?: string | null
+          withdrawn_note?: string | null
+        }
+        Update: {
+          consent_note?: string | null
+          consented_at?: string
+          consented_by?: string
+          funder_id?: string
+          funder_told_at?: string | null
+          is_test?: boolean
+          updated_at?: string
+          waitlist_id?: string
+          withdrawn_at?: string | null
+          withdrawn_by?: string | null
+          withdrawn_note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'lead_funder_consents_funder_id_fkey'
+            columns: ['funder_id']
+            isOneToOne: false
+            referencedRelation: 'funders'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'lead_funder_consents_waitlist_id_fkey'
+            columns: ['waitlist_id']
+            isOneToOne: false
+            referencedRelation: 'waitlist_consumers'
+            referencedColumns: ['id']
+          },
+        ]
       }
       lead_profiles: {
         Row: {
@@ -1798,6 +1978,45 @@ export type Database = {
             columns: ['consumer_id']
             isOneToOne: false
             referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      onboarding_link_sends: {
+        Row: {
+          batch_item_id: string
+          channel: string
+          id: string
+          is_test: boolean
+          sent_at: string
+          sent_by: string
+          url: string
+        }
+        ComputedFields: never
+        Insert: {
+          batch_item_id: string
+          channel: string
+          id?: string
+          is_test?: boolean
+          sent_at?: string
+          sent_by: string
+          url: string
+        }
+        Update: {
+          batch_item_id?: string
+          channel?: string
+          id?: string
+          is_test?: boolean
+          sent_at?: string
+          sent_by?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'onboarding_link_sends_batch_item_id_fkey'
+            columns: ['batch_item_id']
+            isOneToOne: false
+            referencedRelation: 'funder_batch_items'
             referencedColumns: ['id']
           },
         ]
@@ -3088,6 +3307,7 @@ export type Database = {
       }
       my_funder_id: { Args: never; Returns: string }
       my_role: { Args: never; Returns: Database['public']['Enums']['app_role'] }
+      next_export_number: { Args: { p_test?: boolean }; Returns: string }
       next_invoice_number: { Args: { p_test?: boolean }; Returns: string }
     }
     Enums: {
