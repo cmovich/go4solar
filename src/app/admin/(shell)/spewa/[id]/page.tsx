@@ -6,6 +6,7 @@ import { ChequesForm } from '@/components/admin/spewa/ChequesForm'
 import { DecisionBar } from '@/components/admin/spewa/DecisionBar'
 import { applicationDetail } from '@/lib/approvals/admin'
 import { maskId } from '@/lib/applications/rules'
+import { safeBreakdown } from '@/lib/build/breakdown'
 import { requireFunderQueueViewer } from '@/lib/auth/roles'
 import { applicantName } from '@/lib/funderQueue/names'
 import { canDecideFunderQueue, canRecordCheques, repaymentSummary } from '@/lib/funderQueue/rules'
@@ -62,6 +63,7 @@ export default async function SpewaFilePage({ params }: { params: Promise<{ id: 
   if (!row) notFound()
   const d = await applicationDetail(id)
   if (!d) notFound()
+  const b = d.quote ? safeBreakdown(d.quote) : null
   const app = d.ctx.app
   const personal = (app.personal ?? {}) as Record<string, string | undefined>
   const business = (app.business ?? {}) as Record<string, unknown>
@@ -164,7 +166,11 @@ export default async function SpewaFilePage({ params }: { params: Promise<{ id: 
             rows={[
               ['Total amount payable', d.quote ? formatNaira(d.quote.systemPrice) : '—'],
               ['Deposit (paid)', d.quote ? formatNaira(d.quote.deposit) : '—'],
-              ['Amount financed', d.quote ? formatNaira(d.quote.balance) : '—'],
+              ['Amount financed', b ? formatNaira(b.financed) : '—'],
+              ...(b && b.charge > 0
+                ? ([['Payment plan charge', formatNaira(b.charge)]] as [string, string][])
+                : []),
+              ['Balance to repay monthly', b ? formatNaira(b.balance) : '—'],
               [
                 'Monthly × months',
                 d.quote ? `${formatNaira(d.quote.monthly)} × ${d.quote.instalments.length}` : '—',

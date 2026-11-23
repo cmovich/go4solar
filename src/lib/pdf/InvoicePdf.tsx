@@ -14,6 +14,7 @@ import { createElement, type ReactElement } from 'react'
 
 import { rcLabel } from '@/lib/company/schema'
 import type { InvoiceData } from '@/lib/invoices/build'
+import { invoiceFinancing } from '@/lib/invoices/financing'
 import { invoiceDay } from '@/lib/invoices/dates'
 import { formatNaira, formatPercent } from '@/lib/money'
 
@@ -110,6 +111,7 @@ const shortLink = (url: string) => url.replace(/^https?:\/\//, '')
 function InvoiceDoc({ d, qr }: { d: InvoiceData; qr: string | null }) {
   const c = d.company
   const quotation = d.kind === 'quotation'
+  const financing = invoiceFinancing(d)
   const title = quotation ? 'Quotation' : 'Invoice'
   const rc = rcLabel(c.rcNumber)
   const customer: [string, string | null][] = [
@@ -217,6 +219,22 @@ function InvoiceDoc({ d, qr }: { d: InvoiceData; qr: string | null }) {
                     <Text>Delivery to {d.fixed.extra.state} (extra, paid with the deposit)</Text>
                     <Text style={{ fontWeight: 700 }}>{formatNaira(d.fixed.extra.amount)}</Text>
                   </View>
+                )}
+                {financing && (
+                  <>
+                    <View style={s.totalRow}>
+                      <Text>Amount financed</Text>
+                      <Text style={{ fontWeight: 700 }}>{formatNaira(financing.financed)}</Text>
+                    </View>
+                    <View style={s.totalRow}>
+                      <Text>{financing.chargeLabel}</Text>
+                      <Text style={{ fontWeight: 700 }}>{formatNaira(financing.charge)}</Text>
+                    </View>
+                    <View style={s.totalRow}>
+                      <Text>Balance to repay monthly</Text>
+                      <Text style={{ fontWeight: 700 }}>{formatNaira(financing.balance)}</Text>
+                    </View>
+                  </>
                 )}
                 <View style={s.totalRow}>
                   <Text>Monthly payment</Text>

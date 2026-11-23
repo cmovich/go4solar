@@ -69,7 +69,8 @@ export function SpewaQueueTable({
                 </th>
               )}
               <th className="px-3 py-2">Business</th>
-              <th className="px-3 py-2 text-right">System price</th>
+              <th className="px-3 py-2 text-right">Total payable</th>
+              <th className="px-3 py-2 text-right">Amount financed</th>
               <th className="px-3 py-2 text-right">Deposit</th>
               <th className="px-3 py-2">Routed</th>
               <th className="px-3 py-2">Decision</th>
@@ -104,7 +105,10 @@ export function SpewaQueueTable({
                   </span>
                 </td>
                 <td className="px-3 py-2 text-right">
-                  {r.systemPrice ? formatNaira(r.systemPrice) : '—'}
+                  {r.totalPayable ? formatNaira(r.totalPayable) : '—'}
+                </td>
+                <td className="px-3 py-2 text-right" data-testid="spewa-financed">
+                  {r.financed ? formatNaira(r.financed) : '—'}
                 </td>
                 <td className="px-3 py-2 text-right">{formatPercent(r.depositShare)}</td>
                 <td className="px-3 py-2">{when(r.routedAt)}</td>
@@ -130,7 +134,7 @@ export function SpewaQueueTable({
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={8} className="text-muted-foreground px-3 py-6 text-center">
+                <td colSpan={9} className="text-muted-foreground px-3 py-6 text-center">
                   No files here.
                 </td>
               </tr>

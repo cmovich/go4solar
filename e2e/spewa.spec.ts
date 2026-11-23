@@ -85,6 +85,9 @@ test.describe.serial('SPEWA approvals', () => {
 
     // Decline through the tick boxes and the bulk bar (several at once: unit-tested).
     await page.goto('/admin/spewa?test=1')
+    // The queue shows the total payable and the amount financed (price − deposit).
+    await expect(page.getByRole('columnheader', { name: 'Amount financed' })).toBeVisible()
+    await expect(page.getByRole('columnheader', { name: 'System price' })).toHaveCount(0)
     for (const id of others) await page.getByTestId(`spewa-row-${id}`).getByRole('checkbox').check()
     await page.getByTestId('spewa-decline-open').click()
     await page.getByLabel(/Reason/).fill('Outside the programme (e2e)')
@@ -103,6 +106,9 @@ test.describe.serial('SPEWA approvals', () => {
     await page.goto(`/admin/spewa/${others[0]}`)
     await expect(page.getByTestId('spewa-file-decision')).toHaveText('Declined')
     await expect(page.getByTestId('spewa-kyc')).toContainText('NIN')
+    // Plan figures: amount financed, then the balance to repay monthly.
+    await expect(page.locator('main')).toContainText('Amount financed')
+    await expect(page.locator('main')).toContainText('Balance to repay monthly')
     await expect(page.getByTestId('cheques-view')).toContainText('Received: yes · 3 cheques')
     await expect(page.getByTestId('cheques-form')).toHaveCount(0)
 
