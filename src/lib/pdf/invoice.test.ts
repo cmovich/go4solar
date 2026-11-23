@@ -5,6 +5,7 @@ import { buildInvoice } from '@/lib/invoices/build'
 import { formatNaira } from '@/lib/money'
 import { sampleQuoteInput } from '@/lib/pricing/pricing.fixture'
 import { priceQuote } from '@/lib/pricing/price'
+import { DEFAULT_OFFER_TERMS, quoteOffer } from '@/lib/spewa/offer'
 import { SEEDED_PLANS } from '@/lib/readyPlans/plans.fixture'
 import { priceReadyPlan, readyQuoteResult } from '@/lib/readyPlans/price'
 import { pdfPageTexts } from '@/test/pdfText'
@@ -30,7 +31,7 @@ const result = priceQuote({
   ],
 })
 
-const data = buildInvoice({
+const invoiceInput: Parameters<typeof buildInvoice>[0] = {
   number: 'G4S-INV-2026-0007',
   publicCode: 'abc123def456',
   verifyUrl: 'https://go4solar.app/verify/abc123def456',
@@ -53,7 +54,8 @@ const data = buildInvoice({
   roofNeedsRack: false,
   installer: 'go4solar',
   packIncluded: true,
-})
+}
+const data = buildInvoice(invoiceInput)
 
 const images = (pdf: Buffer) => pdf.toString('latin1').match(/\/Subtype\s*\/Image/g)?.length ?? 0
 
@@ -163,5 +165,72 @@ describe('ready-made plan quotation PDF', () => {
     expect(text).not.toContain(formatNaira(470_000))
     expect(text).not.toContain(formatNaira(400_000))
     expect(text).not.toMatch(/interest/i)
+  })
+})
+
+describe('invoice PDF: financing lines (SPEWA offer only)', () => {
+  const demo = priceQuote({
+    lines: [
+      {
+        sku: 'SPW-SLS-0011',
+        name: 'Solis 5kW/48V',
+        category: 'inverter',
+        unitCost: 480_000,
+        sellUnit: 520_000,
+        qty: 1,
+      },
+      {
+        sku: 'SPW-BAT',
+        name: 'MUST 48V/5KWH',
+        category: 'battery',
+        unitCost: 900_000,
+        sellUnit: 940_000,
+        qty: 1,
+      },
+      {
+        sku: 'SPW-PNL',
+        name: '330W Sungene',
+        category: 'panels',
+        unitCost: 50_000,
+        sellUnit: 56_500,
+        qty: 3,
+      },
+      {
+        sku: 'ACC',
+        name: 'Protection, cables and mounting',
+        category: 'accessories',
+        unitCost: 180_000,
+        sellUnit: 185_400,
+        qty: 1,
+      },
+    ],
+    installCost: 225_050,
+    noMarkup: [
+      { label: 'Installation', amount: 125_050 },
+      { label: 'Delivery — Go4Solar logistics (Kaduna)', amount: 100_000 },
+    ],
+    marginByCategory: { panels: 0.03, battery: 0.03, inverter: 0.03, accessories: 0.03 },
+    pricingRateAnnual: 0.3,
+    tenureMonths: 12,
+    depositShare: 0.3,
+    minDepositShare: 0.3,
+    offer: quoteOffer(DEFAULT_OFFER_TERMS, [3, 6, 9, 12]),
+  })
+
+  it('the SPEWA demo: amount financed ₦1,427,965, the charge apart, balance to repay ₦1,856,355', async () => {
+    const d = buildInvoice({ ...invoiceInput, title: 'Your own system', result: demo })
+    const text = pdfPageTexts(await renderInvoicePdf(d)).join('\n')
+    expect(text).toContain('Amount financed')
+    expect(text).toContain(formatNaira(1_427_965))
+    expect(text).toContain('Payment plan charge (12 months, 30%)')
+    expect(text).toContain(formatNaira(428_390))
+    expect(text).toContain('Balance to repay monthly')
+    expect(text).toContain(formatNaira(1_856_355))
+  })
+
+  it('home quotes: no financing lines (the cost is in the one fixed price)', async () => {
+    const text = pdfPageTexts(await renderInvoicePdf(data)).join('\n')
+    expect(text).not.toContain('Balance to repay monthly')
+    expect(text).not.toContain('Amount financed')
   })
 })

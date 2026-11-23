@@ -80,6 +80,8 @@ export function DecisionPanel({
   options,
   role,
   amount,
+  financed,
+  charge,
   limit,
   minNetMarginShare,
 }: {
@@ -88,7 +90,12 @@ export function DecisionPanel({
   blockers: string[]
   options: FunderChoice[]
   role: string | null
+  /** The balance the customer repays monthly (financed + any charge): the limit is checked on it. */
   amount: number
+  /** Price − deposit; null when the quote is not on file. */
+  financed: number | null
+  /** SPEWA offer: the payment plan charge; 0 for home quotes. */
+  charge: number
   limit: number
   minNetMarginShare: number
 }) {
@@ -122,8 +129,10 @@ export function DecisionPanel({
       ) : (
         <div>
           <p className="text-sm">
-            Choose the funder. Amount financed {formatNaira(amount)}; credit officer limit{' '}
-            {formatNaira(limit)}; minimum net margin {formatPercent(minNetMarginShare)}.
+            Choose the funder. Amount financed {formatNaira(financed ?? amount)}
+            {charge > 0 && <>; payment plan charge {formatNaira(charge)}</>}; balance to repay
+            monthly {formatNaira(amount)}; credit officer limit {formatNaira(limit)} (on the
+            balance); minimum net margin {formatPercent(minNetMarginShare)}.
           </p>
           {options.length === 0 ? (
             <p className="mt-2 text-sm text-red-700">

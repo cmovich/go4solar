@@ -20,6 +20,7 @@ import { slaState } from '@/lib/approvals/rules'
 import { INCOME_RANGES, maskId } from '@/lib/applications/rules'
 import { requireRole } from '@/lib/auth/roles'
 import { queueRowFor } from '@/lib/funderQueue/server'
+import { safeBreakdown } from '@/lib/build/breakdown'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { MAX_EXTENSION_DAYS, addDaysIso, lagosDate } from '@/lib/payments/lock'
 
@@ -74,6 +75,7 @@ export default async function ApplicationPage({
   const tab = ((await searchParams).tab ?? 'summary') as Tab
   const [d, routed] = await Promise.all([applicationDetail(id), queueRowFor(id)])
   if (!d) notFound()
+  const b = d.quote ? safeBreakdown(d.quote) : null
   const { ctx } = d
   const app = ctx.app
   const personal = (app.personal ?? {}) as Record<string, string | undefined>
@@ -162,8 +164,13 @@ export default async function ApplicationPage({
             />
             <Rows
               rows={[
-                ['System price', d.quote ? formatNaira(d.quote.systemPrice) : '—'],
-                ['Deposit', d.quote ? formatNaira(d.quote.deposit) : '—'],
+                ['Total amount payable', b ? formatNaira(b.totalPayable) : '—'],
+                ['Deposit', b ? formatNaira(b.deposit) : '—'],
+                ['Amount financed', b ? formatNaira(b.financed) : '—'],
+                ...(b && b.charge > 0
+                  ? ([['Payment plan charge', formatNaira(b.charge)]] as [string, string][])
+                  : []),
+                ['Balance to repay monthly', b ? formatNaira(b.balance) : '—'],
                 [
                   'Monthly × months',
                   d.quote ? `${formatNaira(d.quote.monthly)} × ${d.quote.instalments.length}` : '—',
@@ -233,6 +240,8 @@ export default async function ApplicationPage({
             options={options}
             role={session.role}
             amount={ctx.figures?.balance ?? 0}
+            financed={b?.financed ?? null}
+            charge={b?.charge ?? 0}
             limit={ctx.limit}
             minNetMarginShare={ctx.minNetMarginShare}
           />

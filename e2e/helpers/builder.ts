@@ -236,11 +236,18 @@ export async function checkBreakdown(page: Page, business: boolean) {
   expect(financed).toBe(price - deposit)
   if (business) {
     expect(total).toBeGreaterThan(price)
+    // The charge apart, then the balance to repay monthly (financed + charge).
+    const charge = await v('bd-charge')
+    const balance = await v('bd-balance')
+    expect(charge).toBeGreaterThan(0)
+    expect(financed + charge).toBe(balance)
+    expect(deposit + balance).toBe(total)
     await expect(page.getByTestId('bd-min-deposit-note')).toHaveText(
       'The minimum deposit for this offer is 30%',
     )
   } else {
     expect(total).toBe(price)
+    await expect(page.getByTestId('bd-charge')).toHaveCount(0)
   }
   await expect(page.getByTestId('bd-deposit-pct')).toHaveText(business ? '30%' : '20%')
   // Delivery can be left out (the customer arranges it).

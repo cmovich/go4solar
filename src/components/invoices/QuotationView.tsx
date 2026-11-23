@@ -1,5 +1,6 @@
 import { rcLabel } from '@/lib/company/schema'
 import type { InvoiceData } from '@/lib/invoices/build'
+import { invoiceFinancing } from '@/lib/invoices/financing'
 import { invoiceDay } from '@/lib/invoices/dates'
 import { formatNaira, formatPercent } from '@/lib/money'
 
@@ -10,6 +11,7 @@ import { formatNaira, formatPercent } from '@/lib/money'
 export function QuotationView({ d }: { d: InvoiceData }) {
   const c = d.company
   const rc = rcLabel(c.rcNumber)
+  const financing = invoiceFinancing(d)
   const label = d.kind === 'quotation' ? 'Quotation' : 'Invoice'
   return (
     <article className="overflow-hidden rounded-2xl border bg-white" data-testid="quotation">
@@ -114,6 +116,22 @@ export function QuotationView({ d }: { d: InvoiceData }) {
                   <span>Delivery to {d.fixed.extra.state} (extra, paid with the deposit)</span>
                   <strong>{formatNaira(d.fixed.extra.amount)}</strong>
                 </p>
+              )}
+              {financing && (
+                <div data-testid="quotation-financing" className="space-y-1">
+                  <p className="flex justify-between gap-3">
+                    <span>Amount financed</span>
+                    <strong>{formatNaira(financing.financed)}</strong>
+                  </p>
+                  <p className="flex justify-between gap-3">
+                    <span>{financing.chargeLabel}</span>
+                    <strong>{formatNaira(financing.charge)}</strong>
+                  </p>
+                  <p className="flex justify-between gap-3">
+                    <span>Balance to repay monthly</span>
+                    <strong>{formatNaira(financing.balance)}</strong>
+                  </p>
+                </div>
               )}
               <p className="flex justify-between gap-3">
                 <span>Monthly payment</span>
