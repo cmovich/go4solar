@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 
 import {
@@ -43,10 +44,16 @@ export function ConsumerTable({
   rows,
   duplicates,
   canDelete,
+  canEdit = false,
+  readiness = {},
 }: {
   rows: ConsumerLead[]
   duplicates: Record<string, DuplicateMatch>
   canDelete: boolean
+  /** Super admin, Operations, Sales: "Edit" opens the profile (both Complete and Incomplete). */
+  canEdit?: boolean
+  /** "Full ready", "Basic ready" or "x of N" per entry. */
+  readiness?: Record<string, string>
 }) {
   const [open, setOpen] = useState<ConsumerLead | null>(null)
 
@@ -72,7 +79,9 @@ export function ConsumerTable({
                 'Monthly',
                 'Total',
                 'Ready',
+                'Profile',
                 'Entered by',
+                ...(canEdit ? ['Edit'] : []),
                 ...(canDelete ? [''] : []),
               ].map((h, k) => (
                 <th key={k} className="px-3 py-2 font-semibold whitespace-nowrap">
@@ -145,9 +154,36 @@ export function ConsumerTable({
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.readyWhen ? READY_WHEN_LABELS[r.readyWhen] : '—'}
                 </td>
+                <td className="px-3 py-2 whitespace-nowrap" data-testid="profile-readiness">
+                  {readiness[r.id] ? (
+                    <span
+                      className={
+                        readiness[r.id] === 'Full ready' || readiness[r.id] === 'Basic ready'
+                          ? 'text-brand-green font-semibold'
+                          : 'text-muted-foreground'
+                      }
+                    >
+                      {readiness[r.id]}
+                    </span>
+                  ) : (
+                    '—'
+                  )}
+                </td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.enteredByName ?? <span className="text-muted-foreground">Self</span>}
                 </td>
+                {canEdit && (
+                  <td className="px-2 py-1">
+                    <Link
+                      href={`/admin/waitlist/${r.id}/edit`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-brand-blue inline-flex min-h-11 items-center font-semibold underline"
+                      data-testid="edit-entry"
+                    >
+                      Edit
+                    </Link>
+                  </td>
+                )}
                 {canDelete && (
                   <td className="px-1 py-0.5">
                     <DeleteEntryButton

@@ -389,7 +389,7 @@ function FiguresAndTicks(props: Parameters<typeof ProfileEditor>[0]) {
   )
   const [error, setError] = useState<string | null>(null)
   const t = props.ticks
-  const tick = (kind: 'phone' | 'consent' | 'figures', on: boolean, note: string) =>
+  const tick = (kind: 'phone' | 'figures', on: boolean, note: string) =>
     start(async () => {
       setError(null)
       const r = await setLeadTick({
@@ -452,15 +452,10 @@ function FiguresAndTicks(props: Parameters<typeof ProfileEditor>[0]) {
         pending={pending}
         onChange={(on, note) => tick('phone', on, note)}
       />
-      <TickRow
-        id="consent"
-        label="Customer agreed to share their details with Trade Lenda"
-        at={t.consentAt}
-        by={t.consentBy}
-        note={t.consentNote}
-        pending={pending}
-        onChange={(on, note) => tick('consent', on, note)}
-      />
+      <p className="text-muted-foreground text-xs">
+        Consent to share with Trade Lenda (and every other funder) is below, under “Customer agreed
+        we may share their details with”.
+      </p>
       <TickRow
         id="figures"
         label={`Customer agreed to these figures on the phone (${LENDING_TYPE_LABELS[type].toLowerCase()})`}

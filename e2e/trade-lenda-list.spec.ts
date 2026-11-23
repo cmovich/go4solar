@@ -66,7 +66,7 @@ test('every waiting-list person is listed; filters, search, attach a staff quota
     'staff_quotations?select=public_code&is_test=eq.true&order=created_at.desc&limit=1',
   )
   test.skip(!sq, 'no test staff quotation to attach')
-  await page.goto(`/admin/waitlist/${lead!.id}/profile`)
+  await page.goto(`/admin/waitlist/${lead!.id}/edit`)
   await page
     .getByLabel(/Or attach a staff quotation/)
     .fill(`https://go4solar.app/q/${sq!.public_code}`)

@@ -82,6 +82,14 @@ export default async function FunderBatchPage({
                   {i.customer.name}
                 </Link>
                 <span className="text-muted-foreground block text-xs">{i.customer.reference}</span>
+                {i.consentWithdrawnAt && (
+                  <span
+                    className="mt-1 block rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-900"
+                    data-testid="consent-withdrawn-badge"
+                  >
+                    Consent withdrawn: stop using and delete these details
+                  </span>
+                )}
               </td>
               <td className="px-2 py-2">{i.customer.plan.label}</td>
               <td className="px-2 py-2 text-right tabular-nums">

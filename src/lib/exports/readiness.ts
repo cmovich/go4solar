@@ -64,3 +64,22 @@ export function readinessLabel(v: ProfileValues, t: RecordTicks): string {
   if (missing > 0) return `${total - missing} of ${total}`
   return FULL_EXTRA.some(([k]) => empty(v[k])) ? 'Basic ready' : 'Full ready'
 }
+
+/** One funder in the edit page's consent block. */
+export type ConsentFunder = {
+  id: string
+  name: string
+  hasContactEmail: boolean
+  consentedAt: string | null
+  consentedBy: string | null
+  consentNote: string | null
+  withdrawnAt: string | null
+  withdrawnBy: string | null
+  withdrawnNote: string | null
+  funderToldAt: string | null
+  /** Batches this person was exported in, for this funder. */
+  exportedIn: string[]
+  /** What can go to this funder now. */
+  level: 'basic' | 'full' | null
+  missing: string[]
+}

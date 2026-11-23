@@ -104,7 +104,7 @@ async function newTestLead(): Promise<{ id: string; phone: string }> {
 }
 
 async function completeProfile(page: Page, id: string) {
-  await page.goto(`/admin/waitlist/${id}/profile`)
+  await page.goto(`/admin/waitlist/${id}/edit`)
   const f = page.getByTestId('profile-form')
   await f.getByLabel('Customer type').selectOption('individual')
   await f.getByLabel('First name').fill('Ada')
@@ -134,7 +134,15 @@ async function tickAll(page: Page, type: 'customer' | 'go4solar') {
       name: type === 'customer' ? /lends to the customers/ : /lends to Go4Solar/,
     })
     .click()
-  for (const id of ['phone', 'consent', 'figures']) {
+  // Consent is per funder now (the block under the form): Trade Lenda's row.
+  const consent = page
+    .getByTestId('consent-block')
+    .getByRole('checkbox', { name: 'Trade Lenda', exact: true })
+  if (!(await consent.isChecked())) {
+    await consent.click()
+    await expect(consent).toBeChecked({ timeout: 20_000 })
+  }
+  for (const id of ['phone', 'figures']) {
     const box = page.getByTestId(`tick-${id}`).getByRole('checkbox')
     if (await box.isChecked()) {
       if (id !== 'figures') continue
@@ -161,7 +169,7 @@ test.describe('Trade Lenda batches', () => {
       // new one.
       const lead = await newTestLead()
       await completeProfile(page, lead.id)
-      await page.goto(`/admin/waitlist/${lead.id}/profile`)
+      await page.goto(`/admin/waitlist/${lead.id}/edit`)
       await tickAll(page, type)
       const figures = page.getByTestId(`figures-${type}`)
       if (type === 'customer') {

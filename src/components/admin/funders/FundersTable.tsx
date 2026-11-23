@@ -45,6 +45,7 @@ const EMPTY: FunderDraft = {
   status: 'active',
   lendingTypes: ['go4solar'],
   defaultLendingType: 'go4solar',
+  contactEmail: null,
 }
 
 export function FundersTable({ rows, canEdit }: { rows: FunderRowView[]; canEdit: boolean }) {
@@ -289,6 +290,20 @@ export function FundersTable({ rows, canEdit }: { rows: FunderRowView[]; canEdit
                     value={editing.balanceAvailable}
                     onChange={(v) => set({ balanceAvailable: v })}
                   />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="f-contact">Contact email (consent notices)</Label>
+                  <Input
+                    id="f-contact"
+                    type="email"
+                    value={editing.contactEmail ?? ''}
+                    onChange={(e) => set({ contactEmail: e.target.value || null })}
+                    placeholder="ops@funder.example"
+                  />
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    If a customer withdraws consent after their details were sent, we email this
+                    address to stop using and delete them.
+                  </p>
                 </div>
                 <fieldset className="text-sm sm:col-span-2">
                   <legend className="font-medium">Lending types allowed</legend>

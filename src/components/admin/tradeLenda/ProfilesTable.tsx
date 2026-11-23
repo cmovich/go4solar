@@ -266,7 +266,7 @@ export function ProfilesTable({
                 </td>
                 <td className="px-2 py-2">
                   <Link
-                    href={`/admin/waitlist/${r.id}/profile`}
+                    href={`/admin/waitlist/${r.id}/edit`}
                     className="text-brand-blue whitespace-nowrap underline"
                   >
                     Edit / Complete profile

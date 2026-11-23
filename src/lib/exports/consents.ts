@@ -7,7 +7,16 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/database.types'
 import type { AppRole } from '@/lib/auth/staffRoles'
 
-import type { FunderConsent } from './readiness'
+import type { ProfileValues } from '@/lib/tradeLenda/profile'
+import { valuesOf } from '@/lib/tradeLenda/server'
+
+import {
+  exportReadiness,
+  readinessLabel,
+  type ConsentFunder,
+  type FunderConsent,
+  type RecordTicks,
+} from './readiness'
 import { consentWithdrawalEmail } from './withdrawal'
 
 type Actor = { id: string; role: AppRole | null }
@@ -207,4 +216,74 @@ export async function setConsent(
     funderEmailed: notified,
   })
   return { ok: true, notified }
+}
+
+/**
+ * The edit page's consent block: every active funder (test funders for test entries), this
+ * person's consent for it, the batches they were exported in, and what can go to it now.
+ */
+export async function consentPanel(input: {
+  waitlistId: string
+  isTest: boolean
+  values: ProfileValues
+  ticks: RecordTicks
+}): Promise<ConsentFunder[]> {
+  const admin = createAdminClient()
+  const [funders, consents, { data: items }] = await Promise.all([
+    consentFunders(input.isTest),
+    loadConsents(input.waitlistId),
+    admin
+      .from('funder_batch_items')
+      .select('funder_batches(number, version, funder_id)')
+      .eq('waitlist_id', input.waitlistId),
+  ])
+  return funders.map((f) => {
+    const c = consents.find((x) => x.funderId === f.id) ?? null
+    const r = exportReadiness(input.values, input.ticks, consents, f.id)
+    return {
+      id: f.id,
+      name: f.name,
+      hasContactEmail: Boolean(f.contactEmail),
+      consentedAt: c?.consentedAt ?? null,
+      consentedBy: c?.consentedBy ?? null,
+      consentNote: c?.consentNote ?? null,
+      withdrawnAt: c?.withdrawnAt ?? null,
+      withdrawnBy: c?.withdrawnBy ?? null,
+      withdrawnNote: c?.withdrawnNote ?? null,
+      funderToldAt: c?.funderToldAt ?? null,
+      exportedIn: (items ?? []).flatMap((i) => {
+        const b = i.funder_batches as { number: string; version: number; funder_id: string } | null
+        return b && b.funder_id === f.id
+          ? [`${b.number}${b.version > 1 ? ` v${b.version}` : ''}`]
+          : []
+      }),
+      level: r.level,
+      missing: r.level === 'basic' ? r.fullMissing : r.basicMissing,
+    }
+  })
+}
+
+/**
+ * The waiting list's "Profile" column for these entries: "Full ready", "Basic ready" or how
+ * many of the basic items are done (consent is per funder, so it is shown on the Edit page).
+ */
+export async function readinessByLead(ids: string[]): Promise<Record<string, string>> {
+  const admin = createAdminClient()
+  const out: Record<string, string> = {}
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200)
+    const [{ data: leads }, { data: profiles }] = await Promise.all([
+      admin.from('waitlist_consumers').select('*').in('id', chunk),
+      admin.from('lead_profiles').select('*').in('waitlist_id', chunk),
+    ])
+    const byId = new Map((profiles ?? []).map((p) => [p.waitlist_id, p]))
+    for (const l of leads ?? []) {
+      const p = byId.get(l.id) ?? null
+      out[l.id] = readinessLabel(valuesOf(l, p), {
+        phoneVerifiedAt: p?.phone_verified_at ?? null,
+        figuresAgreedAt: p?.figures_agreed_at ?? null,
+      })
+    }
+  }
+  return out
 }
