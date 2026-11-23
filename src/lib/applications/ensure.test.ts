@@ -85,3 +85,21 @@ describe('ensureApplication with a newer chosen quote', () => {
     expect(db.rows('applications')).toHaveLength(2)
   })
 })
+
+describe('ensureApplication: one quotation, one application (21 Nov: a slow connection made two)', () => {
+  it('two starts at the same moment make ONE application; both get it', async () => {
+    // Like migration 0042: one live application per quote (the database refuses a second).
+    db = fakeSupabase({ applications: [['quote_id']] })
+    db.seed('quotes', {
+      id: NEW_Q,
+      owner_id: USER,
+      status: 'chosen',
+      updated_at: at(5),
+      state: 'Kaduna',
+    })
+    const [a, b] = await Promise.all([ensureApplication(USER), ensureApplication(USER)])
+    expect(db.rows('applications')).toHaveLength(1)
+    expect(a!.id).toBe(db.rows('applications')[0]!.id)
+    expect(b!.id).toBe(a!.id)
+  })
+})

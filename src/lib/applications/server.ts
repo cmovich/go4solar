@@ -146,6 +146,15 @@ export async function paysInFull(app: ApplicationRow): Promise<boolean> {
   return Boolean(data && 'builder' in data && storedBuild(data.builder)?.fixed?.payment === 'full')
 }
 
+/** Statuses that count as a live application (migration 0042: one per quote). */
+const LIVE_STATUSES: ApplicationStatus[] = [
+  'draft',
+  'submitted',
+  'under_review',
+  'more_info',
+  'approved',
+]
+
 export async function ensureApplication(userId: string): Promise<ApplicationRow | null> {
   const admin = createAdminClient()
   const { data: existing } = await admin
@@ -221,6 +230,7 @@ export async function ensureApplication(userId: string): Promise<ApplicationRow 
     .insert({
       consumer_id: userId,
       quote_id: quote.id,
+      status: 'draft',
       applicant_type: type,
       personal,
       business: type === 'business' ? ((lead?.business as BusinessDetails | null) ?? {}) : null,
@@ -247,6 +257,20 @@ export async function ensureApplication(userId: string): Promise<ApplicationRow 
     })
     .select('*')
     .single()
+  if (error?.code === '23505') {
+    // Started twice at the same moment (slow connection): the database keeps one live
+    // application per quote (migration 0042), so use the one the other start made.
+    const { data: first } = await admin
+      .from('applications')
+      .select('*')
+      .eq('consumer_id', userId)
+      .eq('quote_id', quote.id)
+      .in('status', LIVE_STATUSES)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    if (first) return first
+  }
   if (error) throw new Error(`could not create application: ${error.message}`)
   return created
 }
