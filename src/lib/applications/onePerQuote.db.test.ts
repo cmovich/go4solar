@@ -10,7 +10,8 @@ import { testPlusEmail } from '../../../e2e/helpers/test-identity'
 
 /**
  * Migration 0042 against the real database (skipped without .env.local, and until 0042 is
- * applied): one live application per quote; a declined one does not count. The account is a test
+ * applied): one live application per quote; a declined one does not count (any status other
+ * than draft, submitted, under_review, more_info or approved is ignored). The account is a test
  * identity (flagged test); nothing is deleted.
  */
 config({ path: '.env.local', quiet: true })
@@ -48,21 +49,36 @@ describe.skipIf(!hasDb)('one live application per quote (migration 0042)', () =>
       .select('id')
       .single()
     if (qErr) throw qErr
-    const start = () =>
+    // The rule checks applications created from 24 Nov 2026 (older pairs are left as they are).
+    const createdAt = new Date(
+      Math.max(Date.now(), Date.parse('2026-11-24T00:00:00+01:00') + 60_000),
+    ).toISOString()
+    const start = (status: 'draft' | 'declined') =>
       admin
         .from('applications')
-        .insert({ consumer_id: userId, quote_id: quote.id })
+        .insert({ consumer_id: userId, quote_id: quote.id, status, created_at: createdAt })
         .select('id')
         .single()
 
-    const first = await start()
+    const first = await start('draft')
     expect(first.error).toBeNull()
-    const second = await start()
-    if (!second.error) ctx.skip() // 0042 not applied yet
-    expect(second.error?.code).toBe('23505')
+    // The second one is saved declined (always allowed), then made live: refused by 0042.
+    // Without 0042 it is put back to declined at once, so no two live applications are left.
+    const second = await start('declined')
+    expect(second.error).toBeNull()
+    const live = await admin
+      .from('applications')
+      .update({ status: 'draft' })
+      .eq('id', second.data!.id)
+    if (!live.error) {
+      await admin.from('applications').update({ status: 'declined' }).eq('id', second.data!.id)
+      ctx.skip() // 0042 not applied yet
+    }
+    expect(live.error?.code).toBe('23505')
 
+    // After a decline the same quotation can start a new live application.
     await admin.from('applications').update({ status: 'declined' }).eq('id', first.data!.id)
-    const again = await start()
+    const again = await start('draft')
     expect(again.error).toBeNull()
   }, 60_000)
 })
