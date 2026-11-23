@@ -1196,6 +1196,12 @@ function PriceBreakdown({
     ['Price', formatNaira(b.price), 'bd-price'],
     [`Deposit (${Math.round(b.depositShare * 100)}%)`, formatNaira(b.deposit), 'bd-deposit'],
     ['Amount financed', formatNaira(b.financed), 'bd-financed'],
+    ...(b.charge > 0
+      ? ([
+          ['Payment plan charge', formatNaira(b.charge), 'bd-charge'],
+          ['Balance to repay monthly', formatNaira(b.balance), 'bd-balance'],
+        ] as [string, string, string][])
+      : []),
     ['Monthly payment', `${formatNaira(b.monthly)} × ${b.months} months`, 'bd-monthly'],
   ]
   return (

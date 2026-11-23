@@ -2,6 +2,7 @@ import 'server-only'
 
 import { approvalContext, approveApplication, type Actor } from '@/lib/approvals/server'
 import { lagosDate } from '@/lib/payments/lock'
+import { quoteBreakdown } from '@/lib/build/breakdown'
 import type { QuoteResult } from '@/lib/pricing/types'
 import { quoteReference } from '@/lib/quotes/quote'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -182,7 +183,10 @@ export type FunderQueueItem = {
   name: string
   state: string | null
   reference: string | null
-  systemPrice: number | null
+  /** What the customer pays in all (deposit + monthly payments). */
+  totalPayable: number | null
+  /** Price − deposit (before the payment plan charge): what SPEWA finances. */
+  financed: number | null
   depositShare: number
   routedAt: string
   decision: QueueDecision
@@ -236,8 +240,11 @@ export async function funderQueueList(opts: {
   ])
   const appOf = new Map((apps.data ?? []).map((a) => [a.id, a]))
   const loanOf = new Map((loans.data ?? []).map((l) => [l.application_id, l]))
-  const priceOf = new Map(
-    (quotes.data ?? []).map((q) => [q.id, (q.result as unknown as QuoteResult).systemPrice]),
+  const figuresOf = new Map(
+    (quotes.data ?? []).map((q) => {
+      const b = quoteBreakdown(q.result as unknown as QuoteResult)
+      return [q.id, { totalPayable: b.totalPayable, financed: b.financed }]
+    }),
   )
   const who = new Map((people.data ?? []).map((p) => [p.id, p.full_name ?? p.email ?? 'Staff']))
   const today = lagosDate()
@@ -253,7 +260,8 @@ export async function funderQueueList(opts: {
         name: applicantName(a),
         state: ((a.personal ?? {}) as Personal).state ?? null,
         reference: a.quote_id ? quoteReference(a.quote_id) : null,
-        systemPrice: a.quote_id ? (priceOf.get(a.quote_id) ?? null) : null,
+        totalPayable: a.quote_id ? (figuresOf.get(a.quote_id)?.totalPayable ?? null) : null,
+        financed: a.quote_id ? (figuresOf.get(a.quote_id)?.financed ?? null) : null,
         depositShare: Number(r.deposit_share),
         routedAt: r.routed_at,
         decision: r.decision as QueueDecision,

@@ -3,7 +3,10 @@ import { cashPrice } from '@/lib/quotes/quote'
 
 /**
  * "See breakdown" under the builder's price (pure): items, installation, delivery, the price,
- * the deposit, the amount financed, the monthly payment and the total payable.
+ * the deposit, the amount financed (price − deposit), the payment plan charge, the balance to
+ * repay monthly (financed + charge), the monthly payment and the total payable. Every screen and
+ * document that shows these figures reads them from here (quotation, invoice, SPEWA queue and
+ * file, approval panel).
  *
  * Home (PRD formula): the payment-plan cost is part of the one fixed price, so the price IS the
  * total payable and the deposit is its share. SPEWA offer (business or institution): the price
@@ -17,7 +20,12 @@ export type QuoteBreakdown = {
   price: number
   depositShare: number
   deposit: number
+  /** Price − deposit (before any payment plan charge). */
   financed: number
+  /** SPEWA offer: the payment plan charge on the financed amount; home quotes: 0 (in the price). */
+  charge: number
+  /** Financed + charge: what the monthly payments add up to. */
+  balance: number
   monthly: number
   months: number
   totalPayable: number
@@ -39,6 +47,8 @@ export function quoteBreakdown(q: QuoteResult): QuoteBreakdown {
     depositShare: q.snapshot.depositShare,
     deposit: q.deposit,
     financed: price - q.deposit,
+    charge: q.systemPrice - price,
+    balance: q.systemPrice - q.deposit,
     monthly: q.monthly,
     months: q.instalments.length,
     totalPayable: q.systemPrice,

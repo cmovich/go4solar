@@ -11,8 +11,20 @@ describe('quoteBreakdown', () => {
   it('home (PRD formula), Semako’s Kaduna 1 kVA example', () => {
     const q = priceQuote({
       lines: [
-        { sku: 'INV-1', name: '1 kVA hybrid inverter 12v', category: 'inverter', unitCost: 170_000, qty: 1 },
-        { sku: 'ACC-7.5', name: 'Protection, cables and mounting', category: 'accessories', unitCost: 180_000, qty: 1 },
+        {
+          sku: 'INV-1',
+          name: '1 kVA hybrid inverter 12v',
+          category: 'inverter',
+          unitCost: 170_000,
+          qty: 1,
+        },
+        {
+          sku: 'ACC-7.5',
+          name: 'Protection, cables and mounting',
+          category: 'accessories',
+          unitCost: 180_000,
+          qty: 1,
+        },
       ],
       installCost: 200_000,
       noMarkup: [
@@ -32,6 +44,8 @@ describe('quoteBreakdown', () => {
       depositShare: 0.2,
       deposit: 138_738,
       financed: 554_950,
+      charge: 0,
+      balance: 554_950,
       monthly: 46_246,
       months: 12,
       totalPayable: 693_688,
@@ -42,7 +56,14 @@ describe('quoteBreakdown', () => {
   it('business (SPEWA offer): price before the charge; deposit 30% of it', () => {
     const q = priceQuote({
       lines: [
-        { sku: 'SPW-SLS-0003', name: 'Solis 12kW', category: 'inverter', unitCost: 2_375_000, sellUnit: 2_665_000, qty: 1 },
+        {
+          sku: 'SPW-SLS-0003',
+          name: 'Solis 12kW',
+          category: 'inverter',
+          unitCost: 2_375_000,
+          sellUnit: 2_665_000,
+          qty: 1,
+        },
       ],
       installCost: 350_000,
       noMarkup: [
@@ -65,11 +86,73 @@ describe('quoteBreakdown', () => {
       depositShare: 0.3,
       deposit: 904_500,
       financed: 2_110_500,
+      charge: 633_150,
+      balance: 2_743_650,
       monthly: 228_638,
       months: 12,
       totalPayable: 3_648_150,
       offer: true,
     })
+  })
+
+  it('SPEWA demo (G4S-E7B59741): financed = price − deposit; the charge apart; balance to repay monthly', () => {
+    const q = priceQuote({
+      lines: [
+        {
+          sku: 'SPW-SLS-0011',
+          name: 'Solis 5kW/48V',
+          category: 'inverter',
+          unitCost: 480_000,
+          sellUnit: 520_000,
+          qty: 1,
+        },
+        {
+          sku: 'SPW-BAT',
+          name: 'MUST 48V/5KWH',
+          category: 'battery',
+          unitCost: 900_000,
+          sellUnit: 940_000,
+          qty: 1,
+        },
+        {
+          sku: 'SPW-PNL',
+          name: '330W Sungene',
+          category: 'panels',
+          unitCost: 50_000,
+          sellUnit: 56_500,
+          qty: 3,
+        },
+        {
+          sku: 'ACC',
+          name: 'Protection, cables and mounting',
+          category: 'accessories',
+          unitCost: 180_000,
+          sellUnit: 185_400,
+          qty: 1,
+        },
+      ],
+      installCost: 225_050,
+      noMarkup: [
+        { label: 'Installation', amount: 125_050 },
+        { label: 'Delivery — Go4Solar logistics (Kaduna)', amount: 100_000 },
+      ],
+      marginByCategory: margins,
+      pricingRateAnnual: 0.3,
+      tenureMonths: 12,
+      depositShare: 0.3,
+      minDepositShare: 0.3,
+      offer: quoteOffer(DEFAULT_OFFER_TERMS, [3, 6, 9, 12]),
+    })
+    const b = quoteBreakdown(q)
+    expect(b.price).toBe(2_039_950)
+    expect(b.deposit).toBe(611_985)
+    expect(b.financed).toBe(1_427_965)
+    expect(b.charge).toBe(428_390)
+    expect(b.balance).toBe(1_856_355)
+    expect(b.monthly).toBe(154_696)
+    expect(b.totalPayable).toBe(2_468_340)
+    expect(b.deposit + b.balance).toBe(b.totalPayable)
+    expect(b.financed + b.charge).toBe(b.balance)
   })
 
   it('installation and delivery removed: zero', () => {
