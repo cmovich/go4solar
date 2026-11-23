@@ -17,6 +17,7 @@ import { routedDecisions } from '@/lib/funderQueue/route'
 
 import { approvalContext, type ApprovalContext } from './server'
 import { slaState } from './rules'
+import { REPORT_EXCLUSIONS } from '@/config/reportExclusions'
 
 type AppRow = Database['public']['Tables']['applications']['Row']
 type Flags = {
@@ -34,10 +35,13 @@ export const QUEUE_FLAGS = {
 } as const
 export type QueueFlag = keyof typeof QUEUE_FLAGS
 
-/** Ids of test accounts (profiles.is_test): reports leave them out unless asked. */
+/**
+ * Ids of test accounts (profiles.is_test) plus the accounts on the report exclusion list (the
+ * SPEWA demo): reports leave them out unless asked.
+ */
 export async function testProfileIds(): Promise<Set<string>> {
   const admin = createAdminClient()
-  const ids = new Set<string>()
+  const ids = new Set<string>(REPORT_EXCLUSIONS.map((e) => e.profileId))
   // Page through: the database returns at most 1,000 rows per request.
   for (let from = 0; ; from += PAGE) {
     const { data } = await admin
