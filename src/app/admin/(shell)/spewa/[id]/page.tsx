@@ -6,7 +6,7 @@ import { ChequesForm } from '@/components/admin/spewa/ChequesForm'
 import { DecisionBar } from '@/components/admin/spewa/DecisionBar'
 import { applicationDetail } from '@/lib/approvals/admin'
 import { maskId } from '@/lib/applications/rules'
-import { quoteBreakdown } from '@/lib/build/breakdown'
+import { safeBreakdown } from '@/lib/build/breakdown'
 import { requireFunderQueueViewer } from '@/lib/auth/roles'
 import { applicantName } from '@/lib/funderQueue/names'
 import { canDecideFunderQueue, canRecordCheques, repaymentSummary } from '@/lib/funderQueue/rules'
@@ -63,7 +63,7 @@ export default async function SpewaFilePage({ params }: { params: Promise<{ id: 
   if (!row) notFound()
   const d = await applicationDetail(id)
   if (!d) notFound()
-  const b = d.quote ? quoteBreakdown(d.quote) : null
+  const b = d.quote ? safeBreakdown(d.quote) : null
   const app = d.ctx.app
   const personal = (app.personal ?? {}) as Record<string, string | undefined>
   const business = (app.business ?? {}) as Record<string, unknown>

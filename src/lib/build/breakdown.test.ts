@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { priceQuote } from '@/lib/pricing/price'
 import { DEFAULT_OFFER_TERMS, quoteOffer } from '@/lib/spewa/offer'
 
-import { quoteBreakdown } from './breakdown'
+import { quoteBreakdown, safeBreakdown } from './breakdown'
 
 const margins = { panels: 0.03, battery: 0.03, inverter: 0.03, accessories: 0.03 }
 
@@ -169,5 +169,30 @@ describe('quoteBreakdown', () => {
     expect(b.installation).toBe(0)
     expect(b.delivery).toBe(0)
     expect(b.items).toBe(b.price)
+  })
+})
+
+describe('safeBreakdown (quotes stored in older formats)', () => {
+  it('a quote saved before installation was itemised (no noMarkup list): no crash', () => {
+    const q = priceQuote({
+      lines: [{ sku: 'X', name: 'X', category: 'inverter', unitCost: 100_000, qty: 1 }],
+      installCost: 50_000,
+      noMarkup: [{ label: 'Installation', amount: 50_000 }],
+      marginByCategory: margins,
+      pricingRateAnnual: 0.24,
+      tenureMonths: 12,
+      depositShare: 0.2,
+    })
+    const old = { ...q, noMarkup: undefined } as unknown as typeof q
+    const b = safeBreakdown(old)
+    expect(b).not.toBeNull()
+    expect(b!.financed).toBe(q.systemPrice - q.deposit)
+    expect(b!.balance).toBe(q.systemPrice - q.deposit)
+  })
+
+  it('an empty or broken quote: null (shown as —), never a crash', () => {
+    expect(safeBreakdown({} as never)).toBeNull()
+    expect(safeBreakdown(null)).toBeNull()
+    expect(safeBreakdown({ systemPrice: 100 } as never)).toBeNull()
   })
 })

@@ -2,7 +2,7 @@ import 'server-only'
 
 import { approvalContext, approveApplication, type Actor } from '@/lib/approvals/server'
 import { lagosDate } from '@/lib/payments/lock'
-import { quoteBreakdown } from '@/lib/build/breakdown'
+import { safeBreakdown } from '@/lib/build/breakdown'
 import type { QuoteResult } from '@/lib/pricing/types'
 import { quoteReference } from '@/lib/quotes/quote'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -242,8 +242,8 @@ export async function funderQueueList(opts: {
   const loanOf = new Map((loans.data ?? []).map((l) => [l.application_id, l]))
   const figuresOf = new Map(
     (quotes.data ?? []).map((q) => {
-      const b = quoteBreakdown(q.result as unknown as QuoteResult)
-      return [q.id, { totalPayable: b.totalPayable, financed: b.financed }]
+      const b = safeBreakdown(q.result as unknown as QuoteResult)
+      return [q.id, { totalPayable: b?.totalPayable ?? null, financed: b?.financed ?? null }]
     }),
   )
   const who = new Map((people.data ?? []).map((p) => [p.id, p.full_name ?? p.email ?? 'Staff']))

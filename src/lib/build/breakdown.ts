@@ -34,9 +34,11 @@ export type QuoteBreakdown = {
 
 export function quoteBreakdown(q: QuoteResult): QuoteBreakdown {
   const offer = Boolean(q.snapshot.offer)
-  const installation = q.noMarkup
-    .filter((l) => l.label.startsWith('Installation'))
-    .reduce((s, l) => s + l.amount, 0)
+  // Quotes saved before installation and delivery were itemised have no noMarkup list: the
+  // whole installCost was installation then.
+  const installation = Array.isArray(q.noMarkup)
+    ? q.noMarkup.filter((l) => l.label.startsWith('Installation')).reduce((s, l) => s + l.amount, 0)
+    : q.installCost
   const delivery = q.installCost - installation
   const price = offer ? cashPrice(q.snapshot) : q.systemPrice
   return {
@@ -53,5 +55,26 @@ export function quoteBreakdown(q: QuoteResult): QuoteBreakdown {
     months: q.instalments.length,
     totalPayable: q.systemPrice,
     offer,
+  }
+}
+
+/**
+ * The breakdown of a stored quote, or null when the stored quote is empty or broken (very old
+ * test data): screens show "—" instead of failing. Use this for quotes read from the database.
+ */
+export function safeBreakdown(q: QuoteResult | null | undefined): QuoteBreakdown | null {
+  if (
+    !q ||
+    typeof q.systemPrice !== 'number' ||
+    typeof q.deposit !== 'number' ||
+    typeof q.installCost !== 'number' ||
+    !q.snapshot ||
+    !Array.isArray(q.instalments)
+  )
+    return null
+  try {
+    return quoteBreakdown(q)
+  } catch {
+    return null
   }
 }

@@ -20,7 +20,7 @@ import { slaState } from '@/lib/approvals/rules'
 import { INCOME_RANGES, maskId } from '@/lib/applications/rules'
 import { requireRole } from '@/lib/auth/roles'
 import { queueRowFor } from '@/lib/funderQueue/server'
-import { quoteBreakdown } from '@/lib/build/breakdown'
+import { safeBreakdown } from '@/lib/build/breakdown'
 import { formatNaira, formatPercent } from '@/lib/money'
 import { MAX_EXTENSION_DAYS, addDaysIso, lagosDate } from '@/lib/payments/lock'
 
@@ -75,7 +75,7 @@ export default async function ApplicationPage({
   const tab = ((await searchParams).tab ?? 'summary') as Tab
   const [d, routed] = await Promise.all([applicationDetail(id), queueRowFor(id)])
   if (!d) notFound()
-  const b = d.quote ? quoteBreakdown(d.quote) : null
+  const b = d.quote ? safeBreakdown(d.quote) : null
   const { ctx } = d
   const app = ctx.app
   const personal = (app.personal ?? {}) as Record<string, string | undefined>
