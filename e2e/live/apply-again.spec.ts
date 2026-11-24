@@ -28,7 +28,7 @@ type App = {
 async function freeFile(): Promise<App | null> {
   const [apps, queued] = await Promise.all([
     rest<App[]>(
-      'applications?select=id,consumer_id,quote_id,personal&status=eq.submitted&quote_id=not.is.null&order=submitted_at.desc&limit=100',
+      'applications?select=id,consumer_id,quote_id,personal&status=eq.submitted&quote_id=not.is.null&order=submitted_at.desc.nullslast&limit=100',
     ),
     rest<{ application_id: string }[]>('funder_queue?select=application_id'),
   ])
