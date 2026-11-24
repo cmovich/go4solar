@@ -526,3 +526,84 @@ export async function exportQueue(
   })
   return { ok: true, batchId: batch.id, number }
 }
+
+/**
+ * "Send updated version" for any funder's batch: the same number, the next version, every person
+ * again with today's details at the best level now possible (Basic → Full once complete). The
+ * old version is marked replaced.
+ */
+export async function updateExportBatch(
+  batchId: string,
+  actor: Actor,
+): Promise<Result<{ id: string; number: string; version: number }>> {
+  if (!canExport(actor.role)) return NOT_ALLOWED
+  const admin = createAdminClient()
+  const { data: old } = await admin
+    .from('funder_batches')
+    .select('*')
+    .eq('id', batchId)
+    .maybeSingle()
+  if (!old) return { ok: false, error: 'Batch not found.' }
+  if (old.replaced_by) return { ok: false, error: 'A newer version of this batch exists.' }
+  const funder = (await exportFunders(old.is_test)).find((f) => f.id === old.funder_id)
+  if (!funder) return { ok: false, error: 'This funder is not active.' }
+  const lendingType: LendingType = old.lending_type === 'go4solar' ? 'go4solar' : 'customer'
+  const { data: items } = await admin
+    .from('funder_batch_items')
+    .select('waitlist_id')
+    .eq('batch_id', batchId)
+  const snaps: { id: string; snapshot: FunderCustomer; level: ExportLevel }[] = []
+  const refused: string[] = []
+  for (const { waitlist_id } of items ?? []) {
+    const s = await snapshotFor(waitlist_id, funder, lendingType, 'full-where-possible')
+    if (s.ok) snaps.push({ id: waitlist_id, snapshot: s.snapshot, level: s.level })
+    else refused.push(`${quoteReference(waitlist_id)}: ${s.problems.join(' ')}`)
+  }
+  if (refused.length > 0) return { ok: false, error: `Not sent. ${refused.join(' ')}` }
+  const totals = {
+    ...batchTotals(
+      lendingType,
+      snaps.map((s) => s.snapshot),
+    ),
+    financing: exportTotals(
+      snaps.map((s) => ({ level: s.level, financing: s.snapshot.financing! })),
+    ),
+  }
+  const { data: batch, error } = await admin
+    .from('funder_batches')
+    .insert({
+      funder_id: old.funder_id,
+      number: old.number,
+      version: old.version + 1,
+      lending_type: lendingType,
+      totals: totals as unknown as Json,
+      created_by: actor.id,
+      is_test: old.is_test,
+      export_queue_id: old.export_queue_id,
+      onboarding_url: old.onboarding_url,
+    })
+    .select('id')
+    .single()
+  if (error || !batch) return FAILED
+  const { error: itemsError } = await admin.from('funder_batch_items').insert(
+    snaps.map((s) => ({
+      batch_id: batch.id,
+      waitlist_id: s.id,
+      snapshot: s.snapshot as unknown as Json,
+      level: s.level,
+    })),
+  )
+  if (itemsError) {
+    await admin.from('funder_batches').delete().eq('id', batch.id)
+    return FAILED
+  }
+  await admin.from('funder_batches').update({ replaced_by: batch.id }).eq('id', batchId)
+  await audit(actor, 'funder_batch.update', batch.id, {
+    number: old.number,
+    version: old.version + 1,
+    funder: funder.name,
+    basic: snaps.filter((s) => s.level === 'basic').length,
+    full: snaps.filter((s) => s.level === 'full').length,
+  })
+  return { ok: true, id: batch.id, number: old.number, version: old.version + 1 }
+}

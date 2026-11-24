@@ -1,5 +1,7 @@
-import { canEditLeadProfile } from '@/lib/auth/staffRoles'
+import { canEditLeadProfile, canExport } from '@/lib/auth/staffRoles'
 import { readinessByLead } from '@/lib/exports/consents'
+import { exportsByLead } from '@/lib/exports/list'
+import { openQueue } from '@/lib/exports/queue'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
@@ -173,6 +175,14 @@ export default async function WaitlistAdminPage({
             canDelete={canDelete}
             canEdit={canEditLeadProfile(session.role)}
             readiness={await readinessByLead(rows.map((r) => r.id))}
+            canQueue={canExport(session.role)}
+            openQueue={
+              canExport(session.role)
+                ? ((await openQueue(Boolean(filters.includeTest)))?.number ?? null)
+                : null
+            }
+            exported={await exportsByLead(rows.map((r) => r.id))}
+            isTest={Boolean(filters.includeTest)}
           />
         </>
       )}

@@ -180,12 +180,8 @@ test.describe('sales role', () => {
     test.skip(test.info().project.name === 'mobile', 'one browser is enough')
     await loginAsStaff(page, 'sales')
     const nav = page.getByRole('navigation', { name: 'Back office' })
-    // Sales also reads the waiting list (24 Nov, 0044) and edits the Trade Lenda profiles.
-    await expect(nav.getByRole('link')).toHaveText([
-      'Waiting list',
-      'Trade Lenda profiles',
-      'Quotations',
-    ])
+    // Sales also reads the waiting list (24 Nov, 0044; Edit and ticks, never queue or export).
+    await expect(nav.getByRole('link')).toHaveText(['Waiting list', 'Quotations'])
     for (const path of [
       '/admin',
       '/admin/outbox',

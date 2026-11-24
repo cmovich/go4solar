@@ -55,8 +55,8 @@ export const NAV: readonly NavItem[] = [
     roles: ['super_admin', 'credit_officer', 'operations', 'content'],
   },
   {
-    href: '/admin/waitlist/profiles',
-    label: 'Trade Lenda profiles',
+    href: '/admin/exports',
+    label: 'Exports',
     icon: FolderCheck,
     roles: ['super_admin', 'operations'],
   },
@@ -152,15 +152,10 @@ const FUNDER_NAV: NavItem = {
 }
 
 export function navFor(role: AppRole | null, permissions: readonly string[] = []): NavItem[] {
-  // Sales (installers, marketers): Quotations, the waiting list (read; Edit and ticks) and the
-  // Trade Lenda profiles (edit only).
+  // Sales (installers, marketers): Quotations and the waiting list (read; Edit and ticks; never
+  // queue or export).
   if (role === 'sales') {
-    return NAV.filter(
-      (n) =>
-        n.href === '/admin/quotations' ||
-        n.href === '/admin/waitlist' ||
-        n.href === '/admin/waitlist/profiles',
-    )
+    return NAV.filter((n) => n.href === '/admin/quotations' || n.href === '/admin/waitlist')
   }
   // Funder (Trade Lenda): its batches only.
   if (role === 'funder_partner') return [FUNDER_NAV]

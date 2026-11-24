@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
 
 import { getSessionInfo } from '@/lib/auth/session'
+import { canExport } from '@/lib/auth/staffRoles'
 import { loadCompany } from '@/lib/company/server'
 import { renderFunderBatchPdf } from '@/lib/pdf/FunderBatchPdf'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -12,12 +13,14 @@ import { exportOf } from '@/lib/tradeLenda/view'
 export const dynamic = 'force-dynamic'
 
 /**
- * Trade Lenda downloads: the whole batch or one customer (`ref`), as CSV, Excel or PDF. Only the
- * funder (its own batches) or a super admin; built from the funder-safe snapshot only.
+ * Batch downloads: the whole batch or one customer (`ref`), as CSV, Excel or PDF. The funder (its
+ * own batches), or super admin and Operations (any funder's); built from the funder-safe
+ * snapshot only.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const s = await getSessionInfo()
-  if (!s.user || s.aal !== 'aal2' || (s.role !== 'super_admin' && s.role !== 'funder_partner')) {
+  const staff = canExport(s.role)
+  if (!s.user || s.aal !== 'aal2' || (!staff && s.role !== 'funder_partner')) {
     return new NextResponse('Not allowed', { status: 403 })
   }
   const { id } = await params
@@ -26,7 +29,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!z.uuid().safeParse(id).success || !['csv', 'xlsx', 'pdf'].includes(format)) {
     return new NextResponse('Not found', { status: 404 })
   }
-  const view = await funderBatch({ id: s.user.id, role: s.role }, id)
+  // Super admin and Operations (Admin → Exports): any funder's batch; a funder: its own only.
+  const view = await funderBatch({ id: s.user.id, role: s.role }, id, { anyFunder: staff })
   if (!view) return new NextResponse('Not found', { status: 404 })
   let data = exportOf(view)
   if (ref) {

@@ -43,10 +43,18 @@ export async function saveFunder(input: unknown): Promise<Result> {
     lending_types: d.lendingTypes,
     default_lending_type: d.defaultLendingType,
     contact_email: d.contactEmail ?? null,
+    batch_prefix: d.batchPrefix ?? null,
     sample: false,
   }
   const { data, error } = await supabase.from('funders').upsert(row).select('id').single()
-  if (error) return { ok: false, error: error.message }
+  if (error)
+    return {
+      ok: false,
+      error:
+        error.code === '23505' && /batch_prefix/.test(error.message)
+          ? 'Another funder already uses this batch prefix.'
+          : error.message,
+    }
 
   await createAdminClient()
     .from('audit_log')
