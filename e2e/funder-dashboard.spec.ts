@@ -190,3 +190,14 @@ test('SPEWA’s approver sees SPEWA approvals and SPEWA’s batches', async ({ p
   await expect(page.getByRole('heading', { level: 1, name: 'Batches' })).toBeVisible()
   await expect(page.getByTestId('view-as')).toHaveCount(0)
 })
+
+test('super admin menu: “Funder view (View as)” opens the funder view', async ({ page }) => {
+  test.skip(test.info().project.name !== 'desktop', 'staff login runs once, on desktop')
+  await loginAsStaff(page)
+  await page
+    .getByRole('navigation', { name: 'Back office' })
+    .getByRole('link', { name: 'Funder view (View as)' })
+    .click()
+  await page.waitForURL(/\/admin\/funder(\?|$)/)
+  await expect(page.getByTestId('view-as')).toContainText('View as:')
+})

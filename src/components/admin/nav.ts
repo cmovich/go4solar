@@ -60,6 +60,13 @@ export const NAV: readonly NavItem[] = [
     icon: FolderCheck,
     roles: ['super_admin', 'operations'],
   },
+  // Super admin: see exactly what any funder sees ("View as" on the page).
+  {
+    href: '/admin/funder',
+    label: 'Funder view (View as)',
+    icon: FolderCheck,
+    roles: ['super_admin'],
+  },
   {
     href: '/admin/grid-insights',
     label: 'Grid insights',

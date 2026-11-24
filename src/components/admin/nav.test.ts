@@ -38,3 +38,12 @@ describe('navFor', () => {
     expect(hrefs(null, ['create_quotations'])).toEqual([])
   })
 })
+
+describe('Funder view (View as)', () => {
+  it('super admin has it, opening /admin/funder; other staff do not', () => {
+    const item = navFor('super_admin').find((n) => n.href === '/admin/funder')
+    expect(item?.label).toBe('Funder view (View as)')
+    for (const r of ['operations', 'credit_officer', 'finance', 'content', 'sales'] as const)
+      expect(navFor(r).map((n) => n.href)).not.toContain('/admin/funder')
+  })
+})
