@@ -152,10 +152,14 @@ const FUNDER_NAV: NavItem = {
 }
 
 export function navFor(role: AppRole | null, permissions: readonly string[] = []): NavItem[] {
-  // Sales (installers, marketers): Quotations, and the Trade Lenda profiles (edit only).
+  // Sales (installers, marketers): Quotations, the waiting list (read; Edit and ticks) and the
+  // Trade Lenda profiles (edit only).
   if (role === 'sales') {
     return NAV.filter(
-      (n) => n.href === '/admin/quotations' || n.href === '/admin/waitlist/profiles',
+      (n) =>
+        n.href === '/admin/quotations' ||
+        n.href === '/admin/waitlist' ||
+        n.href === '/admin/waitlist/profiles',
     )
   }
   // Funder (Trade Lenda): its batches only.
