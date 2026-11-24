@@ -26,6 +26,9 @@ import {
 
 import { SizingPanel } from '@/components/admin/SizingPanel'
 
+import { AddToQueueBar } from '@/components/admin/exports/AddToQueueBar'
+import type { ExportedMark } from '@/lib/exports/list'
+
 import { DeleteEntryButton } from './DeleteEntryButton'
 import { DuplicateBadge } from './DuplicateBadge'
 
@@ -46,6 +49,10 @@ export function ConsumerTable({
   canDelete,
   canEdit = false,
   readiness = {},
+  canQueue = false,
+  openQueue = null,
+  exported = {},
+  isTest = false,
 }: {
   rows: ConsumerLead[]
   duplicates: Record<string, DuplicateMatch>
@@ -54,8 +61,18 @@ export function ConsumerTable({
   canEdit?: boolean
   /** "Full ready", "Basic ready" or "x of N" per entry. */
   readiness?: Record<string, string>
+  /** Super admin and Operations: tick rows and "Add to export queue". */
+  canQueue?: boolean
+  /** The open export queue's number (asks before adding to it). */
+  openQueue?: string | null
+  /** Every export of each person (the "Exported" badge). */
+  exported?: Record<string, ExportedMark[]>
+  isTest?: boolean
 }) {
   const [open, setOpen] = useState<ConsumerLead | null>(null)
+  const [picked, setPicked] = useState<string[]>([])
+  const toggle = (id: string) =>
+    setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
 
   if (rows.length === 0) {
     return <p className="text-muted-foreground mt-6 text-sm">No sign-ups match these filters.</p>
@@ -63,10 +80,28 @@ export function ConsumerTable({
 
   return (
     <>
+      {canQueue && (
+        <AddToQueueBar
+          selected={picked}
+          openQueue={openQueue}
+          isTest={isTest}
+          onDone={() => setPicked([])}
+        />
+      )}
       <div className="mt-4 overflow-x-auto rounded-xl border">
         <table className="w-full text-sm" data-testid="consumer-table">
           <thead className="bg-brand-green text-left text-white">
             <tr>
+              {canQueue && (
+                <th className="px-3 py-2">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all"
+                    checked={picked.length === rows.length && rows.length > 0}
+                    onChange={(e) => setPicked(e.target.checked ? rows.map((r) => r.id) : [])}
+                  />
+                </th>
+              )}
               {[
                 'When',
                 'Name',
@@ -98,6 +133,17 @@ export function ConsumerTable({
                 className={`cursor-pointer hover:bg-amber-50 ${i % 2 ? 'bg-brand-mist/60' : 'bg-white'}`}
                 data-testid="consumer-row"
               >
+                {canQueue && (
+                  <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${r.firstName ?? r.phone}`}
+                      checked={picked.includes(r.id)}
+                      onChange={() => toggle(r.id)}
+                      data-testid="select-entry"
+                    />
+                  </td>
+                )}
                 <td className="px-3 py-2 whitespace-nowrap">{date(r.createdAt)}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.firstName ? (
@@ -106,6 +152,18 @@ export function ConsumerTable({
                     <span className="text-muted-foreground">—</span>
                   )}
                   <DuplicateBadge match={duplicates[r.id]} />
+                  {exported[r.id]?.length ? (
+                    <span
+                      className="bg-brand-mist text-brand-green ml-2 rounded px-1.5 py-0.5 text-xs font-semibold"
+                      title={exported[r.id]!.map(
+                        (x) =>
+                          `${x.funderName} · ${x.batch} · ${date(x.at)} · ${x.level === 'basic' ? 'Basic' : 'Full'} · by ${x.by}`,
+                      ).join('\n')}
+                      data-testid="exported-badge"
+                    >
+                      Exported{exported[r.id]!.length > 1 ? ` ×${exported[r.id]!.length}` : ''}
+                    </span>
+                  ) : null}
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.applicantType ? (

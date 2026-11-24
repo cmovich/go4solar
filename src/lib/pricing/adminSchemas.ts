@@ -160,6 +160,19 @@ export const funderSchema = z
       .min(1, 'Choose at least one lending type.')
       .default(['go4solar']),
     defaultLendingType: z.enum(['customer', 'go4solar']).default('go4solar'),
+    /** Batch numbers for exports to this funder (0043): TL-Batch-001, SP-Batch-001. Optional. */
+    batchPrefix: z
+      .union([
+        z
+          .string()
+          .trim()
+          .toUpperCase()
+          .regex(/^[A-Z]{2,4}$/, 'Use 2 to 4 letters, e.g. TL.'),
+        z.literal(''),
+        z.null(),
+      ])
+      .optional()
+      .transform((v) => (v ? v : null)),
     /** Where consent-withdrawal notices go (0043). Optional. */
     contactEmail: z
       .union([z.email('Enter a valid email address.').max(200), z.literal(''), z.null()])

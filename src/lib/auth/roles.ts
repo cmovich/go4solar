@@ -7,6 +7,7 @@ import {
   FUNDER_PARTNER_ROLE,
   SALES_ROLE,
   canEditLeadProfile,
+  canExport,
   isBackOfficeRole,
 } from './staffRoles'
 
@@ -75,6 +76,13 @@ export async function requireWaitlistViewer(): Promise<SessionInfo> {
   const info = await getSessionInfo()
   if (info.user && info.aal === 'aal2' && info.role === SALES_ROLE) return info
   return requireStaffWithMfa()
+}
+
+/** Admin → Exports and the export queue: super admin and Operations only. */
+export async function requireExporter(): Promise<SessionInfo> {
+  const info = await requireStaffWithMfa()
+  if (!canExport(info.role)) redirect('/admin')
+  return info
 }
 
 /** Trade Lenda's pages (/admin/funder): the funder, or a super admin ("View as Trade Lenda"). */

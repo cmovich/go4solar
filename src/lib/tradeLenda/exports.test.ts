@@ -100,3 +100,72 @@ describe('optional details: in the files only when filled in', () => {
     expect(rows['Contact person']).toBe('Ada Obi, Owner')
   })
 })
+
+describe('Basic and Full exports (0043): financing per person and in the totals', () => {
+  const withLevel = (level: 'basic' | 'full'): ExportBatch => {
+    const base = makeSnapshot('customer')
+    const financing = {
+      months: 12,
+      deposit: 261_400,
+      depositStatus: 'to be paid' as const,
+      depositPaid: 0,
+      financed: 1_045_600,
+      monthly: 128_957,
+      totalRepayment: 1_547_488,
+      earnings: 501_888,
+    }
+    const c =
+      level === 'basic'
+        ? {
+            ...base,
+            level,
+            financing,
+            dateOfBirth: null,
+            work: { employmentType: null, employer: null, jobTitle: null, incomeRange: null },
+            guarantor: { name: null, phone: null, relationship: null, address: null },
+          }
+        : { ...base, level, financing }
+    return {
+      number: 'TL-Batch-009',
+      version: 1,
+      lendingType: 'customer',
+      createdAt: '2026-11-24T10:00:00Z',
+      totals: {
+        ...batchTotals('customer', [c]),
+        financing: {
+          people: 1,
+          basic: level === 'basic' ? 1 : 0,
+          full: level === 'full' ? 1 : 0,
+          depositsPaid: 0,
+          depositsToPay: 261_400,
+          financed: 1_045_600,
+          totalRepayment: 1_547_488,
+          earnings: 501_888,
+          monthly: 128_957,
+        },
+      },
+      customers: [c],
+      decisions: {},
+    }
+  }
+
+  it('Basic CSV: level, deposit status, financed ₦1,045,600, earnings ₦501,888; no date of birth or guarantor; funder-safe', () => {
+    const csv = batchCsv(withLevel('basic'))
+    expect(csv).toContain('Basic')
+    expect(csv).toContain('to be paid')
+    expect(csv).toContain('1045600')
+    expect(csv).toContain('501888')
+    expect(csv).toContain('1547488')
+    expect(csv).not.toContain('1990-01-01')
+    expect(funderSafetyProblems(csv, ogaCostFigures())).toEqual([])
+  })
+
+  it('Full PDF: the totals page lists Basic / Full, deposits, funder finances and earnings; funder-safe', async () => {
+    const pdf = await renderFunderBatchPdf(withLevel('full'), DEFAULT_COMPANY)
+    const text = pdfPageTexts(pdf).join('\n')
+    expect(text).toContain('Funder earnings (total interest/charge)')
+    expect(text).toContain('₦501,888')
+    expect(text).toContain('0 Basic · 1 Full')
+    expect(funderSafetyProblems(text, ogaCostFigures())).toEqual([])
+  })
+})

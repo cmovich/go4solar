@@ -28,6 +28,8 @@ export type PlanBasis = {
     totalPayable: number
     monthly: number
   }
+  /** SPEWA offer quotes only: the payment plan charge at this deposit and length (else null). */
+  planCharge?: number | null
 }
 
 const itemsOfQuote = (q: QuoteResult): PlanItem[] => [
@@ -88,5 +90,6 @@ export function quoteBasis(
       totalPayable: again.systemPrice,
       monthly: again.monthly,
     },
+    planCharge: again.planCharge?.amount ?? null,
   }
 }

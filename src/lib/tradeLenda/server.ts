@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { canEditLeadProfile, canSendToFunder } from '@/lib/auth/staffRoles'
+import { canEditLeadProfile, canExport, canSendToFunder } from '@/lib/auth/staffRoles'
 import { setConsent } from '@/lib/exports/consents'
 import type { AppRole } from '@/lib/auth/session'
 import type { QuoteResult, TenureMonths } from '@/lib/pricing/types'
@@ -142,7 +142,7 @@ export async function basisFor(
   depositShare: number,
   months: number,
 ): Promise<PlanBasis | null> {
-  if (!kind || !ref || ![6, 9, 12].includes(months)) return null
+  if (!kind || !ref || ![3, 6, 9, 12, 18, 24].includes(months)) return null
   const m = months as TenureMonths
   try {
     if (kind === 'ready') {
@@ -855,16 +855,22 @@ export type FunderBatchView = FunderBatchRow & {
 }
 
 /** One batch, funder-safe: its totals and its customers' snapshots (never anything else). */
-export async function funderBatch(actor: Actor, batchId: string): Promise<FunderBatchView | null> {
-  const funderId = await funderIdFor(actor)
-  if (!funderId) return null
+export async function funderBatch(
+  actor: Actor,
+  batchId: string,
+  /** anyFunder: Admin → Exports (super admin, Operations) sees every funder's batches. */
+  opts: { anyFunder?: boolean } = {},
+): Promise<FunderBatchView | null> {
+  const staff = opts.anyFunder === true && canExport(actor.role)
+  const funderId = staff ? null : await funderIdFor(actor)
+  if (!staff && !funderId) return null
   const admin = createAdminClient()
-  const { data: b } = await admin
+  let q = admin
     .from('funder_batches')
     .select('id, number, version, lending_type, created_at, replaced_by, totals, funder_id')
     .eq('id', batchId)
-    .eq('funder_id', funderId)
-    .maybeSingle()
+  if (funderId) q = q.eq('funder_id', funderId)
+  const { data: b } = await q.maybeSingle()
   if (!b) return null
   const [{ data: items }, { count }] = await Promise.all([
     admin
@@ -875,7 +881,7 @@ export async function funderBatch(actor: Actor, batchId: string): Promise<Funder
     admin
       .from('funder_batches')
       .select('id', { count: 'exact', head: true })
-      .eq('funder_id', funderId)
+      .eq('funder_id', b.funder_id)
       .eq('number', b.number),
   ])
   const totals = b.totals as unknown as ReturnType<typeof batchTotals>

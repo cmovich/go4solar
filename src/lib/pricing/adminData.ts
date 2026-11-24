@@ -184,6 +184,7 @@ export async function loadPricingDraft(includeTestFunders = false): Promise<Pric
       defaultLendingType: (f.default_lending_type === 'customer' ? 'customer' : 'go4solar') as
         'customer' | 'go4solar',
       contactEmail: f.contact_email ?? null,
+      batchPrefix: f.batch_prefix ?? null,
     })),
   }
 }

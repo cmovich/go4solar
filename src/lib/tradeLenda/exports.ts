@@ -64,6 +64,13 @@ const COLUMNS: [string, (c: FunderCustomer, b: ExportBatch) => string | number][
   ['Months', (c) => c.figures.months],
   ['Monthly repayment', (c) => c.figures.monthly],
   ['Total repayment', (c) => c.figures.totalRepayment],
+  // Exports from 0043 on: the level and what the funder finances and earns (blank before).
+  ['Level', (c) => (c.level === 'basic' ? 'Basic' : 'Full')],
+  ['Deposit status', (c) => c.financing?.depositStatus ?? ''],
+  ['Deposit paid so far', (c) => c.financing?.depositPaid ?? ''],
+  ['Funder finances', (c) => c.financing?.financed ?? ''],
+  ['Funder earnings (interest/charge)', (c) => c.financing?.earnings ?? ''],
+  ['Repayment to funder (financed + earnings)', (c) => c.financing?.totalRepayment ?? ''],
   [
     'Details confirmed by phone',
     (c) => `${c.records.verifiedByPhone.by}, ${c.records.verifiedByPhone.at}`,
@@ -98,6 +105,16 @@ export function summaryRows(b: ExportBatch): [string, string][] {
     ['Total financed', formatNaira(t.totalFinanced)],
     ['Total repayments', formatNaira(t.totalRepayments)],
     ['Monthly repayments due', formatNaira(t.monthlyRepaymentsDue)],
+    ...(t.financing
+      ? ([
+          ['Basic / Full', `${t.financing.basic} Basic · ${t.financing.full} Full`],
+          ['Deposits paid', formatNaira(t.financing.depositsPaid)],
+          ['Deposits to be paid', formatNaira(t.financing.depositsToPay)],
+          ['Funder finances (total)', formatNaira(t.financing.financed)],
+          ['Funder earnings (total interest/charge)', formatNaira(t.financing.earnings)],
+          ['Repayment to funder (total)', formatNaira(t.financing.totalRepayment)],
+        ] as [string, string][])
+      : []),
     ...Object.entries(t.byPlan).map(
       ([plan, g]) =>
         [`Plan: ${plan}`, `${g.customers} · financed ${formatNaira(g.financed)}`] as [

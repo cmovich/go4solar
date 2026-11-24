@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
+import { withTestExportQueue } from './helpers/exportQueue'
 import { loginAsStaff } from './helpers/staff'
 
 /**
@@ -163,80 +164,101 @@ test.describe('Trade Lenda batches', () => {
     test.skip(!(await ready()), 'migration 0041 not applied')
     test.setTimeout(600_000)
     const costs = await ogaCosts()
-    await loginAsStaff(page)
-    for (const type of ['customer', 'go4solar'] as const) {
-      // A fresh test person per lending type: someone already in an active batch cannot go in a
-      // new one.
-      const lead = await newTestLead()
-      await completeProfile(page, lead.id)
-      await page.goto(`/admin/waitlist/${lead.id}/edit`)
-      await tickAll(page, type)
-      const figures = page.getByTestId(`figures-${type}`)
-      if (type === 'customer') {
-        // Oga Boss, 12 months, 20%: 4% a month on the price paid in full.
-        await expect(figures).toContainText('₦1,307,000')
-        await expect(figures).toContainText('₦128,957 × 12 months')
-        await expect(figures).toContainText('₦1,808,888')
-      } else {
-        await expect(figures).toContainText('Drawn from Trade Lenda')
-        await expect(figures).toContainText('₦1,045,600')
+    // The shared test export queue: one test at a time. A leftover open one (interrupted run)
+    // is discarded, not deleted.
+    await withTestExportQueue(async () => {
+      await fetch(`${url}/rest/v1/export_queues?status=eq.draft&is_test=eq.true`, {
+        method: 'PATCH',
+        headers: {
+          apikey: key!,
+          Authorization: `Bearer ${key}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'discarded' }),
+      })
+      await loginAsStaff(page)
+      for (const type of ['customer', 'go4solar'] as const) {
+        // A fresh test person per lending type: someone already in an active batch cannot go in a
+        // new one.
+        const lead = await newTestLead()
+        await completeProfile(page, lead.id)
+        await page.goto(`/admin/waitlist/${lead.id}/edit`)
+        await tickAll(page, type)
+        const figures = page.getByTestId(`figures-${type}`)
+        if (type === 'customer') {
+          // Oga Boss, 12 months, 20%: 4% a month on the price paid in full.
+          await expect(figures).toContainText('₦1,307,000')
+          await expect(figures).toContainText('₦128,957 × 12 months')
+          await expect(figures).toContainText('₦1,808,888')
+        } else {
+          await expect(figures).toContainText('Drawn from Trade Lenda')
+          await expect(figures).toContainText('₦1,045,600')
+        }
+
+        // Send through the export queue (24 Nov): waiting list → Add to export queue → export.
+        await page.goto('/admin/waitlist?tab=complete&test=1')
+        const row = page.getByTestId('consumer-row').filter({
+          has: page.locator(`a[href="/admin/waitlist/${lead.id}/edit"]`),
+        })
+        await row.getByTestId('select-entry').check({ timeout: 30_000 })
+        await page.getByTestId('add-to-queue').click()
+        await expect(page.getByTestId('queue-bar-message')).toContainText(/Added 1 to EXPT-/, {
+          timeout: 30_000,
+        })
+        const tlId = (await rest<{ id: string }[]>('funders?select=id&batch_prefix=eq.TL'))[0]!.id
+        await page.goto(
+          `/admin/exports/queue?test=1&funder=${tlId}&type=${type}&mode=full-where-possible`,
+        )
+        await expect(
+          page
+            .locator(`[data-testid="queue-row"][data-id="${lead.id}"]`)
+            .getByTestId('queue-level'),
+        ).toHaveText(/Basic|Full/, { timeout: 60_000 })
+        await page.getByTestId('export-queue').click()
+        await page.waitForURL(/\/admin\/exports(\?|$)/, { timeout: 120_000 })
+        await expect(page.getByTestId('export-row').first()).toContainText(/TLT-Batch-\d{3}/)
+
+        // View as Trade Lenda: the newest batch.
+        await page.goto('/admin/funder?test=1')
+        await expect(page.getByTestId('view-as')).toBeVisible()
+        await page.getByTestId('funder-batches').getByRole('link').first().click()
+        // Test batches have their own numbers (real batches start at TL-Batch-001).
+        await expect(page.getByTestId('batch-title')).toContainText('TLT-Batch-')
+        await expect(page.getByTestId('batch-title')).toContainText(
+          type === 'customer' ? 'Lends to customers' : 'Lends to Go4Solar',
+        )
+        await expect(page.getByTestId('batch-summary')).toContainText('Total financed')
+        const pageText = await page.locator('main').innerText()
+        expect(problems(pageText, type === 'go4solar' ? costs : [])).toEqual([])
+
+        const base = (await page
+          .getByTestId('downloads')
+          .getByRole('link', { name: 'CSV' })
+          .getAttribute('href'))!
+        const csv = await download(page.request, base)
+        expect(csv).toContain('Ada')
+        expect(problems(csv, type === 'go4solar' ? costs : [])).toEqual([])
+        for (const fmt of ['xlsx', 'pdf']) {
+          const raw = await download(page.request, base.replace('format=csv', `format=${fmt}`))
+          expect(problems(raw, [])).toEqual([])
+        }
+
+        // One customer, as Trade Lenda sees them.
+        await page.getByTestId('batch-customers').getByRole('link').first().click()
+        const detail = await page.getByTestId('funder-customer').innerText()
+        expect(detail).toContain('4.0% per month, flat')
+        expect(problems(detail, type === 'go4solar' ? costs : [])).toEqual([])
       }
 
-      await page.goto('/admin/waitlist/profiles?test=1')
-      await page.getByLabel('Trade Lenda lends to').selectOption(type)
-      await expect(page.getByTestId('tl-balance')).toContainText('Trade Lenda available balance')
-      await page.getByLabel('Search name, phone or email').fill(lead.phone.slice(-7))
-      await page.getByRole('checkbox', { name: /Send Ada Testcustomer/ }).check()
-      await page.getByTestId('send-to-tl').click()
-      await expect(page.getByTestId('send-notice')).toContainText(/Sent as TLT-Batch-\d{3}/, {
+      // To change a sent person's details: "Send updated version" (same number, new version),
+      // now in Admin → Exports for any funder's batch.
+      await page.goto('/admin/exports?test=1')
+      const newest = page.getByTestId('export-row').first()
+      const title = /TLT-Batch-\d{3}/.exec(await newest.innerText())![0]
+      await newest.getByTestId('send-updated-version').click()
+      await expect(page.getByTestId('export-row').first()).toContainText(`${title} v2`, {
         timeout: 60_000,
       })
-      // Now in an active batch: no tick box for a NEW batch, "Sent in …" instead.
-      await page.reload()
-      await page.getByLabel('Search name, phone or email').fill(lead.phone.slice(-7))
-      await expect(page.getByTestId(`sent-in-${lead.id}`)).toContainText(/^Sent in TLT-Batch-\d{3}/)
-      await expect(page.getByTestId(`profile-row-${lead.id}`).getByRole('checkbox')).toHaveCount(0)
-
-      // View as Trade Lenda: the newest batch.
-      await page.goto('/admin/funder?test=1')
-      await expect(page.getByTestId('view-as')).toBeVisible()
-      await page.getByTestId('funder-batches').getByRole('link').first().click()
-      // Test batches have their own numbers (real batches start at TL-Batch-001).
-      await expect(page.getByTestId('batch-title')).toContainText('TLT-Batch-')
-      await expect(page.getByTestId('batch-title')).toContainText(
-        type === 'customer' ? 'Lends to customers' : 'Lends to Go4Solar',
-      )
-      await expect(page.getByTestId('batch-summary')).toContainText('Total financed')
-      const pageText = await page.locator('main').innerText()
-      expect(problems(pageText, type === 'go4solar' ? costs : [])).toEqual([])
-
-      const base = (await page
-        .getByTestId('downloads')
-        .getByRole('link', { name: 'CSV' })
-        .getAttribute('href'))!
-      const csv = await download(page.request, base)
-      expect(csv).toContain('Ada')
-      expect(problems(csv, type === 'go4solar' ? costs : [])).toEqual([])
-      for (const fmt of ['xlsx', 'pdf']) {
-        const raw = await download(page.request, base.replace('format=csv', `format=${fmt}`))
-        expect(problems(raw, [])).toEqual([])
-      }
-
-      // One customer, as Trade Lenda sees them.
-      await page.getByTestId('batch-customers').getByRole('link').first().click()
-      const detail = await page.getByTestId('funder-customer').innerText()
-      expect(detail).toContain('4.0% per month, flat')
-      expect(problems(detail, type === 'go4solar' ? costs : [])).toEqual([])
-    }
-
-    // To change a sent person's details: "Send updated version" (same number, new version).
-    await page.goto('/admin/waitlist/batches?test=1')
-    const newest = page.getByTestId('admin-batches').locator('li').first()
-    const title = (await newest.getByRole('link').first().innerText()).split(' · ')[0]!
-    await newest.getByRole('button', { name: 'Send updated version' }).click()
-    await expect(page.getByTestId('admin-batches').locator('li').first()).toContainText(
-      `${title} v2`,
-      { timeout: 60_000 },
-    )
+    })
   })
 })

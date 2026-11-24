@@ -46,6 +46,7 @@ const EMPTY: FunderDraft = {
   lendingTypes: ['go4solar'],
   defaultLendingType: 'go4solar',
   contactEmail: null,
+  batchPrefix: null,
 }
 
 export function FundersTable({ rows, canEdit }: { rows: FunderRowView[]; canEdit: boolean }) {
@@ -290,6 +291,20 @@ export function FundersTable({ rows, canEdit }: { rows: FunderRowView[]; canEdit
                     value={editing.balanceAvailable}
                     onChange={(v) => set({ balanceAvailable: v })}
                   />
+                </div>
+                <div>
+                  <Label htmlFor="f-prefix">Batch prefix</Label>
+                  <Input
+                    id="f-prefix"
+                    value={editing.batchPrefix ?? ''}
+                    onChange={(e) => set({ batchPrefix: e.target.value.toUpperCase() || null })}
+                    placeholder="e.g. TL"
+                    maxLength={4}
+                  />
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Export batches are numbered with it: TL-Batch-001. Needed to export to this
+                    funder.
+                  </p>
                 </div>
                 <div className="sm:col-span-2">
                   <Label htmlFor="f-contact">Contact email (consent notices)</Label>
