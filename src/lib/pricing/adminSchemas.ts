@@ -160,6 +160,11 @@ export const funderSchema = z
       .min(1, 'Choose at least one lending type.')
       .default(['go4solar']),
     defaultLendingType: z.enum(['customer', 'go4solar']).default('go4solar'),
+    /** Where consent-withdrawal notices go (0043). Optional. */
+    contactEmail: z
+      .union([z.email('Enter a valid email address.').max(200), z.literal(''), z.null()])
+      .optional()
+      .transform((v) => (v ? v.trim().toLowerCase() : null)),
   })
   .refine((f) => f.lendingTypes.includes(f.defaultLendingType), {
     message: 'The default lending type must be one of the allowed types.',

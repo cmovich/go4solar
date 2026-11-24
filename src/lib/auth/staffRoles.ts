@@ -53,5 +53,15 @@ export function isBackOfficeRole(role: AppRole | null | undefined): boolean {
 export const canEditLeadProfile = (role: AppRole | null | undefined) =>
   role === 'super_admin' || role === 'operations' || role === SALES_ROLE
 
-/** Send entries to Trade Lenda (create batches): super admin only. */
-export const canSendToFunder = (role: AppRole | null | undefined) => role === 'super_admin'
+/**
+ * Tick a customer's consent per funder, "Details confirmed by phone" and "Agreed to the quote
+ * figures": super admin, Operations, Sales (Semako, 23 Nov 2026).
+ */
+export const canTickConsent = canEditLeadProfile
+
+/** Queue and export people to a funder (create batches): super admin and Operations. */
+export const canExport = (role: AppRole | null | undefined) =>
+  role === 'super_admin' || role === 'operations'
+
+/** Send entries to a funder (create batches): the same as exporting. */
+export const canSendToFunder = canExport

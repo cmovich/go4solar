@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { getSessionInfo } from '@/lib/auth/session'
+import { setConsent } from '@/lib/exports/consents'
 import { createBatch, saveProfile, setTick, updateBatch, type Actor } from '@/lib/tradeLenda/server'
 
 async function actor(): Promise<Actor | null> {
@@ -16,7 +17,7 @@ export async function saveLeadProfile(waitlistId: string, input: unknown) {
   const a = await actor()
   if (!a || !z.uuid().safeParse(waitlistId).success) return SIGNED_OUT
   const r = await saveProfile(waitlistId, input, a)
-  if (r.ok) revalidatePath(`/admin/waitlist/${waitlistId}/profile`)
+  if (r.ok) revalidatePath(`/admin/waitlist/${waitlistId}/edit`)
   return r
 }
 
@@ -33,7 +34,7 @@ export async function setLeadTick(input: unknown) {
   const p = tickSchema.safeParse(input)
   if (!a || !p.success) return SIGNED_OUT
   const r = await setTick(p.data.waitlistId, p.data, a)
-  if (r.ok) revalidatePath(`/admin/waitlist/${p.data.waitlistId}/profile`)
+  if (r.ok) revalidatePath(`/admin/waitlist/${p.data.waitlistId}/edit`)
   return r
 }
 
@@ -60,5 +61,25 @@ export async function sendUpdatedBatch(batchId: string) {
   if (!a || !z.uuid().safeParse(batchId).success) return SIGNED_OUT
   const r = await updateBatch(batchId, a)
   if (r.ok) revalidatePath('/admin/waitlist/batches')
+  return r
+}
+
+/** Consent to share with one funder: tick (on) or withdraw (off). Sales may record it too. */
+export async function setLeadConsent(input: unknown) {
+  const a = await actor()
+  const p = z
+    .object({
+      waitlistId: z.uuid(),
+      funderId: z.uuid(),
+      on: z.boolean(),
+      note: z.string().max(500).nullable().optional(),
+    })
+    .safeParse(input)
+  if (!a || !p.success) return SIGNED_OUT
+  const r = await setConsent(p.data, a)
+  if (r.ok) {
+    revalidatePath(`/admin/waitlist/${p.data.waitlistId}/edit`)
+    revalidatePath('/admin/waitlist')
+  }
   return r
 }

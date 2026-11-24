@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { canEditLeadProfile, canSendToFunder } from '@/lib/auth/staffRoles'
+import { setConsent } from '@/lib/exports/consents'
 import type { AppRole } from '@/lib/auth/session'
 import type { QuoteResult, TenureMonths } from '@/lib/pricing/types'
 import type { Estimate } from '@/lib/quotes/buildEstimate'
@@ -208,7 +209,7 @@ function businessOf(lead: Lead): { name: string | null; role: string | null } {
   return { name: b.businessName?.trim() || null, role: b.role?.trim() || null }
 }
 
-function valuesOf(lead: Lead, p: ProfileRow | null): ProfileValues {
+export function valuesOf(lead: Lead, p: ProfileRow | null): ProfileValues {
   const b = businessOf(lead)
   return {
     customerType:
@@ -299,9 +300,19 @@ export async function loadProfileView(waitlistId: string): Promise<ProfileView |
       figures[t] = figuresFor(basis, t, values.depositShare, values.months, funder.monthlyRate)
     }
   }
+  // Consent to share with Trade Lenda (migration 0043: one row per funder; withdrawn = none).
+  const { data: tlConsent } = funder
+    ? await admin
+        .from('lead_funder_consents')
+        .select('consented_at, consented_by, consent_note, withdrawn_at')
+        .eq('waitlist_id', waitlistId)
+        .eq('funder_id', funder.id)
+        .maybeSingle()
+    : { data: null }
+  const consent = tlConsent && !tlConsent.withdrawn_at ? tlConsent : null
   const names = await staffNames([
     profile?.phone_verified_by,
-    profile?.consent_tl_by,
+    consent?.consented_by,
     profile?.figures_agreed_by,
   ])
   const { data: items } = await admin
@@ -322,9 +333,9 @@ export async function loadProfileView(waitlistId: string): Promise<ProfileView |
         ? (names.get(profile.phone_verified_by) ?? null)
         : null,
       phoneVerifiedNote: profile?.phone_verified_note ?? null,
-      consentAt: profile?.consent_tl_at ?? null,
-      consentBy: profile?.consent_tl_by ? (names.get(profile.consent_tl_by) ?? null) : null,
-      consentNote: profile?.consent_tl_note ?? null,
+      consentAt: consent?.consented_at ?? null,
+      consentBy: consent?.consented_by ? (names.get(consent.consented_by) ?? null) : null,
+      consentNote: consent?.consent_note ?? null,
       figuresAgreedAt: profile?.figures_agreed_at ?? null,
       figuresAgreedBy: profile?.figures_agreed_by
         ? (names.get(profile.figures_agreed_by) ?? null)
@@ -489,9 +500,14 @@ export async function setTick(
       ? { phone_verified_at: now, phone_verified_by: actor.id, phone_verified_note: note }
       : { phone_verified_at: null, phone_verified_by: null, phone_verified_note: note }
   } else if (input.kind === 'consent') {
-    patch = input.on
-      ? { consent_tl_at: now, consent_tl_by: actor.id, consent_tl_note: note }
-      : { consent_tl_at: null, consent_tl_by: null, consent_tl_note: note }
+    // Consent is per funder now (lead_funder_consents): this tick is Trade Lenda's.
+    const funder = await tradeLendaFunder()
+    if (!funder) return { ok: false, error: 'Trade Lenda is not set up.' }
+    const r = await setConsent(
+      { waitlistId, funderId: funder.id, on: input.on, note },
+      { id: actor.id, role: actor.role },
+    )
+    return r.ok ? { ok: true } : r
   } else {
     if (!input.on) {
       patch = {
@@ -834,6 +850,7 @@ export type FunderBatchView = FunderBatchRow & {
     decision: string
     note: string | null
     decidedAt: string | null
+    consentWithdrawnAt: string | null
   }[]
 }
 
@@ -852,7 +869,7 @@ export async function funderBatch(actor: Actor, batchId: string): Promise<Funder
   const [{ data: items }, { count }] = await Promise.all([
     admin
       .from('funder_batch_items')
-      .select('id, snapshot, decision, decision_note, decided_at')
+      .select('id, snapshot, decision, decision_note, decided_at, consent_withdrawn_at')
       .eq('batch_id', batchId)
       .order('created_at'),
     admin
@@ -878,6 +895,8 @@ export async function funderBatch(actor: Actor, batchId: string): Promise<Funder
       decision: i.decision,
       note: i.decision_note,
       decidedAt: i.decided_at,
+      /** The customer withdrew consent to share with this funder after the export. */
+      consentWithdrawnAt: i.consent_withdrawn_at,
     })),
   }
 }
@@ -999,6 +1018,18 @@ export async function profileList(includeTest: boolean): Promise<ProfileListRow[
   ])
   const readyNames = new Map(ready.map((p) => [p.slug, p.name]))
   const byId = new Map((profiles ?? []).map((p) => [p.waitlist_id, p]))
+  const tl = await tradeLendaFunder()
+  const { data: consents } =
+    tl && ids.length
+      ? await admin
+          .from('lead_funder_consents')
+          .select('waitlist_id, withdrawn_at')
+          .eq('funder_id', tl.id)
+          .in('waitlist_id', ids)
+      : { data: [] }
+  const consented = new Set(
+    (consents ?? []).filter((c) => !c.withdrawn_at).map((c) => c.waitlist_id),
+  )
   return leads.map((l) => {
     const p = byId.get(l.id) ?? null
     const c = completeness(valuesOf(l, p))
@@ -1026,7 +1057,7 @@ export async function profileList(includeTest: boolean): Promise<ProfileListRow[
       missing: c.missing,
       hasProfile: Boolean(p),
       verified: Boolean(p?.phone_verified_at),
-      consent: Boolean(p?.consent_tl_at),
+      consent: consented.has(l.id),
       agreedType: p?.figures_agreed_at && agreed ? agreed.lendingType : null,
       agreedFinanced: p?.figures_agreed_at && agreed ? agreed.financed : null,
       batches: current.flatMap((i) => {

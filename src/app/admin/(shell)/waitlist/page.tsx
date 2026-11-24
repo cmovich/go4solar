@@ -1,3 +1,5 @@
+import { canEditLeadProfile } from '@/lib/auth/staffRoles'
+import { readinessByLead } from '@/lib/exports/consents'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
@@ -158,7 +160,13 @@ export default async function WaitlistAdminPage({
       ) : (
         <>
           <WaitlistFilters tab={tab} filters={filters} />
-          <ConsumerTable rows={rows} duplicates={dupes} canDelete={canDelete} />
+          <ConsumerTable
+            rows={rows}
+            duplicates={dupes}
+            canDelete={canDelete}
+            canEdit={canEditLeadProfile(session.role)}
+            readiness={await readinessByLead(rows.map((r) => r.id))}
+          />
         </>
       )}
     </main>

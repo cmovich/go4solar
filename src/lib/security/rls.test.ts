@@ -38,6 +38,11 @@ const ACCESS: Record<Table, Access> = {
   funder_batches: 'staff',
   funder_batch_items: 'staff',
   funder_users: 'staff',
+  // Waiting-list exports (0043): staff (and Sales) read; customers and visitors read nothing.
+  export_queues: 'staff',
+  export_queue_items: 'staff',
+  lead_funder_consents: 'staff',
+  onboarding_link_sends: 'staff',
   lead_profiles: 'staff',
   // Vendor costs: super admin and finance only (customers and other staff read nothing).
   ready_plans: 'staff',
