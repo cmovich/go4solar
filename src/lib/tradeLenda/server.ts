@@ -142,7 +142,7 @@ export async function basisFor(
   depositShare: number,
   months: number,
 ): Promise<PlanBasis | null> {
-  if (!kind || !ref || ![6, 9, 12].includes(months)) return null
+  if (!kind || !ref || ![3, 6, 9, 12, 18, 24].includes(months)) return null
   const m = months as TenureMonths
   try {
     if (kind === 'ready') {

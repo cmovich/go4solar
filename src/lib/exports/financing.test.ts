@@ -4,7 +4,7 @@ import { SEEDED_PLANS } from '@/lib/readyPlans/plans.fixture'
 import { DEFAULT_READY_TERMS, withTerms } from '@/lib/readyPlans/terms'
 import { readyPlanBasis, type PlanBasis } from '@/lib/tradeLenda/planBasis'
 
-import { exportFinancing } from './financing'
+import { exportFinancing, exportTotals } from './financing'
 
 const oga = withTerms(
   SEEDED_PLANS.find((p) => p.slug === 'oga-boss')!,
@@ -92,5 +92,36 @@ describe('exportFinancing: what each funder sees (Basic and Full alike)', () => 
     expect(f.depositPaid).toBe(100_000)
     expect(f.earnings).toBe(f.totalRepayment - f.financed)
     expect(f.earnings).not.toBe(ogaBasis.quoted.totalPayable - ogaBasis.cost)
+  })
+})
+
+describe('exportTotals (batch summary)', () => {
+  it('adds up people, levels, deposits paid / to be paid, financed, repayment and earnings', () => {
+    const a = exportFinancing(
+      ogaBasis,
+      { kind: 'trade-lenda', monthlyRate: 0.04, lendingType: 'customer' },
+      { depositShare: 0.2, months: 12, depositPaid: 261_400 },
+    )
+    const b = exportFinancing(
+      ogaBasis,
+      { kind: 'trade-lenda', monthlyRate: 0.04, lendingType: 'customer' },
+      { depositShare: 0.2, months: 12, depositPaid: 0 },
+    )
+    expect(
+      exportTotals([
+        { level: 'full', financing: a },
+        { level: 'basic', financing: b },
+      ]),
+    ).toEqual({
+      people: 2,
+      basic: 1,
+      full: 1,
+      depositsPaid: 261_400,
+      depositsToPay: 261_400,
+      financed: 2_091_200,
+      totalRepayment: 3_094_976,
+      earnings: 1_003_776,
+      monthly: 257_914,
+    })
   })
 })

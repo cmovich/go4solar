@@ -71,3 +71,20 @@ export function exportFinancing(
     earnings: f.earnings,
   }
 }
+
+/** A batch's financing summary (first page of the PDF, the totals row, the dashboard header). */
+export function exportTotals(people: { level: 'basic' | 'full'; financing: ExportFinancing }[]) {
+  const sum = (f: (x: ExportFinancing) => number) => people.reduce((s, p) => s + f(p.financing), 0)
+  return {
+    people: people.length,
+    basic: people.filter((p) => p.level === 'basic').length,
+    full: people.filter((p) => p.level === 'full').length,
+    depositsPaid: sum((f) => Math.min(f.depositPaid, f.deposit)),
+    depositsToPay: sum((f) => Math.max(0, f.deposit - f.depositPaid)),
+    financed: sum((f) => f.financed),
+    totalRepayment: sum((f) => f.totalRepayment),
+    earnings: sum((f) => f.earnings),
+    monthly: sum((f) => f.monthly),
+  }
+}
+export type ExportTotals = ReturnType<typeof exportTotals>
