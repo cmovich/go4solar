@@ -13,8 +13,12 @@ describe('navFor', () => {
     expect(hrefs('content', ['create_quotations'])).toContain('/admin/quotations')
     expect(hrefs('content', ['create_quotations'])).toContain('/admin/testimonials')
   })
-  it('sales sees Quotations and the Trade Lenda profiles (edit only), nothing else', () => {
-    expect(hrefs('sales')).toEqual(['/admin/waitlist/profiles', '/admin/quotations'])
+  it('sales sees the waiting list (read; Edit and ticks), the Trade Lenda profiles and Quotations, nothing else', () => {
+    expect(hrefs('sales')).toEqual([
+      '/admin/waitlist',
+      '/admin/waitlist/profiles',
+      '/admin/quotations',
+    ])
   })
   it('Trade Lenda sees its batches and nothing else', () => {
     expect(hrefs('funder_partner')).toEqual(['/admin/funder'])
