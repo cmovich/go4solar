@@ -103,3 +103,45 @@ describe('ensureApplication: one quotation, one application (21 Nov: a slow conn
     expect(b!.id).toBe(a!.id)
   })
 })
+
+describe('ensureApplication: "Apply again" after a decline', () => {
+  const future = new Date(Date.now() + 5 * 86_400_000).toISOString()
+  const flag = { by: 'ops-1', at: at(9), note: null }
+  function declined(creditFlags: Record<string, unknown>) {
+    db.seed('quotes', {
+      id: NEW_Q,
+      owner_id: USER,
+      status: 'chosen',
+      updated_at: at(5),
+      state: 'Kaduna',
+      valid_until: future,
+    })
+    db.seed('applications', {
+      id: 'app-old',
+      consumer_id: USER,
+      quote_id: NEW_Q,
+      status: 'declined',
+      credit_flags: creditFlags,
+      created_at: at(6),
+    })
+  }
+
+  it('without "Customer may apply again": the declined application stays (no new one)', async () => {
+    declined({})
+    expect((await ensureApplication(USER, { reapply: true }))!.id).toBe('app-old')
+    expect(db.rows('applications')).toHaveLength(1)
+  })
+
+  it('ticked and the quotation still valid: "Apply again" starts a new application', async () => {
+    declined({ mayApplyAgain: flag })
+    const app = await ensureApplication(USER, { reapply: true })
+    expect(app!.id).not.toBe('app-old')
+    expect(app).toMatchObject({ quote_id: NEW_Q, status: 'draft' })
+    expect(db.rows('applications')).toHaveLength(2)
+  })
+
+  it('only when pressed: opening the wizard does not start one by itself', async () => {
+    declined({ mayApplyAgain: flag })
+    expect((await ensureApplication(USER))!.id).toBe('app-old')
+  })
+})

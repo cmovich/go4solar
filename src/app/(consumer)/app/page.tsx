@@ -10,7 +10,7 @@ import { RequestChange } from '@/components/account/RequestChange'
 import { InvoiceLink } from '@/components/invoices/InvoiceLink'
 import { ActionButton } from '@/components/payments/ActionButton'
 import { CHANGE_FIELD_LABELS, type ChangeField } from '@/lib/account/account'
-import { waitingQuote } from '@/lib/applications/server'
+import { applyAgainFor, waitingQuote } from '@/lib/applications/server'
 import { requireUser } from '@/lib/auth/roles'
 import { signedInvoiceUrl } from '@/lib/invoices/response'
 import { ensureInvoiceForQuote } from '@/lib/invoices/server'
@@ -22,7 +22,7 @@ import { lagosDate } from '@/lib/payments/lock'
 import { originFor } from '@/lib/site/origin'
 import { whatsappHref } from '@/lib/whatsapp'
 
-import { confirmInstallation, sendBackForReview } from './actions'
+import { applyAgain, confirmInstallation, sendBackForReview } from './actions'
 import { payNextInstalment, setUpAutoPay } from './pay/actions'
 
 export const metadata: Metadata = { title: 'My account' }
@@ -76,7 +76,7 @@ export default async function DashboardPage({
   const { user } = await requireUser('/app')
   const d = await loadDashboard(user!.id)
   if (!d) redirect('/app/apply')
-  const waiting = await waitingQuote(user!.id)
+  const [waiting, again] = await Promise.all([waitingQuote(user!.id), applyAgainFor(user!.id)])
   // The invoice is issued once (the first time it is needed) and linked with a 30-minute signed
   // link, so it opens in the browser or a download manager without the sign-in cookie.
   const [issued, company] = await Promise.all([
@@ -194,6 +194,32 @@ export default async function DashboardPage({
           <strong className="text-brand-dark">What happens next: </strong>
           {d.whatNext}
         </p>
+        {again.state.kind !== 'hidden' && (
+          <div className="rounded-xl border-2 p-4" data-testid="apply-again">
+            {again.state.kind === 'same-quote' ? (
+              <>
+                <p>You may apply again with your quotation {again.reference}.</p>
+                <div className="mt-3">
+                  <ActionButton action={applyAgain} testId="apply-again-button">
+                    Apply again
+                  </ActionButton>
+                </div>
+              </>
+            ) : (
+              <>
+                <p>
+                  You may apply again. Your quotation {again.reference} has expired and prices may
+                  have changed, so we will show you the up-to-date figures first.
+                </p>
+                <div className="mt-3">
+                  <ActionButton action={applyAgain} testId="apply-again-button">
+                    Get an up-to-date quotation
+                  </ActionButton>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </section>
       {d.moreInfo && (
         <section
