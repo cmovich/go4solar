@@ -17,20 +17,27 @@ export const dynamic = 'force-dynamic'
 /** One customer in a batch, exactly as stored for the funder. */
 export default async function FunderCustomerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ batchId: string; itemId: string }>
+  searchParams: Promise<{ as?: string }>
 }) {
   const s = await requireFunderViewer()
   const { batchId, itemId } = await params
+  const sp = await searchParams
   if (!z.uuid().safeParse(batchId).success || !z.uuid().safeParse(itemId).success) notFound()
-  const b = await funderBatch({ id: s.user!.id, role: s.role }, batchId)
+  const viewAs = s.role === 'super_admin' && z.uuid().safeParse(sp.as).success ? sp.as! : null
+  const b = await funderBatch({ id: s.user!.id, role: s.role }, batchId, { viewAs })
   const item = b?.items.find((i) => i.id === itemId)
   if (!b || !item) notFound()
   const c = item.customer
   return (
     <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <p className="text-sm">
-        <Link href={`/admin/funder/${b.id}`} className="text-brand-blue underline">
+        <Link
+          href={`/admin/funder/${b.id}${viewAs ? `?as=${viewAs}` : ''}`}
+          className="text-brand-blue underline"
+        >
           ‹ {batchLabel(b.number, b.version, b.lendingType)}
         </Link>
       </p>

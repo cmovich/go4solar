@@ -851,6 +851,10 @@ export async function funderBatchList(
 export type FunderBatchView = FunderBatchRow & {
   versions: number
   totals: ReturnType<typeof batchTotals>
+  funderId: string
+  funderName: string
+  /** One onboarding link for the whole batch (the funder's), if set. */
+  onboardingUrl: string | null
   items: {
     id: string
     customer: FunderCustomer
@@ -858,6 +862,8 @@ export type FunderBatchView = FunderBatchRow & {
     note: string | null
     decidedAt: string | null
     consentWithdrawnAt: string | null
+    /** This person's own onboarding link (the funder's), if set. */
+    onboardingUrl: string | null
   }[]
 }
 
@@ -874,7 +880,9 @@ export async function funderBatch(
   const admin = createAdminClient()
   let q = admin
     .from('funder_batches')
-    .select('id, number, version, lending_type, created_at, replaced_by, totals, funder_id')
+    .select(
+      'id, number, version, lending_type, created_at, replaced_by, totals, funder_id, onboarding_url, funders(name)',
+    )
     .eq('id', batchId)
   if (funderId) q = q.eq('funder_id', funderId)
   const { data: b } = await q.maybeSingle()
@@ -882,7 +890,9 @@ export async function funderBatch(
   const [{ data: items }, { count }] = await Promise.all([
     admin
       .from('funder_batch_items')
-      .select('id, snapshot, decision, decision_note, decided_at, consent_withdrawn_at')
+      .select(
+        'id, snapshot, decision, decision_note, decided_at, consent_withdrawn_at, onboarding_url',
+      )
       .eq('batch_id', batchId)
       .order('created_at'),
     admin
@@ -910,7 +920,11 @@ export async function funderBatch(
       decidedAt: i.decided_at,
       /** The customer withdrew consent to share with this funder after the export. */
       consentWithdrawnAt: i.consent_withdrawn_at,
+      onboardingUrl: i.onboarding_url,
     })),
+    funderId: b.funder_id,
+    funderName: (b.funders as { name: string } | null)?.name ?? 'Funder',
+    onboardingUrl: b.onboarding_url,
   }
 }
 

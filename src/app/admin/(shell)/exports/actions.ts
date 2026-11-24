@@ -4,7 +4,13 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { getSessionInfo } from '@/lib/auth/session'
-import { addToQueue, exportQueue, removeFromQueue, updateExportBatch } from '@/lib/exports/queue'
+import {
+  addToQueue,
+  discardQueue,
+  exportQueue,
+  removeFromQueue,
+  updateExportBatch,
+} from '@/lib/exports/queue'
 import type { Actor } from '@/lib/tradeLenda/server'
 
 async function actor(): Promise<Actor | null> {
@@ -69,5 +75,15 @@ export async function sendUpdatedVersion(input: unknown) {
     refresh()
     revalidatePath('/admin/funder')
   }
+  return r
+}
+
+/** Discard the open queue (nothing exported, no batch number used). */
+export async function discardExportQueue(input: unknown) {
+  const a = await actor()
+  const p = z.object({ queueId: z.uuid() }).safeParse(input)
+  if (!a || !p.success) return SIGNED_OUT
+  const r = await discardQueue(p.data.queueId, a)
+  if (r.ok) refresh()
   return r
 }

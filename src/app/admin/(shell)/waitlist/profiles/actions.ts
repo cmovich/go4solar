@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { getSessionInfo } from '@/lib/auth/session'
 import { setConsent } from '@/lib/exports/consents'
+import { sendOnboardingLink } from '@/lib/exports/onboardingServer'
 import { createBatch, saveProfile, setTick, updateBatch, type Actor } from '@/lib/tradeLenda/server'
 
 async function actor(): Promise<Actor | null> {
@@ -81,5 +82,17 @@ export async function setLeadConsent(input: unknown) {
     revalidatePath(`/admin/waitlist/${p.data.waitlistId}/edit`)
     revalidatePath('/admin/waitlist')
   }
+  return r
+}
+
+/** "Send by WhatsApp" (records it; the link opens WhatsApp) or "Send by email" (our outbox). */
+export async function sendLeadOnboardingLink(input: unknown) {
+  const a = await actor()
+  const p = z
+    .object({ itemId: z.uuid(), channel: z.enum(['whatsapp', 'email']), waitlistId: z.uuid() })
+    .safeParse(input)
+  if (!a || !p.success) return SIGNED_OUT
+  const r = await sendOnboardingLink({ itemId: p.data.itemId, channel: p.data.channel }, a)
+  if (r.ok) revalidatePath(`/admin/waitlist/${p.data.waitlistId}/edit`)
   return r
 }
