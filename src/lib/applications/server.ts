@@ -1,3 +1,4 @@
+import { applyAgainState, type ApplyAgainState } from './applyAgain'
 import 'server-only'
 
 import { isOwnSystem, storedBuild, systemTitle } from '@/lib/build/stored'
@@ -86,7 +87,7 @@ const KINDS: KycKind[] = ['nin', 'bvn', 'cac', 'liveness']
 async function latestChosenQuote(userId: string) {
   const { data } = await createAdminClient()
     .from('quotes')
-    .select('id, waitlist_id, applicant_type, state')
+    .select('id, waitlist_id, applicant_type, state, valid_until')
     .eq('owner_id', userId)
     .eq('status', 'chosen')
     .order('updated_at', { ascending: false })
@@ -155,7 +156,11 @@ const LIVE_STATUSES: ApplicationStatus[] = [
   'approved',
 ]
 
-export async function ensureApplication(userId: string): Promise<ApplicationRow | null> {
+export async function ensureApplication(
+  userId: string,
+  /** reapply: "Apply again" pressed after a decline ticked "Customer may apply again". */
+  opts: { reapply?: boolean } = {},
+): Promise<ApplicationRow | null> {
   const admin = createAdminClient()
   const { data: existing } = await admin
     .from('applications')
@@ -176,7 +181,19 @@ export async function ensureApplication(userId: string): Promise<ApplicationRow 
     latestQuoteId: quote?.id ?? null,
     ...signed,
   })
-  if (existing && (decision === 'keep' || decision === 'blocked')) return existing
+  // "Apply again" with the same, still-valid quotation: a new application (only when allowed).
+  const reapplying =
+    opts.reapply === true &&
+    existing?.status === 'declined' &&
+    !!quote &&
+    existing.quote_id === quote.id &&
+    applyAgainState({
+      status: existing.status,
+      creditFlags: existing.credit_flags,
+      quote: { validUntil: quote.valid_until ?? null, readySlug: null, isBuilder: false },
+      now: new Date(),
+    }).kind === 'same-quote'
+  if (existing && !reapplying && (decision === 'keep' || decision === 'blocked')) return existing
   if (existing && quote && decision === 'switch') {
     // Same person, new plan: identity checks stay; the guarantor must be chosen again for the
     // new amounts, so unsigned invitations stop working.
@@ -417,4 +434,41 @@ export async function staffSignedUrl(storagePath: string): Promise<string | null
   if (!session.user || !isStaffRole(session.role) || session.aal !== 'aal2') return null
   const { data } = await createAdminClient().storage.from('kyc').createSignedUrl(storagePath, 600)
   return data?.signedUrl ?? null
+}
+
+/**
+ * What the declined dashboard offers (Semako, 23 Nov 2026): nothing, "Apply again" (same
+ * quotation, still valid) or "Get an up-to-date quotation" (expired: new figures first).
+ */
+export async function applyAgainFor(
+  userId: string,
+): Promise<{ state: ApplyAgainState; reference: string | null }> {
+  const admin = createAdminClient()
+  const { data: app } = await admin
+    .from('applications')
+    .select('status, credit_flags, quote_id')
+    .eq('consumer_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (!app?.quote_id) return { state: { kind: 'hidden' }, reference: null }
+  const { data: q } = await admin
+    .from('quotes')
+    .select('id, valid_until, builder')
+    .eq('id', app.quote_id)
+    .maybeSingle()
+  const b = (q?.builder ?? null) as { kind?: string; plan?: { slug?: string } } | null
+  const state = applyAgainState({
+    status: app.status,
+    creditFlags: app.credit_flags,
+    quote: q
+      ? {
+          validUntil: q.valid_until,
+          readySlug: b?.kind === 'ready' ? (b.plan?.slug ?? null) : null,
+          isBuilder: Boolean(b) && b?.kind !== 'ready',
+        }
+      : null,
+    now: new Date(),
+  })
+  return { state, reference: q ? quoteReference(q.id) : null }
 }

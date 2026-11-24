@@ -4,6 +4,7 @@ import { headers } from 'next/headers'
 
 import { revalidatePath } from 'next/cache'
 
+import { applyAgainFor, ensureApplication } from '@/lib/applications/server'
 import { resubmitAfterMoreInfo } from '@/lib/approvals/server'
 import { sendEmailVerification, siteOrigin } from '@/lib/auth/emailVerification'
 import { getSessionInfo } from '@/lib/auth/session'
@@ -58,4 +59,22 @@ export async function requestDetailChange(
   const r = await requestChange(await createClient(), session.user.id, input)
   if (r.ok) revalidatePath('/app')
   return r
+}
+
+/**
+ * "Apply again" after a decline (only when the admin ticked "Customer may apply again"): a new
+ * application on the same quotation while it is valid; otherwise a new quotation first.
+ */
+export async function applyAgain(): Promise<
+  { ok: true; url: string } | { ok: false; error: string }
+> {
+  const session = await getSessionInfo()
+  if (!session.user) return { ok: false, error: 'Please sign in.' }
+  const { state } = await applyAgainFor(session.user.id)
+  if (state.kind === 'hidden')
+    return { ok: false, error: 'This is not available for your application.' }
+  if (state.kind === 'new-quote') return { ok: true, url: state.path }
+  await ensureApplication(session.user.id, { reapply: true })
+  revalidatePath('/app')
+  return { ok: true, url: '/app/apply' }
 }

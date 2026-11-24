@@ -12,7 +12,7 @@ import { WaitlistFilters } from '@/components/admin/waitlist/WaitlistFilters'
 import { TestDataToggle } from '@/components/admin/TestDataToggle'
 import { includeTestData } from '@/lib/testmode/server'
 import { Button } from '@/components/ui/button'
-import { requireStaffWithMfa } from '@/lib/auth/roles'
+import { requireWaitlistViewer } from '@/lib/auth/roles'
 import { createClient } from '@/lib/supabase/server'
 import {
   countTestEntries,
@@ -37,9 +37,12 @@ export default async function WaitlistAdminPage({
 }: {
   searchParams: Promise<Search>
 }) {
-  const session = await requireStaffWithMfa()
+  const session = await requireWaitlistViewer()
+  // Sales: read only (Complete and Incomplete, Edit and ticks); no installers, exports or deletes.
+  const sales = session.role === 'sales'
   const sp = await searchParams
-  const tab = (one(sp.tab) ?? 'complete') as 'complete' | 'incomplete' | 'installers'
+  const asked = (one(sp.tab) ?? 'complete') as 'complete' | 'incomplete' | 'installers'
+  const tab = sales && asked === 'installers' ? 'complete' : asked
   const filters: ConsumerFilters = {
     tab: tab === 'installers' ? 'complete' : tab,
     state: one(sp.state),
@@ -67,7 +70,7 @@ export default async function WaitlistAdminPage({
     headline(filters.includeTest),
     tab === 'installers' ? Promise.resolve([]) : listConsumers(filters),
     tab === 'installers' ? listInstallers(filters.includeTest) : Promise.resolve([]),
-    exportIsRecent(),
+    sales ? Promise.resolve(false) : exportIsRecent(),
     supabase.rpc('has_permission', { target: 'assisted_entry' }),
     supabase.rpc('has_permission', { target: 'waitlist_delete' }),
     duplicateMap(
@@ -77,13 +80,13 @@ export default async function WaitlistAdminPage({
     countTestEntries(),
   ])
   const isSuperAdmin = session.role === 'super_admin'
-  const canDelete = canDeleteWaitlist(session.role, Boolean(deletePermission))
+  const canDelete = !sales && canDeleteWaitlist(session.role, Boolean(deletePermission))
   const dupes = Object.fromEntries(duplicates)
 
   const tabs = [
     { id: 'complete', label: `Complete (${stats.complete})` },
     { id: 'incomplete', label: `Incomplete leads (${stats.incomplete})` },
-    { id: 'installers', label: `Installers (${stats.installers})` },
+    ...(sales ? [] : [{ id: 'installers', label: `Installers (${stats.installers})` }]),
   ] as const
 
   return (
@@ -99,23 +102,27 @@ export default async function WaitlistAdminPage({
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
-            <a
-              href={`/api/admin/waitlist/report.pdf${filters.includeTest ? '?test=1' : ''}`}
-              download
-            >
-              Download PDF
-            </a>
-          </Button>
-          <Button asChild variant="outline">
-            <a
-              href={`/api/admin/waitlist/export.csv${filters.includeTest ? '?test=1' : ''}`}
-              download
-            >
-              Download CSV
-            </a>
-          </Button>
-          {(canAssist || isSuperAdmin) && (
+          {!sales && (
+            <Button asChild variant="outline">
+              <a
+                href={`/api/admin/waitlist/report.pdf${filters.includeTest ? '?test=1' : ''}`}
+                download
+              >
+                Download PDF
+              </a>
+            </Button>
+          )}
+          {!sales && (
+            <Button asChild variant="outline">
+              <a
+                href={`/api/admin/waitlist/export.csv${filters.includeTest ? '?test=1' : ''}`}
+                download
+              >
+                Download CSV
+              </a>
+            </Button>
+          )}
+          {!sales && (canAssist || isSuperAdmin) && (
             <Button asChild>
               <Link href="/admin/waitlist/new">Add on behalf of customer</Link>
             </Button>

@@ -103,6 +103,8 @@ export function DecisionPanel({
   const [funderId, setFunderId] = useState(options.find((o) => !o.loss)?.id ?? '')
   const [reason, setReason] = useState('')
   const [info, setInfo] = useState('')
+  const [again, setAgain] = useState(false)
+  const [againNote, setAgainNote] = useState('')
   const chosen = options.find((o) => o.id === funderId)
   const needsBoss =
     role !== 'super_admin' &&
@@ -239,6 +241,24 @@ export function DecisionPanel({
             placeholder="Reason"
             onChange={(e) => setReason(e.target.value)}
           />
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={again}
+              onChange={(e) => setAgain(e.target.checked)}
+              data-testid="may-apply-again"
+            />
+            Customer may apply again
+          </label>
+          {again && (
+            <Input
+              value={againNote}
+              placeholder="Note for the record (optional)"
+              aria-label="Customer may apply again: note"
+              maxLength={500}
+              onChange={(e) => setAgainNote(e.target.value)}
+            />
+          )}
           <Button
             type="button"
             variant="destructive"
@@ -247,7 +267,7 @@ export function DecisionPanel({
             onClick={() => {
               if (confirm('Decline this application and refund the deposit?'))
                 run(
-                  () => decline(applicationId, reason),
+                  () => decline(applicationId, reason, { on: again, note: againNote || null }),
                   'Declined. The deposit refund has started.',
                 )
             }}

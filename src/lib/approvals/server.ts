@@ -355,6 +355,8 @@ export async function declineApplication(input: {
   applicationId: string
   reason: string
   actor: Actor
+  /** "Customer may apply again" (default off): shows "Apply again" on their dashboard. */
+  mayApplyAgain?: { on: boolean; note?: string | null }
 }): Promise<Result> {
   const { actor } = input
   if (!actor.role || !DECIDERS.includes(actor.role)) return NOT_ALLOWED
@@ -363,6 +365,18 @@ export async function declineApplication(input: {
   if (!reason.success) return { ok: false, error: reason.error.issues[0]!.message }
   const admin = createAdminClient()
   const now = new Date().toISOString()
+  const again = input.mayApplyAgain?.on
+    ? { by: actor.id, at: now, note: input.mayApplyAgain.note?.trim().slice(0, 500) || null }
+    : null
+  const { data: current } = await admin
+    .from('applications')
+    .select('credit_flags')
+    .eq('id', input.applicationId)
+    .maybeSingle()
+  const flags = {
+    ...((current?.credit_flags ?? {}) as Record<string, unknown>),
+    ...(again ? { mayApplyAgain: again } : {}),
+  }
   // Conditional update: only an open application can be declined, so the refund runs once.
   const { data: won } = await admin
     .from('applications')
@@ -371,6 +385,7 @@ export async function declineApplication(input: {
       decided_by: actor.id,
       decided_at: now,
       decision_reason: reason.data,
+      ...(again ? { credit_flags: flags as Json } : {}),
     })
     .eq('id', input.applicationId)
     .in('status', OPEN)
@@ -381,6 +396,7 @@ export async function declineApplication(input: {
     status: 'declined',
     reason: reason.data,
     refund,
+    mayApplyAgain: again,
   })
   if (!refund.ok)
     return { ok: false, error: `Declined, but the refund needs attention: ${refund.error}` }

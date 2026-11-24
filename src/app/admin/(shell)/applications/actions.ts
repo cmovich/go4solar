@@ -32,10 +32,21 @@ export async function approve(applicationId: string, funderId: string): Promise<
   return r
 }
 
-export async function decline(applicationId: string, reason: string): Promise<Result> {
+export async function decline(
+  applicationId: string,
+  reason: string,
+  mayApplyAgain?: { on: boolean; note?: string | null },
+): Promise<Result> {
   const actor = await staffActor()
   if (!actor) return SIGN_IN
-  const r = await declineApplication({ applicationId, reason, actor })
+  const r = await declineApplication({
+    applicationId,
+    reason,
+    actor,
+    mayApplyAgain: mayApplyAgain
+      ? { on: mayApplyAgain.on === true, note: mayApplyAgain.note ?? null }
+      : undefined,
+  })
   refresh(applicationId)
   return r
 }

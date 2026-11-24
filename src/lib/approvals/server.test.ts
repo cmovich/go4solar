@@ -294,6 +294,35 @@ describe('decline and more info', () => {
     expect(db.rows('audit_log').map((a) => a.action)).toEqual(['application.decline'])
   })
 
+  it('decline: "Customer may apply again" is off unless ticked; when ticked, who/when/note are kept', async () => {
+    await approvals.declineApplication({
+      applicationId: 'app-1',
+      reason: 'Income too low',
+      actor: officer,
+    })
+    expect(
+      (db.rows('applications')[0]!.credit_flags as Record<string, unknown> | null)?.mayApplyAgain,
+    ).toBeUndefined()
+    expect(db.rows('audit_log')[0]!.after).toMatchObject({ mayApplyAgain: null })
+  })
+
+  it('decline with "Customer may apply again" ticked: flag kept with the other flags, audited', async () => {
+    const app = db.rows('applications')[0]!
+    app.credit_flags = { noAutoPay: true }
+    await approvals.declineApplication({
+      applicationId: 'app-1',
+      reason: 'Guarantor did not sign',
+      actor: officer,
+      mayApplyAgain: { on: true, note: 'New guarantor is fine' },
+    })
+    const flags = db.rows('applications')[0]!.credit_flags as Record<string, unknown>
+    expect(flags.noAutoPay).toBe(true)
+    expect(flags.mayApplyAgain).toMatchObject({ by: officer.id, note: 'New guarantor is fine' })
+    expect(db.rows('audit_log')[0]!.after).toMatchObject({
+      mayApplyAgain: { by: officer.id, note: 'New guarantor is fine' },
+    })
+  })
+
   it('request more info: status, message for the customer, notification', async () => {
     const r = await approvals.requestMoreInfo({
       applicationId: 'app-1',
