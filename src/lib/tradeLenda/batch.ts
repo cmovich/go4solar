@@ -1,4 +1,6 @@
 import { LENDING_TYPE_SHORT, type LendingType } from './figures'
+import type { ExportTotals } from '@/lib/exports/financing'
+
 import type { FunderCustomer } from './snapshot'
 
 /** Trade Lenda batches (pure): numbers, labels and the summary totals. */
@@ -35,6 +37,8 @@ export type BatchTotals = {
   monthlyRepaymentsDue: number
   byPlan: Record<string, Group>
   byMonths: Record<string, Group>
+  /** Exports from 0043 on: levels, deposits and what the funder finances and earns. */
+  financing?: ExportTotals
 }
 
 export function batchTotals(type: LendingType, items: FunderCustomer[]): BatchTotals {
