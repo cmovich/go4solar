@@ -607,3 +607,20 @@ export async function updateExportBatch(
   })
   return { ok: true, id: batch.id, number: old.number, version: old.version + 1 }
 }
+
+/**
+ * Discard the open queue: nothing is exported and no batch number is used (batch numbers are given
+ * only on Export). The queue's own EXP number stays used, like a skipped invoice number. Audited.
+ */
+export async function discardQueue(queueId: string, actor: Actor): Promise<Result> {
+  if (!canExport(actor.role)) return NOT_ALLOWED
+  const { data: done } = await createAdminClient()
+    .from('export_queues')
+    .update({ status: 'discarded', closed_by: actor.id, closed_at: new Date().toISOString() })
+    .eq('id', queueId)
+    .eq('status', 'draft')
+    .select('number')
+  if (!done?.length) return { ok: false, error: 'This queue is no longer open.' }
+  await audit(actor, 'export_queue.discard', queueId, { number: done[0]!.number })
+  return { ok: true }
+}

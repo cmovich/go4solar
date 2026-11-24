@@ -8,6 +8,7 @@ import {
   SALES_ROLE,
   canEditLeadProfile,
   canExport,
+  isFunderLogin,
   isBackOfficeRole,
 } from './staffRoles'
 
@@ -91,7 +92,8 @@ export async function requireFunderViewer(): Promise<SessionInfo> {
   if (!info.user) redirect(loginUrl('/admin/funder'))
   if (!isBackOfficeRole(info.role)) redirect('/')
   if (info.aal !== 'aal2') redirect('/admin/mfa')
-  if (info.role !== 'super_admin' && info.role !== FUNDER_PARTNER_ROLE) redirect('/admin')
+  // Super admin ("View as [funder]") or a funder's own login (Trade Lenda, SPEWA's approver).
+  if (info.role !== 'super_admin' && !isFunderLogin(info.role)) redirect('/admin')
   return info
 }
 

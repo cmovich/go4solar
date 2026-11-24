@@ -65,3 +65,10 @@ export const canExport = (role: AppRole | null | undefined) =>
 
 /** Send entries to a funder (create batches): the same as exporting. */
 export const canSendToFunder = canExport
+
+/**
+ * A funder's own login: Trade Lenda (funder_partner) or SPEWA's approver (funder_approver), each
+ * linked to its funder (funder_users). They see and decide on their own funder's batches only.
+ */
+export const isFunderLogin = (role: AppRole | null | undefined) =>
+  role === 'funder_partner' || role === 'funder_approver'

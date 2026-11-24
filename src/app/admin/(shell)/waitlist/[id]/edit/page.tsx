@@ -5,6 +5,9 @@ import { z } from 'zod'
 
 import { ProfileEditor } from '@/components/admin/tradeLenda/ProfileEditor'
 import { ConsentBlock } from '@/components/admin/waitlist/ConsentBlock'
+import { OnboardingLinks } from '@/components/admin/waitlist/OnboardingLinks'
+import { onboardingWhatsappHref } from '@/lib/exports/onboarding'
+import { onboardingLinksFor } from '@/lib/exports/onboardingServer'
 import { canTickConsent } from '@/lib/auth/staffRoles'
 import { consentPanel } from '@/lib/exports/consents'
 import { requireLeadProfileEditor } from '@/lib/auth/roles'
@@ -89,6 +92,19 @@ export default async function LeadProfilePage({ params }: { params: Promise<{ id
         defaultLendingType={view.funder?.defaultLendingType ?? 'customer'}
         ticks={view.ticks}
         batches={view.batches}
+      />
+      <OnboardingLinks
+        waitlistId={id}
+        links={(await onboardingLinksFor(id)).map((l) => ({
+          ...l,
+          whatsappHref: onboardingWhatsappHref({
+            phone: lead.whatsapp_e164 ?? lead.phone_e164,
+            firstName: lead.first_name,
+            funderName: l.funderName,
+            url: l.url,
+          }),
+          hasEmail: Boolean(lead.email),
+        }))}
       />
       <ConsentBlock
         waitlistId={id}

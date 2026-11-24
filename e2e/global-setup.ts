@@ -95,6 +95,14 @@ export default async function globalSetup() {
     process.env.E2E_SALES_TOTP_SECRET = sales.secret
   }
   if (spewa) {
+    // SPEWA's approver also sees the batches exported to SPEWA (funder_users, like the app links it).
+    const { data: sp } = await admin
+      .from('funders')
+      .select('id')
+      .eq('batch_prefix', 'SP')
+      .maybeSingle()
+    if (sp?.id)
+      await admin.from('funder_users').upsert({ profile_id: spewa.userId, funder_id: sp.id })
     process.env.E2E_SPEWA_EMAIL = spewa.email
     process.env.E2E_SPEWA_PASSWORD = spewa.password
     process.env.E2E_SPEWA_TOTP_SECRET = spewa.secret

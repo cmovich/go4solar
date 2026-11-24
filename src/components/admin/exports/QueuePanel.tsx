@@ -7,7 +7,11 @@ import { Button } from '@/components/ui/button'
 import type { QueueRow } from '@/lib/exports/queue'
 import { LENDING_TYPE_SHORT, type LendingType } from '@/lib/tradeLenda/figures'
 
-import { exportTheQueue, removeFromExportQueue } from '@/app/admin/(shell)/exports/actions'
+import {
+  discardExportQueue,
+  exportTheQueue,
+  removeFromExportQueue,
+} from '@/app/admin/(shell)/exports/actions'
 
 type Funder = { id: string; name: string; prefix: string | null; lendingTypes: LendingType[] }
 
@@ -28,6 +32,7 @@ export function QueuePanel(props: {
   const router = useRouter()
   const [pending, start] = useTransition()
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
   const funder = props.funders.find((f) => f.id === props.funderId) ?? null
   const go = (patch: Record<string, string>) => {
     const p = new URLSearchParams({
@@ -203,6 +208,48 @@ export function QueuePanel(props: {
             ? 'Exporting…'
             : `Export ${props.rows.length} to ${funder?.name ?? 'the funder'}`}
         </Button>
+        {confirmDiscard ? (
+          <span
+            className="flex flex-wrap items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            role="alert"
+          >
+            Discard {props.number}? Nothing is exported and no batch number is used.
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              disabled={pending}
+              data-testid="confirm-discard"
+              onClick={() =>
+                start(async () => {
+                  const res = await discardExportQueue({ queueId: props.queueId })
+                  if (!res.ok) setMsg({ ok: false, text: res.error })
+                  else router.push(`/admin/exports${props.isTest ? '?test=1' : ''}`)
+                })
+              }
+            >
+              Discard queue
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setConfirmDiscard(false)}
+            >
+              Keep it
+            </Button>
+          </span>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={pending}
+            onClick={() => setConfirmDiscard(true)}
+            data-testid="discard-queue"
+          >
+            Discard queue
+          </Button>
+        )}
         {funder && blocked.length > 0 && (
           <span className="text-sm text-amber-900">
             Remove or complete the blocked people first.

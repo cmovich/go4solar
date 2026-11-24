@@ -11,7 +11,7 @@ vi.mock('@/lib/tradeLenda/server', () => ({
   basisFor: async () => null,
 }))
 
-const { addToQueue, openQueue, removeFromQueue } = await import('./queue')
+const { addToQueue, discardQueue, openQueue, removeFromQueue } = await import('./queue')
 
 const ops = { id: 'ops-1', role: 'operations' as const }
 const sales = { id: 'sales-1', role: 'sales' as const }
@@ -67,5 +67,24 @@ describe('export queue', () => {
     const q = await openQueue(false)
     expect(await removeFromQueue({ queueId: q!.id, waitlistId: A }, ops)).toEqual({ ok: true })
     expect(db.rows('export_queue_items').map((i) => i.waitlist_id)).toEqual([B])
+  })
+})
+
+describe('discard the open queue', () => {
+  it('nothing exported, no batch made, audited; the next add opens a new queue', async () => {
+    await addToQueue([A], ops)
+    const q = await openQueue(false)
+    expect(await discardQueue(q!.id, ops)).toEqual({ ok: true })
+    expect(db.rows('funder_batches')).toHaveLength(0)
+    expect(await openQueue(false)).toBeNull()
+    expect(db.rows('audit_log').map((a) => a.action)).toContain('export_queue.discard')
+    expect(await addToQueue([B], ops)).toMatchObject({ ok: true, number: 'EXP-2026-0002' })
+  })
+
+  it('Sales cannot discard', async () => {
+    await addToQueue([A], ops)
+    const q = await openQueue(false)
+    expect((await discardQueue(q!.id, sales)).ok).toBe(false)
+    expect(await openQueue(false)).not.toBeNull()
   })
 })

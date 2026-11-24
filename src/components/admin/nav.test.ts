@@ -20,9 +20,12 @@ describe('navFor', () => {
     expect(hrefs('funder_partner')).toEqual(['/admin/funder'])
     expect(hrefs('funder_partner', ['create_quotations'])).toEqual(['/admin/funder'])
   })
-  it('funder approver sees SPEWA approvals and nothing else, even with a permission', () => {
-    expect(hrefs('funder_approver')).toEqual(['/admin/spewa'])
-    expect(hrefs('funder_approver', ['create_quotations'])).toEqual(['/admin/spewa'])
+  it('funder approver sees SPEWA approvals and SPEWA’s batches, nothing else, even with a permission', () => {
+    expect(hrefs('funder_approver')).toEqual(['/admin/spewa', '/admin/funder'])
+    expect(hrefs('funder_approver', ['create_quotations'])).toEqual([
+      '/admin/spewa',
+      '/admin/funder',
+    ])
   })
   it('SPEWA approvals: super admin and credit officer, not other staff', () => {
     expect(hrefs('super_admin')).toContain('/admin/spewa')
@@ -33,5 +36,14 @@ describe('navFor', () => {
   it('a permission never opens the back office to a non-staff role', () => {
     expect(hrefs('installer', ['create_quotations'])).toEqual([])
     expect(hrefs(null, ['create_quotations'])).toEqual([])
+  })
+})
+
+describe('Funder view (View as)', () => {
+  it('super admin has it, opening /admin/funder; other staff do not', () => {
+    const item = navFor('super_admin').find((n) => n.href === '/admin/funder')
+    expect(item?.label).toBe('Funder view (View as)')
+    for (const r of ['operations', 'credit_officer', 'finance', 'content', 'sales'] as const)
+      expect(navFor(r).map((n) => n.href)).not.toContain('/admin/funder')
   })
 })

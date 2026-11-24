@@ -1,6 +1,11 @@
 import 'server-only'
 
-import { canEditLeadProfile, canExport, canSendToFunder } from '@/lib/auth/staffRoles'
+import {
+  canEditLeadProfile,
+  canExport,
+  canSendToFunder,
+  isFunderLogin,
+} from '@/lib/auth/staffRoles'
 import { setConsent } from '@/lib/exports/consents'
 import type { AppRole } from '@/lib/auth/session'
 import type { QuoteResult, TenureMonths } from '@/lib/pricing/types'
@@ -807,8 +812,9 @@ export type FunderBatchRow = {
  * Batches the viewer may see: a funder only its own funder's (from funder_users); a super admin
  * (View as Trade Lenda) Trade Lenda's. Test batches only when `includeTest`.
  */
-export async function funderIdFor(actor: Actor): Promise<string | null> {
-  if (actor.role === 'super_admin') return (await tradeLendaFunder())?.id ?? null
+export async function funderIdFor(actor: Actor, viewAs?: string | null): Promise<string | null> {
+  // Super admin: "View as [funder]" (any funder; Trade Lenda when none is chosen).
+  if (actor.role === 'super_admin') return viewAs ?? (await tradeLendaFunder())?.id ?? null
   const { data } = await createAdminClient()
     .from('funder_users')
     .select('funder_id')
@@ -820,8 +826,9 @@ export async function funderIdFor(actor: Actor): Promise<string | null> {
 export async function funderBatchList(
   actor: Actor,
   includeTest: boolean,
+  viewAs?: string | null,
 ): Promise<FunderBatchRow[]> {
-  const funderId = await funderIdFor(actor)
+  const funderId = await funderIdFor(actor, viewAs)
   if (!funderId) return []
   let q = createAdminClient()
     .from('funder_batches')
@@ -844,6 +851,10 @@ export async function funderBatchList(
 export type FunderBatchView = FunderBatchRow & {
   versions: number
   totals: ReturnType<typeof batchTotals>
+  funderId: string
+  funderName: string
+  /** One onboarding link for the whole batch (the funder's), if set. */
+  onboardingUrl: string | null
   items: {
     id: string
     customer: FunderCustomer
@@ -851,6 +862,8 @@ export type FunderBatchView = FunderBatchRow & {
     note: string | null
     decidedAt: string | null
     consentWithdrawnAt: string | null
+    /** This person's own onboarding link (the funder's), if set. */
+    onboardingUrl: string | null
   }[]
 }
 
@@ -859,15 +872,17 @@ export async function funderBatch(
   actor: Actor,
   batchId: string,
   /** anyFunder: Admin → Exports (super admin, Operations) sees every funder's batches. */
-  opts: { anyFunder?: boolean } = {},
+  opts: { anyFunder?: boolean; viewAs?: string | null } = {},
 ): Promise<FunderBatchView | null> {
   const staff = opts.anyFunder === true && canExport(actor.role)
-  const funderId = staff ? null : await funderIdFor(actor)
+  const funderId = staff ? null : await funderIdFor(actor, opts.viewAs)
   if (!staff && !funderId) return null
   const admin = createAdminClient()
   let q = admin
     .from('funder_batches')
-    .select('id, number, version, lending_type, created_at, replaced_by, totals, funder_id')
+    .select(
+      'id, number, version, lending_type, created_at, replaced_by, totals, funder_id, onboarding_url, funders(name)',
+    )
     .eq('id', batchId)
   if (funderId) q = q.eq('funder_id', funderId)
   const { data: b } = await q.maybeSingle()
@@ -875,7 +890,9 @@ export async function funderBatch(
   const [{ data: items }, { count }] = await Promise.all([
     admin
       .from('funder_batch_items')
-      .select('id, snapshot, decision, decision_note, decided_at, consent_withdrawn_at')
+      .select(
+        'id, snapshot, decision, decision_note, decided_at, consent_withdrawn_at, onboarding_url',
+      )
       .eq('batch_id', batchId)
       .order('created_at'),
     admin
@@ -903,7 +920,11 @@ export async function funderBatch(
       decidedAt: i.decided_at,
       /** The customer withdrew consent to share with this funder after the export. */
       consentWithdrawnAt: i.consent_withdrawn_at,
+      onboardingUrl: i.onboarding_url,
     })),
+    funderId: b.funder_id,
+    funderName: (b.funders as { name: string } | null)?.name ?? 'Funder',
+    onboardingUrl: b.onboarding_url,
   }
 }
 
@@ -912,7 +933,7 @@ export async function decideItem(
   actor: Actor,
   input: { itemId: string; decision: 'approved' | 'declined' | 'needs_info'; note: string | null },
 ): Promise<Result> {
-  if (actor.role !== 'funder_partner') return { ok: false, error: 'Only Trade Lenda decides.' }
+  if (!isFunderLogin(actor.role)) return { ok: false, error: 'Only the funder decides.' }
   const funderId = await funderIdFor(actor)
   const admin = createAdminClient()
   const { data: item } = await admin

@@ -185,6 +185,7 @@ export async function loadPricingDraft(includeTestFunders = false): Promise<Pric
         'customer' | 'go4solar',
       contactEmail: f.contact_email ?? null,
       batchPrefix: f.batch_prefix ?? null,
+      onboardingDomains: (f.onboarding_domains as string[] | null) ?? [],
     })),
   }
 }
