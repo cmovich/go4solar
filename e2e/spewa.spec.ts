@@ -72,7 +72,7 @@ test.describe.serial('SPEWA approvals', () => {
     await loginAsStaff(page, 'spewa')
     // Menu: SPEWA approvals and nothing else.
     const nav = page.getByRole('navigation').filter({ hasText: 'SPEWA approvals' }).first()
-    await expect(nav.getByRole('link')).toHaveText(['SPEWA approvals'])
+    await expect(nav.getByRole('link')).toHaveText(['SPEWA approvals', 'Batches'])
     // Every other admin page sends it back to the queue; exports are refused.
     for (const path of ['/admin', '/admin/applications', '/admin/waitlist', '/admin/staff']) {
       await page.goto(path)
