@@ -1,3 +1,4 @@
+import { funderFinancing } from '@/lib/funders/financing'
 import { roundNaira } from '@/lib/money'
 
 /**
@@ -33,7 +34,13 @@ export const LENDING_TYPE_SHORT: Record<LendingType, string> = {
  * balance taken at approval, the "drawn" amount, the interest and the "amount financed".
  */
 export const tradeLendaDrawn = (i: { priceInFull: number; deposit: number }) =>
-  Math.max(0, i.priceInFull - i.deposit)
+  funderFinancing({
+    kind: 'monthly-rate',
+    priceInFull: i.priceInFull,
+    deposit: i.deposit,
+    months: 1,
+    monthlyRate: 0,
+  }).financed
 
 /** 0.48 a year → 0.04 a month (flat). */
 export const monthlyRateOf = (annualRate: number) => Math.round((annualRate / 12) * 1e6) / 1e6
@@ -61,16 +68,6 @@ export type LendingFigures = {
   customerMonthly: number | null
 }
 
-function split(total: number, months: number) {
-  const monthly = roundNaira(total / months)
-  return {
-    monthly,
-    instalments: Array.from({ length: months }, (_, i) =>
-      i === months - 1 ? total - monthly * (months - 1) : monthly,
-    ),
-  }
-}
-
 /** Trade Lenda lends to the customer. */
 export function customerFigures(i: {
   price: number
@@ -79,19 +76,25 @@ export function customerFigures(i: {
   monthlyRate: number
 }): LendingFigures {
   const deposit = roundNaira(i.price * i.depositShare)
-  const financed = tradeLendaDrawn({ priceInFull: i.price, deposit })
-  const total = roundNaira(financed * (1 + i.monthlyRate * i.months))
+  const f = funderFinancing({
+    kind: 'monthly-rate',
+    priceInFull: i.price,
+    deposit,
+    months: i.months,
+    monthlyRate: i.monthlyRate,
+  })
   return {
     lendingType: 'customer',
     price: i.price,
     depositShare: i.depositShare,
     deposit,
-    financed,
+    financed: f.financed,
     monthlyRate: i.monthlyRate,
     months: i.months,
-    charge: total - financed,
-    ...split(total, i.months),
-    totalRepayment: deposit + total,
+    charge: f.earnings,
+    monthly: f.monthly,
+    instalments: f.instalments,
+    totalRepayment: deposit + f.totalRepayment,
     customerTotalPayable: null,
     customerMonthly: null,
   }
@@ -113,20 +116,25 @@ export function go4solarFigures(i: {
   months: number
   monthlyRate: number
 }): LendingFigures {
-  const financed = tradeLendaDrawn({ priceInFull: i.priceInFull, deposit: i.quoted.deposit })
-  const charge = roundNaira(financed * i.monthlyRate * i.months)
-  const total = financed + charge
+  const f = funderFinancing({
+    kind: 'monthly-rate',
+    priceInFull: i.priceInFull,
+    deposit: i.quoted.deposit,
+    months: i.months,
+    monthlyRate: i.monthlyRate,
+  })
   return {
     lendingType: 'go4solar',
     price: i.quoted.price,
     depositShare: i.quoted.depositShare,
     deposit: i.quoted.deposit,
-    financed,
+    financed: f.financed,
     monthlyRate: i.monthlyRate,
     months: i.months,
-    charge,
-    ...split(total, i.months),
-    totalRepayment: total,
+    charge: f.earnings,
+    monthly: f.monthly,
+    instalments: f.instalments,
+    totalRepayment: f.totalRepayment,
     customerTotalPayable: i.quoted.totalPayable,
     customerMonthly: i.quoted.monthly,
   }
