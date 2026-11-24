@@ -44,6 +44,7 @@ export async function saveFunder(input: unknown): Promise<Result> {
     default_lending_type: d.defaultLendingType,
     contact_email: d.contactEmail ?? null,
     batch_prefix: d.batchPrefix ?? null,
+    onboarding_domains: d.onboardingDomains,
     sample: false,
   }
   const { data, error } = await supabase.from('funders').upsert(row).select('id').single()

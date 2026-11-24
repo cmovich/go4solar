@@ -159,8 +159,9 @@ export function navFor(role: AppRole | null, permissions: readonly string[] = []
   }
   // Funder (Trade Lenda): its batches only.
   if (role === 'funder_partner') return [FUNDER_NAV]
-  // Funder approver (SPEWA): the SPEWA approvals queue only.
-  if (role === 'funder_approver') return NAV.filter((n) => n.href === '/admin/spewa')
+  // Funder approver (SPEWA): the SPEWA approvals queue and the batches exported to SPEWA.
+  if (role === 'funder_approver')
+    return [...NAV.filter((n) => n.href === '/admin/spewa'), FUNDER_NAV]
   if (!isStaffRole(role)) return []
   return NAV.filter(
     (n) =>

@@ -173,6 +173,8 @@ export const funderSchema = z
       ])
       .optional()
       .transform((v) => (v ? v : null)),
+    /** Onboarding links from this funder must be https on one of these domains (0043). */
+    onboardingDomains: z.array(z.string().max(253)).max(10).default([]),
     /** Where consent-withdrawal notices go (0043). Optional. */
     contactEmail: z
       .union([z.email('Enter a valid email address.').max(200), z.literal(''), z.null()])

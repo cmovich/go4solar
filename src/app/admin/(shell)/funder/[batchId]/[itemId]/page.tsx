@@ -1,3 +1,4 @@
+import { isFunderLogin } from '@/lib/auth/staffRoles'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -57,7 +58,7 @@ export default async function FunderCustomerPage({
           batchId={b.id}
           decision={item.decision}
           note={item.note}
-          canDecide={s.role === 'funder_partner' && !b.replaced}
+          canDecide={isFunderLogin(s.role) && !b.replaced}
         />
       </div>
     </main>

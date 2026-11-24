@@ -20,9 +20,12 @@ describe('navFor', () => {
     expect(hrefs('funder_partner')).toEqual(['/admin/funder'])
     expect(hrefs('funder_partner', ['create_quotations'])).toEqual(['/admin/funder'])
   })
-  it('funder approver sees SPEWA approvals and nothing else, even with a permission', () => {
-    expect(hrefs('funder_approver')).toEqual(['/admin/spewa'])
-    expect(hrefs('funder_approver', ['create_quotations'])).toEqual(['/admin/spewa'])
+  it('funder approver sees SPEWA approvals and SPEWA’s batches, nothing else, even with a permission', () => {
+    expect(hrefs('funder_approver')).toEqual(['/admin/spewa', '/admin/funder'])
+    expect(hrefs('funder_approver', ['create_quotations'])).toEqual([
+      '/admin/spewa',
+      '/admin/funder',
+    ])
   })
   it('SPEWA approvals: super admin and credit officer, not other staff', () => {
     expect(hrefs('super_admin')).toContain('/admin/spewa')

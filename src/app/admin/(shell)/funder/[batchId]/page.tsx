@@ -1,3 +1,4 @@
+import { isFunderLogin } from '@/lib/auth/staffRoles'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -34,7 +35,7 @@ export default async function FunderBatchPage({
     ['Total repayments', formatNaira(t.totalRepayments)],
     ['Monthly repayments due', formatNaira(t.monthlyRepaymentsDue)],
   ]
-  const canDecide = s.role === 'funder_partner' && !b.replaced
+  const canDecide = isFunderLogin(s.role) && !b.replaced
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <p className="text-sm">

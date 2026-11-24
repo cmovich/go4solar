@@ -47,21 +47,32 @@ const updateSchema = z.object({
 type Permission = 'assisted_entry' | 'waitlist_delete' | 'create_quotations'
 
 /**
- * A "Funder (Trade Lenda)" account belongs to the Trade Lenda funder (funder_users); any other
- * role has no funder link. Returns an error message when Trade Lenda is not set up.
+ * A "Funder (Trade Lenda)" account belongs to Trade Lenda and a "Funder approver (SPEWA)" account
+ * to SPEWA (funder_users); any other role has no funder link. Returns an error message when the
+ * funder is not set up.
  */
 async function linkFunder(profileId: string, role: string, by: string): Promise<string | null> {
   const admin = createAdminClient()
-  if (role !== FUNDER_PARTNER_ROLE) {
+  if (role !== FUNDER_PARTNER_ROLE && role !== 'funder_approver') {
     await admin.from('funder_users').delete().eq('profile_id', profileId)
     return null
   }
-  const funder = await tradeLendaFunder()
-  if (!funder) return 'Trade Lenda is not set up in Funders.'
+  // Trade Lenda's login → Trade Lenda; SPEWA's approver → SPEWA (it also sees SPEWA's batches).
+  let funderId: string | null
+  let name: string
+  if (role === FUNDER_PARTNER_ROLE) {
+    funderId = (await tradeLendaFunder())?.id ?? null
+    name = 'Trade Lenda'
+  } else {
+    const { data } = await admin.from('funders').select('id').eq('batch_prefix', 'SP').maybeSingle()
+    funderId = data?.id ?? null
+    name = 'SPEWA'
+  }
+  if (!funderId) return `${name} is not set up in Funders.`
   const { error } = await admin
     .from('funder_users')
-    .upsert({ profile_id: profileId, funder_id: funder.id, created_by: by })
-  return error ? 'Could not link the account to Trade Lenda.' : null
+    .upsert({ profile_id: profileId, funder_id: funderId, created_by: by })
+  return error ? `Could not link the account to ${name}.` : null
 }
 
 /** Give or take away one extra permission (only writes when it changes). */

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { z } from 'zod'
 
 import { getSessionInfo } from '@/lib/auth/session'
-import { canExport } from '@/lib/auth/staffRoles'
+import { canExport, isFunderLogin } from '@/lib/auth/staffRoles'
 import { loadCompany } from '@/lib/company/server'
 import { renderFunderBatchPdf } from '@/lib/pdf/FunderBatchPdf'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const s = await getSessionInfo()
   const staff = canExport(s.role)
-  if (!s.user || s.aal !== 'aal2' || (!staff && s.role !== 'funder_partner')) {
+  if (!s.user || s.aal !== 'aal2' || (!staff && !isFunderLogin(s.role))) {
     return new NextResponse('Not allowed', { status: 403 })
   }
   const { id } = await params

@@ -18,6 +18,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatNaira, formatPercent } from '@/lib/money'
+import { parseDomains } from '@/lib/exports/onboarding'
 import type { FunderDraft } from '@/lib/pricing/adminSchemas'
 import { TENURES, type TenureMonths } from '@/lib/pricing/types'
 
@@ -47,11 +48,14 @@ const EMPTY: FunderDraft = {
   defaultLendingType: 'go4solar',
   contactEmail: null,
   batchPrefix: null,
+  onboardingDomains: [],
 }
 
 export function FundersTable({ rows, canEdit }: { rows: FunderRowView[]; canEdit: boolean }) {
   const router = useRouter()
   const [editing, setEditing] = useState<FunderDraft | null>(null)
+  // The domains as typed (cleaned into the draft as you type).
+  const [domainsText, setDomainsText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
@@ -80,7 +84,14 @@ export function FundersTable({ rows, canEdit }: { rows: FunderRowView[]; canEdit
   return (
     <>
       {canEdit && (
-        <Button type="button" onClick={() => setEditing(EMPTY)} className="mb-4">
+        <Button
+          type="button"
+          onClick={() => {
+            setDomainsText(null)
+            setEditing(EMPTY)
+          }}
+          className="mb-4"
+        >
           Add funder
         </Button>
       )}
@@ -160,7 +171,10 @@ export function FundersTable({ rows, canEdit }: { rows: FunderRowView[]; canEdit
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() => setEditing(f)}
+                        onClick={() => {
+                          setDomainsText(null)
+                          setEditing(f)
+                        }}
                       >
                         Edit
                       </Button>{' '}
@@ -304,6 +318,25 @@ export function FundersTable({ rows, canEdit }: { rows: FunderRowView[]; canEdit
                   <p className="text-muted-foreground mt-1 text-xs">
                     Export batches are numbered with it: TL-Batch-001. Needed to export to this
                     funder.
+                  </p>
+                </div>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="f-domains">Onboarding link domains</Label>
+                  <Input
+                    id="f-domains"
+                    value={domainsText ?? editing.onboardingDomains.join(', ')}
+                    onChange={(e) => {
+                      setDomainsText(e.target.value)
+                      set({ onboardingDomains: parseDomains(e.target.value).domains })
+                    }}
+                    placeholder="e.g. tradelenda.com"
+                  />
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    The funder’s onboarding links must be https on one of these (subdomains
+                    allowed).
+                    {domainsText && parseDomains(domainsText).bad.length > 0
+                      ? ` Not a domain: ${parseDomains(domainsText).bad.join(', ')}.`
+                      : ''}
                   </p>
                 </div>
                 <div className="sm:col-span-2">
