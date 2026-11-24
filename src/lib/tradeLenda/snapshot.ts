@@ -1,3 +1,5 @@
+import type { ExportFinancing } from '@/lib/exports/financing'
+
 import type { LendingFigures, LendingType } from './figures'
 import type { PlanItem } from './planBasis'
 
@@ -55,6 +57,10 @@ export type FunderCustomer = {
     consent: { by: string; at: string; note: string | null }
     figuresAgreed: { by: string; at: string; note: string | null }
   }
+  /** Export level (0043; batches before it are full): Basic leaves out the Full-only details. */
+  level?: 'basic' | 'full'
+  /** What the funder finances and earns (exports from 0043 on). */
+  financing?: ExportFinancing
 }
 
 type SnapshotInput = Omit<FunderCustomer, 'figures' | 'plan'> & {
@@ -66,13 +72,15 @@ type SnapshotInput = Omit<FunderCustomer, 'figures' | 'plan'> & {
 /** The only way a funder snapshot is made: field by field, nothing else is copied. */
 export function funderSnapshot(i: SnapshotInput): FunderCustomer {
   const f = i.figures
+  // Basic: date of birth, work and income and the guarantor are never copied.
+  const full = i.level !== 'basic'
   return {
     reference: i.reference,
     name: i.name,
     phone: i.phone,
     whatsapp: i.whatsapp,
     email: i.email,
-    dateOfBirth: i.dateOfBirth,
+    dateOfBirth: full ? i.dateOfBirth : null,
     address: {
       street: i.address.street,
       landmark: i.address.landmark,
@@ -80,18 +88,18 @@ export function funderSnapshot(i: SnapshotInput): FunderCustomer {
       state: i.address.state,
     },
     work: {
-      employmentType: i.work.employmentType,
-      employer: i.work.employer,
-      jobTitle: i.work.jobTitle,
-      incomeRange: i.work.incomeRange,
+      employmentType: full ? i.work.employmentType : null,
+      employer: full ? i.work.employer : null,
+      jobTitle: full ? i.work.jobTitle : null,
+      incomeRange: full ? i.work.incomeRange : null,
     },
     applicantType: i.applicantType,
     business: i.business ? { name: i.business.name, contactRole: i.business.contactRole } : null,
     guarantor: {
-      name: i.guarantor.name,
-      phone: i.guarantor.phone,
-      relationship: i.guarantor.relationship,
-      address: i.guarantor.address,
+      name: full ? i.guarantor.name : null,
+      phone: full ? i.guarantor.phone : null,
+      relationship: full ? i.guarantor.relationship : null,
+      address: full ? i.guarantor.address : null,
     },
     plan: {
       label: i.planLabel,
@@ -115,6 +123,21 @@ export function funderSnapshot(i: SnapshotInput): FunderCustomer {
       consent: { ...i.records.consent },
       figuresAgreed: { ...i.records.figuresAgreed },
     },
+    ...(i.level ? { level: i.level } : {}),
+    ...(i.financing
+      ? {
+          financing: {
+            months: i.financing.months,
+            deposit: i.financing.deposit,
+            depositStatus: i.financing.depositStatus,
+            depositPaid: i.financing.depositPaid,
+            financed: i.financing.financed,
+            monthly: i.financing.monthly,
+            totalRepayment: i.financing.totalRepayment,
+            earnings: i.financing.earnings,
+          },
+        }
+      : {}),
   }
 }
 
@@ -149,10 +172,19 @@ export const FORBIDDEN = [
  * Problems found in data or a file meant for a funder: forbidden words in any key or text, and
  * (lends to Go4Solar) any of our cost figures appearing as a number.
  */
-export function funderSafetyProblems(data: unknown, ourCostFigures: number[] = []): string[] {
+export function funderSafetyProblems(
+  data: unknown,
+  ourCostFigures: number[] = [],
+  /** allow: words this funder may see ("spewa" in exports to SPEWA only). */
+  opts: { allow?: string[] } = {},
+): string[] {
   const text = (typeof data === 'string' ? data : JSON.stringify(data)).toLowerCase()
   const out: string[] = []
-  for (const w of FORBIDDEN) if (text.includes(w)) out.push(`contains "${w}"`)
+  for (const w of FORBIDDEN)
+    if (!opts.allow?.includes(w) && text.includes(w)) out.push(`contains "${w}"`)
+  // A funder's earnings are only its interest/charge on what it finances (never our margin).
+  if (typeof data === 'object' && data !== null && hasBadEarnings(data))
+    out.push('earnings are not the interest/charge on the amount financed')
   const plain = text.replace(/[,₦\s]/g, '')
   for (const n of ourCostFigures) {
     if (n > 0 && new RegExp(`(^|[^0-9])${n}([^0-9]|$)`).test(plain)) {
@@ -160,4 +192,21 @@ export function funderSafetyProblems(data: unknown, ourCostFigures: number[] = [
     }
   }
   return out
+}
+
+/** Any `financing` block whose earnings ≠ repayment − financed (or negative). */
+function hasBadEarnings(data: unknown): boolean {
+  if (Array.isArray(data)) return data.some(hasBadEarnings)
+  if (typeof data !== 'object' || data === null) return false
+  const o = data as Record<string, unknown>
+  const f = o.financing as Partial<ExportFinancing> | undefined
+  if (
+    f &&
+    typeof f.earnings === 'number' &&
+    typeof f.financed === 'number' &&
+    typeof f.totalRepayment === 'number' &&
+    (f.earnings < 0 || f.earnings !== f.totalRepayment - f.financed)
+  )
+    return true
+  return Object.values(o).some((v) => typeof v === 'object' && v !== null && hasBadEarnings(v))
 }
