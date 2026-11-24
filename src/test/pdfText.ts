@@ -14,7 +14,12 @@ export function pdfPageTexts(pdf: Buffer): string[] {
     const s = /stream\r?\n([\s\S]*?)\r?\nendstream/.exec(body)
     let stream: string | null = null
     if (s) {
-      const raw = Buffer.from(s[1]!, 'latin1')
+      // Take exactly the declared /Length when it is a number: a stream whose last byte is a
+      // carriage return would otherwise lose it to the "\r?\nendstream" match (24 Nov 2026).
+      const declared = /\/Length\s+(\d+)(?!\s+\d+\s+R)/.exec(body.slice(0, s.index))
+      const start = s.index + s[0].indexOf('\n') + 1
+      const bytes = declared ? body.slice(start, start + Number(declared[1])) : s[1]!
+      const raw = Buffer.from(bytes, 'latin1')
       stream = /\/FlateDecode/.test(body) ? inflateSync(raw).toString('latin1') : s[1]!
     }
     objects.set(Number(m[1]), { dict: s ? body.slice(0, s.index) : body, stream })

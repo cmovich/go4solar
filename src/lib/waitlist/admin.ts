@@ -4,6 +4,7 @@ import type { LoadItem, LoadTotals } from '@/lib/load/types'
 import type { Estimate, RepricedPlan } from '@/lib/quotes/buildEstimate'
 import type { Plan, SystemSize } from '@/lib/sizing/types'
 import type { Database } from '@/lib/supabase/database.types'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 import { co2Avoided, type GeneratorType } from '@/lib/energy/currentSpend'
@@ -143,8 +144,12 @@ function decode(row: ConsumerRow, names: Map<string, string>): ConsumerLead {
 async function staffNames(ids: (string | null)[]): Promise<Map<string, string>> {
   const unique = [...new Set(ids.filter((v): v is string => Boolean(v)))]
   if (unique.length === 0) return new Map()
-  const supabase = await createClient()
-  const { data } = await supabase.from('profiles').select('id, full_name, email').in('id', unique)
+  // Names of the staff who entered rows (service role: Sales cannot read staff profiles, and these
+  // are only our own staff's names, never customer data).
+  const { data } = await createAdminClient()
+    .from('profiles')
+    .select('id, full_name, email')
+    .in('id', unique)
   return new Map((data ?? []).map((p) => [p.id, p.full_name ?? p.email ?? p.id]))
 }
 

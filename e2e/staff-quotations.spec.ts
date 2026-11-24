@@ -180,11 +180,14 @@ test.describe('sales role', () => {
     test.skip(test.info().project.name === 'mobile', 'one browser is enough')
     await loginAsStaff(page, 'sales')
     const nav = page.getByRole('navigation', { name: 'Back office' })
-    // Sales also edits the Trade Lenda profiles (18 Nov); nothing else.
-    await expect(nav.getByRole('link')).toHaveText(['Trade Lenda profiles', 'Quotations'])
+    // Sales also reads the waiting list (24 Nov, 0044) and edits the Trade Lenda profiles.
+    await expect(nav.getByRole('link')).toHaveText([
+      'Waiting list',
+      'Trade Lenda profiles',
+      'Quotations',
+    ])
     for (const path of [
       '/admin',
-      '/admin/waitlist',
       '/admin/outbox',
       '/admin/applications',
       '/admin/pricing',
@@ -198,6 +201,21 @@ test.describe('sales role', () => {
       const res = await page.request.get(api, { maxRedirects: 0 })
       expect(res.status(), api).not.toBe(200)
     }
+    // The waiting list, read only: both tabs, Edit; no installers, exports, deletes or clearing.
+    await page.goto('/admin/waitlist?tab=incomplete&test=1')
+    await expect(page).toHaveURL(/\/admin\/waitlist/)
+    await expect(page.getByRole('link', { name: /^Complete \(/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /^Incomplete leads/ })).toBeVisible()
+    await expect(page.getByRole('link', { name: /^Installers/ })).toHaveCount(0)
+    await expect(page.getByTestId('edit-entry').first()).toBeVisible({ timeout: 30_000 })
+    for (const name of ['Download CSV', 'Download PDF', 'Clear waiting list']) {
+      await expect(
+        page.getByRole('link', { name }).or(page.getByRole('button', { name })),
+      ).toHaveCount(0)
+    }
+    await expect(page.getByRole('button', { name: /^Delete/ })).toHaveCount(0)
+    await page.goto('/admin/waitlist?tab=installers')
+    await expect(page.getByTestId('consumer-table')).toBeVisible() // back on Complete
     // Their own quotations only: a fresh sales account has none from anyone else.
     await page.goto('/admin/quotations')
     await expect(page.getByText('Only your own quotations are shown.')).toBeVisible()

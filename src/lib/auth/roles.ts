@@ -67,6 +67,16 @@ export async function requireStaffWithMfa(): Promise<SessionInfo> {
   return info
 }
 
+/**
+ * Admin → Waiting list (Complete and Incomplete): our staff, and Sales read-only (migration 0044;
+ * Sales open Edit and tick, but never delete, clear, export or queue).
+ */
+export async function requireWaitlistViewer(): Promise<SessionInfo> {
+  const info = await getSessionInfo()
+  if (info.user && info.aal === 'aal2' && info.role === SALES_ROLE) return info
+  return requireStaffWithMfa()
+}
+
 /** Trade Lenda's pages (/admin/funder): the funder, or a super admin ("View as Trade Lenda"). */
 export async function requireFunderViewer(): Promise<SessionInfo> {
   const info = await getSessionInfo()
