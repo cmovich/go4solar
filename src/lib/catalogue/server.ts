@@ -262,21 +262,17 @@ export function itemSizes(
 }
 
 /**
- * The browser-safe catalogue: each item's customer price (cost with its category margin, priced
- * like a quote at the lowest deposit over 12 months), and no cost prices.
- * SPEWA offer (`sell` given): the price paid in full: SPEWA items at their selling price, our
- * accessories at cost + margin (the financing charge shows in the total).
+ * The browser-safe catalogue: each item's price before financing (cost with its category margin;
+ * SPEWA offer: SPEWA items at their selling price), and no cost prices. Only the staff quotation
+ * tool shows these prices; customers get the items with price 0 (builderItems).
  */
 export function toBuilderItems(
   cat: Cat,
   pricing: PricingSettings,
-  minDepositShare: number,
   sell?: Record<string, number>,
 ): BuilderItem[] {
-  const f = pricing.pricingRateByTenure[12]
-  const factor = sell ? 1 : 1 / (1 - f * (1 - minDepositShare))
   const marked = (cost: number, category: keyof PricingSettings['marginByCategory']) =>
-    roundNaira(cost * (1 + pricing.marginByCategory[category]) * factor)
+    roundNaira(cost * (1 + pricing.marginByCategory[category]))
   const price = (
     cost: number,
     category: keyof PricingSettings['marginByCategory'],

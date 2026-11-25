@@ -8,7 +8,8 @@ import { fullPaymentQuoteResult, priceReadyPlan, readyQuoteResult } from '@/lib/
 
 import { DEFAULT_OFFER_TERMS, quoteOffer } from '@/lib/spewa/offer'
 
-import { buildInvoice, newPublicCode, type InvoiceInput } from './build'
+import { buildInvoice, customerFixed, newPublicCode, type InvoiceInput } from './build'
+import { invoiceFinancing } from './financing'
 import { verifyView } from './verify'
 
 const priced = priceQuote({
@@ -312,5 +313,78 @@ describe('SPEWA offer quotation and invoice (business)', () => {
 
   it('home invoices are unchanged (no charge line)', () => {
     expect(buildInvoice(base).lines.some((l) => l.kind === 'charge')).toBe(false)
+  })
+})
+
+describe('customer documents from 25 Nov 2026: items without prices (calculator, builder, SPEWA)', () => {
+  const terms = { kind: 'flat' as const, monthlyRate: 0.04, fullDiscount: 0.2 }
+  const home = priceQuote({
+    lines: [
+      { sku: 'INV-1', name: '1 kVA inverter', category: 'inverter', unitCost: 257_500, qty: 1 },
+    ],
+    installCost: 200_000,
+    noMarkup: [
+      { label: 'Installation', amount: 100_000 },
+      { label: 'Delivery — Go4Solar logistics (Kaduna)', amount: 100_000 },
+    ],
+    marginByCategory: { panels: 0.03, battery: 0.03, inverter: 0.03, accessories: 0.03 },
+    pricingRateAnnual: 0.48,
+    tenureMonths: 12,
+    depositShare: 0.2,
+    terms,
+  })
+
+  it('customerFixed: the cash price and its discount', () => {
+    expect(customerFixed(home)).toEqual({ fullPayment: 515_097, fullDiscount: 0.2, extra: null })
+  })
+
+  it('home: every item and installation/delivery listed with no amount; no charge line', () => {
+    const inv = buildInvoice({ ...base, result: home, fixed: customerFixed(home) })
+    expect(inv.lines.map((l) => l.item)).toEqual([
+      '1 kVA inverter',
+      'Installation',
+      'Delivery — Go4Solar logistics (Kaduna)',
+    ])
+    expect(inv.lines.every((l) => l.hideAmount)).toBe(true)
+    expect(inv.lines.some((l) => l.kind === 'charge')).toBe(false)
+    expect(inv.totals).toMatchObject({
+      total: 643_871,
+      deposit: 93_045,
+      monthly: 45_902,
+      months: 12,
+    })
+    expect(inv.fixed).toEqual({ fullPayment: 515_097, fullDiscount: 0.2, extra: null })
+    expect(invoiceFinancing(inv)).toBeNull()
+  })
+
+  it('SPEWA: the cash price is the price without the charge; no charge line', () => {
+    const q = priceQuote({
+      lines: [
+        {
+          sku: 'SPW-SLS-0003',
+          name: 'Solis 12kW',
+          category: 'inverter',
+          unitCost: 2_375_000,
+          sellUnit: 2_665_000,
+          qty: 1,
+        },
+      ],
+      installCost: 350_000,
+      noMarkup: [
+        { label: 'Installation', amount: 250_000 },
+        { label: 'Delivery — Go4Solar logistics (Kaduna)', amount: 100_000 },
+      ],
+      marginByCategory: { panels: 0.03, battery: 0.03, inverter: 0.03, accessories: 0.03 },
+      pricingRateAnnual: 0.3,
+      tenureMonths: 12,
+      depositShare: 0.3,
+      minDepositShare: 0.3,
+      offer: quoteOffer(DEFAULT_OFFER_TERMS, [3, 6, 9, 12]),
+    })
+    expect(customerFixed(q)).toEqual({ fullPayment: 3_015_000, fullDiscount: 0, extra: null })
+    const inv = buildInvoice({ ...base, result: q, fixed: customerFixed(q) })
+    expect(inv.lines.map((l) => l.kind)).toEqual(['equipment', 'installation', 'delivery'])
+    expect(inv.lines.every((l) => l.hideAmount)).toBe(true)
+    expect(inv.totals.total).toBe(3_648_150)
   })
 })

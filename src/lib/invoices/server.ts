@@ -14,9 +14,16 @@ import type { Plan } from '@/lib/sizing/types'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database, Json } from '@/lib/supabase/database.types'
 import { siteAnswersSchema } from '@/lib/wizard/questions'
+import { leadQuote } from '@/lib/waitlist/leadQuote'
 import { fetchRoofTypes } from '@/lib/wizard/server'
 
-import { buildInvoice, newPublicCode, type InvoiceCustomer, type InvoiceData } from './build'
+import {
+  buildInvoice,
+  customerFixed,
+  newPublicCode,
+  type InvoiceCustomer,
+  type InvoiceData,
+} from './build'
 
 type QuoteRow = Database['public']['Tables']['quotes']['Row']
 type ProfileRow = Database['public']['Tables']['profiles']['Row']
@@ -140,8 +147,11 @@ async function prepare(
     roofNeedsRack: roof?.needsRack ?? false,
     installer: selection?.installer === 'own' ? 'own' : 'go4solar',
     packIncluded: src.result.lines.some((l) => items[l.sku]?.pack),
-    // Ready-made plans: one fixed price (items without prices) and the pay-in-full price.
-    fixed: storedBuild(src.builder)?.fixed ?? null,
+    // Ready-made plans: their own fixed price. Every other customer document (calculator plans,
+    // the builder, the SPEWA offer): items without prices and the pay-in-full price too.
+    fixed:
+      storedBuild(src.builder)?.fixed ??
+      (src.result?.snapshot?.marginByCategory ? customerFixed(src.result) : null),
   })
 }
 
@@ -381,4 +391,29 @@ export async function invoiceById(id: string): Promise<InvoiceData | null> {
     .eq('id', id)
     .maybeSingle()
   return (data?.data as unknown as InvoiceData | undefined) ?? null
+}
+
+/**
+ * Admin → Waiting list → "View quote" / "Download PDF": the person's quote as a quotation (the
+ * same document the customer sees). The caller checks the staff member may read the waiting list.
+ */
+export async function quotationForLead(leadId: string): Promise<DocResult> {
+  const { data: lead } = await createAdminClient()
+    .from('waitlist_consumers')
+    .select('*')
+    .eq('id', leadId)
+    .maybeSingle()
+  if (!lead) return { ok: false, reason: 'not_found' }
+  const q = leadQuote(lead)
+  if (!q) return { ok: false, reason: 'not_found' }
+  if (q.sample) return { ok: false, reason: 'sample' }
+  return quotation({
+    result: q.result,
+    title: q.title,
+    reference: quoteReference(lead.id),
+    site: lead.site,
+    builder: q.builder,
+    customer: customerFromLead(lead),
+    isTest: Boolean(lead.is_test),
+  })
 }

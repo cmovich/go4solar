@@ -7,7 +7,7 @@ import { loadCatalogue, toBuilderItems, type BuilderItem } from '@/lib/catalogue
 import { makeItem } from '@/lib/load/load.fixture'
 import { computeLoadTotals } from '@/lib/load/totals'
 import { priceQuote } from '@/lib/pricing/price'
-import { offeredTenures } from '@/lib/pricing/tenures'
+import { DEFAULT_FLAT_TERMS, HOME_TENURES } from '@/lib/pricing/flat'
 import type { QuoteResult, TenureMonths } from '@/lib/pricing/types'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 import { DEFAULT_SUN_HOURS, type QuoteSettings } from '@/lib/settings/schemas'
@@ -17,7 +17,12 @@ import { annualisedRates, withSellPrices } from '@/lib/spewa/offer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { DEFAULT_WIRING, wireEstimate } from '@/lib/wizard/questions'
 
-import { quoteBreakdown, type QuoteBreakdown } from './breakdown'
+import {
+  customerBreakdown,
+  quoteBreakdown,
+  type CustomerBreakdown,
+  type QuoteBreakdown,
+} from './breakdown'
 import type { BuildSelectionInput } from './schema'
 import { systemSummary } from './schema'
 
@@ -111,19 +116,25 @@ export function contextFor(
   }
 }
 
-/** The builder page's items (customer prices only), or [] before migration 0027. */
+/**
+ * The builder page's items, or [] before migration 0027. Customers see items without prices
+ * (Semako, 25 Nov 2026): `price` is 0 unless `withPrices` (the staff quotation tool).
+ */
 export function builderItems(
   ctx: BuilderContext,
   applicantType: ApplicantType = 'individual',
+  opts: { withPrices?: boolean } = {},
 ): BuilderItem[] {
   const bo = offerFor(ctx, applicantType)
   const c = contextFor(ctx, applicantType)
-  return c.catalogue
-    ? toBuilderItems(c.catalogue, c.settings.pricing, c.settings.minDepositShare, bo?.sell)
-    : []
+  if (!c.catalogue) return []
+  const items = toBuilderItems(c.catalogue, c.settings.pricing, bo?.sell)
+  return opts.withPrices ? items : items.map((i) => ({ ...i, price: 0 }))
 }
 
 export type PricedBuild = {
+  /** False for customers: line, installation, delivery and charge amounts are 0 (never shown). */
+  itemPrices: boolean
   lines: { sku: string; name: string; qty: number; lineTotal: number }[]
   noMarkup: { label: string; amount: number }[]
   systemPrice: number
@@ -141,8 +152,11 @@ export type PricedBuild = {
   offer: boolean
   /** This state has a delivery price: the customer may leave it out and arrange it themselves. */
   deliveryRemovable: boolean
-  /** "See breakdown": items, installation, delivery, price, deposit, monthly, total payable. */
-  breakdown: QuoteBreakdown | null
+  /**
+   * "See breakdown". Staff: items, installation, delivery, price, deposit, monthly, total payable.
+   * Customers (customerPriced): the deposit, monthly, total payable and cash price only.
+   */
+  breakdown: (QuoteBreakdown & Partial<Omit<CustomerBreakdown, keyof QuoteBreakdown>>) | null
   /** SPEWA offer: the payment plan charge as its own line (items at their selling price). */
   planCharge: { label: string; amount: number } | null
 }
@@ -161,9 +175,10 @@ export function priceSelection(
   ctx = contextFor(ctx, sel.applicantType)
   if (!ctx.catalogue) return { priced: null, quote: null }
   const built = assembleBuild(sel, ctx.catalogue)
-  const tenures = bo ? [...bo.tenures] : offeredTenures(ctx.settings.pricing.pricingRateByTenure)
+  const tenures = bo ? [...bo.tenures] : [...HOME_TENURES]
   const minDepositShare = bo ? bo.minDepositShare : ctx.settings.minDepositShare
   const empty: PricedBuild = {
+    itemPrices: true,
     lines: [],
     noMarkup: built.noMarkup,
     systemPrice: 0,
@@ -196,19 +211,36 @@ export function priceSelection(
     })
     return { quote, priced: pricedFrom(empty, quote) }
   }
-  const rate =
-    ctx.settings.pricing.pricingRateByTenure[tenure] ?? ctx.settings.pricing.pricingRateByTenure[12]
+  // Home quotes: the ready-made plan terms, 6/9/12 months (the Tenure rates table is not used).
+  const terms = ctx.settings.homeTerms ?? DEFAULT_FLAT_TERMS
   const quote = priceQuote({
     lines: built.lines,
     installCost: built.installCost,
     noMarkup: built.noMarkup,
     marginByCategory: ctx.settings.pricing.marginByCategory,
-    pricingRateAnnual: rate,
-    tenureMonths: ctx.settings.pricing.pricingRateByTenure[tenure] ? tenure : 12,
+    pricingRateAnnual: terms.monthlyRate * 12,
+    tenureMonths: HOME_TENURES.includes(tenure) ? tenure : 12,
     depositShare,
     minDepositShare: ctx.settings.minDepositShare,
+    terms,
   })
   return { quote, priced: pricedFrom(empty, quote) }
+}
+
+/**
+ * The builder price as a customer's browser receives it (Semako, 25 Nov 2026): items with their
+ * quantities, installation and delivery by name, and only the total payable, deposit, monthly
+ * payment and cash price. Every other amount is 0.
+ */
+export function customerPriced(p: PricedBuild): PricedBuild {
+  return {
+    ...p,
+    itemPrices: false,
+    lines: p.lines.map((l) => ({ ...l, lineTotal: 0 })),
+    noMarkup: p.noMarkup.map((l) => ({ ...l, amount: 0 })),
+    planCharge: null,
+    breakdown: p.breakdown ? customerBreakdown(p.breakdown) : null,
+  }
 }
 
 function pricedFrom(empty: PricedBuild, quote: QuoteResult): PricedBuild {

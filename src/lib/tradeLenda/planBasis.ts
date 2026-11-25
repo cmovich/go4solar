@@ -1,6 +1,6 @@
 import { priceQuote } from '@/lib/pricing/price'
 import type { QuoteResult, RateByTenure, TenureMonths } from '@/lib/pricing/types'
-import { cashPrice } from '@/lib/quotes/quote'
+import { basePrice } from '@/lib/quotes/quote'
 import { planPrice, priceReadyPlan, vendorTotal } from '@/lib/readyPlans/price'
 import type { ReadyPlan } from '@/lib/readyPlans/types'
 
@@ -77,11 +77,12 @@ export function quoteBasis(
     depositShare: Math.max(depositShare, snap.minDepositShare),
     minDepositShare: snap.minDepositShare,
     offer: snap.offer,
+    terms: snap.terms,
   })
   return {
     label,
     items: itemsOfQuote(q),
-    priceInFull: cashPrice(snap),
+    priceInFull: basePrice(snap),
     cost: q.costPrice,
     quoted: {
       price: again.systemPrice,

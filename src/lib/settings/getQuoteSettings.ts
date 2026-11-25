@@ -3,6 +3,8 @@ import 'server-only'
 import { z } from 'zod'
 
 import { loadCatalogue } from '@/lib/catalogue/server'
+import { flatTermsFrom } from '@/lib/pricing/flat'
+import { READY_TERMS_KEY } from '@/lib/readyPlans/terms'
 import { loadBusinessOffer } from '@/lib/spewa/server'
 import { priceListFromRows, pricingFromRows } from '@/lib/pricing/tables'
 import { DEFAULT_WIRING, wiringSchema } from '@/lib/wizard/questions'
@@ -32,7 +34,7 @@ export async function getQuoteSettings(): Promise<QuoteSettings> {
     admin
       .from('settings')
       .select('key, value')
-      .in('key', ['sizing', 'min_deposit_share', 'energy']),
+      .in('key', ['sizing', 'min_deposit_share', 'energy', READY_TERMS_KEY]),
     admin
       .from('components')
       // Every column: nominal_voltage and specs exist from migration 0022.
@@ -128,6 +130,8 @@ export async function getQuoteSettings(): Promise<QuoteSettings> {
       byKey.min_deposit_share,
       DEFAULT_QUOTE_SETTINGS.minDepositShare,
     ),
+    // Home quotes use the ready-made plan terms (Admin → Pricing → Ready-made plans).
+    homeTerms: flatTermsFrom(byKey[READY_TERMS_KEY]),
     energy: pick('energy', energySettingsSchema, byKey.energy, DEFAULT_QUOTE_SETTINGS.energy),
     // SPEWA offer for businesses and institutions (null before migration 0039).
     businessOffer: await loadBusinessOffer(finalPriceList),

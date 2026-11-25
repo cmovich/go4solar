@@ -19,7 +19,7 @@ import type { CurrentEnergy } from '@/lib/energy/currentSpend'
 import { formatNaira } from '@/lib/money'
 import type { TenureMonths } from '@/lib/pricing/types'
 import { PLANS, PLAN_LABELS, type Estimate } from '@/lib/quotes/buildEstimate'
-import { priceVariant } from '@/lib/quotes/quote'
+import { cashPrice, priceVariant } from '@/lib/quotes/quote'
 import type { Plan } from '@/lib/sizing/types'
 import { whatsappHref } from '@/lib/whatsapp'
 import type { SiteAnswers } from '@/lib/wizard/questions'
@@ -203,6 +203,10 @@ export function PlansChooser({
                   {v.size.panelKw} kW) ·{' '}
                   <span className="text-muted-foreground">Total amount payable:</span>{' '}
                   <strong data-testid={`total-${p}`}>{formatNaira(v.quote.systemPrice)}</strong>
+                </p>
+                <p data-testid={`cash-${p}`}>
+                  <span className="text-muted-foreground">Or pay in full:</span>{' '}
+                  <strong>{formatNaira(cashPrice(v.quote.snapshot))}</strong>
                 </p>
                 {v.savingVsMin > 0 && (
                   <p className="text-brand-green font-semibold">

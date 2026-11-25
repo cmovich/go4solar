@@ -244,7 +244,12 @@ function InvoiceDoc({ d, qr }: { d: InvoiceData; qr: string | null }) {
                 </View>
                 {d.fixed && (
                   <View style={s.totalRow}>
-                    <Text>Or pay in full ({formatPercent(d.fixed.fullDiscount, 0)} off)</Text>
+                    <Text>
+                      Or pay in full
+                      {d.fixed.fullDiscount > 0
+                        ? ` (${formatPercent(d.fixed.fullDiscount, 0)} off)`
+                        : ''}
+                    </Text>
                     <Text style={{ fontWeight: 700 }}>{formatNaira(d.fixed.fullPayment)}</Text>
                   </View>
                 )}

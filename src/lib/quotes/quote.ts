@@ -1,4 +1,5 @@
 import { roundNaira } from '@/lib/money'
+import { flatCharge } from '@/lib/pricing/flat'
 import { priceQuote } from '@/lib/pricing/price'
 import { offeredTenures } from '@/lib/pricing/tenures'
 import type { QuoteSnapshot, TenureMonths } from '@/lib/pricing/types'
@@ -48,11 +49,13 @@ export function priceVariant(
   /** Tenures switched on today (current settings); a tenure switched off since is refused. */
   enabledNow?: readonly TenureMonths[],
 ): RepricedPlan {
-  if (!offeredTenures(estimate.pricingRateByTenure, enabledNow).includes(tenureMonths)) {
-    throw new TenureNotOfferedError(tenureMonths)
-  }
   const base = estimate.plans[plan]
   const snap = base.quote.snapshot
+  // Home quotes on the ready-made terms: the Tenure rates switches do not apply.
+  const switchedOn = snap.terms ? undefined : enabledNow
+  if (!offeredTenures(estimate.pricingRateByTenure, switchedOn).includes(tenureMonths)) {
+    throw new TenureNotOfferedError(tenureMonths)
+  }
   const rate = estimate.pricingRateByTenure?.[tenureMonths] ?? snap.pricingRateAnnual
   const at = (share: number) =>
     priceQuote({
@@ -65,6 +68,7 @@ export function priceVariant(
       depositShare: share,
       minDepositShare: snap.minDepositShare,
       offer: snap.offer,
+      terms: snap.terms,
     })
   const quote = at(depositShare)
   const atMin = depositShare === snap.minDepositShare ? quote : at(snap.minDepositShare)
@@ -72,10 +76,10 @@ export function priceVariant(
 }
 
 /**
- * Price for a 100% upfront (cash) buyer: cost + base margins + installation, no financing.
- * SPEWA offer: SPEWA items at their selling price (no financing charge).
+ * The price before any financing: items (cost + base margins; SPEWA offer: SPEWA items at their
+ * selling price) + installation + delivery.
  */
-export function cashPrice(snap: QuoteSnapshot): number {
+export function basePrice(snap: QuoteSnapshot): number {
   return roundNaira(
     snap.lines.reduce(
       (sum, l) =>
@@ -86,4 +90,19 @@ export function cashPrice(snap: QuoteSnapshot): number {
       0,
     ) + snap.installCost,
   )
+}
+
+/**
+ * What a customer pays to buy outright (pay in full).
+ * - Home quotes on the ready-made terms: the 12-month total at the lowest deposit less the
+ *   pay-in-full discount; the same whatever deposit or length the customer picked.
+ * - SPEWA offer: the price without the payment plan charge.
+ * - Older home quotes: cost + base margins + installation, no financing.
+ */
+export function cashPrice(snap: QuoteSnapshot): number {
+  const base = basePrice(snap)
+  if (!snap.terms || snap.offer) return base
+  const deposit = roundNaira(base * snap.minDepositShare)
+  const total12 = deposit + roundNaira((base - deposit) * (1 + flatCharge(snap.terms, 12)))
+  return roundNaira(total12 * (1 - snap.terms.fullDiscount))
 }

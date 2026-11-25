@@ -2,6 +2,7 @@ import type { LoadTotals } from '@/lib/load/types'
 import type { NgStateId } from '@/lib/nigeria/states'
 import { priceQuote } from '@/lib/pricing/price'
 import { installBandFor } from '@/lib/pricing/tables'
+import { DEFAULT_FLAT_TERMS, flatRates } from '@/lib/pricing/flat'
 import { offeredTenures } from '@/lib/pricing/tenures'
 import { autoPickAccessories, type CatalogueItem } from '@/lib/catalogue/autopick'
 import { installationCost, logisticsFor, rackLine } from '@/lib/catalogue/extras'
@@ -51,7 +52,8 @@ export type Estimate = {
   sample: boolean
   /**
    * Pricing rate per tenure at the time of the estimate: only the tenures switched on then.
-   * This is the estimate's snapshot of which payment-plan lengths it offers.
+   * This is the estimate's snapshot of which payment-plan lengths it offers. Home estimates from
+   * 25 Nov 2026: 6, 9 and 12 months (the ready-made terms, src/lib/pricing/flat.ts).
    */
   pricingRateByTenure: RateByTenure
   plans: Record<Plan, PlanEstimate>
@@ -260,6 +262,8 @@ function priceLines(
       offer: bo.offer,
     })
   }
+  // Home quotes: the ready-made plan terms (the Tenure rates table is not used).
+  const terms = s.homeTerms ?? DEFAULT_FLAT_TERMS
   return priceQuote({
     lines,
     installCost: noMarkup
@@ -267,10 +271,11 @@ function priceLines(
       : installCostFor(state, inverterKva, s.priceList),
     noMarkup,
     marginByCategory: s.pricing.marginByCategory,
-    pricingRateAnnual: s.pricing.pricingRateByTenure[ESTIMATE_TENURE],
+    pricingRateAnnual: terms.monthlyRate * 12,
     tenureMonths: ESTIMATE_TENURE,
     depositShare,
     minDepositShare: s.minDepositShare,
+    terms,
   })
 }
 
@@ -327,7 +332,9 @@ export function buildEstimate(
     depositShare: bo ? Math.max(depositShare, bo.minDepositShare) : depositShare,
     tenureMonths: ESTIMATE_TENURE,
     sample: s.priceList.sample || s.pricing.sample,
-    pricingRateByTenure: bo ? annualisedRates(bo.offer) : { ...s.pricing.pricingRateByTenure },
+    pricingRateByTenure: bo
+      ? annualisedRates(bo.offer)
+      : flatRates(s.homeTerms ?? DEFAULT_FLAT_TERMS),
     plans,
     ...(bo ? { offer: 'spewa' as const } : {}),
   }
@@ -356,6 +363,7 @@ export function repriceEstimate(
       depositShare: share,
       minDepositShare: snap.minDepositShare,
       offer: snap.offer,
+      terms: snap.terms,
     })
   const quote = at(depositShare)
   const atMin = depositShare === snap.minDepositShare ? quote : at(snap.minDepositShare)
@@ -384,6 +392,7 @@ export function monthlyByTenure(
       depositShare: snap.depositShare,
       minDepositShare: snap.minDepositShare,
       offer: snap.offer,
+      terms: snap.terms,
     }).monthly,
   }))
 }

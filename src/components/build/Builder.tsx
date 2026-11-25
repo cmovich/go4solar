@@ -24,7 +24,6 @@ import type { LaunchMode } from '@/config/site'
 import type { LibraryItem } from '@/lib/calculator/store'
 import { adviceFacts } from '@/lib/build/advice'
 import type { BuildSelectionInput } from '@/lib/build/schema'
-import type { QuoteBreakdown } from '@/lib/build/breakdown'
 import type { PricedBuild } from '@/lib/build/server'
 import {
   BUILDER_STORAGE_KEY,
@@ -326,11 +325,17 @@ export function Builder({
   useEffect(() => {
     if (!selection) return
     const t = window.setTimeout(async () => {
-      const r = await priceBuild({ selection, depositShare: s.depositPct / 100, tenure: s.tenure })
+      const r = await priceBuild({
+        selection,
+        depositShare: s.depositPct / 100,
+        tenure: s.tenure,
+        // The staff quotation tool sees every line's price; customers never get them.
+        full: Boolean(staff),
+      })
       if (r.ok) setPriced(r.priced)
     }, 300)
     return () => window.clearTimeout(t)
-  }, [selection, s.depositPct, s.tenure])
+  }, [selection, s.depositPct, s.tenure, staff])
 
   const go = (step: BuilderStep) => {
     setError(null)
@@ -468,6 +473,10 @@ export function Builder({
           {showBreakdown && priced.breakdown && (
             <PriceBreakdown
               b={priced.breakdown}
+              items={priced.lines.map((l) => ({
+                name: l.name,
+                qty: `${l.qty}${items.find((i) => i.sku === l.sku)?.unit === 'metre' ? ' m' : ''}`,
+              }))}
               minPct={minPct}
               depositPct={s.depositPct}
               installer={s.installer ?? 'go4solar'}
@@ -572,7 +581,7 @@ export function Builder({
           <ItemsStep
             items={items}
             chosen={s.items}
-            showPrices={showPrices && !priced?.sample}
+            showPrices={showPrices && !priced?.sample && Boolean(staff)}
             loadKva={s.loadKva ?? null}
             calculatedKva={staff ? null : calcKva}
             pending={pending}
@@ -675,7 +684,7 @@ export function Builder({
             selected={s.installer === 'go4solar'}
             label="Go4Solar recognised installer"
             note={
-              showPrices && priced && !priced.sample
+              showPrices && priced && !priced.sample && priced.itemPrices
                 ? `Installation: ${formatNaira(priced.noMarkup.find((l) => l.label === 'Installation')?.amount ?? 0)} (set by your roof, height and state).`
                 : 'A vetted installer near you; installation is priced by your roof, height and state.'
             }
@@ -861,6 +870,8 @@ function Summary({
   }) => Promise<string | null>
 }) {
   const prices = showPrices && !priced.sample
+  // Customers see items without prices (Semako, 25 Nov 2026); the staff tool sees every line.
+  const linePrices = prices && priced.itemPrices
   const minPct = Math.round(priced.minDepositShare * 100)
   const [advice, setAdvice] = useState<string | null>(null)
   const c = contact
@@ -910,19 +921,23 @@ function Summary({
                 {items.find((i) => i.sku === l.sku)?.unit === 'metre' ? ' m' : ' ×'}
               </span>
             </td>
-            {prices && <td className="py-2 text-right tabular-nums">{formatNaira(l.lineTotal)}</td>}
+            {linePrices && (
+              <td className="py-2 text-right tabular-nums">{formatNaira(l.lineTotal)}</td>
+            )}
           </tr>
         ))}
         {priced.noMarkup.map((l) => (
           <tr key={l.label} className="border-b">
             <td className="py-2">{l.label}</td>
-            {prices && <td className="py-2 text-right tabular-nums">{formatNaira(l.amount)}</td>}
+            {linePrices && (
+              <td className="py-2 text-right tabular-nums">{formatNaira(l.amount)}</td>
+            )}
           </tr>
         ))}
         {priced.planCharge && (
           <tr className="border-b" data-testid="plan-charge">
             <td className="py-2">{priced.planCharge.label}</td>
-            {prices && (
+            {linePrices && (
               <td className="py-2 text-right tabular-nums">
                 {formatNaira(priced.planCharge.amount)}
               </td>
@@ -985,7 +1000,7 @@ function Summary({
                   {items.find((i) => i.sku === l.sku)?.unit === 'metre' ? ' m' : ' ×'}
                 </span>
               </td>
-              {prices && (
+              {linePrices && (
                 <td className="py-2 text-right tabular-nums">{formatNaira(l.lineTotal)}</td>
               )}
             </tr>
@@ -993,13 +1008,15 @@ function Summary({
           {priced.noMarkup.map((l) => (
             <tr key={l.label} className="border-b">
               <td className="py-2">{l.label}</td>
-              {prices && <td className="py-2 text-right tabular-nums">{formatNaira(l.amount)}</td>}
+              {linePrices && (
+                <td className="py-2 text-right tabular-nums">{formatNaira(l.amount)}</td>
+              )}
             </tr>
           ))}
           {priced.planCharge && (
             <tr className="border-b" data-testid="plan-charge">
               <td className="py-2">{priced.planCharge.label}</td>
-              {prices && (
+              {linePrices && (
                 <td className="py-2 text-right tabular-nums">
                   {formatNaira(priced.planCharge.amount)}
                 </td>
@@ -1059,6 +1076,11 @@ function Summary({
             Total amount payable: <strong>{formatNaira(priced.systemPrice)}</strong> · One fixed
             price. No hidden charges. Late payments attract 0.75% of the overdue amount per day.
           </p>
+          {priced.breakdown && (
+            <p className="text-sm" data-testid="build-cash-price">
+              Or pay in full: <strong>{formatNaira(priced.breakdown.cashPrice)}</strong>
+            </p>
+          )}
         </div>
       )}
 
@@ -1165,6 +1187,7 @@ function Summary({
  */
 function PriceBreakdown({
   b,
+  items,
   minPct,
   depositPct,
   installer,
@@ -1174,7 +1197,8 @@ function PriceBreakdown({
   onInstallation,
   onDelivery,
 }: {
-  b: QuoteBreakdown
+  b: NonNullable<PricedBuild['breakdown']>
+  items: { name: string; qty: string }[]
   minPct: number
   depositPct: number
   installer: 'go4solar' | 'own'
@@ -1185,31 +1209,60 @@ function PriceBreakdown({
   onDelivery: (on: boolean) => void
 }) {
   const pct = Math.max(depositPct, minPct)
-  const rows: [string, string, string][] = [
-    ['Items', formatNaira(b.items), 'bd-items'],
-    [
-      'Installation',
-      b.installation > 0 ? formatNaira(b.installation) : 'Not included',
-      'bd-installation',
-    ],
-    ['Delivery', b.delivery > 0 ? formatNaira(b.delivery) : 'Not included', 'bd-delivery'],
-    ['Price', formatNaira(b.price), 'bd-price'],
-    [`Deposit (${Math.round(b.depositShare * 100)}%)`, formatNaira(b.deposit), 'bd-deposit'],
-    ['Amount financed', formatNaira(b.financed), 'bd-financed'],
-    ...(b.charge > 0
-      ? ([
-          ['Payment plan charge', formatNaira(b.charge), 'bd-charge'],
-          ['Balance to repay monthly', formatNaira(b.balance), 'bd-balance'],
-        ] as [string, string, string][])
-      : []),
-    ['Monthly payment', `${formatNaira(b.monthly)} × ${b.months} months`, 'bd-monthly'],
-  ]
+  // Customers: the items by name, installation and delivery as included or not, and the four
+  // figures (deposit, monthly, total payable, cash price). Staff: every amount.
+  const customer = Boolean(b.customer)
+  const rows: [string, string, string][] = customer
+    ? [
+        [`Deposit (${Math.round(b.depositShare * 100)}%)`, formatNaira(b.deposit), 'bd-deposit'],
+        ['Monthly payment', `${formatNaira(b.monthly)} × ${b.months} months`, 'bd-monthly'],
+        ['Or pay in full', formatNaira(b.cashPrice), 'bd-cash'],
+      ]
+    : [
+        ['Items', formatNaira(b.items), 'bd-items'],
+        [
+          'Installation',
+          b.installation > 0 ? formatNaira(b.installation) : 'Not included',
+          'bd-installation',
+        ],
+        ['Delivery', b.delivery > 0 ? formatNaira(b.delivery) : 'Not included', 'bd-delivery'],
+        ['Price', formatNaira(b.price), 'bd-price'],
+        [`Deposit (${Math.round(b.depositShare * 100)}%)`, formatNaira(b.deposit), 'bd-deposit'],
+        ['Amount financed', formatNaira(b.financed), 'bd-financed'],
+        ...(b.charge > 0
+          ? ([
+              ['Payment plan charge', formatNaira(b.charge), 'bd-charge'],
+              ['Balance to repay monthly', formatNaira(b.balance), 'bd-balance'],
+            ] as [string, string, string][])
+          : []),
+        ['Monthly payment', `${formatNaira(b.monthly)} × ${b.months} months`, 'bd-monthly'],
+        ['Pay in full', formatNaira(b.cashPrice), 'bd-cash'],
+      ]
   return (
     <div
       id="price-breakdown"
       className="text-brand-dark mt-3 space-y-4 rounded-xl bg-white p-4 text-sm"
       data-testid="price-breakdown"
     >
+      {customer && (
+        <div data-testid="bd-item-list">
+          <p className="font-semibold">Your items</p>
+          <ul className="text-muted-foreground mt-1 space-y-0.5">
+            {items.map((it, i) => (
+              <li key={i} className="flex justify-between gap-3">
+                <span>{it.name}</span>
+                <span className="tabular-nums">{it.qty}</span>
+              </li>
+            ))}
+            <li data-testid="bd-installation">
+              Installation: {b.hasInstallation ? 'included' : 'not included'}
+            </li>
+            <li data-testid="bd-delivery">
+              Delivery: {b.hasDelivery ? 'included' : 'not included'}
+            </li>
+          </ul>
+        </div>
+      )}
       <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 tabular-nums">
         {rows.map(([k, v, id]) => (
           <div key={k} className="contents">
@@ -1229,11 +1282,7 @@ function PriceBreakdown({
           {formatNaira(b.totalPayable)}
         </dd>
       </dl>
-      <p className="text-muted-foreground text-xs">
-        {b.offer
-          ? 'The deposit is a share of the price. One fixed total. No hidden charges.'
-          : 'One fixed price: the payment plan is included, and the deposit is a share of it. No hidden charges.'}
-      </p>
+      <p className="text-muted-foreground text-xs">One fixed price. No hidden charges.</p>
 
       <div>
         <div className="flex justify-between">

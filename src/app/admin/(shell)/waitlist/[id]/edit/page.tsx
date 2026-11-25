@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 import { ProfileEditor } from '@/components/admin/tradeLenda/ProfileEditor'
 import { ConsentBlock } from '@/components/admin/waitlist/ConsentBlock'
+import { LeadQuoteLinks } from '@/components/admin/waitlist/LeadQuoteLinks'
 import { OnboardingLinks } from '@/components/admin/waitlist/OnboardingLinks'
 import { onboardingWhatsappHref } from '@/lib/exports/onboarding'
 import { onboardingLinksFor } from '@/lib/exports/onboardingServer'
@@ -14,6 +15,7 @@ import { requireLeadProfileEditor } from '@/lib/auth/roles'
 import { NG_STATE_IDS } from '@/lib/nigeria/states'
 import { quoteReference } from '@/lib/quotes/quote'
 import { loadProfileView } from '@/lib/tradeLenda/server'
+import { leadQuote } from '@/lib/waitlist/leadQuote'
 
 export const metadata: Metadata = { title: 'Edit profile' }
 export const dynamic = 'force-dynamic'
@@ -51,6 +53,10 @@ export default async function LeadProfilePage({ params }: { params: Promise<{ id
         {quoteReference(lead.id)} · {lead.phone_e164}
         {lead.is_test ? ' · test data' : ''}
         {' · '}Edit profile
+      </p>
+      <p className="mt-1 text-sm" data-testid="edit-quote">
+        <span className="text-muted-foreground">Quote: </span>
+        <LeadQuoteLinks id={id} hasQuote={leadQuote(lead) !== null} />
       </p>
       <ProfileEditor
         waitlistId={id}

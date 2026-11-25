@@ -46,7 +46,12 @@ describe('buildPreview', () => {
       expect(l.lineTotal).toBeGreaterThan(l.lineCost)
       expect(l.markupShare).toBeCloseTo(p.markupShare, 2)
     }
-    expect(p.lines.reduce((a, l) => a + l.lineTotal, 0) + p.installCost).toBe(p.systemPrice)
+    // Home quotes on the ready-made terms: items + installation + the payment plan charge.
+    expect(
+      p.lines.reduce((a, l) => a + l.lineTotal, 0) +
+        p.installCost +
+        (p.quote.planCharge?.amount ?? 0),
+    ).toBe(p.systemPrice)
   })
 
   it("Go4Solar's side is loanProfit per ACTIVE funder (paused ones are left out)", () => {
@@ -70,15 +75,25 @@ describe('buildPreview', () => {
     expect(p.funders[2]!.profit.netProfit).toBeGreaterThan(p.funders[0]!.profit.netProfit)
   })
 
-  it('uses the tenure-specific pricing rate and a shorter tenure costs less in total', () => {
+  it('home terms (4% a month): a shorter length costs less in total; the Tenure rates are not used', () => {
     const settings = {
       ...s,
-      pricing: { ...s.pricing, pricingRateByTenure: { ...s.pricing.pricingRateByTenure, 3: 0.06 } },
+      pricing: { ...s.pricing, pricingRateByTenure: { ...s.pricing.pricingRateByTenure, 6: 0.9 } },
     }
-    const three = buildPreview({ ...base, settings, tenureMonths: 3, depositShare: 0.2 })
+    const six = buildPreview({ ...base, settings, tenureMonths: 6, depositShare: 0.2 })
+    const sixDefault = buildPreview({ ...base, tenureMonths: 6, depositShare: 0.2 })
     const twelve = buildPreview({ ...base, settings, tenureMonths: 12, depositShare: 0.2 })
-    expect(three.systemPrice).toBeLessThan(twelve.systemPrice)
-    expect(three.monthly).toBeGreaterThan(twelve.monthly)
+    expect(six.systemPrice).toBe(sixDefault.systemPrice)
+    expect(six.systemPrice).toBeLessThan(twelve.systemPrice)
+    expect(six.monthly).toBeGreaterThan(twelve.monthly)
+    // The draft's own terms are used when set.
+    const five = buildPreview({
+      ...base,
+      settings: { ...s, homeTerms: { kind: 'flat', monthlyRate: 0.05, fullDiscount: 0.2 } },
+      tenureMonths: 12,
+      depositShare: 0.2,
+    })
+    expect(five.systemPrice).toBeGreaterThan(twelve.systemPrice)
   })
 
   it('the price-vs-deposit curve runs 20%→95% and falls as the deposit rises', () => {
@@ -111,17 +126,10 @@ describe('buildPreview', () => {
   })
 })
 
-describe('buildPreview: per-tenure profit and funder maximum tenure', () => {
+describe('buildPreview: per-length profit and funder maximum tenure', () => {
   const totals = computeLoadTotals(sampleHomeItems)
-  const longer = {
-    ...s,
-    pricing: {
-      ...s.pricing,
-      pricingRateByTenure: { 3: 0.24, 6: 0.24, 9: 0.24, 12: 0.24, 18: 0.26, 24: 0.28 },
-    },
-  }
   const base = {
-    settings: longer,
+    settings: s,
     totals,
     state: 'Lagos' as const,
     plan: 'comfort' as const,
@@ -130,42 +138,24 @@ describe('buildPreview: per-tenure profit and funder maximum tenure', () => {
     depositShare: 0.2,
   }
 
-  it('one row per switched-on tenure: monthly, net profit and return with the best eligible funder', () => {
+  it('one row per home length (6, 9, 12): monthly, net profit and return with the best eligible funder', () => {
     const p = buildPreview({ ...base, tenureMonths: 12 })
-    expect(p.tenures.map((t) => t.tenureMonths)).toEqual([3, 6, 9, 12, 18, 24])
+    expect(p.tenures.map((t) => t.tenureMonths)).toEqual([6, 9, 12])
     const at12 = p.tenures.find((t) => t.tenureMonths === 12)!
     // Own fund (0%) is the cheapest funder that lends for 12 months.
     expect(at12.funder?.name).toBe('Go4Solar own fund')
-    const at24 = p.tenures.find((t) => t.tenureMonths === 24)!
-    // Only Trade Lenda lends for 24 months (the paused funder never counts).
-    expect(at24.funder?.name).toBe('Trade Lenda')
-    expect(at24.monthly).toBeLessThan(at12.monthly)
-    const direct = loanProfit({
-      systemPrice: at24.systemPrice,
-      costPrice: p.costPrice,
-      deposit: Math.round(at24.systemPrice * 0.2),
-      tenureMonths: 24,
-      funderAnnualRate: 0.2,
-      funderMethod: 'flat',
-      unitCosts,
-    })
-    expect(at24.funder?.profit).toEqual(direct)
+    const at6 = p.tenures.find((t) => t.tenureMonths === 6)!
+    expect(at6.monthly).toBeGreaterThan(at12.monthly)
   })
 
   it('no funder lends for that long: shown as none (the plan cannot be funded)', () => {
-    const shortOnly = funders.map((f) => ({ ...f, maxTenure: 12 as const }))
-    const p = buildPreview({ ...base, funders: shortOnly, tenureMonths: 12 })
-    expect(p.tenures.find((t) => t.tenureMonths === 24)?.funder).toBeNull()
+    const shortOnly = funders.map((f) => ({ ...f, maxTenure: 6 as const }))
+    const p = buildPreview({ ...base, funders: shortOnly, tenureMonths: 6 })
+    expect(p.tenures.find((t) => t.tenureMonths === 12)?.funder).toBeNull()
   })
 
-  it("at 24 months, funders whose maximum is shorter are left out of Go4Solar's side", () => {
-    const p = buildPreview({ ...base, tenureMonths: 24 })
-    expect(p.funders.map((f) => f.name)).toEqual(['Trade Lenda'])
-  })
-
-  it('a switched-off tenure cannot be previewed', () => {
-    expect(() => buildPreview({ ...base, settings: s, tenureMonths: 24 })).toThrow(
-      '24 months is switched off',
-    )
+  it('a length home quotes do not offer cannot be previewed', () => {
+    expect(() => buildPreview({ ...base, tenureMonths: 24 })).toThrow('24 months is not offered')
+    expect(() => buildPreview({ ...base, tenureMonths: 3 })).toThrow('3 months is not offered')
   })
 })

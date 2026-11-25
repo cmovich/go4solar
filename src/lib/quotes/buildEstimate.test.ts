@@ -44,7 +44,7 @@ describe('buildEstimate — PRD sample home, Lagos, 20% deposit', () => {
     expect(c.quote.installCost).toBe(200000) // Lagos
     // Cost price = 480,000 + 900,000 + 350,000 + 100,000 + 200,000
     expect(c.quote.costPrice).toBe(2030000)
-    // Exactly what priceQuote gives for those lines (12 months, 20%).
+    // Exactly what priceQuote gives for those lines (12 months, 20%, the ready-made terms).
     const direct = priceQuote({
       lines: c.quote.lines.map(({ sku, name, category, unitCost, qty }) => ({
         sku,
@@ -55,9 +55,10 @@ describe('buildEstimate — PRD sample home, Lagos, 20% deposit', () => {
       })),
       installCost: 200000,
       marginByCategory: s.pricing.marginByCategory,
-      pricingRateAnnual: 0.24,
+      pricingRateAnnual: 0.48,
       tenureMonths: 12,
       depositShare: 0.2,
+      terms: { kind: 'flat', monthlyRate: 0.04, fullDiscount: 0.2 },
     })
     expect(c.quote.systemPrice).toBe(direct.systemPrice)
     expect(c.quote.monthly).toBe(direct.monthly)
@@ -262,15 +263,18 @@ describe('monthlyByTenure', () => {
 })
 
 describe('monthlyByTenure: offered tenures only', () => {
-  it('lists the tenures captured in the estimate, including 18/24 when switched on', () => {
+  it('home estimates offer 6, 9 and 12 months whatever the Tenure rates table says', () => {
     const withLong = {
       ...s,
       pricing: { ...s.pricing, pricingRateByTenure: { 6: 0.24, 12: 0.24, 24: 0.28 } },
     }
     const est = buildEstimate(totals, 'Lagos', 0.2, withLong)
     const rows = monthlyByTenure(est.plans.comfort, est.pricingRateByTenure)
-    expect(rows.map((r) => r.tenureMonths)).toEqual([6, 12, 24])
+    expect(rows.map((r) => r.tenureMonths)).toEqual([6, 9, 12])
     expect(rows[2]!.monthly).toBeLessThan(rows[1]!.monthly)
+    expect(est.plans.comfort.quote.systemPrice).toBe(
+      buildEstimate(totals, 'Lagos', 0.2, s).plans.comfort.quote.systemPrice,
+    )
   })
 })
 

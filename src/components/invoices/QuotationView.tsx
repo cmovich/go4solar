@@ -141,7 +141,12 @@ export function QuotationView({ d }: { d: InvoiceData }) {
               </p>
               {d.fixed && (
                 <p className="flex justify-between gap-3" data-testid="quotation-full-payment">
-                  <span>Or pay in full ({formatPercent(d.fixed.fullDiscount, 0)} off)</span>
+                  <span>
+                    Or pay in full
+                    {d.fixed.fullDiscount > 0
+                      ? ` (${formatPercent(d.fixed.fullDiscount, 0)} off)`
+                      : ''}
+                  </span>
                   <strong>{formatNaira(d.fixed.fullPayment)}</strong>
                 </p>
               )}

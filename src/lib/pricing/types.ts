@@ -36,6 +36,13 @@ export type QuoteOffer = {
   validityDays: number
 }
 
+/**
+ * Home quotes on the ready-made plan terms (src/lib/pricing/flat.ts): price before financing,
+ * total = deposit + financed × (1 + monthlyRate × months), cash price = the 12-month total at
+ * the lowest deposit × (1 − fullDiscount).
+ */
+export type FlatTerms = { kind: 'flat'; monthlyRate: number; fullDiscount: number }
+
 /** A cost that is never marked up (installation, delivery), as its own invoice line. */
 export type NoMarkupLine = { label: string; amount: number }
 
@@ -56,6 +63,8 @@ export type QuoteInput = {
   minDepositShare?: number
   /** A partner offer: fixed selling prices + a charge on the financed amount (see priceQuote). */
   offer?: QuoteOffer
+  /** Home quotes on the ready-made terms (see priceQuote). */
+  terms?: FlatTerms
 }
 
 export type QuoteLine = QuoteLineInput & {
@@ -84,7 +93,7 @@ export type QuoteResult = {
   /** Everything used to price this quote, so later setting changes never alter it. */
   snapshot: QuoteSnapshot
   /**
-   * SPEWA offer only: the payment plan charge as its own line ("Payment plan charge (12 months,
+   * SPEWA offer and home quotes on the ready-made terms (staff only): the payment plan charge as its own line ("Payment plan charge (12 months,
    * 30%)"). Items are then at their selling price: lines + installCost + this = systemPrice.
    */
   planCharge?: { label: string; amount: number }
@@ -104,4 +113,6 @@ export type QuoteSnapshot = {
   roundingStep: number
   /** Present on SPEWA offer quotes. */
   offer?: QuoteOffer
+  /** Present on home quotes priced on the ready-made terms (from 25 Nov 2026). */
+  terms?: FlatTerms
 }
