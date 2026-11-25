@@ -1,3 +1,4 @@
+import { usableQuote } from '@/lib/quotes/usable'
 import 'server-only'
 
 import { isOwnSystem, storedBuild, systemTitle } from '@/lib/build/stored'
@@ -167,6 +168,8 @@ export type ApplicationDetail = {
   ctx: ApprovalContext
   reference: string | null
   quote: QuoteResult | null
+  /** The file has a quote, but it is missing or broken: "Quote details unavailable". */
+  quoteUnavailable: boolean
   plan: Plan | null
   /** Built by the customer in /build (Part F): no plan sizing, "Their own system". */
   ownSystem: boolean
@@ -282,7 +285,9 @@ export async function applicationDetail(id: string): Promise<ApplicationDetail |
     : { data: [] }
   const who = new Map((actors ?? []).map((a) => [a.id, a.full_name ?? a.email ?? 'Staff']))
 
-  const quote = quoteRes.data ? (quoteRes.data.result as unknown as QuoteResult) : null
+  // Only a complete stored quote is used; a missing or broken one shows "Quote details
+  // unavailable" on the pages instead of failing them.
+  const quote = quoteRes.data ? usableQuote(quoteRes.data.result) : null
   const ownSystem = Boolean(
     quoteRes.data && 'builder' in quoteRes.data && isOwnSystem(quoteRes.data.builder),
   )
@@ -295,6 +300,7 @@ export async function applicationDetail(id: string): Promise<ApplicationDetail |
     ctx,
     reference: app.quote_id ? quoteReference(app.quote_id) : null,
     quote,
+    quoteUnavailable: Boolean(app.quote_id) && !quote,
     plan,
     ownSystem,
     paidInFull:
