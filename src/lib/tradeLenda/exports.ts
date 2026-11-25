@@ -23,6 +23,9 @@ export type ExportBatch = {
   decisions: Record<string, { decision: string; note: string | null }>
 }
 
+/** "Who, when", or blank when it was not recorded. */
+const record = (r: { by: string; at: string }) => (r.at ? `${r.by || 'Staff'}, ${r.at}` : '')
+
 const COLUMNS: [string, (c: FunderCustomer, b: ExportBatch) => string | number][] = [
   ['Batch', (_, b) => batchLabel(b.number, b.version, b.lendingType)],
   ['Lending type', (_, b) => LENDING_TYPE_LABELS[b.lendingType]],
@@ -56,14 +59,14 @@ const COLUMNS: [string, (c: FunderCustomer, b: ExportBatch) => string | number][
     'Items',
     (c) => c.plan.items.map((i) => `${i.qty} × ${i.name}${i.spec ? ` ${i.spec}` : ''}`).join('; '),
   ],
-  ['Total cost to customer', (c) => c.figures.costToCustomer],
-  ['Deposit', (c) => c.figures.deposit],
-  ['Deposit %', (c) => Math.round(c.figures.depositShare * 100)],
-  ['Amount financed', (c) => c.figures.financed],
-  ['Rate per month %', (c) => Math.round(c.figures.ratePerMonth * 10_000) / 100],
-  ['Months', (c) => c.figures.months],
-  ['Monthly repayment', (c) => c.figures.monthly],
-  ['Total repayment', (c) => c.figures.totalRepayment],
+  ['Total cost to customer', (c) => blankIfNoQuote(c, c.figures.costToCustomer)],
+  ['Deposit', (c) => blankIfNoQuote(c, c.figures.deposit)],
+  ['Deposit %', (c) => blankIfNoQuote(c, Math.round(c.figures.depositShare * 100))],
+  ['Amount financed', (c) => blankIfNoQuote(c, c.figures.financed)],
+  ['Rate per month %', (c) => blankIfNoQuote(c, Math.round(c.figures.ratePerMonth * 10_000) / 100)],
+  ['Months', (c) => blankIfNoQuote(c, c.figures.months)],
+  ['Monthly repayment', (c) => blankIfNoQuote(c, c.figures.monthly)],
+  ['Total repayment', (c) => blankIfNoQuote(c, c.figures.totalRepayment)],
   // Exports from 0043 on: the level and what the funder finances and earns (blank before).
   ['Level', (c) => (c.level === 'basic' ? 'Basic' : 'Full')],
   ['Deposit status', (c) => c.financing?.depositStatus ?? ''],
@@ -71,15 +74,15 @@ const COLUMNS: [string, (c: FunderCustomer, b: ExportBatch) => string | number][
   ['Funder finances', (c) => c.financing?.financed ?? ''],
   ['Funder earnings (interest/charge)', (c) => c.financing?.earnings ?? ''],
   ['Repayment to funder (financed + earnings)', (c) => c.financing?.totalRepayment ?? ''],
-  [
-    'Details confirmed by phone',
-    (c) => `${c.records.verifiedByPhone.by}, ${c.records.verifiedByPhone.at}`,
-  ],
-  ['Consent to share', (c) => `${c.records.consent.by}, ${c.records.consent.at}`],
-  ['Figures agreed', (c) => `${c.records.figuresAgreed.by}, ${c.records.figuresAgreed.at}`],
+  ['Details confirmed by phone', (c) => record(c.records.verifiedByPhone)],
+  ['Consent to share', (c) => record(c.records.consent)],
+  ['Figures agreed', (c) => record(c.records.figuresAgreed)],
   ['Decision', (c, b) => b.decisions[c.reference]?.decision ?? 'pending'],
   ['Decision note', (c, b) => b.decisions[c.reference]?.note ?? ''],
 ]
+
+/** A person exported without a quote: blank figures (the funder collects them). */
+const blankIfNoQuote = (c: FunderCustomer, v: number) => (c.noQuote ? '' : v)
 
 const cell = (v: string | number) => {
   const s = String(v)
@@ -193,25 +196,26 @@ export function customerRows(c: FunderCustomer): [string, string][] {
       'Items',
       c.plan.items.map((i) => `${i.qty} × ${i.name}${i.spec ? ` ${i.spec}` : ''}`).join('; '),
     ],
-    ['Total cost to customer', formatNaira(f.costToCustomer)],
-    ['Deposit', `${formatNaira(f.deposit)} (${formatPercent(f.depositShare)})`],
-    ['Amount financed', formatNaira(f.financed)],
-    ['Rate', `${formatPercent(f.ratePerMonth, 1)} per month, flat`],
-    ['Months', String(f.months)],
-    ['Monthly repayment', formatNaira(f.monthly)],
-    ['Total repayment', formatNaira(f.totalRepayment)],
+    ...((c.noQuote
+      ? [['Figures', 'No quote yet']]
+      : [
+          ['Total cost to customer', formatNaira(f.costToCustomer)],
+          ['Deposit', `${formatNaira(f.deposit)} (${formatPercent(f.depositShare)})`],
+          ['Amount financed', formatNaira(f.financed)],
+          ['Rate', `${formatPercent(f.ratePerMonth, 1)} per month, flat`],
+          ['Months', String(f.months)],
+          ['Monthly repayment', formatNaira(f.monthly)],
+          ['Total repayment', formatNaira(f.totalRepayment)],
+        ]) as [string, string][]),
     ...(f.customerTotalPayable !== null
       ? ([['Customer pays Go4Solar', `${formatNaira(f.customerTotalPayable)} in all`]] as [
           string,
           string,
         ][])
       : []),
-    [
-      'Details confirmed by phone',
-      `${c.records.verifiedByPhone.by}, ${c.records.verifiedByPhone.at}`,
-    ],
-    ['Consent to share', `${c.records.consent.by}, ${c.records.consent.at}`],
-    ['Figures agreed', `${c.records.figuresAgreed.by}, ${c.records.figuresAgreed.at}`],
+    ['Details confirmed by phone', record(c.records.verifiedByPhone) || '—'],
+    ['Consent to share', record(c.records.consent) || '—'],
+    ['Figures agreed', record(c.records.figuresAgreed) || '—'],
   ]
 }
 

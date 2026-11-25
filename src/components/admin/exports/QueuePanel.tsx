@@ -142,9 +142,16 @@ export function QueuePanel(props: {
                       In {r.inBatch}: remove here and use “Send updated version” in Exports
                     </span>
                   ) : r.level ? (
-                    <span className="text-brand-green font-semibold">
-                      {r.level === 'full' ? 'Full' : 'Basic'}
-                    </span>
+                    <>
+                      <span className="text-brand-green font-semibold">
+                        {r.level === 'full' ? 'Full' : 'Basic'}
+                      </span>
+                      {r.warnings.length > 0 && (
+                        <span className="block text-xs text-amber-900" data-testid="queue-warning">
+                          Missing: {r.warnings.join(', ')} (exported blank)
+                        </span>
+                      )}
+                    </>
                   ) : (
                     <span className="text-destructive">Blocked. {r.problems.join(' ')}</span>
                   )}
@@ -252,7 +259,7 @@ export function QueuePanel(props: {
         )}
         {funder && blocked.length > 0 && (
           <span className="text-sm text-amber-900">
-            Remove or complete the blocked people first.
+            Remove the blocked people first (they need a name, a phone and consent for this funder).
           </span>
         )}
       </div>

@@ -121,8 +121,13 @@ function ConsentRow({
           ? 'Can be exported: Full'
           : f.level === 'basic'
             ? 'Can be exported: Basic (Full needs: ' + f.missing.join(', ') + ')'
-            : 'Not ready to export. Missing: ' + f.missing.join(', ')}
+            : 'Cannot be exported yet. Needs: ' + f.missing.join(', ')}
       </p>
+      {f.level !== null && f.warnings.length > 0 && (
+        <p className="text-xs text-amber-800" data-testid="consent-warnings">
+          Missing: {f.warnings.join(', ')} (exported blank; {f.name} collects them)
+        </p>
+      )}
       {canTick && (
         <Input
           value={note}
