@@ -155,7 +155,8 @@ beforeEach(() => {
   })
 })
 
-const view = () => queueView({ isTest: false, funderId: TL, lendingType: 'customer', mode: 'full-where-possible' })
+const view = () =>
+  queueView({ isTest: false, funderId: TL, lendingType: 'customer', mode: 'full-where-possible' })
 
 describe('exports: only name, phone and consent block', () => {
   it('no address, email, WhatsApp, records ticks or Edit-page quote: exported, with warnings', async () => {
@@ -183,7 +184,10 @@ describe('exports: only name, phone and consent block', () => {
 
   it('a Get Started / calculator person goes on Trade Lenda’s 4% terms: price in full, deposit, financed × 4% × months', async () => {
     await addToQueue([BARE], ops)
-    await exportQueue({ isTest: false, funderId: TL, lendingType: 'customer', mode: 'full-where-possible' }, ops)
+    await exportQueue(
+      { isTest: false, funderId: TL, lendingType: 'customer', mode: 'full-where-possible' },
+      ops,
+    )
     const c = db.rows('funder_batch_items')[0]!.snapshot as FunderCustomer
     const price = cashPrice(estimate.plans.comfort.quote.snapshot)
     const deposit = Math.round(price * 0.2)
