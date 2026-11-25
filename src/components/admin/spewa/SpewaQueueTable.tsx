@@ -7,6 +7,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import type { FunderQueueItem } from '@/lib/funderQueue/server'
 import { formatNaira, formatPercent } from '@/lib/money'
 
+import { RowBoundary } from '@/components/admin/RowBoundary'
+
 import { DecisionBar } from './DecisionBar'
 
 const DECISION_LABEL = { pending: 'Waiting', approved: 'Approved', declined: 'Declined' } as const
@@ -80,57 +82,9 @@ export function SpewaQueueTable({
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id} className="even:bg-brand-mist" data-testid={`spewa-row-${r.id}`}>
-                {canDecide && (
-                  <td className="px-3 py-2">
-                    {r.decision === 'pending' && (
-                      <Checkbox
-                        checked={picked.includes(r.id)}
-                        onCheckedChange={(v) => toggle(r.id, v === true)}
-                        aria-label={`Tick ${r.name || 'file'}`}
-                      />
-                    )}
-                  </td>
-                )}
-                <td className="px-3 py-2">
-                  <Link
-                    href={`/admin/spewa/${r.id}`}
-                    className="text-brand-blue font-semibold underline"
-                  >
-                    {r.name || 'Unnamed'}
-                  </Link>
-                  <span className="text-muted-foreground block text-xs">
-                    {r.reference} · {r.state ?? '—'}
-                    {r.isTest ? ' · test' : ''}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-right">
-                  {r.totalPayable ? formatNaira(r.totalPayable) : '—'}
-                </td>
-                <td className="px-3 py-2 text-right" data-testid="spewa-financed">
-                  {r.financed ? formatNaira(r.financed) : '—'}
-                </td>
-                <td className="px-3 py-2 text-right">{formatPercent(r.depositShare)}</td>
-                <td className="px-3 py-2">{when(r.routedAt)}</td>
-                <td className="px-3 py-2" data-testid="spewa-decision-cell">
-                  <span className="font-semibold">{DECISION_LABEL[r.decision]}</span>
-                  {r.decidedAt && (
-                    <span className="text-muted-foreground block text-xs">
-                      {r.decidedBy} · {when(r.decidedAt)}
-                    </span>
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  {r.cheques.received === null
-                    ? '—'
-                    : r.cheques.received
-                      ? `Yes · ${r.cheques.count} · ${r.cheques.receivedOn}`
-                      : 'No'}
-                </td>
-                <td className="px-3 py-2">
-                  <Repayment r={r} />
-                </td>
-              </tr>
+              <RowBoundary key={r.id} cols={canDecide ? 9 : 8}>
+                <QueueRow r={r} canDecide={canDecide} picked={picked} toggle={toggle} />
+              </RowBoundary>
             ))}
             {rows.length === 0 && (
               <tr>
@@ -143,5 +97,77 @@ export function SpewaQueueTable({
         </table>
       </div>
     </div>
+  )
+}
+
+/** One file in the queue (drawn on its own: a failing row never breaks the table). */
+function QueueRow({
+  r,
+  canDecide,
+  picked,
+  toggle,
+}: {
+  r: FunderQueueItem
+  canDecide: boolean
+  picked: string[]
+  toggle: (id: string, on: boolean) => void
+}) {
+  return (
+    <tr className="even:bg-brand-mist" data-testid={`spewa-row-${r.id}`}>
+      {canDecide && (
+        <td className="px-3 py-2">
+          {r.decision === 'pending' && (
+            <Checkbox
+              checked={picked.includes(r.id)}
+              onCheckedChange={(v) => toggle(r.id, v === true)}
+              aria-label={`Tick ${r.name || 'file'}`}
+            />
+          )}
+        </td>
+      )}
+      <td className="px-3 py-2">
+        <Link href={`/admin/spewa/${r.id}`} className="text-brand-blue font-semibold underline">
+          {r.name || 'Unnamed'}
+        </Link>
+        <span className="text-muted-foreground block text-xs">
+          {r.reference} · {r.state ?? '—'}
+          {r.isTest ? ' · test' : ''}
+        </span>
+      </td>
+      <td className="px-3 py-2 text-right">
+        {r.quoteUnavailable ? (
+          <span className="text-amber-900" data-testid="quote-unavailable">
+            Quote details unavailable
+          </span>
+        ) : r.totalPayable ? (
+          formatNaira(r.totalPayable)
+        ) : (
+          '—'
+        )}
+      </td>
+      <td className="px-3 py-2 text-right" data-testid="spewa-financed">
+        {r.financed ? formatNaira(r.financed) : '—'}
+      </td>
+      <td className="px-3 py-2 text-right">{formatPercent(r.depositShare)}</td>
+      <td className="px-3 py-2">{when(r.routedAt)}</td>
+      <td className="px-3 py-2" data-testid="spewa-decision-cell">
+        <span className="font-semibold">{DECISION_LABEL[r.decision]}</span>
+        {r.decidedAt && (
+          <span className="text-muted-foreground block text-xs">
+            {r.decidedBy} · {when(r.decidedAt)}
+          </span>
+        )}
+      </td>
+      <td className="px-3 py-2">
+        {r.cheques.received === null
+          ? '—'
+          : r.cheques.received
+            ? `Yes · ${r.cheques.count} · ${r.cheques.receivedOn}`
+            : 'No'}
+      </td>
+      <td className="px-3 py-2">
+        <Repayment r={r} />
+      </td>
+    </tr>
   )
 }

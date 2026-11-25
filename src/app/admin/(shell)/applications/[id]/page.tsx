@@ -401,6 +401,14 @@ export default async function ApplicationPage({
         </div>
       )}
 
+      {tab === 'quote' && d.quoteUnavailable && (
+        <p
+          className="mt-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900"
+          data-testid="quote-unavailable"
+        >
+          Quote details unavailable
+        </p>
+      )}
       {tab === 'quote' && d.quote && (
         <div className="space-y-3 text-sm">
           {d.ctx.app.quote_id && (

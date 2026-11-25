@@ -336,4 +336,42 @@ describe('funderQueueList', () => {
     expect(await queue.funderQueueList({ includeTest: true })).toHaveLength(2)
     expect(await queue.funderQueueList({ includeTest: true, decision: 'approved' })).toHaveLength(0)
   })
+
+  it('a missing (empty) quote: the row shows "Quote details unavailable", the list still works', async () => {
+    seedApp(APP)
+    seedApp(APP2)
+    await routeAfterDeposit(APP)
+    await routeAfterDeposit(APP2)
+    db.rows('quotes').find((q) => q.id === `q-${APP2}`)!.result = {}
+    const list = await queue.funderQueueList({ includeTest: true })
+    expect(list).toHaveLength(2)
+    expect(list.find((r) => r.id === APP)).toMatchObject({ quoteUnavailable: false })
+    expect(list.find((r) => r.id === APP2)).toMatchObject({
+      quoteUnavailable: true,
+      totalPayable: null,
+      financed: null,
+    })
+  })
+
+  it('a quote without a SPEWA offer (or a broken offer) is shown normally, never a crash', async () => {
+    seedApp(APP)
+    await routeAfterDeposit(APP)
+    const q = db.rows('quotes')[0]!
+    const result = q.result as { snapshot: Record<string, unknown> }
+    q.result = { ...result, snapshot: { ...result.snapshot, offer: 'broken' } }
+    const [row] = await queue.funderQueueList({ includeTest: true })
+    expect(row).toMatchObject({ quoteUnavailable: false })
+    expect(row!.totalPayable).toBeGreaterThan(0)
+  })
+
+  it('the file page loader: a missing quote is "unavailable", never a crash', async () => {
+    seedApp(APP)
+    await routeAfterDeposit(APP)
+    db.rows('quotes')[0]!.result = {}
+    const { applicationDetail } = await import('@/lib/approvals/admin')
+    const d = await applicationDetail(APP)
+    expect(d).not.toBeNull()
+    expect(d!.quote).toBeNull()
+    expect(d!.quoteUnavailable).toBe(true)
+  })
 })

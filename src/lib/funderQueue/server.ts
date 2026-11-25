@@ -3,8 +3,8 @@ import 'server-only'
 import { approvalContext, approveApplication, type Actor } from '@/lib/approvals/server'
 import { lagosDate } from '@/lib/payments/lock'
 import { safeBreakdown } from '@/lib/build/breakdown'
-import type { QuoteResult } from '@/lib/pricing/types'
 import { quoteReference } from '@/lib/quotes/quote'
+import { usableQuote } from '@/lib/quotes/usable'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Database, Json } from '@/lib/supabase/database.types'
 
@@ -187,6 +187,8 @@ export type FunderQueueItem = {
   totalPayable: number | null
   /** Price − deposit (before the payment plan charge): what SPEWA finances. */
   financed: number | null
+  /** The file has a quote, but it is missing or broken: "Quote details unavailable". */
+  quoteUnavailable: boolean
   depositShare: number
   routedAt: string
   decision: QueueDecision
@@ -242,13 +244,52 @@ export async function funderQueueList(opts: {
   const loanOf = new Map((loans.data ?? []).map((l) => [l.application_id, l]))
   const figuresOf = new Map(
     (quotes.data ?? []).map((q) => {
-      const b = safeBreakdown(q.result as unknown as QuoteResult)
+      const b = safeBreakdown(usableQuote(q.result))
       return [q.id, { totalPayable: b?.totalPayable ?? null, financed: b?.financed ?? null }]
     }),
   )
   const who = new Map((people.data ?? []).map((p) => [p.id, p.full_name ?? p.email ?? 'Staff']))
   const today = lagosDate()
+  // Each row is built on its own: one bad file can never break the whole queue.
   return list.flatMap((r): FunderQueueItem[] => {
+    try {
+      return rowOf(r)
+    } catch (e) {
+      console.error(
+        '[funder queue] row could not be shown:',
+        r.application_id,
+        (e as Error).message,
+      )
+      return [
+        {
+          id: r.application_id,
+          name: 'File details unavailable',
+          state: null,
+          reference: null,
+          totalPayable: null,
+          financed: null,
+          quoteUnavailable: true,
+          depositShare: Number(r.deposit_share) || 0,
+          routedAt: r.routed_at,
+          decision: r.decision as QueueDecision,
+          decidedBy: null,
+          decidedAt: r.decided_at,
+          reason: r.decision_reason,
+          cheques: {
+            received: r.cheques_received,
+            count: r.cheques_count,
+            receivedOn: r.cheques_received_on,
+          },
+          appStatus: 'submitted',
+          loanStatus: null,
+          repayment: null,
+          isTest: r.is_test,
+        },
+      ]
+    }
+  })
+
+  function rowOf(r: (typeof list)[number]): FunderQueueItem[] {
     const a = appOf.get(r.application_id)
     if (!a) return []
     const loan = loanOf.get(r.application_id) ?? null
@@ -262,6 +303,7 @@ export async function funderQueueList(opts: {
         reference: a.quote_id ? quoteReference(a.quote_id) : null,
         totalPayable: a.quote_id ? (figuresOf.get(a.quote_id)?.totalPayable ?? null) : null,
         financed: a.quote_id ? (figuresOf.get(a.quote_id)?.financed ?? null) : null,
+        quoteUnavailable: Boolean(a.quote_id) && figuresOf.get(a.quote_id!)?.totalPayable == null,
         depositShare: Number(r.deposit_share),
         routedAt: r.routed_at,
         decision: r.decision as QueueDecision,
@@ -288,5 +330,5 @@ export async function funderQueueList(opts: {
         isTest: r.is_test,
       },
     ]
-  })
+  }
 }
