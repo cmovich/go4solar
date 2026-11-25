@@ -75,16 +75,23 @@ test('waiting list → Edit (Incomplete tab) → consent per funder: tick, then 
   // Pre-filled from the waiting list.
   await expect(page.getByTestId('profile-form').getByLabel('First name')).toHaveValue('Edit')
 
-  // Consent block: every active funder, nothing ticked yet, not ready to export.
+  // Consent block: every active funder, nothing ticked yet: consent is all that blocks.
   const block = page.getByTestId('consent-block')
   const tl = block.getByRole('checkbox', { name: 'Trade Lenda', exact: true })
   await expect(tl).not.toBeChecked()
   const tlRow = block.locator('[data-testid="consent-funder"][data-funder="Trade Lenda"]')
-  await expect(tlRow.getByTestId('consent-level')).toContainText('Not ready to export')
+  await expect(tlRow.getByTestId('consent-level')).toHaveText(
+    'Cannot be exported yet. Needs: consent to share with this funder',
+  )
 
   await tlRow.getByLabel('Trade Lenda: note').fill('Agreed on the call (e2e)')
   await tl.click()
   await expect(tl).toBeChecked({ timeout: 20_000 })
+  // With consent: exportable although address, email etc. are missing (warnings only).
+  await expect(tlRow.getByTestId('consent-level')).toContainText('Can be exported: Basic', {
+    timeout: 20_000,
+  })
+  await expect(tlRow.getByTestId('consent-warnings')).toContainText('landmark')
   await expect(tlRow.getByTestId('consent-who')).toContainText('Agreed on the call (e2e)')
 
   // Withdraw: confirm, then it shows as withdrawn; nothing was exported, so no funder email.

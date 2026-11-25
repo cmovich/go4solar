@@ -135,17 +135,21 @@ export default async function FunderBatchPage({
                   </span>
                 )}
               </td>
-              <td className="px-2 py-2">{i.customer.plan.label}</td>
+              <td className="px-2 py-2">{i.customer.plan.label || 'No quote yet'}</td>
               <td className="px-2 py-2 text-right tabular-nums">
-                {formatNaira(i.customer.figures.financed)}
+                {i.customer.noQuote ? '—' : formatNaira(i.customer.figures.financed)}
               </td>
               <td className="px-2 py-2 text-right tabular-nums">
-                {formatNaira(i.customer.figures.monthly)} × {i.customer.figures.months}
+                {i.customer.noQuote
+                  ? '—'
+                  : `${formatNaira(i.customer.figures.monthly)} × ${i.customer.figures.months}`}
               </td>
               <td className="px-2 py-2 text-right tabular-nums">
-                {formatNaira(
-                  i.customer.financing?.totalRepayment ?? i.customer.figures.totalRepayment,
-                )}
+                {i.customer.noQuote
+                  ? '—'
+                  : formatNaira(
+                      i.customer.financing?.totalRepayment ?? i.customer.figures.totalRepayment,
+                    )}
               </td>
               <td className="px-2 py-2 text-right tabular-nums">
                 {i.customer.financing ? formatNaira(i.customer.financing.earnings) : '—'}

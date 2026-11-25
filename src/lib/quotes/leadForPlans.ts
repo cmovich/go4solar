@@ -82,10 +82,13 @@ async function loadLead(id: string, visitorHash: string | null): Promise<LeadFor
   // SPEWA offer quotes are valid for the offer's own days (7, SPEWA's price list).
   const daysFor = (e: Estimate) =>
     e.offer ? (e.plans.comfort.quote.snapshot.offer?.validityDays ?? normalDays) : normalDays
-  // Home estimates priced before the ready-made terms (25 Nov 2026) are re-priced on them too.
+  // A home estimate priced before the ready-made terms is never re-priced or overwritten here
+  // (Semako, 25 Nov 2026): it keeps its figures until the one-time versioned update moves it to
+  // the new terms as a NEW version. Estimates already on the new terms (and SPEWA offers) are
+  // refreshed when older than the validity window, as before.
   if (
-    estimateIsStale(estimate.pricedAt ?? lead.created_at, daysFor(estimate)) ||
-    needsHomeTerms(estimate)
+    !needsHomeTerms(estimate) &&
+    estimateIsStale(estimate.pricedAt ?? lead.created_at, daysFor(estimate))
   ) {
     estimate = {
       ...buildEstimate(

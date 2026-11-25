@@ -258,7 +258,8 @@ export async function consentPanel(input: {
           : []
       }),
       level: r.level,
-      missing: r.level === 'basic' ? r.fullMissing : r.basicMissing,
+      missing: r.level === null ? r.blockers : r.level === 'basic' ? r.fullMissing : [],
+      warnings: r.warnings,
     }
   })
 }

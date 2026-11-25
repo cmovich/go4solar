@@ -61,6 +61,8 @@ export type FunderCustomer = {
   level?: 'basic' | 'full'
   /** What the funder finances and earns (exports from 0043 on). */
   financing?: ExportFinancing
+  /** Exported without a quote (25 Nov 2026): the figures are blank in every file and page. */
+  noQuote?: true
 }
 
 type SnapshotInput = Omit<FunderCustomer, 'figures' | 'plan'> & {
@@ -124,6 +126,7 @@ export function funderSnapshot(i: SnapshotInput): FunderCustomer {
       figuresAgreed: { ...i.records.figuresAgreed },
     },
     ...(i.level ? { level: i.level } : {}),
+    ...(i.noQuote ? { noQuote: true as const } : {}),
     ...(i.financing
       ? {
           financing: {

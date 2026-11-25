@@ -52,8 +52,9 @@ export function batchTotals(type: LendingType, items: FunderCustomer[]): BatchTo
     g.totalRepayments += c.figures.totalRepayment
   }
   for (const c of items) {
-    add((byPlan[c.plan.label] ??= empty()), c)
-    add((byMonths[String(c.figures.months)] ??= empty()), c)
+    add((byPlan[c.plan.label || 'No quote yet'] ??= empty()), c)
+    // Exported without a quote: no length to group by.
+    if (!c.noQuote) add((byMonths[String(c.figures.months)] ??= empty()), c)
   }
   const sum = (f: (c: FunderCustomer) => number) => items.reduce((s, c) => s + f(c), 0)
   return {

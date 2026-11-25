@@ -56,11 +56,16 @@ describe('activeConsent', () => {
   })
 })
 
-describe('exportReadiness (per funder)', () => {
-  it('basic fields + phone confirmed + figures agreed + consent for THAT funder → Basic', () => {
+describe('exportReadiness (per funder): only name, phone and consent block (Semako, 25 Nov)', () => {
+  it('everything filled in → Full, nothing missing', () => {
+    const r = exportReadiness(full, ticked, consentTL, TL)
+    expect(r).toMatchObject({ level: 'full', blockers: [], warnings: [] })
+  })
+
+  it('Full-only details missing → Basic (a level, never a block)', () => {
     const r = exportReadiness(basic, ticked, consentTL, TL)
     expect(r.level).toBe('basic')
-    expect(r.basicMissing).toEqual([])
+    expect(r.blockers).toEqual([])
     expect(r.fullMissing).toEqual([
       'date of birth',
       'work',
@@ -71,31 +76,60 @@ describe('exportReadiness (per funder)', () => {
     ])
   })
 
-  it('everything filled in → Full', () => {
+  it('no consent for this funder → blocked for it (other funders unaffected)', () => {
+    const r = exportReadiness(full, ticked, consentTL, SP)
+    expect(r.level).toBeNull()
+    expect(r.blockers).toEqual(['consent to share with this funder'])
     expect(exportReadiness(full, ticked, consentTL, TL).level).toBe('full')
   })
 
-  it('no consent for this funder → nothing can go to it (other funders unaffected)', () => {
-    const r = exportReadiness(full, ticked, consentTL, SP)
-    expect(r.level).toBeNull()
-    expect(r.basicMissing).toContain('consent to share with this funder')
+  it('no name or no phone → blocked', () => {
+    expect(
+      exportReadiness({ ...full, firstName: null, surname: null }, ticked, consentTL, TL).blockers,
+    ).toEqual(['name'])
+    expect(exportReadiness({ ...full, phone: null }, ticked, consentTL, TL).blockers).toEqual([
+      'phone',
+    ])
+    // A first name alone is a name.
+    expect(exportReadiness({ ...full, surname: null }, ticked, consentTL, TL).blockers).toEqual([])
   })
 
-  it('Basic also needs "Details confirmed by phone" and "Agreed to the quote figures"', () => {
-    const r = exportReadiness(full, { phoneVerifiedAt: null, figuresAgreedAt: null }, consentTL, TL)
-    expect(r.level).toBeNull()
-    expect(r.basicMissing).toEqual(['details confirmed by phone', 'agreed to the quote figures'])
+  it('address, email, WhatsApp, the quote, the two records ticks: warnings only, never a block', () => {
+    const bare: ProfileValues = {
+      ...basic,
+      customerType: null,
+      whatsapp: null,
+      email: null,
+      lga: null,
+      street: null,
+      landmark: null,
+      planKind: null,
+      planRef: null,
+      depositShare: null,
+      months: null,
+    }
+    const r = exportReadiness(bare, { phoneVerifiedAt: null, figuresAgreedAt: null }, consentTL, TL)
+    expect(r.blockers).toEqual([])
+    expect(r.level).toBe('basic')
+    expect(r.warnings).toEqual([
+      'customer type',
+      'WhatsApp',
+      'email',
+      'LGA',
+      'street address',
+      'landmark',
+      'plan',
+      'deposit',
+      'months',
+      'details confirmed by phone',
+      'agreed to the quote figures',
+    ])
   })
 
-  it('a missing basic field blocks both levels', () => {
-    const r = exportReadiness({ ...full, landmark: null }, ticked, consentTL, TL)
-    expect(r.level).toBeNull()
-    expect(r.basicMissing).toEqual(['landmark'])
-  })
-
-  it('a business also needs its name and the contact person’s role', () => {
+  it('a business without its name or contact role: a warning only', () => {
     const r = exportReadiness({ ...basic, customerType: 'business' }, ticked, consentTL, TL)
-    expect(r.basicMissing).toEqual(['business name', 'contact person’s role'])
+    expect(r.blockers).toEqual([])
+    expect(r.warnings).toEqual(['business name', 'contact person’s role'])
   })
 })
 
