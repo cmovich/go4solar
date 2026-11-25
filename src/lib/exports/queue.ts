@@ -23,7 +23,8 @@ import {
 
 import { loadConsents } from './consents'
 import { exportFinancing, exportTotals, type ExportFinancing, type FunderTerms } from './financing'
-import { exportReadiness, type ExportLevel } from './readiness'
+import { leadPlan } from './leadPlan'
+import { exportReadiness, FULL_EXTRA, type ExportLevel } from './readiness'
 
 /**
  * The shared export queue (EXP-YYYY-NNNN; test entries EXPT-…): super admin and Operations add
@@ -258,7 +259,10 @@ export type QueueRow = {
   phone: string
   /** What this person can go as to the chosen funder (null: blocked). */
   level: ExportLevel | null
+  /** Blocks this person (name, phone or consent missing; or a safety check). */
   problems: string[]
+  /** Exported blank, never blocks: "Missing: landmark, email". */
+  warnings: string[]
   /** Already in an active batch for this funder: use "Send updated version". */
   inBatch: string | null
 }
@@ -270,7 +274,8 @@ async function snapshotFor(
   lendingType: LendingType,
   mode: ExportMode,
 ): Promise<
-  { ok: true; snapshot: FunderCustomer; level: ExportLevel } | { ok: false; problems: string[] }
+  | { ok: true; snapshot: FunderCustomer; level: ExportLevel; warnings: string[] }
+  | { ok: false; problems: string[] }
 > {
   const view = await loadProfileView(waitlistId)
   if (!view) return { ok: false, problems: ['Entry not found.'] }
@@ -280,33 +285,52 @@ async function snapshotFor(
     figuresAgreedAt: view.ticks.figuresAgreedAt,
   }
   const r = exportReadiness(view.values, ticks, consents, funder.id)
-  if (!r.level) return { ok: false, problems: [`Missing: ${r.basicMissing.join(', ')}.`] }
-  const level: ExportLevel = mode === 'basic' ? 'basic' : r.level
+  // Only a name, a phone and consent for THIS funder block (Semako, 25 Nov 2026).
+  if (!r.level) return { ok: false, problems: [`Needs: ${r.blockers.join(', ')}.`] }
+  // "Basic for all": Basic. "Full where possible": whatever of the Full details is filled in.
+  const level: ExportLevel =
+    mode === 'basic' || r.fullMissing.length === FULL_EXTRA.length ? 'basic' : 'full'
   const v = view.values
-  const basis = await basisFor(view.lead, v.planKind, v.planRef, v.depositShare!, v.months!)
-  if (!basis) return { ok: false, problems: ['The quotation cannot be priced.'] }
+  // The quote staff picked on the Edit page, else the one the person already has.
+  const own = v.planRef ? null : leadPlan(view.lead)
+  const planKind = v.planKind ?? own?.planKind ?? null
+  const planRef = v.planRef ?? own?.planRef ?? null
+  const depositShare = v.depositShare ?? own?.depositShare ?? 0.2
+  const months = v.months ?? own?.months ?? 12
+  const basis = await basisFor(view.lead, planKind, planRef, depositShare, months)
+  const warnings = r.warnings.filter((w) => !(own && ['plan', 'deposit', 'months'].includes(w)))
+  if (!basis) warnings.push('quote')
   const terms = termsOf(funder, lendingType)
-  const fin = exportFinancing(basis, terms, {
-    depositShare: v.depositShare!,
-    months: v.months!,
-    depositPaid: await depositPaidFor(waitlistId),
-  })
+  const fin = basis
+    ? exportFinancing(basis, terms, {
+        depositShare,
+        months,
+        depositPaid: await depositPaidFor(waitlistId),
+      })
+    : null
   const consent = consents.find((c) => c.funderId === funder.id)!
-  const p = view.profile!
-  const at = (s: string | null) => (s ? s.slice(0, 10) : '')
+  const p = view.profile
+  const at = (s: string | null | undefined) => (s ? s.slice(0, 10) : '')
+  const by = (who: string | null | undefined, when: string | null | undefined) =>
+    when ? (who ?? 'Staff') : ''
   const snapshot = funderSnapshot({
     reference: quoteReference(view.lead.id),
-    name: [view.lead.first_name, p.other_names, view.lead.surname].filter(Boolean).join(' '),
+    name: [view.lead.first_name, p?.other_names, view.lead.surname].filter(Boolean).join(' '),
     phone: view.lead.phone_e164,
     whatsapp: view.lead.whatsapp_e164,
     email: view.lead.email,
-    dateOfBirth: p.date_of_birth,
-    address: { street: p.street, landmark: p.landmark, lga: view.lead.lga, state: view.lead.state },
+    dateOfBirth: p?.date_of_birth ?? null,
+    address: {
+      street: p?.street ?? null,
+      landmark: p?.landmark ?? null,
+      lga: view.lead.lga,
+      state: view.lead.state,
+    },
     work: {
-      employmentType: p.employment_type,
-      employer: p.employer,
-      jobTitle: p.job_title,
-      incomeRange: p.income_range,
+      employmentType: p?.employment_type ?? null,
+      employer: p?.employer ?? null,
+      jobTitle: p?.job_title ?? null,
+      incomeRange: p?.income_range ?? null,
     },
     applicantType: view.lead.applicant_type === 'business' ? 'business' : 'individual',
     business:
@@ -314,38 +338,72 @@ async function snapshotFor(
         ? { name: v.businessName, contactRole: v.contactRole }
         : null,
     guarantor: {
-      name: p.guarantor_name,
-      phone: p.guarantor_phone_e164,
-      relationship: p.guarantor_relationship,
-      address: p.guarantor_address,
+      name: p?.guarantor_name ?? null,
+      phone: p?.guarantor_phone_e164 ?? null,
+      relationship: p?.guarantor_relationship ?? null,
+      address: p?.guarantor_address ?? null,
     },
-    planLabel: basis.label,
-    items: basis.items,
-    figures: lendingFigures(basis, terms, lendingType, v.depositShare!, v.months!, fin),
+    planLabel: basis?.label ?? '',
+    items: basis?.items ?? [],
+    figures: basis
+      ? lendingFigures(basis, terms, lendingType, depositShare, months, fin!)
+      : blankFigures(lendingType),
+    ...(basis ? {} : { noQuote: true as const }),
     records: {
       verifiedByPhone: {
-        by: view.ticks.phoneVerifiedBy ?? 'Staff',
+        by: by(view.ticks.phoneVerifiedBy, view.ticks.phoneVerifiedAt),
         at: at(view.ticks.phoneVerifiedAt),
         note: view.ticks.phoneVerifiedNote,
       },
       consent: {
-        by: consent.consentedBy ?? 'Staff',
+        by: by(consent.consentedBy, consent.consentedAt),
         at: at(consent.consentedAt),
         note: consent.consentNote,
       },
       figuresAgreed: {
-        by: view.ticks.figuresAgreedBy ?? 'Staff',
+        by: by(view.ticks.figuresAgreedBy, view.ticks.figuresAgreedAt),
         at: at(view.ticks.figuresAgreedAt),
         note: view.ticks.figuresAgreedNote,
       },
     },
     level,
-    financing: fin,
+    ...(fin ? { financing: fin } : {}),
   })
-  const problems = funderSafetyProblems(snapshot, [basis.cost], {
+  // Kept: never NIN/BVN, cost, margin or profit (a found word or cost figure still refuses).
+  const problems = funderSafetyProblems(snapshot, basis ? [basis.cost] : [], {
     allow: funder.prefix === 'SP' ? ['spewa'] : [],
   })
-  return problems.length > 0 ? { ok: false, problems } : { ok: true, snapshot, level }
+  return problems.length > 0 ? { ok: false, problems } : { ok: true, snapshot, level, warnings }
+}
+
+/** A person exported without a quote: blank figures (the funder collects them). */
+function blankFigures(lendingType: LendingType): LendingFigures {
+  return {
+    lendingType,
+    price: 0,
+    depositShare: 0,
+    deposit: 0,
+    financed: 0,
+    monthlyRate: 0,
+    months: 0,
+    charge: 0,
+    monthly: 0,
+    instalments: [],
+    totalRepayment: 0,
+    customerTotalPayable: null,
+    customerMonthly: null,
+  }
+}
+
+const NO_FINANCING: ExportFinancing = {
+  months: 0,
+  deposit: 0,
+  depositStatus: 'to be paid',
+  depositPaid: 0,
+  financed: 0,
+  monthly: 0,
+  totalRepayment: 0,
+  earnings: 0,
 }
 
 /** For each person already in an active (not replaced) batch of THIS funder: its number. */
@@ -401,10 +459,13 @@ export async function queueView(input: {
     const l = (leads ?? []).find((x) => x.id === id)
     let level: ExportLevel | null = null
     let problems: string[] = []
+    let warnings: string[] = []
     if (funder && input.lendingType) {
       const s = await snapshotFor(id, funder, input.lendingType, input.mode)
-      if (s.ok) level = s.level
-      else problems = s.problems
+      if (s.ok) {
+        level = s.level
+        warnings = s.warnings
+      } else problems = s.problems
     }
     rows.push({
       waitlistId: id,
@@ -413,6 +474,7 @@ export async function queueView(input: {
       phone: l?.phone_e164 ?? '',
       level,
       problems,
+      warnings,
       inBatch: inBatch.get(id) ?? null,
     })
   }
@@ -476,7 +538,7 @@ export async function exportQueue(
       snaps.map((s) => s.snapshot),
     ),
     financing: exportTotals(
-      snaps.map((s) => ({ level: s.level, financing: s.snapshot.financing! })),
+      snaps.map((s) => ({ level: s.level, financing: s.snapshot.financing ?? NO_FINANCING })),
     ),
   }
   const { data: batch, error } = await admin
@@ -566,7 +628,7 @@ export async function updateExportBatch(
       snaps.map((s) => s.snapshot),
     ),
     financing: exportTotals(
-      snaps.map((s) => ({ level: s.level, financing: s.snapshot.financing! })),
+      snaps.map((s) => ({ level: s.level, financing: s.snapshot.financing ?? NO_FINANCING })),
     ),
   }
   const { data: batch, error } = await admin
