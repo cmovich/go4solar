@@ -56,3 +56,6 @@ plan-images/
 # Logo originals stay on Semako's computer (npm run logo:build makes the site versions)
 logo-originals/
 /spewa/
+
+# Local data backups (may hold personal data): never committed
+/backups/
