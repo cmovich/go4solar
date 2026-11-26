@@ -911,6 +911,10 @@ export type Database = {
           replaced_by: string | null
           totals: Json
           version: number
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+          voided_number: string | null
         }
         ComputedFields: never
         Insert: {
@@ -926,6 +930,10 @@ export type Database = {
           replaced_by?: string | null
           totals: Json
           version?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+          voided_number?: string | null
         }
         Update: {
           created_at?: string
@@ -940,6 +948,10 @@ export type Database = {
           replaced_by?: string | null
           totals?: Json
           version?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+          voided_number?: string | null
         }
         Relationships: [
           {

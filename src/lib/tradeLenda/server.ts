@@ -834,6 +834,8 @@ export async function funderBatchList(
     .from('funder_batches')
     .select('id, number, version, lending_type, created_at, replaced_by, totals, is_test')
     .eq('funder_id', funderId)
+    // The funder (and "View as") never sees a voided batch.
+    .is('voided_at', null)
     .order('created_at', { ascending: false })
   if (!includeTest) q = q.eq('is_test', false)
   const { data } = await q
@@ -884,7 +886,8 @@ export async function funderBatch(
       'id, number, version, lending_type, created_at, replaced_by, totals, funder_id, onboarding_url, funders(name)',
     )
     .eq('id', batchId)
-  if (funderId) q = q.eq('funder_id', funderId)
+  // The funder (and "View as") never opens a voided batch; staff in Admin → Exports may.
+  if (funderId) q = q.eq('funder_id', funderId).is('voided_at', null)
   const { data: b } = await q.maybeSingle()
   if (!b) return null
   const [{ data: items }, { count }] = await Promise.all([
@@ -938,11 +941,16 @@ export async function decideItem(
   const admin = createAdminClient()
   const { data: item } = await admin
     .from('funder_batch_items')
-    .select('id, decision, decision_note, funder_batches(funder_id, replaced_by)')
+    .select('id, decision, decision_note, funder_batches(funder_id, replaced_by, voided_at)')
     .eq('id', input.itemId)
     .maybeSingle()
-  const batch = item?.funder_batches as { funder_id: string; replaced_by: string | null } | null
-  if (!item || !batch || batch.funder_id !== funderId) return { ok: false, error: 'Not found.' }
+  const batch = item?.funder_batches as {
+    funder_id: string
+    replaced_by: string | null
+    voided_at: string | null
+  } | null
+  if (!item || !batch || batch.funder_id !== funderId || batch.voided_at)
+    return { ok: false, error: 'Not found.' }
   if (batch.replaced_by)
     return { ok: false, error: 'This version was replaced: open the latest one.' }
   if (input.decision !== 'approved' && !input.note?.trim()) {
