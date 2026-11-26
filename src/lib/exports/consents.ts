@@ -160,6 +160,7 @@ export async function setConsent(
     .from('funder_batches')
     .select('id, number, version')
     .eq('funder_id', input.funderId)
+    .is('voided_at', null)
   const batchOf = new Map((funderBatches ?? []).map((b) => [b.id, b]))
   const { data: items } = batchOf.size
     ? await admin
@@ -234,7 +235,7 @@ export async function consentPanel(input: {
     loadConsents(input.waitlistId),
     admin
       .from('funder_batch_items')
-      .select('funder_batches(number, version, funder_id)')
+      .select('funder_batches(number, version, funder_id, voided_at)')
       .eq('waitlist_id', input.waitlistId),
   ])
   return funders.map((f) => {
@@ -252,8 +253,13 @@ export async function consentPanel(input: {
       withdrawnNote: c?.withdrawnNote ?? null,
       funderToldAt: c?.funderToldAt ?? null,
       exportedIn: (items ?? []).flatMap((i) => {
-        const b = i.funder_batches as { number: string; version: number; funder_id: string } | null
-        return b && b.funder_id === f.id
+        const b = i.funder_batches as {
+          number: string
+          version: number
+          funder_id: string
+          voided_at: string | null
+        } | null
+        return b && b.funder_id === f.id && !b.voided_at
           ? [`${b.number}${b.version > 1 ? ` v${b.version}` : ''}`]
           : []
       }),

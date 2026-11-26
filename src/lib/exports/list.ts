@@ -14,6 +14,8 @@ export type ExportRow = {
   full: number
   replaced: boolean
   isTest: boolean
+  /** Voided (exported by mistake): who, when, why and the number it had. */
+  voided: { at: string; by: string; reason: string; was: string } | null
   /** The export queue it came from (EXP-…), when made from the waiting list. */
   queue: string | null
   decisions: { pending: number; approved: number; declined: number; needs_info: number }
@@ -25,7 +27,7 @@ export async function exportsList(includeTest: boolean): Promise<ExportRow[]> {
   let q = admin
     .from('funder_batches')
     .select(
-      'id, number, version, created_at, created_by, replaced_by, is_test, export_queue_id, funder_id, funders(name)',
+      'id, number, version, created_at, created_by, replaced_by, is_test, export_queue_id, funder_id, voided_at, voided_number, void_reason, voided_by, funders(name)',
     )
     .order('created_at', { ascending: false })
     .limit(500)
@@ -39,7 +41,9 @@ export async function exportsList(includeTest: boolean): Promise<ExportRow[]> {
     admin
       .from('profiles')
       .select('id, full_name, email')
-      .in('id', [...new Set((batches ?? []).map((b) => b.created_by))]),
+      .in('id', [
+        ...new Set((batches ?? []).flatMap((b) => [b.created_by, b.voided_by]).filter(Boolean)),
+      ] as string[]),
     admin
       .from('export_queues')
       .select('id, number')
@@ -65,6 +69,14 @@ export async function exportsList(includeTest: boolean): Promise<ExportRow[]> {
       full: mine.filter((i) => i.level !== 'basic').length,
       replaced: Boolean(b.replaced_by),
       isTest: b.is_test,
+      voided: b.voided_at
+        ? {
+            at: b.voided_at,
+            by: who.get(b.voided_by ?? '') ?? 'Staff',
+            reason: b.void_reason ?? '',
+            was: b.voided_number ?? b.number,
+          }
+        : null,
       queue: b.export_queue_id ? (queueNo.get(b.export_queue_id) ?? null) : null,
       decisions: {
         pending: count('pending'),
@@ -93,7 +105,7 @@ export async function exportsByLead(ids: string[]): Promise<Record<string, Expor
     const { data: items } = await admin
       .from('funder_batch_items')
       .select(
-        'waitlist_id, level, created_at, funder_batches(number, version, created_by, funders(name))',
+        'waitlist_id, level, created_at, funder_batches(number, version, created_by, voided_at, funders(name))',
       )
       .in('waitlist_id', ids.slice(i, i + 200))
     const creators = [
@@ -112,9 +124,11 @@ export async function exportsByLead(ids: string[]): Promise<Record<string, Expor
         number: string
         version: number
         created_by: string
+        voided_at: string | null
         funders: { name: string } | null
       } | null
-      if (!b) continue
+      // A voided batch (exported by mistake) never counts as "Exported".
+      if (!b || b.voided_at) continue
       ;(out[x.waitlist_id] ??= []).push({
         funderName: b.funders?.name ?? 'Funder',
         batch: `${b.number}${b.version > 1 ? ` v${b.version}` : ''}`,
