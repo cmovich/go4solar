@@ -3,6 +3,7 @@ import Link from 'next/link'
 
 import { TestDataToggle } from '@/components/admin/TestDataToggle'
 import { UpdateVersionButton } from '@/components/admin/exports/UpdateVersionButton'
+import { VoidBatchButton } from '@/components/admin/exports/VoidBatchButton'
 import { Downloads } from '@/components/admin/tradeLenda/Downloads'
 import { requireExporter } from '@/lib/auth/roles'
 import { exportsList } from '@/lib/exports/list'
@@ -25,7 +26,7 @@ export default async function ExportsPage({
 }: {
   searchParams: Promise<{ test?: string }>
 }) {
-  await requireExporter()
+  const session = await requireExporter()
   const sp = await searchParams
   const includeTest = await includeTestData(sp.test)
   const [rows, queue] = await Promise.all([exportsList(includeTest), openQueue(includeTest)])
@@ -102,14 +103,31 @@ export default async function ExportsPage({
                   <td className="px-3 py-2 tabular-nums">
                     {b.basic} / {b.full}
                   </td>
-                  <td className="px-3 py-2">{b.replaced ? 'Replaced' : 'Current'}</td>
+                  <td className="px-3 py-2">
+                    {b.voided ? (
+                      <span className="text-destructive font-semibold" data-testid="voided">
+                        Voided
+                        <span className="text-muted-foreground block text-xs font-normal">
+                          was {b.voided.was} · {b.voided.by}, {when(b.voided.at)} · “
+                          {b.voided.reason}”
+                        </span>
+                      </span>
+                    ) : b.replaced ? (
+                      'Replaced'
+                    ) : (
+                      'Current'
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-xs">
                     {b.decisions.approved} approved · {b.decisions.declined} declined ·{' '}
                     {b.decisions.needs_info} needs info · {b.decisions.pending} waiting
                   </td>
                   <td className="px-3 py-2">
                     <Downloads href={`/api/funder/batches/${b.id}`} label="Download" />
-                    {!b.replaced && <UpdateVersionButton batchId={b.id} />}
+                    {!b.replaced && !b.voided && <UpdateVersionButton batchId={b.id} />}
+                    {!b.voided && session.role === 'super_admin' && (
+                      <VoidBatchButton batchId={b.id} number={b.number} />
+                    )}
                   </td>
                 </tr>
               ))}

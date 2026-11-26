@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 import { getSessionInfo } from '@/lib/auth/session'
+import { voidBatch } from '@/lib/exports/voidServer'
 import {
   addToQueue,
   discardQueue,
@@ -85,5 +86,18 @@ export async function discardExportQueue(input: unknown) {
   if (!a || !p.success) return SIGNED_OUT
   const r = await discardQueue(p.data.queueId, a)
   if (r.ok) refresh()
+  return r
+}
+
+/** Admin → Exports: "Void batch" (super admin; reason required; audited). */
+export async function voidExportBatch(input: unknown) {
+  const a = await actor()
+  const p = z.object({ batchId: z.uuid(), reason: z.string().max(500) }).safeParse(input)
+  if (!a || !p.success) return SIGNED_OUT
+  const r = await voidBatch(p.data, a)
+  if (r.ok) {
+    refresh()
+    revalidatePath('/admin/funder')
+  }
   return r
 }

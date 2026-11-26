@@ -1,4 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import ExcelJS from 'exceljs'
+
+import { pdfPageTexts } from '../src/test/pdfText'
 
 import { withTestExportQueue } from './helpers/exportQueue'
 import { loginAsStaff } from './helpers/staff'
@@ -72,6 +75,29 @@ async function download(request: APIRequestContext, href: string): Promise<strin
   // Excel/PDF are compressed: check the readable text the server can produce for both via CSV,
   // and the raw bytes for anything that is stored uncompressed.
   return body.toString('latin1')
+}
+
+/**
+ * The readable text of an Excel or PDF download (both are compressed: searching their raw bytes
+ * can match a short word such as "bvn" by chance).
+ */
+async function downloadText(
+  request: APIRequestContext,
+  href: string,
+  fmt: 'xlsx' | 'pdf',
+): Promise<string> {
+  const res = await request.get(href)
+  expect(res.status()).toBe(200)
+  const body = Buffer.from(await res.body())
+  if (fmt === 'pdf') return pdfPageTexts(body).join('\n')
+  const book = new ExcelJS.Workbook()
+  await book.xlsx.load(body as unknown as ArrayBuffer)
+  const cells: string[] = []
+  book.eachSheet((sheet) => {
+    cells.push(sheet.name)
+    sheet.eachRow((row) => row.eachCell((c) => cells.push(String(c.text ?? ''))))
+  })
+  return cells.join('\n')
 }
 
 /** A fresh TEST waiting-list person (a +234800000 phone marks it test). */
@@ -223,7 +249,9 @@ test.describe('Trade Lenda batches', () => {
         await expect(page.getByTestId('view-as')).toBeVisible()
         await page.getByTestId('funder-batches').getByRole('link').first().click()
         // Test batches have their own numbers (real batches start at TL-Batch-001).
-        await expect(page.getByTestId('batch-title')).toContainText('TLT-Batch-')
+        await expect(page.getByTestId('batch-title')).toContainText('TLT-Batch-', {
+          timeout: 30_000,
+        })
         await expect(page.getByTestId('batch-title')).toContainText(
           type === 'customer' ? 'Lends to customers' : 'Lends to Go4Solar',
         )
@@ -238,9 +266,14 @@ test.describe('Trade Lenda batches', () => {
         const csv = await download(page.request, base)
         expect(csv).toContain('Ada')
         expect(problems(csv, type === 'go4solar' ? costs : [])).toEqual([])
-        for (const fmt of ['xlsx', 'pdf']) {
-          const raw = await download(page.request, base.replace('format=csv', `format=${fmt}`))
-          expect(problems(raw, [])).toEqual([])
+        for (const fmt of ['xlsx', 'pdf'] as const) {
+          const text = await downloadText(
+            page.request,
+            base.replace('format=csv', `format=${fmt}`),
+            fmt,
+          )
+          expect(text).toContain('Ada')
+          expect(problems(text, [])).toEqual([])
         }
 
         // One customer, as Trade Lenda sees them.

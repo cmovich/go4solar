@@ -30,10 +30,11 @@ export async function setOnboardingLink(
   const funderId = await funderIdFor(actor, input.viewAs)
   const { data: batch } = await admin
     .from('funder_batches')
-    .select('id, funder_id, replaced_by, funders(onboarding_domains)')
+    .select('id, funder_id, replaced_by, voided_at, funders(onboarding_domains)')
     .eq('id', input.batchId)
     .maybeSingle()
-  if (!batch || batch.funder_id !== funderId) return { ok: false, error: 'Batch not found.' }
+  if (!batch || batch.funder_id !== funderId || batch.voided_at)
+    return { ok: false, error: 'Batch not found.' }
   const url = input.url.trim()
   if (url) {
     const domains = ((batch.funders as { onboarding_domains: string[] } | null)
@@ -90,7 +91,7 @@ export async function onboardingLinksFor(waitlistId: string): Promise<Onboarding
   const { data: items } = await admin
     .from('funder_batch_items')
     .select(
-      'id, onboarding_url, funder_batches(number, version, onboarding_url, replaced_by, funders(name))',
+      'id, onboarding_url, funder_batches(number, version, onboarding_url, replaced_by, voided_at, funders(name))',
     )
     .eq('waitlist_id', waitlistId)
   const rows = (items ?? []).flatMap((i) => {
@@ -99,10 +100,11 @@ export async function onboardingLinksFor(waitlistId: string): Promise<Onboarding
       version: number
       onboarding_url: string | null
       replaced_by: string | null
+      voided_at: string | null
       funders: { name: string } | null
     } | null
     const url = i.onboarding_url ?? b?.onboarding_url ?? null
-    if (!b || b.replaced_by || !url) return []
+    if (!b || b.replaced_by || b.voided_at || !url) return []
     return [
       {
         itemId: i.id,

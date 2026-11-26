@@ -413,6 +413,8 @@ async function activeBatchFor(funderId: string, ids: string[]): Promise<Map<stri
     .from('funder_batches')
     .select('id, number, version, replaced_by')
     .eq('funder_id', funderId)
+    // A voided batch (exported by mistake) does not stop a new export.
+    .is('voided_at', null)
   const live = new Map((batches ?? []).filter((b) => !b.replaced_by).map((b) => [b.id, b]))
   if (live.size === 0 || ids.length === 0) return new Map()
   const { data: items } = await admin
@@ -607,6 +609,7 @@ export async function updateExportBatch(
     .maybeSingle()
   if (!old) return { ok: false, error: 'Batch not found.' }
   if (old.replaced_by) return { ok: false, error: 'A newer version of this batch exists.' }
+  if (old.voided_at) return { ok: false, error: 'This batch was voided.' }
   const funder = (await exportFunders(old.is_test)).find((f) => f.id === old.funder_id)
   if (!funder) return { ok: false, error: 'This funder is not active.' }
   const lendingType: LendingType = old.lending_type === 'go4solar' ? 'go4solar' : 'customer'
