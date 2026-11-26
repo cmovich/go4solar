@@ -23,6 +23,14 @@ import {
 import type { LaunchMode } from '@/config/site'
 import type { LibraryItem } from '@/lib/calculator/store'
 import { adviceFacts } from '@/lib/build/advice'
+import { depositInSync } from '@/lib/build/breakdown'
+import {
+  nextBuilderStep,
+  orderShape,
+  prevBuilderStep,
+  type OrderShape,
+  type StepFacts,
+} from '@/lib/build/orderShape'
 import type { BuildSelectionInput } from '@/lib/build/schema'
 import type { PricedBuild } from '@/lib/build/server'
 import {
@@ -69,56 +77,6 @@ const FRESH: BuilderState = {
   tenure: 12,
 }
 
-/** The step after this one (site steps skip the roof questions off the roof). */
-function nextStep(s: BuilderState): BuilderStep {
-  const roof = s.site.mounting === 'roof' || !s.site.mounting
-  switch (s.step) {
-    case 'start':
-      return s.scope === 'some' ? 'existing' : 'items'
-    case 'existing':
-      return 'items'
-    case 'items':
-      return 'mounting'
-    case 'mounting':
-      return roof ? 'roofType' : 'wire'
-    case 'roofType':
-      return 'rack'
-    case 'rack':
-      return 'height'
-    case 'height':
-      return 'wire'
-    case 'wire':
-      return 'installer'
-    default:
-      return 'summary'
-  }
-}
-function prevStep(s: BuilderState): BuilderStep | null {
-  const roof = s.site.mounting === 'roof' || !s.site.mounting
-  switch (s.step) {
-    case 'existing':
-      return 'start'
-    case 'items':
-      return s.scope === 'some' ? 'existing' : 'start'
-    case 'mounting':
-      return 'items'
-    case 'roofType':
-      return 'mounting'
-    case 'rack':
-      return 'roofType'
-    case 'height':
-      return 'rack'
-    case 'wire':
-      return roof ? 'height' : 'mounting'
-    case 'installer':
-      return 'wire'
-    case 'summary':
-      return 'installer'
-    default:
-      return null
-  }
-}
-
 const TITLES: Partial<Record<BuilderStep, string>> = {
   start: 'Do you want a complete system financed, or just some items?',
   existing: 'What inverter or battery do you already have?',
@@ -128,13 +86,14 @@ const TITLES: Partial<Record<BuilderStep, string>> = {
   rack: 'Do you want a roofing rack?',
   height: 'How tall is the building?',
   wire: 'Do you know the length of wire needed?',
-  installer: 'Who will install it?',
+  installer: 'Installation and delivery',
   summary: 'Your system and payment plan',
 }
 
 /**
  * Part F: the "Get started" builder (/build). Complete system or some items → choose items (or
- * "I know my load") → mounting, roof, rack, height, wire → installer → price, deposit, months,
+ * "I know my load") → installer and delivery (two or more types) → mounting (panels), roof, rack,
+ * height (roof) → wire → price, deposit, months,
  * advisor → submit (prelaunch) or apply (live). Progress is kept on this device.
  */
 export function Builder({
@@ -235,6 +194,32 @@ export function Builder({
     [items],
   )
 
+  // One type of product or two or more (installation and delivery rule).
+  const shapeOf = useCallback(
+    (list: { sku: string; qty: number }[]): OrderShape =>
+      orderShape(
+        list
+          .filter((i) => i.qty > 0)
+          .flatMap((i) => {
+            const g = items.find((x) => x.sku === i.sku)?.group
+            return g ? [g as string] : []
+          }),
+      ),
+    [items],
+  )
+  const factsOf = useCallback(
+    (st: BuilderState): StepFacts => ({
+      scope: st.scope,
+      shape: shapeOf(st.items),
+      panels: st.items.some(
+        (i) => i.qty > 0 && items.find((x) => x.sku === i.sku)?.group === 'panels',
+      ),
+      site: st.site,
+    }),
+    [items, shapeOf],
+  )
+  const shape = shapeOf(s.items)
+
   // Load progress (or the plan being adjusted) once.
   useEffect(() => {
     let saved: BuilderState | null = null
@@ -308,8 +293,16 @@ export function Builder({
             state: s.state,
             items: s.items,
             site: s.site,
-            installer: s.installer ?? 'go4solar',
-            ownDelivery: s.ownDelivery,
+            installer: s.installer,
+            // Older saved progress answered delivery with "I arrange it myself".
+            delivery:
+              s.delivery !== undefined
+                ? s.delivery
+                : s.installer
+                  ? s.ownDelivery
+                    ? ('no' as const)
+                    : ('yes' as const)
+                  : null,
           }
         : null,
     [s, applicantType],
@@ -321,9 +314,12 @@ export function Builder({
     if (s.depositPct < minPct) setS((cur) => ({ ...cur, depositPct: minPct }))
   }, [minPct, s.depositPct])
 
-  // Live price (server-side: cost prices never reach the browser).
+  // Live price (server-side: cost prices never reach the browser). Only the answer to the LATEST
+  // request is shown: a slower, older answer (another deposit) must never replace it.
+  const priceSeq = useRef(0)
   useEffect(() => {
     if (!selection) return
+    const seq = ++priceSeq.current
     const t = window.setTimeout(async () => {
       const r = await priceBuild({
         selection,
@@ -332,7 +328,7 @@ export function Builder({
         // The staff quotation tool sees every line's price; customers never get them.
         full: Boolean(staff),
       })
-      if (r.ok) setPriced(r.priced)
+      if (r.ok && seq === priceSeq.current) setPriced(r.priced)
     }, 300)
     return () => window.clearTimeout(t)
   }, [selection, s.depositPct, s.tenure, staff])
@@ -346,16 +342,31 @@ export function Builder({
     setS((cur) => {
       const merged = { ...cur, ...patch }
       // Adjusting a plan: the questions were answered already, so items → summary.
-      return { ...merged, step: adjust && merged.step === 'items' ? 'summary' : nextStep(merged) }
+      return {
+        ...merged,
+        step:
+          adjust && merged.step === 'items'
+            ? 'summary'
+            : nextBuilderStep(merged.step, factsOf(merged)),
+      }
     })
 
   /** Choosing an inverter or panels refreshes the accessories the customer has not changed. */
   function choose(sku: string, qty: number) {
     const key = keyOf(sku)
     if (key?.startsWith('acc:') || key === 'dc_wire' || key === 'ac_wire') touched.current.add(key)
-    const nextItems = setChoice(s.items, sku, qty, keyOf)
+    let nextItems = setChoice(s.items, sku, qty, keyOf)
+    // One type of product: no accessories (the ones the customer did not choose themselves go).
+    if (shapeOf(nextItems) !== 'multi') {
+      nextItems = nextItems.filter((i) => {
+        const k = keyOf(i.sku)
+        const acc = k?.startsWith('acc:') || k === 'dc_wire' || k === 'ac_wire'
+        return !acc || touched.current.has(k!)
+      })
+    }
     setS((cur) => ({ ...cur, items: nextItems }))
-    if ((key === 'inverter' || key === 'panels') && selection) {
+    const main = key === 'inverter' || key === 'battery' || key === 'panels' || key === 'lights'
+    if (main && shapeOf(nextItems) === 'multi' && selection) {
       start(async () => {
         const r = await suggestBuildAccessories({ ...selection, items: nextItems })
         if (!r.ok) return
@@ -431,7 +442,11 @@ export function Builder({
   const noStateMessage = staff
     ? "Choose the customer's state at the top first."
     : 'Choose your state first.'
-  const back = adjust ? (s.step === 'summary' ? 'items' : null) : prevStep(s)
+  const back = adjust
+    ? s.step === 'summary'
+      ? 'items'
+      : null
+    : prevBuilderStep(s.step, factsOf(s))
   const plansHref = adjust
     ? launchMode === 'live'
       ? `/plans?estimate=${adjust.leadId}`
@@ -453,7 +468,12 @@ export function Builder({
                 {formatNaira(priced.systemPrice)}
               </strong>
             </span>
-            <span>Deposit {formatNaira(priced.deposit)}</span>
+            <span data-testid="bar-deposit">
+              Deposit {Math.max(s.depositPct, minPct)}% ·{' '}
+              {depositInSync(Math.max(s.depositPct, minPct), priced.breakdown?.depositShare)
+                ? formatNaira(priced.deposit)
+                : 'Updating…'}
+            </span>
             <span>
               {formatNaira(priced.monthly)} × {priced.months} months
             </span>
@@ -479,14 +499,14 @@ export function Builder({
               }))}
               minPct={minPct}
               depositPct={s.depositPct}
-              installer={s.installer ?? 'go4solar'}
-              ownDelivery={Boolean(s.ownDelivery)}
-              deliveryRemovable={priced.deliveryRemovable}
+              installer={s.installer}
+              delivery={selection?.delivery ?? null}
+              askService={shape === 'multi'}
               onDeposit={(pct) => setS((cur) => ({ ...cur, depositPct: Math.max(pct, minPct) }))}
               onInstallation={(on) =>
                 setS((cur) => ({ ...cur, installer: on ? 'go4solar' : 'own' }))
               }
-              onDelivery={(on) => setS((cur) => ({ ...cur, ownDelivery: !on }))}
+              onDelivery={(on) => setS((cur) => ({ ...cur, delivery: on ? 'yes' : 'no' }))}
             />
           )}
         </>
@@ -679,47 +699,58 @@ export function Builder({
       )}
 
       {s.step === 'installer' && (
-        <div className="space-y-3">
-          <Choice
-            selected={s.installer === 'go4solar'}
-            label="Go4Solar recognised installer"
-            note={
-              showPrices && priced && !priced.sample && priced.itemPrices
-                ? `Installation: ${formatNaira(priced.noMarkup.find((l) => l.label === 'Installation')?.amount ?? 0)} (set by your roof, height and state).`
-                : 'A vetted installer near you; installation is priced by your roof, height and state.'
-            }
-            onClick={() => setS({ ...s, installer: 'go4solar' })}
-          />
-          <Choice
-            selected={s.installer === 'own'}
-            label="My own installer"
-            note={OWN_INSTALLER_WARNING}
-            onClick={() => setS({ ...s, installer: 'own' })}
-          />
-          {s.installer === 'own' && (
-            <p
-              className="border-brand-orange bg-brand-orange/10 text-brand-dark rounded-xl border-2 p-3 text-sm font-semibold"
-              role="alert"
-            >
-              {OWN_INSTALLER_WARNING}
-            </p>
-          )}
-          {priced?.deliveryRemovable && (
-            <label className="flex min-h-11 items-center gap-2 text-sm">
-              <Checkbox
-                checked={Boolean(s.ownDelivery)}
-                onCheckedChange={(v) => setS({ ...s, ownDelivery: v === true })}
-              />
-              I will arrange delivery myself
-            </label>
-          )}
+        <div className="space-y-6" data-testid="service-step">
+          <fieldset className="space-y-3">
+            <legend className="text-brand-dark mb-2 font-semibold">
+              Would you like a Go4Solar recognised installer to install it?
+            </legend>
+            <Choice
+              selected={s.installer === 'go4solar'}
+              label="Yes"
+              note={
+                showPrices && priced && !priced.sample && priced.itemPrices
+                  ? `Installation: ${formatNaira(priced.noMarkup.find((l) => l.label === 'Installation')?.amount ?? 0)} (set by your roof, height and state).`
+                  : 'A vetted installer near you. Included in your one fixed price.'
+              }
+              onClick={() => setS({ ...s, installer: 'go4solar' })}
+            />
+            <Choice
+              selected={s.installer === 'own'}
+              label="No — I'll arrange my own installer"
+              note={OWN_INSTALLER_WARNING}
+              onClick={() => setS({ ...s, installer: 'own' })}
+            />
+            {s.installer === 'own' && (
+              <p
+                className="border-brand-orange bg-brand-orange/10 text-brand-dark rounded-xl border-2 p-3 text-sm font-semibold"
+                role="alert"
+              >
+                {OWN_INSTALLER_WARNING}
+              </p>
+            )}
+          </fieldset>
+          <fieldset className="space-y-3">
+            <legend className="text-brand-dark mb-2 font-semibold">Should we deliver it?</legend>
+            <Choice
+              selected={s.delivery === 'yes'}
+              label="Yes"
+              note="Delivered to you. Included in your one fixed price."
+              onClick={() => setS({ ...s, delivery: 'yes' })}
+            />
+            <Choice
+              selected={s.delivery === 'no'}
+              label="No — I'll collect it"
+              note="You collect it from us. No delivery charge."
+              onClick={() => setS({ ...s, delivery: 'no' })}
+            />
+          </fieldset>
           <Button
             type="button"
             className={primary}
-            disabled={!s.installer}
-            onClick={() => go('summary')}
+            disabled={!s.installer || !s.delivery}
+            onClick={() => advance()}
           >
-            See my price
+            Continue
           </Button>
         </div>
       )}
@@ -1033,7 +1064,11 @@ function Summary({
               <span>Deposit</span>
               <strong>
                 <span data-testid="build-deposit-pct">{Math.max(state.depositPct, minPct)}%</span> ·{' '}
-                {formatNaira(priced.deposit)}
+                <span data-testid="build-deposit-amount">
+                  {depositInSync(Math.max(state.depositPct, minPct), priced.breakdown?.depositShare)
+                    ? formatNaira(priced.deposit)
+                    : 'Updating…'}
+                </span>
               </strong>
             </div>
             <Slider
@@ -1191,8 +1226,8 @@ function PriceBreakdown({
   minPct,
   depositPct,
   installer,
-  ownDelivery,
-  deliveryRemovable,
+  delivery,
+  askService,
   onDeposit,
   onInstallation,
   onDelivery,
@@ -1201,20 +1236,26 @@ function PriceBreakdown({
   items: { name: string; qty: string }[]
   minPct: number
   depositPct: number
-  installer: 'go4solar' | 'own'
-  ownDelivery: boolean
-  deliveryRemovable: boolean
+  installer: 'go4solar' | 'own' | null
+  delivery: 'yes' | 'no' | null
+  /** Two or more types of product: the installation and delivery ticks (one type: neither). */
+  askService: boolean
   onDeposit: (pct: number) => void
   onInstallation: (on: boolean) => void
   onDelivery: (on: boolean) => void
 }) {
   const pct = Math.max(depositPct, minPct)
+  // The figures follow the slider: until the price for this deposit arrives, say so.
+  const inSync = depositInSync(pct, b.depositShare)
+  const depositRow: [string, string, string] = inSync
+    ? [`Deposit (${pct}%)`, formatNaira(b.deposit), 'bd-deposit']
+    : [`Deposit (${pct}%)`, 'Updating…', 'bd-deposit']
   // Customers: the items by name, installation and delivery as included or not, and the four
   // figures (deposit, monthly, total payable, cash price). Staff: every amount.
   const customer = Boolean(b.customer)
   const rows: [string, string, string][] = customer
     ? [
-        [`Deposit (${Math.round(b.depositShare * 100)}%)`, formatNaira(b.deposit), 'bd-deposit'],
+        depositRow,
         ['Monthly payment', `${formatNaira(b.monthly)} × ${b.months} months`, 'bd-monthly'],
         ['Or pay in full', formatNaira(b.cashPrice), 'bd-cash'],
       ]
@@ -1227,7 +1268,7 @@ function PriceBreakdown({
         ],
         ['Delivery', b.delivery > 0 ? formatNaira(b.delivery) : 'Not included', 'bd-delivery'],
         ['Price', formatNaira(b.price), 'bd-price'],
-        [`Deposit (${Math.round(b.depositShare * 100)}%)`, formatNaira(b.deposit), 'bd-deposit'],
+        depositRow,
         ['Amount financed', formatNaira(b.financed), 'bd-financed'],
         ...(b.charge > 0
           ? ([
@@ -1305,31 +1346,31 @@ function PriceBreakdown({
         )}
       </div>
 
-      <div className="space-y-2">
-        <label className="flex min-h-11 items-center gap-2">
-          <Checkbox
-            checked={installer === 'go4solar'}
-            onCheckedChange={(v) => onInstallation(v === true)}
-            data-testid="bd-include-installation"
-          />
-          Include installation by a Go4Solar recognised installer
-        </label>
-        {installer === 'own' && (
-          <p className="border-brand-orange bg-brand-orange/10 rounded-lg border-2 p-2 text-xs font-semibold">
-            {OWN_INSTALLER_WARNING}
-          </p>
-        )}
-        {deliveryRemovable && (
+      {askService && (
+        <div className="space-y-2">
           <label className="flex min-h-11 items-center gap-2">
             <Checkbox
-              checked={!ownDelivery}
+              checked={installer === 'go4solar'}
+              onCheckedChange={(v) => onInstallation(v === true)}
+              data-testid="bd-include-installation"
+            />
+            Include installation by a Go4Solar recognised installer
+          </label>
+          {installer === 'own' && (
+            <p className="border-brand-orange bg-brand-orange/10 rounded-lg border-2 p-2 text-xs font-semibold">
+              {OWN_INSTALLER_WARNING}
+            </p>
+          )}
+          <label className="flex min-h-11 items-center gap-2">
+            <Checkbox
+              checked={delivery === 'yes'}
               onCheckedChange={(v) => onDelivery(v === true)}
               data-testid="bd-include-delivery"
             />
-            Include delivery (or I arrange it myself)
+            Include delivery (or I collect it myself)
           </label>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

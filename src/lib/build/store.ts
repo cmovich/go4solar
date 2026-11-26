@@ -34,6 +34,9 @@ export type BuilderState = {
   items: { sku: string; qty: number }[]
   site: SiteAnswers
   installer: 'go4solar' | 'own' | null
+  /** "Should we deliver it?" (asked for two or more types of product). */
+  delivery?: 'yes' | 'no' | null
+  /** Older saved progress: "I will arrange delivery myself". */
   ownDelivery?: boolean
   depositPct: number
   tenure: TenureMonths
@@ -53,6 +56,7 @@ const stateSchema = z.object({
     items: z.array(z.object({ sku: z.string().max(40), qty: z.number().min(0).max(10_000) })),
     site: siteAnswersSchema,
     installer: z.enum(['go4solar', 'own']).nullable(),
+    delivery: z.enum(['yes', 'no']).nullable().optional(),
     ownDelivery: z.boolean().optional(),
     depositPct: z.number().min(20).max(95),
     tenure: z.number().refine((t): t is TenureMonths => (TENURES as readonly number[]).includes(t)),

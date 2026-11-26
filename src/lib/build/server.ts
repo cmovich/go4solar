@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { orderShape } from '@/lib/build/orderShape'
+
 import { autoPickAccessories, type CatalogueItem } from '@/lib/catalogue/autopick'
 import { assembleBuild, type FullCatalogue } from '@/lib/catalogue/build'
 import { logisticsFor } from '@/lib/catalogue/extras'
@@ -274,6 +276,19 @@ export function suggestAccessories(
   const kva = inv?.kva ?? sel.existing?.kva ?? sel.loadKva ?? 0
   const panelSel = sel.items.find((s) => cat.panels.some((p) => p.sku === s.sku))
   const panel = cat.panels.find((p) => p.sku === panelSel?.sku) ?? cat.panels[0]
+  // One type of product never gets accessories (Semako, 26 Nov 2026).
+  const groups = sel.items.map((s) =>
+    cat.inverters.some((i) => i.sku === s.sku)
+      ? 'inverter'
+      : cat.batteries.some((b) => b.sku === s.sku)
+        ? 'battery'
+        : cat.panels.some((p) => p.sku === s.sku)
+          ? 'panels'
+          : cat.lights?.some((l) => l.sku === s.sku)
+            ? 'lights'
+            : 'accessories',
+  )
+  if (orderShape(groups) !== 'multi') return []
   const itemised = cat.accessories.filter((a) => a.kind !== 'pack') as CatalogueItem[]
   if (itemised.length === 0) {
     // No itemised accessories switched on yet: the pack for this size.

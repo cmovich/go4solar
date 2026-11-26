@@ -220,7 +220,7 @@ describe('business or institution (SPEWA offer) in the builder', () => {
     expect(builderItems(bctx, 'individual').some((i) => i.sku === 'SPW-SLS-0004')).toBe(false)
   })
 
-  it('item 31 alone at 30% over 12 months: 2,662,000 (plus installation and delivery)', () => {
+  it('item 31 alone at 30% over 12 months: a single item, so no installation or delivery', () => {
     const { priced, quote } = priceSelection(
       bctx,
       { ...biz, items: [{ sku: 'SPW-SLS-0004', qty: 1 }], installer: 'own' },
@@ -228,9 +228,10 @@ describe('business or institution (SPEWA offer) in the builder', () => {
       12,
     )
     expect(quote!.snapshot.offer?.kind).toBe('spewa')
-    // Delivery (50,000, our table) is part of the cash price: 2,250,000.
-    expect(quote!.deposit).toBe(675_000)
-    expect(quote!.balance).toBe(Math.round(1_575_000 * 1.3))
+    // One type of product: no delivery (Semako, 26 Nov 2026), so the cash price is 2,200,000.
+    expect(quote!.noMarkup).toEqual([])
+    expect(quote!.deposit).toBe(660_000)
+    expect(quote!.balance).toBe(Math.round(1_540_000 * 1.3))
     expect(priced!.minDepositShare).toBe(0.3)
     expect(priced!.tenures).toEqual([3, 6, 9, 12])
     expect(priced!.offer).toBe(true)
@@ -275,12 +276,16 @@ describe('accessories pack "up to 2 kVA"', () => {
       ],
     },
   }
+  const bat = { sku: 'BAT-2.5-24', qty: 1 }
   it('inverters up to 2 kVA get the small pack; bigger ones keep the current pack', () => {
-    expect(suggestAccessories(withSmall, { ...sel, items: [{ sku: 'INV-1', qty: 1 }] })).toEqual([
-      { sku: 'ACC-2', qty: 1 },
-    ])
-    expect(suggestAccessories(withSmall, { ...sel, items: [{ sku: 'INV-2.5', qty: 1 }] })).toEqual([
-      { sku: 'ACC-7.5', qty: 1 },
-    ])
+    expect(
+      suggestAccessories(withSmall, { ...sel, items: [{ sku: 'INV-1', qty: 1 }, bat] }),
+    ).toEqual([{ sku: 'ACC-2', qty: 1 }])
+    expect(
+      suggestAccessories(withSmall, { ...sel, items: [{ sku: 'INV-2.5', qty: 1 }, bat] }),
+    ).toEqual([{ sku: 'ACC-7.5', qty: 1 }])
+  })
+  it('one type of product (an inverter alone) gets no pack (Semako, 26 Nov 2026)', () => {
+    expect(suggestAccessories(withSmall, { ...sel, items: [{ sku: 'INV-1', qty: 1 }] })).toEqual([])
   })
 })

@@ -139,3 +139,89 @@ describe('assembleBuild (the builder selection → invoice lines)', () => {
     expect(b.lines.some((l) => l.sku.startsWith('RACK'))).toBe(false)
   })
 })
+
+describe('installation and delivery rule (Semako, 26 Nov 2026)', () => {
+  const only = (items: { sku: string; qty: number }[]) => ({
+    ...sel,
+    items,
+    delivery: 'yes' as const,
+  })
+  it('one type of product: no installation, no delivery, no pack, no installer warning', () => {
+    for (const items of [
+      [
+        { sku: 'INV-5', qty: 1 },
+        { sku: 'ACC-7.5', qty: 1 },
+      ],
+      [{ sku: 'BAT-5-48', qty: 4 }],
+      [{ sku: 'PNL-550', qty: 2 }],
+    ]) {
+      const b = assembleBuild({ ...only(items), installer: 'own' }, CAT)
+      expect(b.shape).toBe('single')
+      expect(b.noMarkup).toEqual([])
+      expect(b.installCost).toBe(0)
+      expect(b.lines.some((l) => l.sku === 'ACC-7.5')).toBe(false)
+      expect(b.notes).not.toContain(
+        'Go4Solar is not liable for any installation errors brought to us.',
+      )
+      expect(b.notes).not.toContain('Customer arranges delivery (not charged).')
+      expect(b.notes).not.toContain('Includes the standard accessories pack.')
+      expect(b.notes).not.toContain('Customer provides ladder/scaffold (not charged).')
+    }
+  })
+  it('two or more types: charged only for a Yes', () => {
+    const items = [
+      { sku: 'INV-5', qty: 1 },
+      { sku: 'BAT-5-48', qty: 1 },
+    ]
+    const yes = assembleBuild({ ...sel, items, installer: 'go4solar', delivery: 'yes' }, CAT)
+    expect(yes.shape).toBe('multi')
+    expect(yes.noMarkup.map((l) => l.label)).toEqual([
+      'Installation',
+      'Delivery — Go4Solar logistics (Kano)',
+    ])
+    const no = assembleBuild({ ...sel, items, installer: 'own', delivery: 'no' }, CAT)
+    expect(no.noMarkup).toEqual([])
+    expect(no.notes).toContain('Customer arranges delivery (not charged).')
+    // Not answered yet: nothing charged.
+    const unanswered = assembleBuild({ ...sel, items, installer: null, delivery: null }, CAT)
+    expect(unanswered.noMarkup).toEqual([])
+  })
+  it('battery + panels without an inverter asks too (treated as a system)', () => {
+    const b = assembleBuild(
+      {
+        ...sel,
+        items: [
+          { sku: 'BAT-5-48', qty: 1 },
+          { sku: 'PNL-550', qty: 2 },
+        ],
+        delivery: 'yes',
+      },
+      CAT,
+    )
+    expect(b.shape).toBe('multi')
+    expect(b.noMarkup.map((l) => l.label)).toContain('Installation')
+  })
+  it('no panels: the mounting and roof answers are ignored (no rack, no roof or storey extras)', () => {
+    const b = assembleBuild(
+      {
+        ...sel,
+        items: [
+          { sku: 'INV-5', qty: 1 },
+          { sku: 'BAT-5-48', qty: 1 },
+        ],
+        delivery: 'yes',
+      },
+      CAT,
+    )
+    expect(b.noMarkup.find((l) => l.label === 'Installation')?.amount).toBe(200000)
+    expect(b.notes.some((n) => /rack|mounting structure/i.test(n))).toBe(false)
+  })
+  it('older saved choices (no delivery answer) keep the old meaning', () => {
+    expect(assembleBuild(sel, CAT).noMarkup.some((l) => /Delivery/.test(l.label))).toBe(true)
+    expect(
+      assembleBuild({ ...sel, ownDelivery: true }, CAT).noMarkup.some((l) =>
+        /Delivery/.test(l.label),
+      ),
+    ).toBe(false)
+  })
+})

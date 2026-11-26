@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { priceQuote } from '@/lib/pricing/price'
 import { DEFAULT_OFFER_TERMS, quoteOffer } from '@/lib/spewa/offer'
 
-import { customerBreakdown, quoteBreakdown, safeBreakdown } from './breakdown'
+import { customerBreakdown, depositInSync, quoteBreakdown, safeBreakdown } from './breakdown'
 
 const margins = { panels: 0.03, battery: 0.03, inverter: 0.03, accessories: 0.03 }
 
@@ -243,5 +243,14 @@ describe('safeBreakdown (quotes stored in older formats)', () => {
     expect(safeBreakdown({} as never)).toBeNull()
     expect(safeBreakdown(null)).toBeNull()
     expect(safeBreakdown({ systemPrice: 100 } as never)).toBeNull()
+  })
+})
+
+describe('deposit shown = deposit on the slider (Semako, 26 Nov 2026: slider 25%, breakdown 35%)', () => {
+  it('in sync only when the priced deposit is the slider’s', () => {
+    expect(depositInSync(25, 0.25)).toBe(true)
+    expect(depositInSync(25, 0.35)).toBe(false)
+    expect(depositInSync(35, 0.35000000000000003)).toBe(true)
+    expect(depositInSync(30, null)).toBe(false)
   })
 })

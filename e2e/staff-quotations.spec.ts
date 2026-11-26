@@ -204,7 +204,10 @@ test.describe('sales role', () => {
     await expect(page.getByRole('link', { name: /^Incomplete leads/ })).toBeVisible()
     await expect(page.getByRole('link', { name: /^Installers/ })).toHaveCount(0)
     await expect(page.getByTestId('edit-entry').first()).toBeVisible({ timeout: 30_000 })
-    for (const name of ['Download CSV', 'Download PDF', 'Clear waiting list']) {
+    // No waiting-list exports (each person's own quotation PDF is allowed: "View quote").
+    await expect(page.locator('a[href*="/api/admin/waitlist/report.pdf"]')).toHaveCount(0)
+    await expect(page.locator('a[href*="/api/admin/waitlist/export.csv"]')).toHaveCount(0)
+    for (const name of ['Download CSV', 'Clear waiting list']) {
       await expect(
         page.getByRole('link', { name }).or(page.getByRole('button', { name })),
       ).toHaveCount(0)

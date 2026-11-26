@@ -109,3 +109,12 @@ export function safeBreakdown(q: QuoteResult | null | undefined): QuoteBreakdown
     return null
   }
 }
+
+/**
+ * The deposit on the slider (whole percent) and the deposit the shown figures were priced at
+ * are the same. While a new price is on its way they differ: show "Updating…", never the old
+ * figure under the new percentage.
+ */
+export function depositInSync(sliderPct: number, pricedShare: number | null | undefined): boolean {
+  return pricedShare != null && Math.round(pricedShare * 100) === Math.round(sliderPct)
+}

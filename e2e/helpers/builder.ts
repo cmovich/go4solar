@@ -24,7 +24,7 @@ export async function skipWithoutCatalogue(page: Page) {
 }
 
 /**
- * "I know my load" → suggested system → the site questions → installer → summary. `level`: the
+ * "I know my load" → suggested system → installation and delivery → the site questions → summary. `level`: the
  * step titles are h2 in the staff quotation tool (its page has its own h1).
  */
 export async function buildFromLoad(page: Page, kva = '3', level: 1 | 2 = 1) {
@@ -36,6 +36,17 @@ export async function buildFromLoad(page: Page, kva = '3', level: 1 | 2 = 1) {
   const next = page.getByRole('button', { name: 'Next', exact: true })
   await expect(next).toBeEnabled({ timeout: 30_000 })
   await next.click()
+
+  // Two or more types of product: installation and delivery are asked first (Semako, 26 Nov).
+  await expect(page.getByRole('heading', { level })).toHaveText('Installation and delivery')
+  const installer = page.getByRole('group', { name: /recognised installer/ })
+  const delivery = page.getByRole('group', { name: 'Should we deliver it?' })
+  await installer.getByRole('button', { name: /^No — I'll arrange my own installer/ }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'not liable' }).first()).toBeVisible()
+  await installer.getByRole('button', { name: /^Yes/ }).click()
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled()
+  await delivery.getByRole('button', { name: /^Yes/ }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
 
   await expect(page.getByRole('heading', { level })).toHaveText(
     'Where should the panels be mounted?',
@@ -56,11 +67,6 @@ export async function buildFromLoad(page: Page, kva = '3', level: 1 | 2 = 1) {
   await page.getByRole('button', { name: /^No, estimate it for me/ }).click()
   await page.getByRole('button', { name: 'Next', exact: true }).click()
 
-  await expect(page.getByRole('heading', { level })).toHaveText('Who will install it?')
-  await page.getByRole('button', { name: /^My own installer/ }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'not liable' })).toBeVisible()
-  await page.getByRole('button', { name: /^Go4Solar recognised installer/ }).click()
-  await page.getByRole('button', { name: 'See my price' }).click()
   await expect(page.getByTestId('build-summary')).toBeVisible({ timeout: 30_000 })
   await expect(page.getByTestId('build-summary')).toContainText('Delivery — Go4Solar logistics')
 }

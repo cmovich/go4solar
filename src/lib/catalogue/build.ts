@@ -2,6 +2,7 @@ import type { NgStateId } from '@/lib/nigeria/states'
 import { installBandFor } from '@/lib/pricing/tables'
 import type { NoMarkupLine, QuoteLineInput } from '@/lib/pricing/types'
 import type { InverterOption, PanelOption } from '@/lib/sizing/types'
+import { orderShape, type OrderShape } from '@/lib/build/orderShape'
 import { quoteNotes, type SiteAnswers } from '@/lib/wizard/questions'
 
 import type { AccessoryKind, AccessoryRule, CatalogueItem } from './autopick'
@@ -63,8 +64,11 @@ export type BuildSelection = {
   /** Chosen items by SKU; qty is metres for wires and pipes. */
   items: { sku: string; qty: number }[]
   site: SiteAnswers
-  installer: 'go4solar' | 'own'
-  /** The customer arranges delivery themselves (any state). */
+  /** "Would you like a Go4Solar recognised installer?" (null: not answered yet, not charged). */
+  installer: 'go4solar' | 'own' | null
+  /** "Should we deliver it?" (null: not answered yet, not charged). Absent on older choices. */
+  delivery?: 'yes' | 'no' | null
+  /** Older choices: the customer arranges delivery themselves. */
   ownDelivery?: boolean
 }
 
@@ -74,6 +78,15 @@ export type AssembledBuild = {
   installCost: number
   notes: string[]
   compat: { blocking: string[]; warnings: string[] }
+  /** One type of product (no installation, delivery or pack) or two or more. */
+  shape: OrderShape
+}
+
+/** Delivery wanted? The new answer, else the older "I arrange it myself" tick. */
+function deliveryWanted(sel: BuildSelection): boolean | null {
+  if ('delivery' in sel && sel.delivery !== undefined)
+    return sel.delivery === null ? null : sel.delivery === 'yes'
+  return !sel.ownDelivery
 }
 
 /** Storeys above the ground from the building answer (feet → storeys of ~3 m). */
@@ -88,6 +101,24 @@ function storeysAbove(site: SiteAnswers): number {
  * no-markup lines (installation, delivery), with the notes and compatibility checks. Pure.
  */
 export function assembleBuild(sel: BuildSelection, cat: FullCatalogue): AssembledBuild {
+  const groupOf = (sku: string) =>
+    cat.inverters.some((i) => i.sku === sku)
+      ? 'inverter'
+      : cat.batteries.some((b) => b.sku === sku)
+        ? 'battery'
+        : cat.panels.some((p) => p.sku === sku)
+          ? 'panels'
+          : cat.lights?.some((l) => l.sku === sku)
+            ? 'lights'
+            : cat.accessories.some((a) => a.sku === sku)
+              ? 'accessories'
+              : null
+  const chosen = sel.items.filter((i) => i.qty > 0 && groupOf(i.sku) !== null)
+  const shape = orderShape(chosen.map((i) => groupOf(i.sku)!))
+  const single = shape !== 'multi'
+  // Mounting and roof answers are only about panels.
+  if (!chosen.some((i) => groupOf(i.sku) === 'panels'))
+    sel = { ...sel, site: noMountingAnswers(sel.site) }
   const lines: QuoteLineInput[] = []
   let inverter: FullCatalogue['inverters'][number] | null = null
   let battery: FullCatalogue['batteries'][number] | null = null
@@ -110,6 +141,8 @@ export function assembleBuild(sel: BuildSelection, cat: FullCatalogue): Assemble
       panels = { item: pnl, count: qty }
       lines.push({ sku, name: pnl.name, category: 'panels', unitCost: pnl.unitCost, qty })
     } else if (acc) {
+      // A single type of product never gets the accessories pack.
+      if (single && acc.kind === 'pack') continue
       lines.push({ sku, name: acc.name, category: 'accessories', unitCost: acc.unitCost, qty })
     } else if (light) {
       lines.push({ sku, name: light.name, category: 'accessories', unitCost: light.unitCost, qty })
@@ -133,7 +166,9 @@ export function assembleBuild(sel: BuildSelection, cat: FullCatalogue): Assemble
   const noMarkup: NoMarkupLine[] = []
   const notes: string[] = []
   const roof = cat.roofTypes.find((r) => r.id === sel.site.roofTypeId) ?? null
-  if (sel.installer === 'go4solar') {
+  if (single) {
+    // One type of product: no installation, no delivery (Semako, 26 Nov 2026).
+  } else if (sel.installer === 'go4solar') {
     const kva = inverter?.kva ?? sel.existing?.kva ?? 0
     const byBand = cat.installByState[sel.state] ?? cat.installByState.Other
     const base = byBand ? byBand[installBandFor(kva)] : 0
@@ -147,18 +182,29 @@ export function assembleBuild(sel: BuildSelection, cat: FullCatalogue): Assemble
       extraPerStorey: cat.settings.extraPerStorey,
     })
     if (amount > 0) noMarkup.push({ label: 'Installation', amount })
-  } else {
+  } else if (sel.installer === 'own') {
     notes.push(OWN_INSTALLER_WARNING)
   }
 
-  const delivery = logisticsFor(sel.state, panels?.count ?? 0, cat.logistics)
-  if (delivery && !sel.ownDelivery) {
+  const delivery = single ? null : logisticsFor(sel.state, panels?.count ?? 0, cat.logistics)
+  const wanted = deliveryWanted(sel)
+  if (delivery && wanted === true) {
     noMarkup.push({ label: delivery.label, amount: delivery.amount })
-  } else if (delivery) {
+  } else if (delivery && wanted === false) {
     notes.push('Customer arranges delivery (not charged).')
   }
 
-  notes.unshift(...quoteNotes(sel.site, roof ? { needsRack: roof.needsRack } : null))
+  const hasPack = lines.some((l) =>
+    cat.accessories.some((a) => a.sku === l.sku && a.kind === 'pack'),
+  )
+  notes.unshift(
+    ...quoteNotes(sel.site, roof ? { needsRack: roof.needsRack } : null).filter(
+      (n) =>
+        // The pack note only with a pack; the ladder note only with an installation.
+        (n !== 'Includes the standard accessories pack.' || hasPack) &&
+        (n !== 'Customer provides ladder/scaffold (not charged).' || !single),
+    ),
+  )
 
   const compat = compatibility({
     inverter: inverter?.option ?? null,
@@ -174,5 +220,18 @@ export function assembleBuild(sel: BuildSelection, cat: FullCatalogue): Assemble
     installCost: noMarkup.reduce((s, l) => s + l.amount, 0),
     notes,
     compat,
+    shape,
   }
+}
+
+/** The site answers without the mounting, roof, rack and height (an order with no panels). */
+function noMountingAnswers(site: SiteAnswers): SiteAnswers {
+  const rest = { ...site }
+  delete rest.mounting
+  delete rest.mountingOther
+  delete rest.roofTypeId
+  delete rest.roofTypeName
+  delete rest.rack
+  delete rest.building
+  return rest
 }

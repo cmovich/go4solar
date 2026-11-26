@@ -48,7 +48,9 @@ async function adjustFrom(leadId: string, plan: string): Promise<Partial<Builder
     state: lead.state,
     items: lines.map((l) => ({ sku: l.sku, qty: l.qty })).filter((l) => !l.sku.startsWith('RACK-')),
     site: siteAnswersSchema.safeParse(lead.site ?? {}).data ?? {},
+    // The plan being adjusted was priced with installation and delivery: keep both.
     installer: 'go4solar',
+    delivery: 'yes',
   }
 }
 
@@ -87,7 +89,8 @@ export default async function BuildPage({
               // Items no longer sold are dropped by the builder itself (sanitiseBuilderState).
               .map((l) => ({ sku: l.sku!, qty: l.qty })),
             site: {},
-            installer: 'go4solar' as const,
+            // Asked on the installation and delivery screen.
+            installer: null,
           }
         : null
   const sample = ctx.settings.priceList.sample || ctx.settings.pricing.sample
