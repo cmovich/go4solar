@@ -6,6 +6,7 @@ import {
   buildFromLoad,
   builderToCalculator,
   checkBreakdown,
+  checkSummaryWithoutItemPrices,
   expectCalculatedLoadApplied,
   fillBuildContact,
   OLD_SAVES,
@@ -47,6 +48,11 @@ test.describe('system builder', () => {
         timeout: 30_000,
       })
       await expect(page.getByTestId('quotation-lines')).toContainText('Delivery')
+      // Items without prices; only the total, deposit, monthly and pay-in-full amounts.
+      await expect(page.getByTestId('quotation-lines')).not.toContainText('₦')
+      await expect(page.getByTestId('quotation-full-payment')).toContainText('20% off')
+      await expect(page.getByTestId('quotation-financing')).toHaveCount(0)
+      await expect(page.getByTestId('quotation')).not.toContainText(/interest|payment plan charge/i)
       await openPdf(
         page.request,
         (await page.getByTestId('quotation-pdf').getAttribute('href'))!,
@@ -65,6 +71,12 @@ test.describe('system builder', () => {
     await buildFromLoad(page)
     test.skip((await page.getByTestId('see-breakdown').count()) === 0, 'prices are SAMPLE')
     await checkBreakdown(page, false)
+    // Home quotes: 6, 9 or 12 months on the ready-made terms; items listed without prices.
+    await page.getByTestId('see-breakdown').click()
+    await expect(
+      page.getByTestId('build-summary').getByRole('group', { name: 'Months' }).getByRole('button'),
+    ).toHaveText(['6 months', '9 months', '12 months'])
+    await checkSummaryWithoutItemPrices(page)
   })
 
   test('just some items asks what they already have', async ({ page }) => {

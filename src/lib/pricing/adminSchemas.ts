@@ -6,7 +6,7 @@ import { ACCESSORY_KINDS } from '@/lib/catalogue/autopick'
 import { SIZE_BANDS, energySettingsSchema, sizingSettingsSchema } from '@/lib/settings/schemas'
 import { wiringSchema, type WiringSettings } from '@/lib/wizard/questions'
 
-import { TENURES } from './types'
+import { TENURES, type FlatTerms } from './types'
 
 /** Zod schemas shared by the pricing forms (client) and their server actions. */
 
@@ -201,6 +201,8 @@ export type PricingDraft = {
   sunHours: SunHoursRow[]
   wiring: WiringSettings
   minDepositShare: number
+  /** Home quotes' terms (the ready-made plan terms; edited under Ready-made plans). */
+  homeTerms?: FlatTerms
   /** Which sections still hold SAMPLE rows. */
   sample: {
     components: boolean

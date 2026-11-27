@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_COMPANY } from '@/lib/company/schema'
-import { buildInvoice } from '@/lib/invoices/build'
+import { buildInvoice, customerFixed } from '@/lib/invoices/build'
 import { formatNaira } from '@/lib/money'
 import { sampleQuoteInput } from '@/lib/pricing/pricing.fixture'
 import { priceQuote } from '@/lib/pricing/price'
@@ -232,5 +232,39 @@ describe('invoice PDF: financing lines (SPEWA offer only)', () => {
     const text = pdfPageTexts(await renderInvoicePdf(data)).join('\n')
     expect(text).not.toContain('Balance to repay monthly')
     expect(text).not.toContain('Amount financed')
+  })
+})
+
+describe('home quotation PDF on the ready-made terms (25 Nov 2026)', () => {
+  it('items without prices; only total, deposit, monthly × months and pay in full', async () => {
+    const home = priceQuote({
+      lines: [
+        { sku: 'INV-1', name: '1 kVA inverter', category: 'inverter', unitCost: 257_500, qty: 1 },
+      ],
+      installCost: 200_000,
+      noMarkup: [
+        { label: 'Installation', amount: 100_000 },
+        { label: 'Delivery — Go4Solar logistics (Kaduna)', amount: 100_000 },
+      ],
+      marginByCategory: { panels: 0.03, battery: 0.03, inverter: 0.03, accessories: 0.03 },
+      pricingRateAnnual: 0.48,
+      tenureMonths: 12,
+      depositShare: 0.2,
+      terms: { kind: 'flat', monthlyRate: 0.04, fullDiscount: 0.2 },
+    })
+    const doc = buildInvoice({
+      ...invoiceInput,
+      kind: 'quotation',
+      result: home,
+      fixed: customerFixed(home),
+    })
+    const text = pdfPageTexts(await renderInvoicePdf(doc)).join(' ')
+    for (const shown of [643_871, 93_045, 45_902, 515_097])
+      expect(text).toContain(formatNaira(shown))
+    for (const hidden of [265_225, 100_000, 178_646, 372_180, 465_225])
+      expect(text).not.toContain(formatNaira(hidden))
+    expect(text).toContain('1 kVA inverter')
+    expect(text).toContain('Installation')
+    expect(text).not.toMatch(/interest|payment plan charge|amount financed/i)
   })
 })

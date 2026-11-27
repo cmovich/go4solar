@@ -31,13 +31,9 @@ import {
   type PricingDraft,
 } from '@/lib/pricing/adminSchemas'
 import { draftFunders, draftToSettings } from '@/lib/pricing/draft'
+import { HOME_TENURES } from '@/lib/pricing/flat'
 import { SAMPLE_PACKAGES, buildPreview, type Preview } from '@/lib/pricing/preview'
-import {
-  ESTIMATE_TENURE,
-  financedShare,
-  offeredTenures,
-  tenureRateProblem,
-} from '@/lib/pricing/tenures'
+import { ESTIMATE_TENURE, financedShare, tenureRateProblem } from '@/lib/pricing/tenures'
 import type { TenureMonths } from '@/lib/pricing/types'
 import { PLANS, PLAN_LABELS } from '@/lib/quotes/buildEstimate'
 import { SIZE_BANDS } from '@/lib/settings/schemas'
@@ -64,7 +60,7 @@ export type PricingSection =
 export const SECTION_TITLES: Record<PricingSection, string> = {
   components: 'Components',
   margins: 'Margins',
-  rates: 'Financing rates',
+  rates: 'Financing rates (not used for home quotes)',
   installation: 'Installation and logistics',
   'unit-costs': 'Unit costs',
   'late-fee': 'Late fee',
@@ -254,14 +250,8 @@ export function PricePreview({ draft }: { draft: PricingDraft }) {
     nightHours: 0,
   })
   const debounced = useDebounced(draft, 150)
-  // Only switched-on tenures with a full rate can be previewed (as customers would see them).
-  const onTenures = offeredTenures(
-    Object.fromEntries(
-      debounced.rates
-        .filter((r) => tenureRateProblem(r, debounced.minDepositShare) === null && r.enabled)
-        .map((r) => [r.tenureMonths, 0]),
-    ),
-  )
+  // Home quotes: 6, 9 and 12 months on the ready-made plan terms (the Tenure rates table is not used).
+  const onTenures = HOME_TENURES
   const tenure = onTenures.includes(picked) ? picked : ESTIMATE_TENURE
 
   const result = useMemo<{ preview: Preview } | { error: string }>(() => {
@@ -940,11 +930,17 @@ function RatesForm({ draft, onChange }: FormProps) {
       <h2 className="text-brand-dark text-xl font-semibold">
         Payment plan lengths and financing rates <SampleBadge show={draft.sample.rates} />
       </h2>
-      <p className="text-muted-foreground text-sm">
-        Pricing rate = expected funder rate + Go4Solar spread + default buffer, per year. Customers
-        only see lengths that are switched on; 12 months always stays on (estimates use it).
-        Customer prices stay the same whichever funder later approves the loan, and existing quotes
-        keep their own rates.
+      <p
+        className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900"
+        data-testid="rates-not-used"
+      >
+        Not used for home quotes. Calculator plans and the builder use the ready-made plan terms
+        (Pricing → Ready-made plans → Terms for all plans) over 6, 9 or 12 months. Quotes made
+        before 25 Nov 2026 keep the rates they were priced with.
+      </p>
+      <p className="text-muted-foreground mt-2 text-sm">
+        Pricing rate = expected funder rate + Go4Solar spread + default buffer, per year. 12 months
+        always stays on.
       </p>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full max-w-3xl text-sm">

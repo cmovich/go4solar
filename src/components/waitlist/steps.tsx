@@ -37,6 +37,7 @@ import {
   type PlanEstimate,
 } from '@/lib/quotes/buildEstimate'
 import type { RateByTenure, TenureMonths } from '@/lib/pricing/types'
+import { cashPrice } from '@/lib/quotes/quote'
 import { backupLines, planBlurb } from '@/lib/sizing/describe'
 import { quoteNotes, type SiteAnswers } from '@/lib/wizard/questions'
 import type { RoofTypeCard } from '@/lib/wizard/server'
@@ -1090,6 +1091,9 @@ export function ContributionStep({
                 </dd>
               </div>
             </dl>
+            <p className="text-brand-dark mt-2 text-sm" data-testid="cash-price">
+              Or pay in full: <strong>{formatNaira(cashPrice(priced.quote.snapshot))}</strong>
+            </p>
             <p
               className="text-brand-green mt-4 text-base font-semibold"
               data-testid="saving"

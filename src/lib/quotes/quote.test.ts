@@ -5,7 +5,15 @@ import { computeLoadTotals } from '@/lib/load/totals'
 import { DEFAULT_QUOTE_SETTINGS } from '@/lib/settings/schemas'
 
 import { buildEstimate } from './buildEstimate'
-import { cashPrice, estimateIsStale, priceVariant, quoteReference, validUntil } from './quote'
+import {
+  basePrice,
+  cashPrice,
+  estimateIsStale,
+  priceVariant,
+  quoteReference,
+  TenureNotOfferedError,
+  validUntil,
+} from './quote'
 
 const totals = computeLoadTotals(sampleHomeItems)
 const s = DEFAULT_QUOTE_SETTINGS
@@ -21,20 +29,36 @@ describe('priceVariant', () => {
   })
 
   it('shorter tenures cost less in total but more per month; bigger deposits save money', () => {
-    const t3 = priceVariant(est, 'comfort', 3, 0.2)
+    const t6 = priceVariant(est, 'comfort', 6, 0.2)
     const t12 = priceVariant(est, 'comfort', 12, 0.2)
-    expect(t3.quote.systemPrice).toBeLessThan(t12.quote.systemPrice)
-    expect(t3.quote.monthly).toBeGreaterThan(t12.quote.monthly)
+    expect(t6.quote.systemPrice).toBeLessThan(t12.quote.systemPrice)
+    expect(t6.quote.monthly).toBeGreaterThan(t12.quote.monthly)
     const d50 = priceVariant(est, 'comfort', 12, 0.5)
     expect(d50.savingVsMin).toBe(t12.quote.systemPrice - d50.quote.systemPrice)
     expect(d50.savingVsMin).toBeGreaterThan(0)
   })
 
-  it('uses the per-tenure pricing rate stored in the estimate', () => {
-    const cheap3 = { ...est, pricingRateByTenure: { ...est.pricingRateByTenure, 3: 0 } }
-    const v = priceVariant(cheap3, 'comfort', 3, 0.2)
-    // A 0% rate means no financing markup: price = cost with margins + installation.
-    expect(v.quote.systemPrice).toBe(cashPrice(est.plans.comfort.quote.snapshot))
+  it('home estimates: 6, 9 and 12 months on the ready-made terms; Tenure rates switches do not apply', () => {
+    expect(Object.keys(est.pricingRateByTenure).map(Number)).toEqual([6, 9, 12])
+    const snap = est.plans.comfort.quote.snapshot
+    expect(snap.terms).toEqual({ kind: 'flat', monthlyRate: 0.04, fullDiscount: 0.2 })
+    const v9 = priceVariant(est, 'comfort', 9, 0.3, [12])
+    const price = basePrice(snap)
+    const deposit = Math.round(price * 0.3)
+    expect(v9.quote.systemPrice).toBe(deposit + Math.round((price - deposit) * 1.36))
+    expect(() => priceVariant(est, 'comfort', 3, 0.2)).toThrow(TenureNotOfferedError)
+  })
+
+  it('an estimate priced before the change keeps its own rates (old formula)', () => {
+    const old = structuredClone(est)
+    for (const p of ['essential', 'comfort', 'independence'] as const) {
+      delete old.plans[p].quote.snapshot.terms
+    }
+    old.pricingRateByTenure = { 3: 0.24, 6: 0.24, 9: 0.24, 12: 0.24 }
+    const v = priceVariant(old, 'comfort', 3, 0.2)
+    const price = basePrice(old.plans.comfort.quote.snapshot)
+    expect(v.quote.systemPrice).toBe(Math.round(price / (1 - 0.06 * 0.8)))
+    expect(v.quote.planCharge).toBeUndefined()
   })
 
   it('a quote snapshot does not change when pricing changes', () => {
@@ -59,15 +83,17 @@ describe('priceVariant', () => {
 })
 
 describe('cashPrice', () => {
-  it('is cost + base margins + installation (no financing)', () => {
-    const snap = buildEstimate(totals, 'Lagos', 0.2, s).plans.comfort.quote.snapshot
-    const expected = Math.round(
+  it('home: the 12-month total at a 20% deposit less 20%, whatever deposit was chosen', () => {
+    const snap = buildEstimate(totals, 'Lagos', 0.5, s).plans.comfort.quote.snapshot
+    const base = Math.round(
       snap.lines.reduce(
         (a, l) => a + l.unitCost * l.qty * (1 + snap.marginByCategory[l.category]),
         0,
       ) + snap.installCost,
     )
-    expect(cashPrice(snap)).toBe(expected)
+    expect(basePrice(snap)).toBe(base)
+    const deposit = Math.round(base * 0.2)
+    expect(cashPrice(snap)).toBe(Math.round((deposit + Math.round((base - deposit) * 1.48)) * 0.8))
   })
 })
 
@@ -86,34 +112,5 @@ describe('quoteReference / validUntil / estimateIsStale', () => {
     expect(estimateIsStale('2026-10-10T00:00:00Z', 7, now)).toBe(true)
     expect(estimateIsStale('2026-10-15T00:00:00Z', 7, now)).toBe(false)
     expect(estimateIsStale(null, 7, now)).toBe(true)
-  })
-})
-
-describe('priceVariant: longer tenures', () => {
-  it('18 months uses the 18-month rate captured in the estimate', async () => {
-    const { buildEstimate } = await import('./buildEstimate')
-    const { priceVariant, TenureNotOfferedError } = await import('./quote')
-    const { DEFAULT_QUOTE_SETTINGS } = await import('@/lib/settings/schemas')
-    const { computeLoadTotals } = await import('@/lib/load/totals')
-    const { sampleHomeItems } = await import('@/lib/load/load.fixture')
-    const settings = {
-      ...DEFAULT_QUOTE_SETTINGS,
-      pricing: {
-        ...DEFAULT_QUOTE_SETTINGS.pricing,
-        pricingRateByTenure: { 3: 0.24, 6: 0.24, 9: 0.24, 12: 0.24, 18: 0.3 },
-      },
-    }
-    const est = buildEstimate(computeLoadTotals(sampleHomeItems), 'Lagos', 0.2, settings)
-    expect(est.pricingRateByTenure).toEqual({ 3: 0.24, 6: 0.24, 9: 0.24, 12: 0.24, 18: 0.3 })
-    const v18 = priceVariant(est, 'comfort', 18, 0.2)
-    expect(v18.quote.snapshot.pricingRateAnnual).toBe(0.3)
-    expect(v18.quote.instalments).toHaveLength(18)
-    expect(v18.quote.monthly).toBeLessThan(priceVariant(est, 'comfort', 12, 0.2).quote.monthly)
-
-    // 24 months was never offered with this estimate; 18 is refused once switched off.
-    expect(() => priceVariant(est, 'comfort', 24, 0.2)).toThrow(TenureNotOfferedError)
-    expect(() => priceVariant(est, 'comfort', 18, 0.2, [3, 6, 9, 12])).toThrow(
-      TenureNotOfferedError,
-    )
   })
 })

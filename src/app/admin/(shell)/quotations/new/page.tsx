@@ -37,8 +37,10 @@ export default async function NewQuotationPage() {
         {sample && ' Prices are still SAMPLE: the quotation shows the system only, no amounts.'}
       </p>
       <StaffQuotationForm
-        items={builderItems(ctx)}
-        businessItems={ctx.settings.businessOffer ? builderItems(ctx, 'business') : []}
+        items={builderItems(ctx, 'individual', { withPrices: true })}
+        businessItems={
+          ctx.settings.businessOffer ? builderItems(ctx, 'business', { withPrices: true }) : []
+        }
         roofTypes={roofTypes}
         wiring={wiring}
         library={library}

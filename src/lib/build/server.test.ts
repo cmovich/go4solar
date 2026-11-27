@@ -6,6 +6,7 @@ import { DEFAULT_OFFER_TERMS, businessOfferFrom } from '@/lib/spewa/offer'
 
 import {
   builderItems,
+  customerPriced,
   priceSelection,
   suggestAccessories,
   suggestForLoad,
@@ -106,6 +107,60 @@ describe('priceSelection', () => {
     expect(JSON.stringify(priced)).not.toMatch(/unitCost|costPrice|markupShare/i)
     expect(priced!.blocking).toEqual([])
   })
+  it('home: the ready-made terms (4% a month), 6/9/12 months, fixed cash price', () => {
+    const selection = {
+      ...sel,
+      items: [
+        { sku: 'INV-5', qty: 1 },
+        { sku: 'PNL-550', qty: 6 },
+      ],
+    }
+    const a = priceSelection(ctx, selection, 0.2, 12)
+    const b = priceSelection(ctx, selection, 0.5, 6)
+    expect(a.priced!.tenures).toEqual([6, 9, 12])
+    expect(a.quote!.snapshot.terms).toEqual({ kind: 'flat', monthlyRate: 0.04, fullDiscount: 0.2 })
+    const bd = a.priced!.breakdown!
+    expect(bd.totalPayable).toBe(bd.deposit + Math.round(bd.financed * 1.48))
+    expect(b.priced!.breakdown!.cashPrice).toBe(bd.cashPrice)
+    expect(b.priced!.months).toBe(6)
+  })
+
+  it('customerPriced: no item, installation, delivery or charge amounts reach the browser', () => {
+    const { priced } = priceSelection(
+      ctx,
+      {
+        ...sel,
+        items: [
+          { sku: 'INV-5', qty: 1 },
+          { sku: 'PNL-550', qty: 6 },
+        ],
+      },
+      0.2,
+      12,
+    )
+    const c = customerPriced(priced!)
+    expect(c.itemPrices).toBe(false)
+    expect(c.lines.every((l) => l.lineTotal === 0)).toBe(true)
+    expect(c.noMarkup.every((l) => l.amount === 0)).toBe(true)
+    expect(c.noMarkup.map((l) => l.label)).toEqual(priced!.noMarkup.map((l) => l.label))
+    expect(c.planCharge).toBeNull()
+    expect(c.breakdown).toMatchObject({ items: 0, installation: 0, delivery: 0, charge: 0 })
+    // The four figures stay.
+    expect(c.systemPrice).toBe(priced!.systemPrice)
+    expect(c.deposit).toBe(priced!.deposit)
+    expect(c.monthly).toBe(priced!.monthly)
+    expect(c.breakdown!.cashPrice).toBe(priced!.breakdown!.cashPrice)
+    expect(priced!.itemPrices).toBe(true)
+  })
+
+  it('builderItems: no item prices unless asked (staff tool)', () => {
+    const fullCtx = { ...ctx, catalogue: { ...ctx.catalogue!, details: new Map() } }
+    expect(builderItems(fullCtx).every((i) => i.price === 0)).toBe(true)
+    expect(builderItems(fullCtx, 'individual', { withPrices: true }).some((i) => i.price > 0)).toBe(
+      true,
+    )
+  })
+
   it('nothing chosen yet → no price', () => {
     expect(priceSelection(ctx, sel, 0.2, 12).priced!.systemPrice).toBe(0)
   })
@@ -151,7 +206,7 @@ describe('business or institution (SPEWA offer) in the builder', () => {
   const biz = { ...sel, applicantType: 'business' as const }
 
   it('lists SPEWA inverters, batteries, panels and lights at the selling price; our accessories stay', () => {
-    const items = builderItems(bctx, 'business')
+    const items = builderItems(bctx, 'business', { withPrices: true })
     expect(items.find((i) => i.sku === 'SPW-SLS-0004')).toMatchObject({
       group: 'inverter',
       price: 2_200_000,
@@ -165,7 +220,7 @@ describe('business or institution (SPEWA offer) in the builder', () => {
     expect(builderItems(bctx, 'individual').some((i) => i.sku === 'SPW-SLS-0004')).toBe(false)
   })
 
-  it('item 31 alone at 30% over 12 months: 2,662,000 (plus installation and delivery)', () => {
+  it('item 31 alone at 30% over 12 months: a single item, so no installation or delivery', () => {
     const { priced, quote } = priceSelection(
       bctx,
       { ...biz, items: [{ sku: 'SPW-SLS-0004', qty: 1 }], installer: 'own' },
@@ -173,9 +228,10 @@ describe('business or institution (SPEWA offer) in the builder', () => {
       12,
     )
     expect(quote!.snapshot.offer?.kind).toBe('spewa')
-    // Delivery (50,000, our table) is part of the cash price: 2,250,000.
-    expect(quote!.deposit).toBe(675_000)
-    expect(quote!.balance).toBe(Math.round(1_575_000 * 1.3))
+    // One type of product: no delivery (Semako, 26 Nov 2026), so the cash price is 2,200,000.
+    expect(quote!.noMarkup).toEqual([])
+    expect(quote!.deposit).toBe(660_000)
+    expect(quote!.balance).toBe(Math.round(1_540_000 * 1.3))
     expect(priced!.minDepositShare).toBe(0.3)
     expect(priced!.tenures).toEqual([3, 6, 9, 12])
     expect(priced!.offer).toBe(true)
@@ -220,12 +276,16 @@ describe('accessories pack "up to 2 kVA"', () => {
       ],
     },
   }
+  const bat = { sku: 'BAT-2.5-24', qty: 1 }
   it('inverters up to 2 kVA get the small pack; bigger ones keep the current pack', () => {
-    expect(suggestAccessories(withSmall, { ...sel, items: [{ sku: 'INV-1', qty: 1 }] })).toEqual([
-      { sku: 'ACC-2', qty: 1 },
-    ])
-    expect(suggestAccessories(withSmall, { ...sel, items: [{ sku: 'INV-2.5', qty: 1 }] })).toEqual([
-      { sku: 'ACC-7.5', qty: 1 },
-    ])
+    expect(
+      suggestAccessories(withSmall, { ...sel, items: [{ sku: 'INV-1', qty: 1 }, bat] }),
+    ).toEqual([{ sku: 'ACC-2', qty: 1 }])
+    expect(
+      suggestAccessories(withSmall, { ...sel, items: [{ sku: 'INV-2.5', qty: 1 }, bat] }),
+    ).toEqual([{ sku: 'ACC-7.5', qty: 1 }])
+  })
+  it('one type of product (an inverter alone) gets no pack (Semako, 26 Nov 2026)', () => {
+    expect(suggestAccessories(withSmall, { ...sel, items: [{ sku: 'INV-1', qty: 1 }] })).toEqual([])
   })
 })

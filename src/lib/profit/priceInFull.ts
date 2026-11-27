@@ -1,5 +1,5 @@
 import type { QuoteResult } from '@/lib/pricing/types'
-import { cashPrice } from '@/lib/quotes/quote'
+import { basePrice } from '@/lib/quotes/quote'
 
 /**
  * The price paid in full for a stored quote (pure): no payment-plan cost. A ready-made plan: its
@@ -13,5 +13,5 @@ export function priceInFullOf(result: unknown, builder: unknown): number | null 
   if ((builder as { kind?: string } | null)?.kind === 'ready') {
     return q.lines.reduce((s, l) => s + l.lineTotal, 0) + q.installCost
   }
-  return cashPrice(q.snapshot)
+  return basePrice(q.snapshot)
 }

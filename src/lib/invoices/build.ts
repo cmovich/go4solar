@@ -2,8 +2,8 @@ import { randomInt } from 'node:crypto'
 
 import { OWN_INSTALLER_WARNING } from '@/lib/catalogue/extras'
 import type { Company } from '@/lib/company/schema'
-import type { NoMarkupLine, QuoteLine } from '@/lib/pricing/types'
-import { validUntil } from '@/lib/quotes/quote'
+import type { NoMarkupLine, QuoteLine, QuoteResult } from '@/lib/pricing/types'
+import { cashPrice, validUntil } from '@/lib/quotes/quote'
 import { quoteNotes, type SiteAnswers } from '@/lib/wizard/questions'
 
 import { invoiceDay } from './dates'
@@ -108,6 +108,19 @@ export type InvoiceInput = {
   fixed?: FixedPlanTotals | null
 }
 
+/**
+ * Customer quotations and invoices for calculator plans, the builder and the SPEWA offer
+ * (Semako, 25 Nov 2026): items without prices, and the price to pay in full (home on the
+ * ready-made terms: the fixed cash price with its discount; SPEWA: the price without the charge).
+ */
+export function customerFixed(q: Pick<QuoteResult, 'snapshot'>): FixedPlanTotals {
+  return {
+    fullPayment: cashPrice(q.snapshot),
+    fullDiscount: q.snapshot.offer ? 0 : (q.snapshot.terms?.fullDiscount ?? 0),
+    extra: null,
+  }
+}
+
 /** Added for ready-made plans (the ladder/scaffold note is already on every quote). */
 export const FIXED_PLAN_NOTES = ['Subject to a site check.']
 
@@ -153,11 +166,12 @@ export function buildInvoice(i: InvoiceInput): InvoiceData {
         ]
       : []),
   ]
-  // A ready-made plan has one fixed price: items are listed without prices, and the extra
-  // delivery is shown with the totals (paid with the deposit).
+  // One fixed price (ready-made plans; every customer document from 25 Nov 2026): items are
+  // listed without prices, the payment plan charge is not a line, and the extra delivery is
+  // shown with the totals (paid with the deposit).
   const lines: InvoiceLine[] = fixed
     ? allLines
-        .filter((l) => l.item !== extraLabel)
+        .filter((l) => l.item !== extraLabel && l.kind !== 'charge')
         .map((l) => ({ ...l, hideAmount: true as const }))
     : allLines
   const notes = quoteNotes(i.site, { needsRack: i.roofNeedsRack }).filter(

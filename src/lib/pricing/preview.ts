@@ -3,7 +3,7 @@ import { computeLoadTotals } from '@/lib/load/totals'
 import type { LoadTotals } from '@/lib/load/types'
 import type { NgStateId } from '@/lib/nigeria/states'
 import { loanProfit } from '@/lib/profit/loanProfit'
-import { cashPrice } from '@/lib/quotes/quote'
+import { basePrice } from '@/lib/quotes/quote'
 import { tradeLendaDrawn } from '@/lib/tradeLenda/figures'
 import type { LoanProfit, UnitCosts } from '@/lib/profit/types'
 import { equipmentFromPriceList, installCostFor, linesFor } from '@/lib/quotes/buildEstimate'
@@ -12,7 +12,7 @@ import { sizeSystem } from '@/lib/sizing/size'
 import type { GridInput, Plan, SystemSize } from '@/lib/sizing/types'
 
 import { priceQuote } from './price'
-import { offeredTenures } from './tenures'
+import { DEFAULT_FLAT_TERMS, HOME_TENURES } from './flat'
 import type { ComponentCategory, QuoteResult, TenureMonths } from './types'
 
 export type PreviewFunder = {
@@ -156,16 +156,18 @@ function priceAt(
   tenureMonths: TenureMonths = input.tenureMonths,
 ): QuoteResult {
   const { settings: s } = input
-  const rate = s.pricing.pricingRateByTenure[tenureMonths]
-  if (rate === undefined) throw new Error(`${tenureMonths} months is switched off`)
+  // Home quotes: the ready-made plan terms, 6/9/12 months (the Tenure rates table is not used).
+  if (!HOME_TENURES.includes(tenureMonths)) throw new Error(`${tenureMonths} months is not offered`)
+  const terms = s.homeTerms ?? DEFAULT_FLAT_TERMS
   return priceQuote({
     lines: linesFor(size, s.priceList),
     installCost: installCostFor(input.state, size.inverterKva, s.priceList),
     marginByCategory: s.pricing.marginByCategory,
-    pricingRateAnnual: rate,
+    pricingRateAnnual: terms.monthlyRate * 12,
     tenureMonths,
     depositShare,
     minDepositShare: s.minDepositShare,
+    terms,
   })
 }
 
@@ -186,7 +188,7 @@ function sideWith(input: PreviewInput, quote: QuoteResult, tenureMonths: TenureM
       annualRate: f.annualRate,
       profit: loanProfit({
         // Lent to the customer: Go4Solar receives the price paid in full upfront.
-        systemPrice: t === 'customer' ? cashPrice(quote.snapshot) : quote.systemPrice,
+        systemPrice: t === 'customer' ? basePrice(quote.snapshot) : quote.systemPrice,
         costPrice: quote.costPrice,
         deposit: quote.deposit,
         tenureMonths,
@@ -196,7 +198,7 @@ function sideWith(input: PreviewInput, quote: QuoteResult, tenureMonths: TenureM
         lendingType: t,
         drawnAmount:
           t === 'go4solar'
-            ? tradeLendaDrawn({ priceInFull: cashPrice(quote.snapshot), deposit: quote.deposit })
+            ? tradeLendaDrawn({ priceInFull: basePrice(quote.snapshot), deposit: quote.deposit })
             : undefined,
       }),
     }))
@@ -231,18 +233,16 @@ export function buildPreview(input: PreviewInput): Preview {
   })
 
   const funders = sideWith(input, quote, input.tenureMonths)
-  const tenures: PreviewTenure[] = offeredTenures(input.settings.pricing.pricingRateByTenure).map(
-    (t) => {
-      const q = t === input.tenureMonths ? quote : priceAt(input, size, input.depositShare, t)
-      const best = sideWith(input, q, t).sort((a, b) => b.profit.netProfit - a.profit.netProfit)[0]
-      return {
-        tenureMonths: t,
-        systemPrice: q.systemPrice,
-        monthly: q.monthly,
-        funder: best ?? null,
-      }
-    },
-  )
+  const tenures: PreviewTenure[] = HOME_TENURES.map((t) => {
+    const q = t === input.tenureMonths ? quote : priceAt(input, size, input.depositShare, t)
+    const best = sideWith(input, q, t).sort((a, b) => b.profit.netProfit - a.profit.netProfit)[0]
+    return {
+      tenureMonths: t,
+      systemPrice: q.systemPrice,
+      monthly: q.monthly,
+      funder: best ?? null,
+    }
+  })
 
   const minPct = Math.max(20, Math.round(input.settings.minDepositShare * 100))
   const curve: Preview['curve'] = []

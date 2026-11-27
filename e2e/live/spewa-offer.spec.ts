@@ -26,19 +26,13 @@ test('live: business builder → SPEWA offer → Apply → quotation', async ({ 
   const quotation = page.getByTestId('quotation')
   await expect(quotation).toContainText('Total amount payable', { timeout: 30_000 })
   await expect(quotation).toContainText('No hidden charges')
-  // Items at their SPEWA selling price; the payment plan charge is its own line.
-  await expect(page.getByTestId('quotation-lines')).toContainText(
-    'Payment plan charge (12 months, 30%)',
-  )
-  // Amount financed (price − deposit), the charge apart, then the balance to repay monthly.
-  const fin = page.getByTestId('quotation-financing')
-  await expect(fin).toContainText('Amount financed')
-  await expect(fin).toContainText('Payment plan charge (12 months, 30%)')
-  await expect(fin).toContainText('Balance to repay monthly')
-  const [financed, charge, balance] = (await fin.locator('strong').allTextContents()).map((t) =>
-    Number(t.replace(/[^0-9]/g, '')),
-  )
-  expect(financed! + charge!).toBe(balance)
+  // Items without prices, no charge line and no financing breakdown (Semako, 25 Nov 2026); pay
+  // in full = the price without the charge.
+  await expect(page.getByTestId('quotation-lines')).not.toContainText('₦')
+  await expect(page.getByTestId('quotation-lines')).not.toContainText('Payment plan charge')
+  await expect(page.getByTestId('quotation-financing')).toHaveCount(0)
+  await expect(page.getByTestId('quotation-full-payment')).toContainText('Or pay in full')
+  await expect(page.getByTestId('quotation-full-payment')).not.toContainText('% off')
   await expect(quotation).not.toContainText(/interest/i)
   // SPEWA's price list: quotes valid for 7 days.
   const until = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', {

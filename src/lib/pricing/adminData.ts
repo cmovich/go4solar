@@ -15,6 +15,8 @@ import { createClient } from '@/lib/supabase/server'
 
 import { INSTALL_STATES, SIZE_KEY, type PricingDraft } from './adminSchemas'
 import { TENURES, type TenureMonths } from './types'
+import { flatTermsFrom } from '@/lib/pricing/flat'
+import { READY_TERMS_KEY } from '@/lib/readyPlans/terms'
 
 function num(v: unknown): number {
   const n = typeof v === 'string' ? parseFloat(v) : Number(v)
@@ -60,6 +62,7 @@ export async function loadPricingDraft(includeTestFunders = false): Promise<Pric
           'late_fee_cap_share',
           'lock_after_days_overdue',
           'min_deposit_share',
+          READY_TERMS_KEY,
         ]),
       // From migration 0024; before it the query fails and the list is empty.
       supabase.from('sun_hours').select('*').order('state'),
@@ -158,6 +161,7 @@ export async function loadPricingDraft(includeTestFunders = false): Promise<Pric
     wiring: wiringSchema.safeParse(byKey.wiring).data ?? DEFAULT_WIRING,
     minDepositShare:
       z.number().safeParse(byKey.min_deposit_share).data ?? DEFAULT_QUOTE_SETTINGS.minDepositShare,
+    homeTerms: flatTermsFrom(byKey[READY_TERMS_KEY]),
     sample: {
       components: (components.data ?? []).some((c) => c.active && c.sample),
       margins: (margins.data ?? []).some((m) => m.sample),

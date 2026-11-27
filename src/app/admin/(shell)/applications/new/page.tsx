@@ -7,9 +7,9 @@ import {
   type LeadOption,
 } from '@/components/admin/applications/AssistedApplicationForm'
 import { requireStaffWithMfa } from '@/lib/auth/roles'
+import { HOME_TENURES } from '@/lib/pricing/flat'
 import { offeredTenures } from '@/lib/pricing/tenures'
 import type { RateByTenure } from '@/lib/pricing/types'
-import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -25,16 +25,14 @@ export default async function NewAssistedApplicationPage() {
     ).rpc('has_permission', { target: 'assisted_entry' })
     if (data !== true) redirect('/admin')
   }
-  const [{ data }, settings] = await Promise.all([
+  const [{ data }] = await Promise.all([
     createAdminClient()
       .from('waitlist_consumers')
       .select('id, first_name, surname, phone_e164, state, email, estimate')
       .not('estimate', 'is', null)
       .order('created_at', { ascending: false })
       .limit(500),
-    getQuoteSettings(),
   ])
-  const enabledNow = offeredTenures(settings.pricing.pricingRateByTenure)
   const leads: LeadOption[] = (data ?? [])
     .filter((l) => l.first_name && l.phone_e164 && l.state)
     .map((l) => ({
@@ -43,11 +41,11 @@ export default async function NewAssistedApplicationPage() {
       phone: l.phone_e164,
       state: l.state!,
       email: l.email,
-      // Lengths this customer's estimate offers that are still switched on.
-      tenures: offeredTenures(
-        (l.estimate as { pricingRateByTenure?: RateByTenure } | null)?.pricingRateByTenure,
-        enabledNow,
-      ),
+      // The SPEWA offer keeps its own lengths; home estimates are (re-)priced on the ready-made
+      // terms when the application starts: 6, 9 or 12 months.
+      tenures: (l.estimate as { offer?: string } | null)?.offer
+        ? offeredTenures((l.estimate as { pricingRateByTenure?: RateByTenure }).pricingRateByTenure)
+        : [...HOME_TENURES],
     }))
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">

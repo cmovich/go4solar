@@ -1,6 +1,7 @@
 import { roundNaira, roundToStep } from '@/lib/money'
 
-import type { QuoteInput, QuoteLine, QuoteOffer, QuoteResult, TenureMonths } from './types'
+import { flatCharge } from './flat'
+import type { QuoteInput, QuoteLine, QuoteResult, QuoteSnapshot, TenureMonths } from './types'
 
 /** Default lowest deposit (settings.min_deposit_share). */
 export const DEFAULT_MIN_DEPOSIT_SHARE = 0.2
@@ -48,7 +49,20 @@ export function priceQuote(input: QuoteInput): QuoteResult {
     throw new RangeError('The installation and delivery lines must add up to the installation cost')
   }
 
-  if (input.offer) return priceOffer(input, input.offer, minDepositShare, noMarkup)
+  if (input.offer) {
+    const charge = input.offer.chargeByTenure[tenureMonths as TenureMonths]
+    if (charge === undefined) {
+      throw new RangeError(`${tenureMonths} months is not offered for this offer`)
+    }
+    return priceFinanced(input, charge, minDepositShare, noMarkup, {
+      offer: { ...input.offer, chargeByTenure: { ...input.offer.chargeByTenure } },
+    })
+  }
+  if (input.terms) {
+    return priceFinanced(input, flatCharge(input.terms, tenureMonths), minDepositShare, noMarkup, {
+      terms: { ...input.terms },
+    })
+  }
 
   // E: equipment at cost. C: equipment with base margins, plus installation.
   const equipmentCost = input.lines.reduce((sum, l) => sum + l.unitCost * l.qty, 0)
@@ -134,25 +148,27 @@ function splitMonthly(balance: number, months: number) {
 }
 
 /**
- * A partner offer (SPEWA for businesses and institutions, src/lib/spewa/offer.ts): SPEWA items at
- * their fixed selling price, other equipment at cost + base margin, installation at cost. The
- * charge for the length is added to the financed amount only:
- *   total payable = deposit + (cash price − deposit) × (1 + charge)
- * Items stay at their selling price; the charge is one separate line (`planCharge`).
+ * A price before financing plus a charge on the financed amount only:
+ *   total payable = deposit + (price − deposit) × (1 + charge)
+ * Items stay at their price before the charge; the charge is one separate line (`planCharge`,
+ * staff only on customer documents).
+ *
+ * - SPEWA offer (businesses and institutions, src/lib/spewa/offer.ts): SPEWA items at their fixed
+ *   selling price, other equipment at cost + base margin; the charge for the length.
+ * - Home quotes on the ready-made terms (src/lib/pricing/flat.ts): every item at cost + base
+ *   margin; the charge = monthly rate × months.
+ * Installation and delivery are at cost in both.
  */
-function priceOffer(
+function priceFinanced(
   input: QuoteInput,
-  offer: QuoteOffer,
+  charge: number,
   minDepositShare: number,
   noMarkup: { label: string; amount: number }[],
+  extra: Pick<QuoteSnapshot, 'offer' | 'terms'>,
 ): QuoteResult {
   const { depositShare, tenureMonths, installCost } = input
-  const charge = offer.chargeByTenure[tenureMonths as TenureMonths]
-  if (charge === undefined) {
-    throw new RangeError(`${tenureMonths} months is not offered for this offer`)
-  }
   const cashOf = (l: QuoteInput['lines'][number]) =>
-    l.sellUnit !== undefined
+    extra.offer && l.sellUnit !== undefined
       ? l.sellUnit * l.qty
       : l.unitCost * l.qty * (1 + input.marginByCategory[l.category])
   const equipmentCash = roundNaira(input.lines.reduce((s, l) => s + cashOf(l), 0))
@@ -162,7 +178,6 @@ function priceOffer(
   const balance = roundNaira(financed * (1 + charge))
   const systemPrice = deposit + balance
   const equipmentCost = input.lines.reduce((s, l) => s + l.unitCost * l.qty, 0)
-  // Items at their selling price (our accessories at cost + margin); the charge is its own line.
   const lines = spreadLines(input, input.lines.map(cashOf), equipmentCash)
   const { monthly, instalments } = splitMonthly(balance, tenureMonths)
   const pct = Math.round(charge * 1000) / 10
@@ -192,7 +207,7 @@ function priceOffer(
       depositShare,
       minDepositShare,
       roundingStep: LINE_ROUNDING_STEP,
-      offer: { ...offer, chargeByTenure: { ...offer.chargeByTenure } },
+      ...extra,
     },
   }
 }

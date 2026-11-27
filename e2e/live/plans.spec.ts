@@ -53,10 +53,17 @@ test.describe('live mode: plans → account → phone code → application', () 
     expect(planPdf).toContain('tenure=12')
     await openPdf(page.request, planPdf!, 'quotation')
 
-    // Tenure chips and deposit change the price.
+    // Home quotes: 6, 9 or 12 months (ready-made terms). Length changes the total, not the cash price.
+    await expect(page.getByRole('group', { name: 'Tenure' }).getByRole('button')).toHaveText([
+      '6 months',
+      '9 months',
+      '12 months',
+    ])
     const total12 = await page.getByTestId('total-comfort').textContent()
+    const cash12 = await page.getByTestId('cash-comfort').textContent()
     await page.getByRole('button', { name: '6 months' }).click()
     await expect(page.getByTestId('total-comfort')).not.toHaveText(total12 ?? '')
+    await expect(page.getByTestId('cash-comfort')).toHaveText(cash12 ?? '')
     await page.getByRole('button', { name: '12 months' }).click()
 
     await page.getByRole('button', { name: 'Choose Comfort' }).click()
@@ -66,6 +73,8 @@ test.describe('live mode: plans → account → phone code → application', () 
     const quoteId = new URL(page.url()).pathname.split('/').pop()!
     await expect(page.getByTestId('quotation')).toContainText('Comfort plan', { timeout: 30_000 })
     await expect(page.getByTestId('quotation-lines')).toContainText('Installation')
+    await expect(page.getByTestId('quotation-lines')).not.toContainText('₦')
+    await expect(page.getByTestId('quotation-full-payment')).toContainText('20% off')
     await expect(page.getByTestId('quotation-total')).toContainText('₦')
     await expect(page.getByTestId('quotation-notes')).toContainText('Prices valid until')
     const quotationPdf = await openPdf(

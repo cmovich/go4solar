@@ -9,11 +9,14 @@ import type { Estimate } from '@/lib/quotes/buildEstimate'
 import { adjustPlan } from '@/lib/quotes/adjust'
 
 import { launchMode } from '@/config/site'
+import { getSessionInfo } from '@/lib/auth/session'
+import { isBackOfficeRole } from '@/lib/auth/staffRoles'
 import { adviseFromFacts } from '@/lib/build/advisor'
 import { buildContactSchema, buildSelectionSchema } from '@/lib/build/schema'
 import { saveBuild } from '@/lib/build/save'
 import {
   builderContext,
+  customerPriced,
   priceSelection,
   selectionSummary,
   suggestAccessories,
@@ -27,17 +30,28 @@ import { hitRateLimit } from '@/lib/ratelimit/hitRateLimit'
 
 type Result<T> = ({ ok: true } & T) | { ok: false; error: string; field?: string }
 
+/** A signed-in back-office account with two-factor (the staff quotation tool). */
+async function isBackOfficeSession(): Promise<boolean> {
+  const s = await getSessionInfo()
+  return Boolean(s.user) && s.aal === 'aal2' && isBackOfficeRole(s.role)
+}
+
 const priceSchema = z.object({
   selection: buildSelectionSchema,
   depositShare: z.number().min(0.2).max(0.95),
   tenure: z.number().refine((t): t is TenureMonths => (TENURES as readonly number[]).includes(t)),
 })
 
-/** Live price of the builder selection (customer figures only). */
+/**
+ * Live price of the builder selection. Customers get the total payable, deposit, monthly payment
+ * and cash price only (customerPriced: no item, installation, delivery or charge amounts). The
+ * staff quotation tool asks for `full` and gets every line, after a back-office session check.
+ */
 export async function priceBuild(input: unknown): Promise<Result<{ priced: PricedBuild | null }>> {
-  const p = priceSchema.safeParse(input)
+  const p = priceSchema.extend({ full: z.boolean().optional() }).safeParse(input)
   if (!p.success) return { ok: false, error: 'Check your choices.' }
   const ctx = await builderContext()
+  const staff = p.data.full ? await isBackOfficeSession() : false
   try {
     const { priced } = priceSelection(
       ctx,
@@ -45,7 +59,7 @@ export async function priceBuild(input: unknown): Promise<Result<{ priced: Price
       p.data.depositShare,
       p.data.tenure as TenureMonths,
     )
-    return { ok: true, priced }
+    return { ok: true, priced: priced && !staff ? customerPriced(priced) : priced }
   } catch {
     return { ok: false, error: 'We could not price this combination. Please change an item.' }
   }
