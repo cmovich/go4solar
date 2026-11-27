@@ -24,7 +24,7 @@ export async function skipWithoutCatalogue(page: Page) {
 }
 
 /**
- * "I know my load" → suggested system → the site questions → installer → summary. `level`: the
+ * "I know my load" → suggested system → installation and delivery → the site questions → summary. `level`: the
  * step titles are h2 in the staff quotation tool (its page has its own h1).
  */
 export async function buildFromLoad(page: Page, kva = '3', level: 1 | 2 = 1) {
@@ -36,6 +36,17 @@ export async function buildFromLoad(page: Page, kva = '3', level: 1 | 2 = 1) {
   const next = page.getByRole('button', { name: 'Next', exact: true })
   await expect(next).toBeEnabled({ timeout: 30_000 })
   await next.click()
+
+  // Two or more types of product: installation and delivery are asked first (Semako, 26 Nov).
+  await expect(page.getByRole('heading', { level })).toHaveText('Installation and delivery')
+  const installer = page.getByRole('group', { name: /recognised installer/ })
+  const delivery = page.getByRole('group', { name: 'Should we deliver it?' })
+  await installer.getByRole('button', { name: /^No — I'll arrange my own installer/ }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'not liable' }).first()).toBeVisible()
+  await installer.getByRole('button', { name: /^Yes/ }).click()
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled()
+  await delivery.getByRole('button', { name: /^Yes/ }).click()
+  await page.getByRole('button', { name: 'Continue' }).click()
 
   await expect(page.getByRole('heading', { level })).toHaveText(
     'Where should the panels be mounted?',
@@ -56,11 +67,6 @@ export async function buildFromLoad(page: Page, kva = '3', level: 1 | 2 = 1) {
   await page.getByRole('button', { name: /^No, estimate it for me/ }).click()
   await page.getByRole('button', { name: 'Next', exact: true }).click()
 
-  await expect(page.getByRole('heading', { level })).toHaveText('Who will install it?')
-  await page.getByRole('button', { name: /^My own installer/ }).click()
-  await expect(page.getByRole('alert').filter({ hasText: 'not liable' })).toBeVisible()
-  await page.getByRole('button', { name: /^Go4Solar recognised installer/ }).click()
-  await page.getByRole('button', { name: 'See my price' }).click()
   await expect(page.getByTestId('build-summary')).toBeVisible({ timeout: 30_000 })
   await expect(page.getByTestId('build-summary')).toContainText('Delivery — Go4Solar logistics')
 }
@@ -212,8 +218,10 @@ export async function useCalculatedLoadAfterChanges(page: Page) {
 const naira = (s: string | null) => Number((s ?? '').replace(/[^0-9]/g, ''))
 
 /**
- * "See breakdown" under the price bar: items + installation + delivery = price; the deposit is
- * the minimum share of the price (home: the price is the total payable); delivery can be left out.
+ * "See breakdown" under the price bar, as a customer sees it (Semako, 25 Nov 2026): the items by
+ * name, installation and delivery as included or not, and only four amounts: deposit, monthly
+ * payment, pay in full and total payable. Home: total = deposit + financed × 1.48 (4% a month,
+ * 12 months); business (SPEWA): deposit + financed × 1.30. Delivery can be left out.
  */
 export async function checkBreakdown(page: Page, business: boolean) {
   const bar = page.getByTestId('price-bar')
@@ -221,38 +229,48 @@ export async function checkBreakdown(page: Page, business: boolean) {
   await page.getByTestId('see-breakdown').click()
   const bd = page.getByTestId('price-breakdown')
   await expect(bd).toBeVisible()
+  await expect(page.getByTestId('bd-item-list')).toBeVisible()
+  // No amounts for items, installation, delivery, price, financed or the charge.
+  for (const id of ['bd-items', 'bd-price', 'bd-financed', 'bd-charge', 'bd-balance']) {
+    await expect(page.getByTestId(id)).toHaveCount(0)
+  }
+  await expect(page.getByTestId('bd-installation')).toHaveText('Installation: included')
+  await expect(page.getByTestId('bd-delivery')).toHaveText('Delivery: included')
+  await expect(page.getByTestId('bd-item-list')).not.toContainText('₦')
+  expect(((await bd.locator('dl').textContent()) ?? '').match(/₦/g)).toHaveLength(4)
   const v = async (id: string) => naira(await page.getByTestId(id).textContent())
-  const items = await v('bd-items')
-  const installation = await v('bd-installation')
-  const delivery = await v('bd-delivery')
-  const price = await v('bd-price')
   const deposit = await v('bd-deposit')
-  const financed = await v('bd-financed')
   const total = await v('bd-total')
-  expect(items + installation + delivery).toBe(price)
-  expect(installation).toBeGreaterThan(0)
-  expect(delivery).toBeGreaterThan(0)
-  expect(Math.abs(deposit - price * (business ? 0.3 : 0.2))).toBeLessThanOrEqual(1)
-  expect(financed).toBe(price - deposit)
+  const cash = await v('bd-cash')
+  const share = business ? 0.3 : 0.2
+  const financed = Math.round(deposit / share) - deposit
+  const factor = business ? 1.3 : 1.48
+  expect(Math.abs(total - (deposit + financed * factor))).toBeLessThanOrEqual(5 * factor)
+  // Home: the cash price is the 12-month total at 20% less 20%; business: the price without the charge.
+  expect(Math.abs(cash - (business ? deposit / share : total * 0.8))).toBeLessThanOrEqual(5)
   if (business) {
-    expect(total).toBeGreaterThan(price)
-    // The charge apart, then the balance to repay monthly (financed + charge).
-    const charge = await v('bd-charge')
-    const balance = await v('bd-balance')
-    expect(charge).toBeGreaterThan(0)
-    expect(financed + charge).toBe(balance)
-    expect(deposit + balance).toBe(total)
     await expect(page.getByTestId('bd-min-deposit-note')).toHaveText(
       'The minimum deposit for this offer is 30%',
     )
-  } else {
-    expect(total).toBe(price)
-    await expect(page.getByTestId('bd-charge')).toHaveCount(0)
   }
   await expect(page.getByTestId('bd-deposit-pct')).toHaveText(business ? '30%' : '20%')
+  await expect(bd).not.toContainText(/interest/i)
   // Delivery can be left out (the customer arranges it).
   await page.getByTestId('bd-include-delivery').click()
-  await expect(page.getByTestId('bd-delivery')).toHaveText('Not included', { timeout: 15_000 })
+  await expect(page.getByTestId('bd-delivery')).toHaveText('Delivery: not included', {
+    timeout: 15_000,
+  })
   await page.getByTestId('bd-include-delivery').click()
-  await expect(page.getByTestId('bd-delivery')).not.toHaveText('Not included', { timeout: 15_000 })
+  await expect(page.getByTestId('bd-delivery')).toHaveText('Delivery: included', {
+    timeout: 15_000,
+  })
+}
+
+/** The builder's last step for a customer: items with quantities, no ₦ beside any of them. */
+export async function checkSummaryWithoutItemPrices(page: Page) {
+  const table = page.getByTestId('build-summary').locator('table').first()
+  await expect(table).toBeVisible()
+  await expect(table).not.toContainText('₦')
+  await expect(page.getByTestId('plan-charge')).toHaveCount(0)
+  await expect(page.getByTestId('build-cash-price')).toContainText('₦')
 }

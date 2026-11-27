@@ -16,7 +16,7 @@ import { loadDeliveryRows, loadReadyPlans, offerFor } from '@/lib/readyPlans/ser
 import { Savings } from '@/components/landing/Savings'
 import { sampleHomeItems } from '@/lib/load/load.fixture'
 import { computeLoadTotals } from '@/lib/load/totals'
-import { offeredTenures } from '@/lib/pricing/tenures'
+import { HOME_TENURES } from '@/lib/pricing/flat'
 import { buildEstimate } from '@/lib/quotes/buildEstimate'
 import { getQuoteSettings } from '@/lib/settings/getQuoteSettings'
 import { launchMode } from '@/config/site'
@@ -38,7 +38,8 @@ export default async function HomePage() {
   const shownOffers = split.shown.map((p) => offerFor(p, deliveryRows))
   const moreOffers = split.more.map((p) => offerFor(p, deliveryRows))
   const planImages = Object.fromEntries(readyPlans.map((p) => [p.slug, siteMediaUrl(p.image)]))
-  const tenures = offeredTenures(settings.pricing.pricingRateByTenure)
+  // Home quotes and ready-made plans: 6, 9 and 12 months.
+  const tenures = HOME_TENURES
   const comfortEstimate = buildEstimate(computeLoadTotals(sampleHomeItems), 'Lagos', 0.2, settings)
   const comfort = comfortEstimate.plans.comfort
   const example = {

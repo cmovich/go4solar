@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { sampleHomeItems } from '@/lib/load/load.fixture'
 import { computeLoadTotals } from '@/lib/load/totals'
 import { buildEstimate } from '@/lib/quotes/buildEstimate'
-import { cashPrice } from '@/lib/quotes/quote'
+import { basePrice } from '@/lib/quotes/quote'
 import { DEFAULT_QUOTE_SETTINGS } from '@/lib/settings/schemas'
 import { quoteBasis } from '@/lib/tradeLenda/planBasis'
 import type { ProfileValues } from '@/lib/tradeLenda/profile'
@@ -189,7 +189,7 @@ describe('exports: only name, phone and consent block', () => {
       ops,
     )
     const c = db.rows('funder_batch_items')[0]!.snapshot as FunderCustomer
-    const price = cashPrice(estimate.plans.comfort.quote.snapshot)
+    const price = basePrice(estimate.plans.comfort.quote.snapshot)
     const deposit = Math.round(price * 0.2)
     const financed = price - deposit
     expect(c.figures).toMatchObject({

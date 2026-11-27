@@ -5,6 +5,8 @@ import { DEFAULT_SIZING_SETTINGS } from '@/lib/sizing/defaults'
 import type { FullCatalogue } from '@/lib/catalogue/build'
 import type { GridInput, SizingSettings } from '@/lib/sizing/types'
 import type { WiringSettings } from '@/lib/wizard/questions'
+import { DEFAULT_FLAT_TERMS } from '@/lib/pricing/flat'
+import type { FlatTerms } from '@/lib/pricing/types'
 
 /** Settings rows are jsonb; these schemas validate them and give safe fallbacks. */
 
@@ -201,6 +203,11 @@ export type QuoteSettings = {
    * before migration 0039, without an offer rule, or in tests: businesses are priced normally.
    */
   businessOffer?: BusinessOffer | null
+  /**
+   * Home quotes' terms (the ready-made plan terms, settings.ready_plan_terms). Missing in tests:
+   * the defaults (4% a month, 20% off for paying in full).
+   */
+  homeTerms?: FlatTerms
 }
 
 export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
@@ -208,6 +215,7 @@ export const DEFAULT_QUOTE_SETTINGS: QuoteSettings = {
   priceList: SAMPLE_PRICE_LIST,
   pricing: SAMPLE_PRICING,
   minDepositShare: 0.2,
+  homeTerms: DEFAULT_FLAT_TERMS,
   get energy() {
     return DEFAULT_ENERGY_SETTINGS
   },

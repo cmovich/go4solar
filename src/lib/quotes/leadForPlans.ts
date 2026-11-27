@@ -62,6 +62,12 @@ export async function loadLeadForStaff(id: string): Promise<LeadForPlans | null>
   return loadLead(id, null)
 }
 
+/** A home estimate priced before the ready-made terms (no `terms` in its snapshots). */
+export function needsHomeTerms(e: Estimate): boolean {
+  if (e.offer) return false
+  return !e.plans?.comfort?.quote?.snapshot?.terms
+}
+
 async function loadLead(id: string, visitorHash: string | null): Promise<LeadForPlans | null> {
   const admin = createAdminClient()
   let query = admin.from('waitlist_consumers').select('*').eq('id', id)
@@ -76,7 +82,14 @@ async function loadLead(id: string, visitorHash: string | null): Promise<LeadFor
   // SPEWA offer quotes are valid for the offer's own days (7, SPEWA's price list).
   const daysFor = (e: Estimate) =>
     e.offer ? (e.plans.comfort.quote.snapshot.offer?.validityDays ?? normalDays) : normalDays
-  if (estimateIsStale(estimate.pricedAt ?? lead.created_at, daysFor(estimate))) {
+  // A home estimate priced before the ready-made terms is never re-priced or overwritten here
+  // (Semako, 25 Nov 2026): it keeps its figures until the one-time versioned update moves it to
+  // the new terms as a NEW version. Estimates already on the new terms (and SPEWA offers) are
+  // refreshed when older than the validity window, as before.
+  if (
+    !needsHomeTerms(estimate) &&
+    estimateIsStale(estimate.pricedAt ?? lead.created_at, daysFor(estimate))
+  ) {
     estimate = {
       ...buildEstimate(
         computeLoadTotals(lead.load_items as LoadItem[], {
@@ -100,12 +113,14 @@ async function loadLead(id: string, visitorHash: string | null): Promise<LeadFor
     estimate,
     energy: (lead.energy as EnergyRecord | null) ?? null,
     validityDays: daysFor(estimate),
-    // The offer has its own lengths (3/6/9/12); other estimates: those switched on today.
-    tenures: estimate.offer
-      ? offeredTenures(estimate.pricingRateByTenure)
-      : offeredTenures(
-          estimate.pricingRateByTenure,
-          offeredTenures(settings.pricing.pricingRateByTenure),
-        ),
+    // The offer has its own lengths (3/6/9/12) and home quotes on the ready-made terms 6/9/12;
+    // older estimates: those switched on today.
+    tenures:
+      estimate.offer || !needsHomeTerms(estimate)
+        ? offeredTenures(estimate.pricingRateByTenure)
+        : offeredTenures(
+            estimate.pricingRateByTenure,
+            offeredTenures(settings.pricing.pricingRateByTenure),
+          ),
   }
 }

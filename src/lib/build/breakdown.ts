@@ -1,5 +1,5 @@
 import type { QuoteResult } from '@/lib/pricing/types'
-import { cashPrice } from '@/lib/quotes/quote'
+import { basePrice, cashPrice } from '@/lib/quotes/quote'
 
 /**
  * "See breakdown" under the builder's price (pure): items, installation, delivery, the price,
@@ -29,7 +29,36 @@ export type QuoteBreakdown = {
   monthly: number
   months: number
   totalPayable: number
+  /** Pay in full (home on the ready-made terms: the fixed cash price; SPEWA: price without the charge). */
+  cashPrice: number
   offer: boolean
+}
+
+/**
+ * What a customer's browser gets (home and business): the deposit, the monthly payment, the
+ * total payable and the cash price. Every other amount is 0 and never shown; installation and
+ * delivery only say whether they are included.
+ */
+export type CustomerBreakdown = QuoteBreakdown & {
+  customer: true
+  hasInstallation: boolean
+  hasDelivery: boolean
+}
+
+export function customerBreakdown(b: QuoteBreakdown): CustomerBreakdown {
+  return {
+    ...b,
+    items: 0,
+    installation: 0,
+    delivery: 0,
+    price: 0,
+    financed: 0,
+    charge: 0,
+    balance: 0,
+    hasInstallation: b.installation > 0,
+    hasDelivery: b.delivery > 0,
+    customer: true,
+  }
 }
 
 export function quoteBreakdown(q: QuoteResult): QuoteBreakdown {
@@ -40,7 +69,8 @@ export function quoteBreakdown(q: QuoteResult): QuoteBreakdown {
     ? q.noMarkup.filter((l) => l.label.startsWith('Installation')).reduce((s, l) => s + l.amount, 0)
     : q.installCost
   const delivery = q.installCost - installation
-  const price = offer ? cashPrice(q.snapshot) : q.systemPrice
+  // SPEWA offer and home quotes on the ready-made terms: the price is before the charge.
+  const price = offer || q.snapshot.terms ? basePrice(q.snapshot) : q.systemPrice
   return {
     items: price - q.installCost,
     installation,
@@ -54,6 +84,7 @@ export function quoteBreakdown(q: QuoteResult): QuoteBreakdown {
     monthly: q.monthly,
     months: q.instalments.length,
     totalPayable: q.systemPrice,
+    cashPrice: cashPrice(q.snapshot),
     offer,
   }
 }
@@ -77,4 +108,13 @@ export function safeBreakdown(q: QuoteResult | null | undefined): QuoteBreakdown
   } catch {
     return null
   }
+}
+
+/**
+ * The deposit on the slider (whole percent) and the deposit the shown figures were priced at
+ * are the same. While a new price is on its way they differ: show "Updating…", never the old
+ * figure under the new percentage.
+ */
+export function depositInSync(sliderPct: number, pricedShare: number | null | undefined): boolean {
+  return pricedShare != null && Math.round(pricedShare * 100) === Math.round(sliderPct)
 }

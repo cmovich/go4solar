@@ -29,6 +29,7 @@ import { SizingPanel } from '@/components/admin/SizingPanel'
 import { AddToQueueBar } from '@/components/admin/exports/AddToQueueBar'
 import type { ExportedMark } from '@/lib/exports/list'
 
+import { LeadQuoteLinks } from './LeadQuoteLinks'
 import { DeleteEntryButton } from './DeleteEntryButton'
 import { DuplicateBadge } from './DuplicateBadge'
 
@@ -116,6 +117,7 @@ export function ConsumerTable({
                 'Ready',
                 'Profile',
                 'Entered by',
+                'Quote',
                 ...(canEdit ? ['Edit'] : []),
                 ...(canDelete ? [''] : []),
               ].map((h, k) => (
@@ -229,6 +231,9 @@ export function ConsumerTable({
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   {r.enteredByName ?? <span className="text-muted-foreground">Self</span>}
+                </td>
+                <td className="px-3 py-1">
+                  <LeadQuoteLinks id={r.id} hasQuote={r.hasQuote} />
                 </td>
                 {canEdit && (
                   <td className="px-2 py-1">

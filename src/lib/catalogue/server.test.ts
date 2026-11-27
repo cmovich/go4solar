@@ -56,15 +56,15 @@ describe('toBuilderItems (what the browser gets)', () => {
     pricingRateByTenure: { 12: 0.24 },
     marginByCategory: { panels: 0.1, battery: 0.1, inverter: 0.1, accessories: 0.2 },
   }
-  const items = toBuilderItems(cat, pricing, 0.2)
+  const items = toBuilderItems(cat, pricing)
 
   it('never includes a cost price', () => {
     for (const i of items) expect(JSON.stringify(i)).not.toMatch(/unitCost|cost/i)
   })
 
-  it('customer price = cost × (1 + margin) ÷ (1 − rate × 80%) at the lowest deposit over 12 months', () => {
+  it('item price before financing = cost × (1 + margin) (staff quotation tool only)', () => {
     const inv = items.find((i) => i.sku === 'INV-5')!
-    expect(inv.price).toBe(Math.round((400000 * 1.1) / (1 - 0.24 * 0.8)))
+    expect(inv.price).toBe(Math.round(400000 * 1.1))
     expect(inv).toMatchObject({ group: 'inverter', size: '5 kVA · 48 V', brand: 'Felicity' })
     const wire = items.find((i) => i.sku === 'DCW-6')!
     expect(wire).toMatchObject({ group: 'dc_wire', unit: 'metre', size: '6 mm² · per metre' })

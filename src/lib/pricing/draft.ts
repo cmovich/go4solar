@@ -63,6 +63,7 @@ export function draftToSettings(d: PricingDraft): QuoteSettings {
     ),
     energy: d.energy,
     minDepositShare: d.minDepositShare,
+    homeTerms: d.homeTerms,
     priceList: {
       sample:
         [panel, battery, ...inverters, ...accessories].some((c) => c.sample) ||

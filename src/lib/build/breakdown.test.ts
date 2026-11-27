@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { priceQuote } from '@/lib/pricing/price'
 import { DEFAULT_OFFER_TERMS, quoteOffer } from '@/lib/spewa/offer'
 
-import { quoteBreakdown, safeBreakdown } from './breakdown'
+import { customerBreakdown, depositInSync, quoteBreakdown, safeBreakdown } from './breakdown'
 
 const margins = { panels: 0.03, battery: 0.03, inverter: 0.03, accessories: 0.03 }
 
@@ -49,7 +49,55 @@ describe('quoteBreakdown', () => {
       monthly: 46_246,
       months: 12,
       totalPayable: 693_688,
+      cashPrice: 560_500,
       offer: false,
+    })
+  })
+
+  it('home on the ready-made terms: price before the charge, fixed cash price', () => {
+    const q = priceQuote({
+      lines: [{ sku: 'INV-1', name: '1 kVA', category: 'inverter', unitCost: 257_500, qty: 1 }],
+      installCost: 200_000,
+      noMarkup: [
+        { label: 'Installation', amount: 100_000 },
+        { label: 'Delivery to Kaduna', amount: 100_000 },
+      ],
+      marginByCategory: margins,
+      pricingRateAnnual: 0.48,
+      tenureMonths: 12,
+      depositShare: 0.2,
+      terms: { kind: 'flat', monthlyRate: 0.04, fullDiscount: 0.2 },
+    })
+    const b = quoteBreakdown(q)
+    expect(b).toMatchObject({
+      items: 265_225,
+      price: 465_225,
+      deposit: 93_045,
+      financed: 372_180,
+      charge: 178_646,
+      balance: 550_826,
+      totalPayable: 643_871,
+      cashPrice: 515_097,
+    })
+    // What a customer's browser receives: the four figures, no amounts for parts.
+    expect(customerBreakdown(b)).toEqual({
+      items: 0,
+      installation: 0,
+      delivery: 0,
+      price: 0,
+      financed: 0,
+      charge: 0,
+      balance: 0,
+      depositShare: 0.2,
+      deposit: 93_045,
+      monthly: 45_902,
+      months: 12,
+      totalPayable: 643_871,
+      cashPrice: 515_097,
+      hasInstallation: true,
+      hasDelivery: true,
+      offer: false,
+      customer: true,
     })
   })
 
@@ -91,6 +139,7 @@ describe('quoteBreakdown', () => {
       monthly: 228_638,
       months: 12,
       totalPayable: 3_648_150,
+      cashPrice: 3_015_000,
       offer: true,
     })
   })
@@ -194,5 +243,14 @@ describe('safeBreakdown (quotes stored in older formats)', () => {
     expect(safeBreakdown({} as never)).toBeNull()
     expect(safeBreakdown(null)).toBeNull()
     expect(safeBreakdown({ systemPrice: 100 } as never)).toBeNull()
+  })
+})
+
+describe('deposit shown = deposit on the slider (Semako, 26 Nov 2026: slider 25%, breakdown 35%)', () => {
+  it('in sync only when the priced deposit is the slider’s', () => {
+    expect(depositInSync(25, 0.25)).toBe(true)
+    expect(depositInSync(25, 0.35)).toBe(false)
+    expect(depositInSync(35, 0.35000000000000003)).toBe(true)
+    expect(depositInSync(30, null)).toBe(false)
   })
 })

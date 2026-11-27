@@ -24,7 +24,9 @@ export const buildSelectionSchema = z.object({
     .max(60)
     .transform((list) => list.filter((i) => i.qty > 0)),
   site: siteAnswersSchema,
-  installer: z.enum(['go4solar', 'own']),
+  /** null: not answered yet (nothing charged). */
+  installer: z.enum(['go4solar', 'own']).nullable(),
+  delivery: z.enum(['yes', 'no']).nullable().optional(),
   ownDelivery: z.boolean().optional(),
 })
 export type BuildSelectionInput = z.infer<typeof buildSelectionSchema>

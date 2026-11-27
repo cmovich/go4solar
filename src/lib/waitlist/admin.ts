@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 
 import { co2Avoided, type GeneratorType } from '@/lib/energy/currentSpend'
 
+import { leadQuote } from './leadQuote'
 import { storedBuild, type StoredBuild } from '@/lib/build/stored'
 import { describeAnswers, siteAnswersSchema } from '@/lib/wizard/questions'
 
@@ -60,6 +61,8 @@ export type ConsumerLead = {
   sample: boolean
   /** A system the customer built in /build (Part F), else null. */
   build: StoredBuild | null
+  /** "View quote" / "Download PDF" (else "No quote yet"): see leadQuote. */
+  hasQuote: boolean
   /** The quote questions (Part E), as plain rows. */
   answers: [string, string][]
   /** Each plan's sizing in the stored estimate ("How this was sized"). */
@@ -130,6 +133,7 @@ function decode(row: ConsumerRow, names: Map<string, string>): ConsumerLead {
     financing: quote ? quote.systemPrice - quote.deposit : null,
     sample: build ? build.sample : (est?.sample ?? false),
     build,
+    hasQuote: leadQuote(row) !== null,
     answers: describeAnswers(siteAnswersSchema.safeParse(row.site ?? {}).data ?? {}),
     sizes: est?.plans
       ? Object.fromEntries(Object.entries(est.plans).map(([p, v]) => [p, v.size]))
