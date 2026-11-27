@@ -3089,8 +3089,10 @@ export type Database = {
           load_items: Json
           load_totals: Json
           phone_e164: string
+          quote_version: number
           ready_when: Database['public']['Enums']['ready_when'] | null
           site: Json | null
+          sizing_note: string | null
           state: string | null
           status: Database['public']['Enums']['waitlist_status']
           surname: string | null
@@ -3123,8 +3125,10 @@ export type Database = {
           load_items?: Json
           load_totals?: Json
           phone_e164: string
+          quote_version?: number
           ready_when?: Database['public']['Enums']['ready_when'] | null
           site?: Json | null
+          sizing_note?: string | null
           state?: string | null
           status?: Database['public']['Enums']['waitlist_status']
           surname?: string | null
@@ -3157,8 +3161,10 @@ export type Database = {
           load_items?: Json
           load_totals?: Json
           phone_e164?: string
+          quote_version?: number
           ready_when?: Database['public']['Enums']['ready_when'] | null
           site?: Json | null
+          sizing_note?: string | null
           state?: string | null
           status?: Database['public']['Enums']['waitlist_status']
           surname?: string | null
@@ -3279,6 +3285,50 @@ export type Database = {
             columns: ['entered_by']
             isOneToOne: false
             referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      waitlist_quote_versions: {
+        Row: {
+          builder: Json | null
+          estimate: Json | null
+          id: string
+          is_test: boolean
+          reason: string
+          replaced_at: string
+          replaced_by: string | null
+          version: number
+          waitlist_id: string
+        }
+        Insert: {
+          builder?: Json | null
+          estimate?: Json | null
+          id?: string
+          is_test?: boolean
+          reason: string
+          replaced_at?: string
+          replaced_by?: string | null
+          version: number
+          waitlist_id: string
+        }
+        Update: {
+          builder?: Json | null
+          estimate?: Json | null
+          id?: string
+          is_test?: boolean
+          reason?: string
+          replaced_at?: string
+          replaced_by?: string | null
+          version?: number
+          waitlist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'waitlist_quote_versions_waitlist_id_fkey'
+            columns: ['waitlist_id']
+            isOneToOne: false
+            referencedRelation: 'waitlist_consumers'
             referencedColumns: ['id']
           },
         ]

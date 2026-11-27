@@ -92,6 +92,7 @@ const ACCESS: Record<Table, Access> = {
   waitlist_consumers: 'staff',
   waitlist_exports: 'staff',
   waitlist_installers: 'staff',
+  waitlist_quote_versions: 'staff',
 }
 
 describe('every table is covered', () => {
